@@ -1,4 +1,11 @@
 import Foundation
 
-// KairoMCP 服务骨架（Sprint 0）。Sprint 1 填充 stdio JSON-RPC 2.0 传输与工具层。
-print("KairoMCP: 服务骨架（Sprint 1 实现）")
+// KairoMCP：stdio JSON-RPC 2.0 服务（ADR-010，零第三方依赖）。
+// 逐行读 stdin，逐行写 stdout（每行一条 JSON-RPC 消息，MCP stdio 传输）。
+let server = MCPServer()
+
+while let line = readLine() {
+    guard let response = server.handle(requestJSON: line) else { continue }
+    print(response)
+    fflush(stdout)
+}

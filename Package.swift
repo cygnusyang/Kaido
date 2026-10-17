@@ -45,7 +45,7 @@ let package = Package(
         // MCP/CLI 对等性契约测试（US-E5-05）
         .testTarget(
             name: "InterfaceTests",
-            dependencies: ["KairoCore"],
+            dependencies: ["KairoCore", "KairoCommands", "KairoMCP", "KairoCLI"],
             path: "Tests/InterfaceTests"
         )
     ]
