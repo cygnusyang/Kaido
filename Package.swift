@@ -18,16 +18,22 @@ let package = Package(
             dependencies: ["KairoCore"],
             path: "Apps/macos/Sources"
         ),
-        // MCP 服务（stdio JSON-RPC，复用 KairoCore）
+        // MCP/CLI 共享命令层（ADR-005 契约同源）
+        .target(
+            name: "KairoCommands",
+            dependencies: ["KairoCore"],
+            path: "Sources/KairoCommands"
+        ),
+        // MCP 服务（stdio JSON-RPC，复用 KairoCore + KairoCommands）
         .executableTarget(
             name: "KairoMCP",
-            dependencies: ["KairoCore"],
+            dependencies: ["KairoCore", "KairoCommands"],
             path: "Sources/KairoMCP"
         ),
-        // CLI（复用 KairoCore；从 MCP 契约派生命令）
+        // CLI（复用 KairoCore + KairoCommands；从 MCP 契约派生命令）
         .executableTarget(
             name: "KairoCLI",
-            dependencies: ["KairoCore"],
+            dependencies: ["KairoCore", "KairoCommands"],
             path: "Sources/KairoCLI"
         ),
         // 核心全量单测（现有 17 项迁入）
