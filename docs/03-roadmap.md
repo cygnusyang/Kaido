@@ -1,0 +1,102 @@
+# Kairo 敏捷路线图（Roadmap）
+
+> 版本 0.1 · 2026-10-17 · 状态：已接受（Sprint 0 产出，待评审）
+> 上游依据：[00-vision.md](00-vision.md)（G3 门槛）、[01-prd.md](01-prd.md)（US 编号与状态表）、[02-architecture.md](02-architecture.md)（选型与架构）
+> 节奏：Sprint 0 为本周期（文档 + 选型定稿）；Sprint 1 起每个 Sprint 两周，各有明确 Goal 与 Demo 判据。
+
+## 1. Sprint 划分
+
+### Sprint 0 — 文档与选型定稿（2026-10-19 ~ 2026-10-30）
+
+- **Goal**：需求文档三件套定稿、技术选型定稿、KairoCore 重构骨架落地、现有测试迁移通过。
+- **包含 US**：[US-E1-02](01-prd.md)、[US-E4-01](01-prd.md)、[US-E4-02](01-prd.md)（已完成项的验证收口）；[US-E5-05](01-prd.md)（接口契约草案评审）；ADR-002/004（选型与核心边界）落地。
+- **交付物**：
+  - `docs/01-prd.md`、`docs/02-architecture.md`、`docs/03-roadmap.md` 定稿；
+  - `Sources/Kairo/` 重构为 `Sources/KairoCore/`（核心 target 与 macOS 应用 target 分离，见 [02-architecture.md §5](02-architecture.md)）；
+  - 现有 17 项测试迁入 `Tests/KairoCoreTests/` 并通过；新增编译门禁：KairoCore 不得 import AppKit/SwiftUI。
+- **验收 Demo**：评审通过；`swift test` 在重构后 17 项全绿；对 KairoCore 编译门禁脚本运行一次，证明无 UI 依赖。
+
+### Sprint 1 — 核心模型 + 持久化 + 接口骨架（2026-11-02 ~ 2026-11-13）
+
+- **Goal**：跑通程序化路径「建项目 → 批量建 WBS 任务树 → 保存为 .kairo」，MCP 与 CLI 提供对等的任务 CRUD 与 WBS 导入。
+- **包含 US**：[US-E1-01](01-prd.md)、[US-E1-03](01-prd.md)、[US-E1-04](01-prd.md)、[US-E6-01](01-prd.md)、[US-E5-01](01-prd.md)（子集：project/task/wbs/save 工具）、[US-E5-02](01-prd.md)（对等子集）、[US-E5-05](01-prd.md)（契约定稿与首个对等测试）。
+- **交付物**：
+  - 核心模型重构：`TaskDependency`（类型 + 前导时间）、`kind`（任务/群组/里程碑）、`parentID` 树、投入/持续时间字段；
+  - `.kairo` 单文件读写（JSON，本地优先）；
+  - MCP 服务骨架 + CLI 对等命令（task add/list/get/update/delete、wbs import、project open/create/save）；
+  - macOS 应用升级为可打开/保存 `.kairo`，层级树展示。
+- **验收 Demo**：Claude Code 通过 MCP 一次导入 20 任务的 WBS 树并存为 `.kairo`；同一序列用 CLI 复现；macOS 打开该文件看到完整任务树。
+
+### Sprint 2 — 调度引擎 + 状态回写闭环（2026-11-16 ~ 2026-11-27）
+
+- **Goal**：跑通全闭环「排期 → AI 逐任务开发 → 状态回写」，排期计算（相关性传播 + 时限 + 基础违例）与状态回写就绪。
+- **包含 US**：[US-E2-01](01-prd.md)、[US-E2-02](01-prd.md)、[US-E2-05](01-prd.md)、[US-E1-05](01-prd.md)、[US-E3-01](01-prd.md)、[US-E3-02](01-prd.md)；[US-E5-01](01-prd.md)（补排期/状态/违例工具）、[US-E5-02](01-prd.md)（补对等命令）。
+- **交付物**：
+  - 调度引擎（纯函数）：FS/FF/SS/SF + 前导时间传播、项目方向、ASAP/ALAP、四类时限校验、基础违例检测（环、时限冲突、超项目范围）；
+  - 状态回写：单任务与批量更新、群组完成度投入加权聚合、完成时间记录；
+  - MCP/CLI 补 `schedule_*`、`status_*`、`violations` 工具；
+  - 基础 `Resource` 与分配（支撑投入↔持续时间换算）。
+- **验收 Demo**：Claude Code 读一份需求文档 → 建 WBS → 计算排期（含一条时限冲突违例被报告）→ 逐任务开发并回写进度 → 全程无人点界面，群组完成度正确聚合。
+
+### Sprint 3 — 人工审阅增强 + 插件（2026-11-30 ~ 2026-12-11）
+
+- **Goal**：人能在 macOS 应用查看甘特、层次树、违例并干预；Claude Code 插件接入；重要路径可查询。
+- **包含 US**：[US-E4-03](01-prd.md)、[US-E4-04](01-prd.md)、[US-E4-05](01-prd.md)、[US-E4-07](01-prd.md)、[US-E2-03](01-prd.md)、[US-E5-03](01-prd.md)、[US-E5-04](01-prd.md)。
+- **交付物**：
+  - 甘特视图基础（任务条/日期标头/缩放/非工作时段着色）、层次树大纲交互（缩进/群组/展开收合/键盘导航）、命令面板（⌘K）、检查器与违例面板；
+  - 重要路径与宽延计算（含重要路径宽延限制）；
+  - Claude Code 插件（斜杠命令 + hooks + `.mcp.json`）、`kairo://` 深链。
+- **验收 Demo**：人在 macOS 中看到甘特与违例面板，修正一条时限后重新排期；Claude Code 内用 `/kairo plan` 与 `/kairo done` 完成一次回写；`kairo://task/<id>` 直达任务。
+
+### Sprint 4 — 完整化与稳健化（2026-12-14 ~ 2026-12-25）
+
+- **Goal**：可保存过滤器、CSV 导入导出、字段级版本历史、JSON Schema、项目摘要就绪，性能达标 NFR-1/2/3。
+- **包含 US**：[US-E4-02](01-prd.md)（可保存过滤器升级）、[US-E4-06](01-prd.md)、[US-E6-03](01-prd.md)、[US-E3-03](01-prd.md)、[US-E3-04](01-prd.md)、[US-E5-06](01-prd.md)。
+- **交付物**：
+  - 可保存的结构化过滤器（自然语言筛选升级，保存/复用）；
+  - CSV 导入导出 + 保真报告（含 AI 栏名映射建议）；
+  - 字段级版本历史（回看/撤销）、重新安排未完成任务、项目摘要面板；
+  - `.kairo` 对应 JSON Schema 导出；
+  - 性能验收：1,000 任务列表交互 ≤ 100 ms、排期计算 ≤ 1 s、5,000 任务文件读写 ≤ 1 s。
+- **验收 Demo**：导入一份 500 行 CSV 并查看保真报告；保存过滤器后重启复用；撤销一次误改；千级任务性能基准跑通（指标落盘）。
+
+### Sprint 5 — Linux 编译 + G3 验收 + 发布准备（2026-12-28 ~ 2027-01-08）
+
+- **Goal**：核心在 Linux 编译并通过同一套测试，G3 四判据逐条验收通过，发布准备就绪。
+- **包含 US**：[US-E2-04](01-prd.md)（工作时数日历）、[US-E2-06](01-prd.md)（基线）、[US-E6-02](01-prd.md)（自动保存）、[US-E3-05](01-prd.md)（冲突差异说明）、[US-E6-04](01-prd.md)/[US-E6-05](01-prd.md)/[US-E6-06](01-prd.md)（收尾，可选）、[US-E5-05](01-prd.md)（接口对等验收）。
+- **交付物**：
+  - 工作时数日历（项目级/资源级）与基线快照/差异；
+  - Linux CI：KairoCore 在 Linux 编译 + 全量单测通过；
+  - G3 四判据验收记录（vision §7）：MCP 全闭环、CLI 对等、macOS 完整查看编辑、Linux 编译；
+  - 打包与发布准备（.app 打包、`kairo` / `kairo-mcp` 分发）。
+- **验收 Demo**：G3 验收表逐条勾选并留存证据；在 Linux 容器执行 `swift test` 全绿；macOS 应用完成一次端到端闭环演示。
+
+## 2. 风险登记簿
+
+| 编号 | 风险 | 影响 | 概率 | 缓解措施 |
+|---|---|---|---|---|
+| R1 | Swift 跨平台风险：Linux 编译或 Foundation 差异导致 G3 判据 4 不达标 | 高（阻塞 G3） | 中 | KairoCore 只依赖 Foundation 子集（ADR-004）；Sprint 2 起在 CI 加 Linux 构建门禁，尽早暴露；核心逻辑保持纯函数 |
+| R2 | MCP 接口频繁演进：契约未定稿前工具名/参数反复变化 | 中 | 高 | 接口单一事实源（ADR-005）；Sprint 1 工具清单定稿后冻结；对等性测试作门禁（US-E5-05） |
+| R3 | 范围蔓延：175 条功能规格的诱惑导致 Sprint 失焦 | 高 | 高 | MVP 边界裁定（[01-prd.md §5](01-prd.md)）；Sprint 只做 Goal 内 US；P3 一律不入 Sprint；计划会做范围冻结 |
+| R4 | Swift MCP SDK 不成熟：SDK 缺功能或维护停滞 | 中 | 中 | Sprint 1 复核官方/社区 SDK；工具面 ≤ 20 个，必要时自实现最小 JSON-RPC 传输 |
+| R5 | 调度引擎复杂度：环检测/违例/资源逻辑正确性风险 | 中 | 中 | 调度为纯函数 + TDD（ADR-007）；分步落地：先相关性传播，后违例，资源分级本期不做 |
+| R6 | 模型重构风险：`Sources/Kairo` → `KairoCore`、`dependencies` 迁移破坏现状 | 中 | 中 | 现有 17 项测试作回归门禁；旧相关性按 FS/无前导时间迁移（US-E2-01）；独立提交可回滚 |
+| R7 | 性能不达标：千级任务交互/排期计算超阈值 | 中 | 低 | Sprint 4 性能验收前置；排期重算增量设计；NFR 阈值在 Sprint 4 复核 |
+
+## 3. 度量
+
+每个 Sprint 在回顾会跟踪以下流动度量，Sprint 0 建立基线：
+
+| 度量 | 定义 | 目标 |
+|---|---|---|
+| 完成 Story 数 | 本 Sprint 由「已接受」推进到「完成」的 US 数（见 [01-prd.md §6](01-prd.md) 状态表） | 5–8 / Sprint |
+| 累积流图（CFD） | 各状态（提议/已接受/进行中/完成）Story 数随 Sprint 变化曲线 | 无积压膨胀：进行中 ≤ 3 |
+| 闭环耗时 | 从「AI 发起建 WBS」到「首个任务开发完成并回写状态」的端到端时长（Sprint 2 起跟踪） | ≤ 10 分钟 |
+| 回归测试数 | `KairoCoreTests` 通过用例数（含 Linux CI） | 17 → 200+（Sprint 5） |
+| 接口对等性 | MCP/CLI 对等性契约测试通过率 | 恒为 100%（门禁） |
+| 缺陷逃逸率 | 验收 Demo 中发现的问题 / 本 Sprint 总缺陷 | ≤ 20% |
+
+## 4. 里程碑与退出条件
+
+- **MVP 出口**：Sprint 5 结束，G3 四判据（[vision §7](00-vision.md)）全部通过并留存验收证据。
+- **停止条件**：任一 Sprint 出现 R1 无法缓解（Linux 编译阻塞）或连续两个 Sprint 闭环耗时目标未达成时，触发 lead 决策：缩小 MVP 或调整选型（重新评估 ADR-002 的 Rust 迁移）。
