@@ -12,10 +12,10 @@ let package = Package(
             name: "KairoCore",
             path: "Sources/KairoCore"
         ),
-        // macOS SwiftUI 应用（import KairoCore）
+        // macOS SwiftUI 应用（import KairoCore；经 KairoCommands 命令层实现 .kairo 读写）
         .executableTarget(
             name: "KairoMacApp",
-            dependencies: ["KairoCore"],
+            dependencies: ["KairoCore", "KairoCommands"],
             path: "Apps/macos/Sources"
         ),
         // MCP/CLI 共享命令层（ADR-005 契约同源）
