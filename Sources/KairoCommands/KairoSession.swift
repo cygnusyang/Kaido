@@ -65,6 +65,11 @@ public final class KairoSession {
         return project.metadata
     }
 
+    /// 记录项目保存路径（应用层另存为完成后回填，供后续直存）。
+    public func setProjectURL(_ url: URL) {
+        projectURL = url
+    }
+
     /// 保存项目；未指定路径时使用已打开项目的路径。
     @discardableResult
     public func saveProject(to url: URL? = nil) throws -> ProjectMetadata {
@@ -213,7 +218,9 @@ public final class KairoSession {
                 effort = 0
                 duration = 0
             }
+            // 显式传入 id：与 rootIDs / idByTitle 记录保持一致（否则返回的 ID 与任务实际 ID 不符）。
             let task = TaskItem(
+                id: id,
                 title: node.title,
                 kind: kind,
                 parentID: parent,
