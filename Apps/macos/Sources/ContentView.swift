@@ -367,9 +367,9 @@ private struct DetailPane: View {
                 }
             }
             if !task.dependencies.isEmpty {
-                Section("依赖") {
-                    ForEach(task.dependencies, id: \.self) { id in
-                        Text(dependencyTitle(id))
+                Section("相关性") {
+                    ForEach(task.dependencies, id: \.self) { dependency in
+                        Text(dependencyTitle(dependency))
                     }
                 }
             }
@@ -391,8 +391,9 @@ private struct DetailPane: View {
         )
     }
 
-    private func dependencyTitle(_ id: UUID) -> String {
-        project.tasks.first { $0.id == id }?.title ?? "未知任务"
+    private func dependencyTitle(_ dependency: TaskDependency) -> String {
+        let name = project.tasks.first { $0.id == dependency.predecessorID }?.title ?? "未知任务"
+        return "\(name)（\(dependency.type.rawValue.uppercased())）"
     }
 }
 

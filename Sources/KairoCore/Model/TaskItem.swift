@@ -21,8 +21,16 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     public var status: TaskStatus
     public var tags: [String]
     public var assignee: String?
-    /// IDs of tasks that must complete before this one starts.
-    public var dependencies: [UUID]
+    /// 任务种类：任务 / 群组 / 里程碑（默认 .task）。
+    public var kind: TaskKind
+    /// 层级树父引用（nil = 顶层任务）。
+    public var parentID: UUID?
+    /// 投入（小时）。
+    public var effortHours: Double?
+    /// 持续时间（天）。
+    public var durationDays: Double?
+    /// 相关性：本任务依赖的前驱任务（类型 + 前导时间）。
+    public var dependencies: [TaskDependency]
     /// 0...1 completion fraction.
     public var progress: Double
 
@@ -36,7 +44,11 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         status: TaskStatus = .pending,
         tags: [String] = [],
         assignee: String? = nil,
-        dependencies: [UUID] = [],
+        kind: TaskKind = .task,
+        parentID: UUID? = nil,
+        effortHours: Double? = nil,
+        durationDays: Double? = nil,
+        dependencies: [TaskDependency] = [],
         progress: Double = 0
     ) {
         self.id = id
@@ -48,6 +60,10 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         self.status = status
         self.tags = tags
         self.assignee = assignee
+        self.kind = kind
+        self.parentID = parentID
+        self.effortHours = effortHours
+        self.durationDays = durationDays
         self.dependencies = dependencies
         self.progress = min(max(progress, 0), 1)
     }
@@ -55,5 +71,58 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     public var isOverdue: Bool {
         guard let due = dueDate, status != .done else { return false }
         return due < Date()
+    }
+
+    // MARK: - Codable 兼容（ADR-011）
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, notes, startDate, dueDate, priority, status, tags, assignee
+        case kind, parentID, effortHours, durationDays, dependencies, progress
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        notes = try c.decodeIfPresent(String.self, forKey: .notes) ?? ""
+        startDate = try c.decodeIfPresent(Date.self, forKey: .startDate)
+        dueDate = try c.decodeIfPresent(Date.self, forKey: .dueDate)
+        priority = try c.decodeIfPresent(TaskPriority.self, forKey: .priority) ?? .normal
+        status = try c.decodeIfPresent(TaskStatus.self, forKey: .status) ?? .pending
+        tags = try c.decodeIfPresent([String].self, forKey: .tags) ?? []
+        assignee = try c.decodeIfPresent(String.self, forKey: .assignee)
+        // 新增字段缺失给默认值（旧数据前向兼容）。
+        kind = try c.decodeIfPresent(TaskKind.self, forKey: .kind) ?? .task
+        parentID = try c.decodeIfPresent(UUID.self, forKey: .parentID)
+        effortHours = try c.decodeIfPresent(Double.self, forKey: .effortHours)
+        durationDays = try c.decodeIfPresent(Double.self, forKey: .durationDays)
+        // 旧数据 dependencies 为 [UUID]：按 FS、无前导时间迁移（US-E2-01）。
+        if let deps = try? c.decode([TaskDependency].self, forKey: .dependencies) {
+            dependencies = deps
+        } else if let legacy = try? c.decode([UUID].self, forKey: .dependencies) {
+            dependencies = legacy.map { TaskDependency(predecessorID: $0) }
+        } else {
+            dependencies = []
+        }
+        progress = min(max(try c.decodeIfPresent(Double.self, forKey: .progress) ?? 0, 0), 1)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(title, forKey: .title)
+        try c.encode(notes, forKey: .notes)
+        try c.encodeIfPresent(startDate, forKey: .startDate)
+        try c.encodeIfPresent(dueDate, forKey: .dueDate)
+        try c.encode(priority, forKey: .priority)
+        try c.encode(status, forKey: .status)
+        try c.encode(tags, forKey: .tags)
+        try c.encodeIfPresent(assignee, forKey: .assignee)
+        try c.encode(kind, forKey: .kind)
+        try c.encodeIfPresent(parentID, forKey: .parentID)
+        try c.encodeIfPresent(effortHours, forKey: .effortHours)
+        try c.encodeIfPresent(durationDays, forKey: .durationDays)
+        try c.encode(dependencies, forKey: .dependencies)
+        try c.encode(progress, forKey: .progress)
     }
 }

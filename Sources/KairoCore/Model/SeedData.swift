@@ -31,7 +31,7 @@ public enum SeedData {
             status: .blocked,
             tags: ["评审"],
             assignee: "Bob",
-            dependencies: [backend.id],
+            dependencies: [TaskDependency(predecessorID: backend.id)],
             progress: 0.1
         )
         let release = TaskItem(
@@ -42,7 +42,7 @@ public enum SeedData {
             status: .pending,
             tags: ["里程碑"],
             assignee: "Mei",
-            dependencies: [review.id],
+            dependencies: [TaskDependency(predecessorID: review.id)],
             progress: 0
         )
         let design = TaskItem(
