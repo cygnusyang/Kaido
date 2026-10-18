@@ -78,6 +78,9 @@ echo "==> 打包 ${APP_NAME}.app → $APP_BUNDLE"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources"
 
+# 构建时间戳：写入 CFBundleVersion，「关于」面板与 Finder 显示编译版本
+BUILD_STAMP="$(date +%Y%m%d.%H%M)"
+
 # 可执行文件名与 CFBundleExecutable 一致
 cp "$SRC_BIN" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
@@ -111,7 +114,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key>
   <string>0.1.0</string>
   <key>CFBundleVersion</key>
-  <string>1</string>
+  <string>${BUILD_STAMP}</string>
   <key>LSMinimumSystemVersion</key>
   <string>14.0</string>
   <key>NSHighResolutionCapable</key>

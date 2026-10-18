@@ -277,6 +277,9 @@ struct KairoMenuCommands: Commands {
     let commands: [KairoCommand]
 
     var body: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button("关于 Kairo") { Self.showAboutPanel() }
+        }
         CommandGroup(after: .saveItem) {
             Divider()
             items(group: "文件")
@@ -315,5 +318,52 @@ struct KairoMenuCommands: Commands {
         } else {
             Button(command.title) { command.action() }
         }
+    }
+
+    // MARK: - 关于面板
+
+    /// 应用版本号：发版前更新。
+    static let appVersion = "0.1.0"
+
+    /// 「关于 Kairo」面板：版本号 + 编译时间。
+    /// 打包应用读 Info.plist 的 CFBundleVersion（构建时写入的时间戳）；
+    /// 开发态（swift run）取可执行文件的修改时间作为编译时间。
+    static func showAboutPanel() {
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: "Kairo",
+            .applicationVersion: appVersion,
+            .credits: NSAttributedString(
+                string: "编译于 \(buildDescription)",
+                attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.secondaryLabelColor]
+            ),
+        ])
+    }
+
+    private static var buildDescription: String {
+        if let stamp = Bundle.main.infoDictionary?["CFBundleVersion"] as? String,
+           let parsed = Self.parseBuildStamp(stamp) {
+            return parsed
+        }
+        // 开发态无打包 Info.plist：可执行文件修改时间即编译时间。
+        if let url = Bundle.main.executableURL,
+           let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+           let modified = attributes[.modificationDate] as? Date {
+            return Self.formatBuildTime(modified)
+        }
+        return "未知时间"
+    }
+
+    /// 解析打包时写入的 `yyyyMMdd.HHmm` 时间戳。
+    private static func parseBuildStamp(_ stamp: String) -> String? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd.HHmm"
+        guard let date = formatter.date(from: stamp) else { return nil }
+        return formatBuildTime(date)
+    }
+
+    private static func formatBuildTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter.string(from: date)
     }
 }
