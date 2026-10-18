@@ -6,3 +6,11 @@
 
 # Xcode projects (generated, not committed)
 *.xcodeproj
+
+# Editor / CI scaffolding (local only)
+.vscode/
+.idea/
+.github/
+
+# Packaged app / CLI outputs
+dist/
