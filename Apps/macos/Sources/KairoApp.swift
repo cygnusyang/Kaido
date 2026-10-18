@@ -8,10 +8,13 @@ struct KairoApp: App {
     @State private var showOpenPanel = false
     @State private var showSavePanel = false
     @State private var errorMessage: String?
+    /// 由 kairo:// 深链解析出的待选中任务；ContentView 消费后清空。
+    @State private var deepLinkTaskID: UUID?
 
     var body: some Scene {
         WindowGroup("Kairo") {
-            ContentView(store: store, find: find)
+            ContentView(store: store, find: find, deepLinkTaskID: $deepLinkTaskID)
+                .onOpenURL { handleDeepLink($0) }
                 .fileImporter(
                     isPresented: $showOpenPanel,
                     allowedContentTypes: [.kairo],
@@ -50,6 +53,32 @@ struct KairoApp: App {
                     .keyboardShortcut("o", modifiers: .command)
                 Button("保存") { saveDocument() }
                     .keyboardShortcut("s", modifiers: .command)
+            }
+        }
+    }
+
+    // MARK: - 深链
+
+    /// `kairo://task/<id>`、`kairo://task?title=<标题>`、`kairo://project/<id>`（US-E5-04）。
+    private func handleDeepLink(_ url: URL) {
+        guard let link = KairoDeepLink.parse(url) else {
+            errorMessage = "无法识别的 Kairo 链接：\(url.absoluteString)"
+            return
+        }
+        let match = KairoDeepLinkResolver.resolve(link, in: store.project)
+        switch link.target {
+        case .projectID:
+            if !match.projectMatched {
+                errorMessage = "链接指向其他项目；当前项目为「\(store.project.metadata.title)」"
+            }
+        case .taskID, .taskTitle:
+            guard let id = match.taskID else {
+                errorMessage = "链接中的任务不在当前项目中：\(url.absoluteString)"
+                return
+            }
+            deepLinkTaskID = id
+            if match.matchCount > 1 {
+                errorMessage = "有 \(match.matchCount) 个同名任务，已定位第一个"
             }
         }
     }

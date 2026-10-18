@@ -5,6 +5,8 @@ import KairoCore
 struct ContentView: View {
     @ObservedObject var store: ProjectStore
     @ObservedObject var find: FindModel
+    /// kairo:// 深链解析出的待选中任务（nil = 无待处理深链）。
+    @Binding var deepLinkTaskID: UUID?
 
     @State private var filterText = ""
     @State private var selectedTaskID: UUID?
@@ -69,6 +71,12 @@ struct ContentView: View {
             refreshFindTarget()
         }
         .onChange(of: filteredTasks) { _, _ in refreshFindTarget() }
+        .onChange(of: deepLinkTaskID) { _, id in
+            guard let id else { return }
+            selectedTaskID = id
+            scrollTargetID = id
+            deepLinkTaskID = nil
+        }
         .onChange(of: find.lastFindString) { _, _ in find.rescan() }
         .onChange(of: find.regexMode) { _, _ in find.rescan() }
         .toolbar {
