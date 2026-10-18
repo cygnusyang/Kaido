@@ -40,9 +40,13 @@ final class ProjectStore: ObservableObject {
         let session = KairoSession()
         self.session = session
         _ = try? session.createProject(title: "未命名项目")
-        // 首启动演示数据（Sprint 0 保留）：任务直接加入会话项目（同一实例引用）。
+        // 首启动演示数据（Sprint 0 保留）：任务与项目时间线加入会话项目（同一实例引用）。
         let seed = SeedData.makeProject()
-        for task in seed.tasks { session.project?.add(task) }
+        if let project = session.project {
+            project.metadata.projectStart = seed.metadata.projectStart
+            project.metadata.projectEnd = seed.metadata.projectEnd
+            for task in seed.tasks { project.add(task) }
+        }
         self.project = session.project ?? Project()
         recomputeViolations()
     }
