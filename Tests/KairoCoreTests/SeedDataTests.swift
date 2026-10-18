@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import KairoCore
 
-/// 演示数据契约：应用首启动依赖这份数据，时间线必须锚定到当前周。
+/// 演示数据契约：应用首启动依赖这份数据，时间线必须锚定到当前日期附近。
 struct SeedDataTests {
     @Test func demoProjectSeedsTenTasks() {
         #expect(SeedData.makeProject().tasks.count == 10)

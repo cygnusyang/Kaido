@@ -10,16 +10,6 @@ struct RenderedSnapshot {
 
     var pixelCount: Int { width * height }
 
-    /// 非透明像素占比；空白（未绘制任何内容）画面为 0。
-    var nonTransparentRatio: Double {
-        guard pixelCount > 0 else { return 0 }
-        var opaque = 0
-        for index in stride(from: 3, to: pixels.count, by: 4) where pixels[index] > 0 {
-            opaque += 1
-        }
-        return Double(opaque) / Double(pixelCount)
-    }
-
     /// 采样统计不同颜色数量；纯色空白画面为 1。
     var distinctColorCount: Int {
         guard pixelCount > 0 else { return 0 }
@@ -62,7 +52,12 @@ enum GUIRenderer {
         width: CGFloat,
         height: CGFloat
     ) -> RenderedSnapshot? {
-        let renderer = ImageRenderer(content: view.frame(width: width, height: height))
+        // 固定浅色外观，避免渲染结果随主机深色模式变化。
+        let renderer = ImageRenderer(
+            content: view
+                .environment(\.colorScheme, .light)
+                .frame(width: width, height: height)
+        )
         renderer.scale = 1
         renderer.proposedSize = ProposedViewSize(width: width, height: height)
         guard let image = renderer.cgImage else { return nil }

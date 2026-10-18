@@ -26,6 +26,8 @@ struct GanttView: View {
     private let headerHeight: CGFloat = 30
 
     /// 初始缩放与视窗参数供测试注入；应用内调用使用默认值。
+    /// `initialWindowStart` 仅在 `fitsToWidth == false` 时生效：
+    /// 适合项目模式按内容范围推导窗口起点，忽略该参数。
     init(
         tasks: [TaskItem],
         schedule: ScheduleResult?,

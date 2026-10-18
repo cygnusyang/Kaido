@@ -39,8 +39,16 @@ struct ProjectStoreTests {
         #expect(store.selection == nil)
         #expect(store.violations.isEmpty)
 
+        // 演示项目自带时间线；排期引擎把起点、终点归一到当天零点（D-002）。
+        let calendar = Calendar.current
+        let projectStart = try #require(store.project.metadata.projectStart)
+        let projectEnd = try #require(store.project.metadata.projectEnd)
+        #expect(projectEnd > projectStart)
+
         let schedule = try #require(store.schedule)
-        #expect(!schedule.tasks.isEmpty)
+        #expect(schedule.tasks.count == store.project.tasks.count)
+        #expect(schedule.projectStart == calendar.startOfDay(for: projectStart))
+        #expect(schedule.projectEnd == calendar.startOfDay(for: projectEnd))
     }
 
     @Test func schedulePlacesDependentTaskAfterPredecessor() throws {
@@ -201,6 +209,7 @@ struct ProjectStoreTests {
         let related = store.violations.filter { $0.taskID == release.id }
         let codes = Set(related.map(\.code))
         #expect(codes.contains("constraint_is_prerequisite"))
+        #expect(codes.contains("cannot_schedule_asap_alap"))
         #expect(related.allSatisfy { $0.severity == .error })
         #expect(related.contains { $0.message.contains("发布 v1.0") })
 

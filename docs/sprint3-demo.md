@@ -27,7 +27,7 @@
 
 ### 自动化证据
 
-`Tests/KairoCoreTests/GanttLayoutTests.swift` 的 14 项测试覆盖：
+`Tests/KairoCoreTests/GanttLayoutTests.swift` 的 16 项测试覆盖：
 
 - 内容范围取项目边界与任务排期边界并集；
 - 任务条横坐标与宽度由计划日期换算；
@@ -42,11 +42,13 @@
 
 `Tests/AppTests/GUIRenderTests.swift` 用 `ImageRenderer` 离屏渲染（无窗口）验证界面确实绘制：
 
-- 大纲模式渲染出多色内容；
+- 大纲模式渲染出多色界面（List 行由 AppKit 表格承载，`ImageRenderer` 不绘制其单元格）；甘特有任务与无任务的画面不同（负向对照，证明任务条确实被绘制）；
 - 切到甘特后画面差异 > 5%；
 - 日 / 周 / 月三档缩放两两产生不同画面；
 - 平移窗口起点 7 天后画面改变；
-- 打开查找栏后画面改变。
+- 打开查找栏后画面改变；
+- 命令面板有命令与无命令时画面不同（行内容数据驱动）；
+- 违例面板显示后画面差异 > 5%，清除时限后同一面板内容再次改变。
 
 ## 2. 大纲层级编辑（US-E4-03）
 
@@ -213,16 +215,17 @@ $ kairo task list --json --file live.kairo | jq -r '.[] | "\(.title) \(.status)"
 gate-core: KairoCore 无 AppKit/SwiftUI/Cocoa import，通过（19 个 Swift 文件）
 gate=0
 build=0
-Test run with 197 tests in 30 suites passed
+Test run with 199 tests in 30 suites passed
 ```
 
-测试分布：KairoCore 124、Interface 51、AppTests 22。
+测试分布：KairoCore 124、Interface 51、AppTests 24。
 
 ## 8. 遗留项
 
 | 项 | 状态 | 去向 |
 |---|---|---|
 | GUI 视觉美观与真人操作手感（§1–§4） | 待人工；渲染与交互逻辑已自动化覆盖 | 本 Demo 验收会 |
+| 未设项目时间线的项目仍从 1970 纪元起算排期（D-003） | 已知缺陷，未修复 | Sprint 4 排期模型 |
 | Claude Code 完成信号 hook | 已配置并按标题匹配；脚本级与真实会话验证通过 | 标题重名时安全跳过；应用打开同一文件时不自动刷新 |
 | `.app` 打包与 URL scheme 注册 | 未完成 | 发布工程；当前仅能通过 `swift run` 运行并接收系统转发的 URL |
 | 非工作时段按项目/资源日历着色 | 未完成 | 工作日历模型（F-22-06），Sprint 5 |

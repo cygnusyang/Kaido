@@ -117,7 +117,7 @@ public enum SeedData {
             progress: 0
         )
 
-        // 演示项目时间线锚定到当前周：排期引擎未设项目起点时从 1970 纪元起算，
+        // 演示项目时间线锚定到当前日期附近：排期引擎未设项目起点时从 1970 纪元起算，
         // 会让甘特显示 1970 年日期、时限违例无法用常规日期触发（D-002）。
         project.metadata.projectStart = day(-2)
         project.metadata.projectEnd = day(30)
