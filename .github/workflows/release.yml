@@ -37,18 +37,18 @@ jobs:
       - name: 提取本版本 changelog
         id: changelog
         run: |
+          # 章节标题形如「## v0.1.0 — 2026-10-18」，按前缀匹配。
           TAG="${GITHUB_REF_NAME}"
           if [ -f CHANGELOG.md ]; then
             awk -v t="$TAG" '
-              $0 == "## " t { found=1; next }
+              index($0, "## " t) == 1 { found=1; next }
               /^## / && found { exit }
               found { print }
             ' CHANGELOG.md > release-notes.md
           fi
           if [ ! -s release-notes.md ]; then
-            # 无对应章节时回退：按提交自动生成。
-            echo "CHANGELOG.md 中没有「## $TAG」章节，使用自动生成的发布说明。" > release-notes.md
-            printf '\n<!-- auto-notes -->\n' >> release-notes.md
+            # 无对应章节时回退：说明 + GitHub 自动生成的提交列表。
+            echo "（CHANGELOG.md 中没有「## $TAG」章节，以下为自动生成的提交列表。）" > release-notes.md
             echo "has_autonotes=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -57,8 +57,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ steps.changelog.outputs.has_autonotes }}" = "true" ]; then
-            # 无 CHANGELOG 章节：本地说明 + GitHub 自动生成的提交列表。
-            sed -i '' '/<!-- auto-notes -->/d' release-notes.md
             gh release create "$GITHUB_REF_NAME" "Kairo-${GITHUB_REF_NAME}.zip" \
               --title "Kairo ${GITHUB_REF_NAME}" \
               --notes-file release-notes.md \
