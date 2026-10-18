@@ -37,9 +37,15 @@ public final class KairoSession {
 
     /// 新建项目（US-E1-01）：返回项目元数据，含项目 ID。
     @discardableResult
-    public func createProject(title: String) throws -> ProjectMetadata {
+    public func createProject(
+        title: String,
+        projectStart: Date? = nil,
+        projectEnd: Date? = nil
+    ) throws -> ProjectMetadata {
         let project = Project()
         project.metadata.title = title
+        project.metadata.projectStart = projectStart
+        project.metadata.projectEnd = projectEnd
         project.metadata.updatedAt = Date()
         self.project = project
         projectURL = nil
@@ -162,7 +168,10 @@ public final class KairoSession {
         priority: TaskPriority? = nil,
         status: TaskStatus? = nil,
         progress: Double? = nil,
-        tags: [String]? = nil
+        tags: [String]? = nil,
+        dependencies: [TaskDependency]? = nil,
+        constraint: SchedulingConstraint? = nil,
+        schedulingPolicy: SchedulingPolicy? = nil
     ) throws -> TaskItem {
         guard let project else { throw notOpen() }
         guard let index = project.tasks.firstIndex(where: { $0.id == id }) else {
@@ -179,6 +188,9 @@ public final class KairoSession {
         if let status { task.status = status }
         if let progress { task.progress = min(max(progress, 0), 1) }
         if let tags { task.tags = tags }
+        if let dependencies { task.dependencies = dependencies }
+        if let constraint { task.constraint = constraint }
+        if let schedulingPolicy { task.schedulingPolicy = schedulingPolicy }
         project.tasks[index] = task
         return task
     }
@@ -258,8 +270,8 @@ public final class KairoSession {
         let result = ScheduleEngine.compute(
             tasks: project.tasks,
             resources: project.resources,
-            projectStart: projectStart,
-            projectEnd: projectEnd
+            projectStart: projectStart ?? project.metadata.projectStart,
+            projectEnd: projectEnd ?? project.metadata.projectEnd
         )
         lastSchedule = result
         return result
@@ -310,6 +322,69 @@ public final class KairoSession {
         }
         project.tasks[index] = task
         return task
+    }
+
+    // MARK: - 批量回写（US-E3-02）
+
+    /// 单条批量回写输入。
+    public struct StatusUpdateInput: Sendable {
+        public var taskID: UUID
+        public var status: TaskStatus?
+        public var progress: Double?
+
+        public init(taskID: UUID, status: TaskStatus? = nil, progress: Double? = nil) {
+            self.taskID = taskID
+            self.status = status
+            self.progress = progress
+        }
+    }
+
+    /// 批量回写结果：逐条成功/失败明细，失败项不中断后续条目。
+    public struct StatusBatchResult: Codable, Sendable {
+        public struct Entry: Codable, Sendable {
+            public var taskID: UUID
+            public var ok: Bool
+            public var task: TaskItem?
+            public var error: String?
+
+            public init(taskID: UUID, ok: Bool, task: TaskItem? = nil, error: String? = nil) {
+                self.taskID = taskID
+                self.ok = ok
+                self.task = task
+                self.error = error
+            }
+        }
+
+        public var entries: [Entry]
+        public var succeeded: Int
+        public var failed: Int
+
+        public init(entries: [Entry]) {
+            self.entries = entries
+            self.succeeded = entries.filter(\.ok).count
+            self.failed = entries.count - succeeded
+        }
+    }
+
+    /// 批量回写多个任务的状态/进度（US-E3-02）：按清单逐条更新，返回成功与失败明细。
+    public func statusBatch(_ updates: [StatusUpdateInput]) throws -> StatusBatchResult {
+        guard project != nil else { throw notOpen() }
+        var entries: [StatusBatchResult.Entry] = []
+        for update in updates {
+            do {
+                let task = try statusUpdate(
+                    id: update.taskID,
+                    status: update.status,
+                    progress: update.progress
+                )
+                entries.append(.init(taskID: update.taskID, ok: true, task: task))
+            } catch let error as SessionError {
+                entries.append(.init(taskID: update.taskID, ok: false, error: error.message))
+            } catch {
+                entries.append(.init(taskID: update.taskID, ok: false, error: error.localizedDescription))
+            }
+        }
+        return StatusBatchResult(entries: entries)
     }
 
     /// 群组完成度（US-E3-02 / F-20-03）：按投入加权聚合全部后代叶子任务；

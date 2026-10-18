@@ -44,10 +44,18 @@ struct OptionsParsingTests {
 
     @Test func dependencySpecParsesTypeAndLag() throws {
         let id = UUID()
-        let dep = try CLIEnums.dependency("\(id.uuidString):ff:2")
-        #expect(dep.predecessorID == id)
-        #expect(dep.type == .ff)
-        #expect(dep.lagDays == 2)
+        let spec = try CLIEnums.dependency("\(id.uuidString):ff:2")
+        #expect(spec.predecessor == id.uuidString)
+        #expect(spec.type == .ff)
+        #expect(spec.lagDays == 2)
+    }
+
+    @Test func dependencySpecAcceptsShortPrefix() throws {
+        // 前缀在会话打开后解析：此处只验证规格解析不因短标识失败。
+        let spec = try CLIEnums.dependency("A1B2C3D4:fs")
+        #expect(spec.predecessor == "A1B2C3D4")
+        #expect(spec.type == .fs)
+        #expect(spec.lagDays == 0)
     }
 
     @Test func dependencySpecDefaultsToFSNoLag() throws {
@@ -57,11 +65,12 @@ struct OptionsParsingTests {
         #expect(dep.lagDays == 0)
     }
 
-    @Test func dependencySpecRejectsBadIDAndType() throws {
-        #expect(throws: CLIError.self) { _ = try CLIEnums.dependency("not-a-uuid") }
+    @Test func dependencySpecRejectsBadTypeAndEmptyPredecessor() throws {
+        // 前驱标识接受完整 UUID 或前缀，故只校验类型与空标识。
         #expect(throws: CLIError.self) {
             _ = try CLIEnums.dependency("\(UUID().uuidString):xx")
         }
+        #expect(throws: CLIError.self) { _ = try CLIEnums.dependency(":fs") }
     }
 
     @Test func schedulingPolicyAndConstraintParse() throws {
@@ -200,6 +209,52 @@ struct RouteTests {
         let group = try #require(project.tasks.first { $0.title == "群组A" })
         try CLIRouter.execute(arguments: ["task", "list", "--parent", group.id.uuidString, "--file", file.path])
     }
+
+    @Test func taskAddAcceptsParentIDPrefix() throws {
+        let scratch = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: scratch.dir) }
+        let file = scratch.kairo
+
+        try CLIRouter.execute(arguments: ["project", "create", "前缀演示", "--file", file.path])
+        let wbs = #"[{"title": "群组B", "children": []}]"#
+        try Data(wbs.utf8).write(to: scratch.wbs)
+        try CLIRouter.execute(arguments: ["wbs", "import", scratch.wbs.path, "--file", file.path])
+
+        let project0 = try KairoFile.load(from: file)
+        let group = try #require(project0.tasks.first { $0.title == "群组B" })
+        let prefix = String(group.id.uuidString.prefix(8))
+        try CLIRouter.execute(arguments: [
+            "task", "add", "子任务", "--parent", prefix, "--file", file.path,
+        ])
+
+        let project = try KairoFile.load(from: file)
+        let child = try #require(project.tasks.first { $0.title == "子任务" })
+        #expect(child.parentID == group.id)
+    }
+
+    @Test func taskUpdatePersistsDateOnlyConstraint() throws {
+        let scratch = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: scratch.dir) }
+        let file = scratch.kairo
+
+        try CLIRouter.execute(arguments: ["project", "create", "时限演示", "--file", file.path])
+        try CLIRouter.execute(arguments: ["task", "add", "受时限任务", "--file", file.path])
+        let id = try #require(try KairoFile.load(from: file).tasks.first).id
+
+        try CLIRouter.execute(arguments: [
+            "task", "update", id.uuidString,
+            "--constraint", "startNoLaterThan:2026-11-04",
+            "--file", file.path,
+        ])
+
+        let task = try #require(try KairoFile.load(from: file).tasks.first)
+        #expect(task.constraint != nil)
+        if case .startNoLaterThan = task.constraint {
+            // 通过
+        } else {
+            Issue.record("时限类型应为 startNoLaterThan")
+        }
+    }
 }
 
 // MARK: - 错误契约与退出码
@@ -228,9 +283,22 @@ struct RouteErrorTests {
         #expect(CLIRouter.run(arguments: ["nope", "x"]) == 2)
     }
 
-    @Test func updateRejectsDependencyFlag() {
-        let code = CLIRouter.run(arguments: ["task", "update", UUID().uuidString, "--dep", "x:fs"])
+    @Test func updateRejectsMalformedDependencySpec() {
+        // 相关性类型非法 → 用法错误（退出码 2），在 IO 前抛出。
+        let code = CLIRouter.run(arguments: ["task", "update", UUID().uuidString, "--dep", "x:zz"])
         #expect(code == 2)
+    }
+
+    @Test func updateAcceptsWellFormedDependencySpec() {
+        // 合法规格通过参数解析，随后因文件不存在以运行期错误退出（1），
+        // 证明 --dep 已被 update 接受（不再是用例错误）。
+        let pred = UUID().uuidString
+        let code = CLIRouter.run(arguments: [
+            "task", "update", UUID().uuidString,
+            "--dep", "\(pred):fs:1",
+            "--file", "/nonexistent/kairo/demo.kairo",
+        ])
+        #expect(code == 1)
     }
 }
 
@@ -275,6 +343,48 @@ struct Sprint2CommandTests {
         #expect(child.status == .done)
         #expect(child.progress == 1)
         #expect(child.completedAt != nil)
+    }
+
+    @Test func statusBatchUpdatesMultipleTasksAndReportsSummary() throws {
+        let scratch = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: scratch.dir) }
+        let file = scratch.kairo
+        let batch = scratch.dir.appendingPathComponent("batch.json")
+
+        try CLIRouter.execute(arguments: ["project", "create", "批量演示", "--file", file.path])
+        let a = try addTaskID(title: "任务一", kind: "task", file: file)
+        let b = try addTaskID(title: "任务二", kind: "task", file: file)
+        let payload = #"""
+        [
+          {"taskID": "\#(String(a.uuidString.prefix(8)))", "status": "done"},
+          {"taskID": "\#(b.uuidString)", "progress": 0.5}
+        ]
+        """#
+        try Data(payload.utf8).write(to: batch)
+
+        try CLIRouter.execute(arguments: ["status", "batch", batch.path, "--file", file.path])
+
+        let project = try KairoFile.load(from: file)
+        let taskA = try #require(project.tasks.first { $0.id == a })
+        let taskB = try #require(project.tasks.first { $0.id == b })
+        #expect(taskA.status == .done)
+        #expect(taskA.progress == 1)
+        #expect(taskA.completedAt != nil)
+        #expect(taskB.progress == 0.5)
+    }
+
+    @Test func statusBatchWithUnknownTaskExitsWithRuntimeCode() throws {
+        let scratch = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: scratch.dir) }
+        let file = scratch.kairo
+        let batch = scratch.dir.appendingPathComponent("batch.json")
+
+        try CLIRouter.execute(arguments: ["project", "create", "批量失败演示", "--file", file.path])
+        let missing = UUID().uuidString
+        try Data(#"[{"taskID":"\#(missing)","status":"done"}]"#.utf8).write(to: batch)
+
+        let code = CLIRouter.run(arguments: ["status", "batch", batch.path, "--file", file.path])
+        #expect(code == 1)
     }
 
     @Test func resourceAddAndListPersist() throws {

@@ -34,6 +34,13 @@ struct Options {
         value(for: key).flatMap(Double.init)
     }
 
+    /// 校验所有 --选项 都在允许集合内；发现未知选项即用法错误（避免静默忽略）。
+    func rejectUnknown(_ allowed: [String]) throws {
+        for item in items where item.hasPrefix("--") && !allowed.contains(item) {
+            throw UsageError(message: "未知选项：\(item)（可用：\(allowed.joined(separator: " "))）")
+        }
+    }
+
     /// --file 选项或默认文件名。
     func fileURL(defaultName: String) -> URL {
         URL(fileURLWithPath: value(for: "--file") ?? defaultName)
@@ -48,17 +55,3 @@ func subcommand(_ args: [String], from command: String) -> (String, [String]) {
     return (first, Array(args.dropFirst()))
 }
 
-func requireUUID(_ raw: String) throws -> UUID {
-    guard let id = UUID(uuidString: raw) else {
-        throw UsageError(message: "无效的任务 ID：\(raw)")
-    }
-    return id
-}
-
-func optionalUUID(_ raw: String?, name: String) throws -> UUID? {
-    guard let raw else { return nil }
-    guard let id = UUID(uuidString: raw) else {
-        throw UsageError(message: "无效的 \(name)：\(raw)")
-    }
-    return id
-}

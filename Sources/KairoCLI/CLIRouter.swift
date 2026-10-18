@@ -8,6 +8,13 @@ struct UsageError: Error, CustomStringConvertible {
     var description: String { message }
 }
 
+/// `status batch` 的 JSON 条目：taskID 接受完整 UUID 或唯一前缀。
+private struct StatusBatchItem: Decodable {
+    let taskID: String
+    let status: String?
+    let progress: Double?
+}
+
 /// CLI 路由（ADR-005 契约同源）：子命令解析 → KairoSession 操作 → 输出呈现。
 /// 每次调用创建独立 KairoSession；task/wbs 命令按「打开 --file → 操作 → 保存」模式执行。
 struct CLIRouter {
@@ -18,6 +25,10 @@ struct CLIRouter {
             return 0
         } catch let error as UsageError {
             stderr("用法错误：\(error.message)")
+            return 2
+        } catch let error as CLIError {
+            // 枚举值/相关性规格非法同属用法错误（退出码 2）。
+            stderr("用法错误：\(error)")
             return 2
         } catch {
             stderr("错误：\(errorMessage(error))")
@@ -51,6 +62,7 @@ struct CLIRouter {
         case ("schedule", "path"): try schedulePath(options)
         case ("violations", ""): try violations(options)
         case ("status", "update"): try statusUpdate(options)
+        case ("status", "batch"): try statusBatch(options)
         case ("resource", "add"): try resourceAdd(options)
         case ("resource", "list"): try resourceList(options)
         default:
@@ -65,8 +77,10 @@ struct CLIRouter {
     /// kairo project create <标题> [--file <路径>]：新建并保存到文件（默认 ./project.kairo）。
     private static func projectCreate(_ o: Options) throws {
         let title = try o.operand(0, name: "标题")
+        let start = try optionalISO(o.value(for: "--start"), name: "项目开始")
+        let end = try optionalISO(o.value(for: "--end"), name: "项目结束")
         let session = KairoSession()
-        let meta = try session.createProject(title: title)
+        let meta = try session.createProject(title: title, projectStart: start, projectEnd: end)
         let url = fileURL(o.value(for: "--file"))
         _ = try session.saveProject(to: url)
         print("已创建项目：\(shortID(meta.id))「\(meta.title)」")
@@ -99,19 +113,21 @@ struct CLIRouter {
         // 先解析全部参数（用法错误在 IO 前抛出），再打开文件操作。
         let title = try o.operand(0, name: "标题")
         let kind = try CLIEnums.kind(o.value(for: "--kind")) ?? .task
-        let parentID = try optionalUUID(o.value(for: "--parent"), name: "父任务")
+        let rawParent = o.value(for: "--parent")
         let effort = o.double(for: "--effort")
         let duration = o.double(for: "--duration")
         let notes = o.value(for: "--notes") ?? ""
         let priority = try CLIEnums.priority(o.value(for: "--priority")) ?? .normal
         let status = try CLIEnums.status(o.value(for: "--status")) ?? .pending
         let tags = splitTags(o.value(for: "--tags"))
-        let deps = try o.values(for: "--dep").map { try CLIEnums.dependency($0) }
+        let depSpecs = try o.values(for: "--dep").map { try CLIEnums.dependency($0) }
         let constraint = try CLIEnums.constraint(o.value(for: "--constraint"))
         let policy = try CLIEnums.schedulingPolicy(o.value(for: "--policy")) ?? .asap
 
         let session = KairoSession()
         try openForEdit(session, o)
+        let parentID = try rawParent.map { try resolveTaskID($0, in: session) }
+        let deps = try depSpecs.map { try $0.resolve(in: session) }
         let id = try session.addTask(
             title: title,
             kind: kind,
@@ -132,33 +148,33 @@ struct CLIRouter {
 
     /// kairo task list [--parent <UUID>] [--filter <文本>] [--file <路径>]。
     private static func taskList(_ o: Options) throws {
-        let parentID = try optionalUUID(o.value(for: "--parent"), name: "父任务")
+        let rawParent = o.value(for: "--parent")
         let filter = o.value(for: "--filter") ?? ""
         let session = KairoSession()
         _ = try session.openProject(at: fileURL(o.value(for: "--file")))
+        let parentID = try rawParent.map { try resolveTaskID($0, in: session) }
         let tasks = try session.listTasks(parentID: parentID, filter: filter)
         for task in tasks { print(taskListLine(task)) }
     }
 
     /// kairo task get <ID> [--file <路径>]：多行详情。
     private static func taskGet(_ o: Options) throws {
-        let id = try requireUUID(o.operand(0, name: "任务 ID"))
+        let rawID = try o.operand(0, name: "任务 ID")
         let session = KairoSession()
         _ = try session.openProject(at: fileURL(o.value(for: "--file")))
         guard let project = session.project else { return }
+        let id = try resolveTaskID(rawID, in: session)
         let task = try session.getTask(id: id)
         print(taskDetail(task, project: project))
     }
 
     /// kairo task update <ID> [--title/--kind/--parent/--effort/--duration/--notes/--priority/--status/--progress/--tags]。
     private static func taskUpdate(_ o: Options) throws {
-        guard o.values(for: "--dep").isEmpty else {
-            throw UsageError(message: "task update 暂不支持 --dep（相关性当前契约中不可更新）")
-        }
-        let id = try requireUUID(o.operand(0, name: "任务 ID"))
+        let depSpecs = try o.values(for: "--dep").map { try CLIEnums.dependency($0) }
+        let rawID = try o.operand(0, name: "任务 ID")
         let title = o.value(for: "--title")
         let kind = try CLIEnums.kind(o.value(for: "--kind"))
-        let parentID = try optionalUUID(o.value(for: "--parent"), name: "父任务")
+        let rawParent = o.value(for: "--parent")
         let effort = o.double(for: "--effort")
         let duration = o.double(for: "--duration")
         let notes = o.value(for: "--notes")
@@ -166,9 +182,19 @@ struct CLIRouter {
         let status = try CLIEnums.status(o.value(for: "--status"))
         let progress = o.double(for: "--progress")
         let tags = o.value(for: "--tags").map(splitTags)
+        let constraint = try CLIEnums.constraint(o.value(for: "--constraint"))
+        let policy = try CLIEnums.schedulingPolicy(o.value(for: "--policy"))
+        try o.rejectUnknown([
+            "--title", "--kind", "--parent", "--effort", "--duration", "--notes",
+            "--priority", "--status", "--progress", "--tags", "--dep",
+            "--constraint", "--policy", "--file",
+        ])
 
         let session = KairoSession()
         try openForEdit(session, o)
+        let id = try resolveTaskID(rawID, in: session)
+        let parentID = try rawParent.map { try resolveTaskID($0, in: session) }
+        let deps = try depSpecs.map { try $0.resolve(in: session) }
         let task = try session.updateTask(
             id: id,
             title: title,
@@ -180,7 +206,10 @@ struct CLIRouter {
             priority: priority,
             status: status,
             progress: progress,
-            tags: tags
+            tags: tags,
+            dependencies: depSpecs.isEmpty ? nil : deps,
+            constraint: constraint,
+            schedulingPolicy: policy
         )
         try session.saveProject()
         print("已更新任务：\(shortID(task.id)) \(task.title)")
@@ -188,9 +217,10 @@ struct CLIRouter {
 
     /// kairo task delete <ID> [--file <路径>]。
     private static func taskDelete(_ o: Options) throws {
-        let id = try requireUUID(o.operand(0, name: "任务 ID"))
+        let rawID = try o.operand(0, name: "任务 ID")
         let session = KairoSession()
         try openForEdit(session, o)
+        let id = try resolveTaskID(rawID, in: session)
         _ = try session.deleteTask(id: id)
         try session.saveProject()
         print("已删除任务：\(shortID(id))")
@@ -201,9 +231,10 @@ struct CLIRouter {
     /// kairo wbs import <JSON 文件> [--parent <UUID>] [--file <路径>]。
     private static func wbsImport(_ o: Options) throws {
         let jsonPath = try o.operand(0, name: "JSON 文件")
-        let parentID = try optionalUUID(o.value(for: "--parent"), name: "父任务")
+        let rawParent = o.value(for: "--parent")
         let session = KairoSession()
         _ = try session.openProject(at: fileURL(o.value(for: "--file")))
+        let parentID = try rawParent.map { try resolveTaskID($0, in: session) }
         let nodes: [WBSNode]
         do {
             let data = try Data(contentsOf: URL(fileURLWithPath: jsonPath))
@@ -278,11 +309,12 @@ struct CLIRouter {
 
     /// kairo status update <ID> [--status] [--progress] [--file <路径>]。
     private static func statusUpdate(_ o: Options) throws {
-        let id = try requireUUID(o.operand(0, name: "任务 ID"))
+        let rawID = try o.operand(0, name: "任务 ID")
         let status = try CLIEnums.status(o.value(for: "--status"))
         let progress = o.double(for: "--progress")
         let session = KairoSession()
         try openForEdit(session, o)
+        let id = try resolveTaskID(rawID, in: session)
         let task = try session.statusUpdate(id: id, status: status, progress: progress)
         try session.saveProject()
         print("已回写：\(shortID(task.id)) \(task.title)（\(statusLabel(task.status))，进度 \(Int(task.progress * 100))%）")
@@ -291,6 +323,73 @@ struct CLIRouter {
         }
         let group = try session.groupProgress(id: id)
         print("完成度聚合：\(Int(group * 100))%")
+    }
+
+    /// kairo status batch <JSON 文件> [--file <路径>]：批量回写，JSON 为
+    /// [{"taskID":"UUID 或前缀","status":"done","progress":1}]，逐条返回成功/失败。
+    private static func statusBatch(_ o: Options) throws {
+        let jsonPath = try o.operand(0, name: "JSON 文件")
+        let session = KairoSession()
+        try openForEdit(session, o)
+        let items: [StatusBatchItem]
+        do {
+            let data = try Data(contentsOf: URL(fileURLWithPath: jsonPath))
+            items = try JSONDecoder().decode([StatusBatchItem].self, from: data)
+        } catch {
+            throw SessionError(code: .fileUnreadable, message: "无法解析批量回写 JSON：\(jsonPath)")
+        }
+
+        // 逐条解析任务标识；无法解析的条目记为失败，不中断其余条目。
+        struct Pending {
+            let index: Int
+            let input: KairoSession.StatusUpdateInput?
+            let label: String
+            let error: String?
+        }
+        var pending: [Pending] = []
+        for (index, item) in items.enumerated() {
+            let status = try CLIEnums.status(item.status)
+            do {
+                let id = try resolveTaskID(item.taskID, in: session)
+                pending.append(Pending(
+                    index: index,
+                    input: .init(taskID: id, status: status, progress: item.progress),
+                    label: shortID(id),
+                    error: nil
+                ))
+            } catch {
+                pending.append(Pending(index: index, input: nil, label: item.taskID, error: errorMessage(error)))
+            }
+        }
+
+        let inputs = pending.compactMap(\.input)
+        let result = try session.statusBatch(inputs)
+        try session.saveProject()
+
+        var entriesByIndex: [Int: KairoSession.StatusBatchResult.Entry] = [:]
+        let resolvedIndices = pending.filter { $0.input != nil }.map(\.index)
+        for (index, entry) in zip(resolvedIndices, result.entries) {
+            entriesByIndex[index] = entry
+        }
+
+        var failed = 0
+        for item in pending {
+            guard let entry = entriesByIndex[item.index] else {
+                failed += 1
+                print("失败：\(item.label) \(item.error ?? "未知错误")")
+                continue
+            }
+            if entry.ok, let task = entry.task {
+                print("已回写：\(shortID(task.id)) \(task.title)（\(statusLabel(task.status))，进度 \(Int(task.progress * 100))%）")
+            } else {
+                failed += 1
+                print("失败：\(shortID(entry.taskID)) \(entry.error ?? "未知错误")")
+            }
+        }
+        print("批量结果：成功 \(items.count - failed) 条，失败 \(failed) 条")
+        if failed > 0 {
+            throw SessionError(code: .invalidArgument, message: "批量回写存在 \(failed) 条失败")
+        }
     }
 
     // MARK: - resource（F-23-01 / ADR-009）
@@ -327,6 +426,23 @@ struct CLIRouter {
 
     private static func fileURL(_ raw: String?) -> URL {
         URL(fileURLWithPath: raw ?? "project.kairo")
+    }
+
+    /// 解析任务标识：接受完整 UUID 或唯一前缀（≥4 位），返回完整 UUID。--parent 同此规则。
+    static func resolveTaskID(_ raw: String, in session: KairoSession) throws -> UUID {
+        if let full = UUID(uuidString: raw) { return full }
+        let prefix = raw.lowercased()
+        guard prefix.count >= 4 else {
+            throw UsageError(message: "任务 ID 前缀至少 4 位：\(raw)")
+        }
+        let candidates = (session.project?.tasks ?? []).map(\.id).filter {
+            $0.uuidString.lowercased().hasPrefix(prefix)
+        }
+        switch candidates.count {
+        case 1: return candidates[0]
+        case 0: throw UsageError(message: "找不到任务：\(raw)")
+        default: throw UsageError(message: "任务 ID 前缀不唯一（\(candidates.count) 个匹配）：\(raw)")
+        }
     }
 
     private static func shortID(_ id: UUID) -> String {
@@ -411,10 +527,11 @@ struct CLIRouter {
     }
 
     /// ISO8601 日期选项解析（--start/--end 等）。
+    /// 接受 ISO8601 完整形式或 YYYY-MM-DD（按 UTC 零点解释）。
     private static func optionalISO(_ raw: String?, name: String) throws -> Date? {
         guard let raw else { return nil }
-        guard let date = ISO8601DateFormatter().date(from: raw) else {
-            throw UsageError(message: "无效的\(name)日期：\(raw)（ISO8601，如 2026-11-02T00:00:00Z）")
+        guard let date = CLIEnums.parseDate(raw) else {
+            throw UsageError(message: "无效的\(name)日期：\(raw)（ISO8601 或 YYYY-MM-DD）")
         }
         return date
     }

@@ -58,6 +58,9 @@ struct ToolRegistry {
             scheduleCriticalPath,
             violationsList,
             statusUpdate,
+            statusBatchUpdate,
+            resourceAdd,
+            resourceList,
         ]
     }
 
@@ -65,11 +68,19 @@ struct ToolRegistry {
 
     private static let projectCreate = MCPTool(
         name: "project_create",
-        description: "新建项目并打开（US-E1-01）",
-        inputSchema: Schema.object(properties: ["title": Schema.string()], required: ["title"])
+        description: "新建项目并打开（US-E1-01）；可带项目时间线 projectStart/projectEnd（ISO8601），作为排期与违例的默认边界",
+        inputSchema: Schema.object(properties: [
+            "title": Schema.string(),
+            "projectStart": Schema.string(),
+            "projectEnd": Schema.string(),
+        ], required: ["title"])
     ) { args, session in
         let a = try ToolArgs(args)
-        let meta = try session.createProject(title: a.string("title"))
+        let meta = try session.createProject(
+            title: a.string("title"),
+            projectStart: try a.optionalISODate("projectStart"),
+            projectEnd: try a.optionalISODate("projectEnd")
+        )
         return try ProjectResults.metadata(meta)
     }
 
@@ -102,7 +113,7 @@ struct ToolRegistry {
 
     private static let taskAdd = MCPTool(
         name: "task_add",
-        description: "创建任务（US-E1-02；constraint 格式 type:ISO8601，如 startNoLaterThan:2026-11-05T00:00:00Z）",
+        description: "创建任务（US-E1-02；constraint 格式 type:ISO8601，如 startNoLaterThan:2026-11-05T00:00:00Z；dependencies 元素 {\"predecessorID\":\"UUID\",\"type\":\"fs\",\"lagDays\":0}）",
         inputSchema: Schema.object(
             properties: [
                 "title": Schema.string(),
@@ -114,6 +125,11 @@ struct ToolRegistry {
                 "priority": Schema.string(enumValues: ["low", "normal", "high", "critical"]),
                 "status": Schema.string(enumValues: ["pending", "in_progress", "done", "blocked"]),
                 "tags": Schema.arrayOf(Schema.string()),
+                "dependencies": Schema.arrayOf(Schema.object(properties: [
+                    "predecessorID": Schema.string(),
+                    "type": Schema.string(enumValues: ["fs", "ff", "ss", "sf"]),
+                    "lagDays": Schema.number(),
+                ])),
                 "constraint": Schema.string(),
                 "schedulingPolicy": Schema.string(enumValues: ["asap", "alap"]),
             ],
@@ -131,6 +147,7 @@ struct ToolRegistry {
             priority: a.optionalPriority("priority") ?? .normal,
             status: a.optionalStatus("status") ?? .pending,
             tags: a.stringArray("tags"),
+            dependencies: try a.optionalDependencies("dependencies") ?? [],
             constraint: try a.optionalConstraint("constraint"),
             schedulingPolicy: try a.optionalSchedulingPolicy("schedulingPolicy") ?? .asap
         )
@@ -176,6 +193,13 @@ struct ToolRegistry {
                 "status": Schema.string(enumValues: ["pending", "in_progress", "done", "blocked"]),
                 "progress": Schema.number(),
                 "tags": Schema.arrayOf(Schema.string()),
+                "dependencies": Schema.arrayOf(Schema.object(properties: [
+                    "predecessorID": Schema.string(),
+                    "type": Schema.string(enumValues: ["fs", "ff", "ss", "sf"]),
+                    "lagDays": Schema.number(),
+                ])),
+                "constraint": Schema.string(),
+                "schedulingPolicy": Schema.string(enumValues: ["asap", "alap"]),
             ],
             required: ["taskID"]
         )
@@ -192,7 +216,10 @@ struct ToolRegistry {
             priority: a.optionalPriority("priority"),
             status: a.optionalStatus("status"),
             progress: a.optionalDouble("progress"),
-            tags: a.optionalStringArray("tags")
+            tags: a.optionalStringArray("tags"),
+            dependencies: try a.optionalDependencies("dependencies"),
+            constraint: try a.optionalConstraint("constraint"),
+            schedulingPolicy: try a.optionalSchedulingPolicy("schedulingPolicy")
         )
         return try JSONValue.json(task)
     }
@@ -286,15 +313,72 @@ struct ToolRegistry {
         result["groupProgress"] = .number(group)
         return .object(result)
     }
+
+    private static let statusBatchUpdate = MCPTool(
+        name: "status_batch_update",
+        description: "批量回写任务状态/进度（US-E3-02）：返回逐条成功与失败明细，失败项不中断后续条目",
+        inputSchema: Schema.object(
+            properties: [
+                "tasks": Schema.arrayOf(Schema.object(properties: [
+                    "taskID": Schema.string(),
+                    "status": Schema.string(enumValues: ["pending", "in_progress", "done", "blocked"]),
+                    "progress": Schema.number(),
+                ], required: ["taskID"])),
+            ],
+            required: ["tasks"]
+        )
+    ) { args, session in
+        let a = try ToolArgs(args)
+        let result = try session.statusBatch(a.statusUpdates("tasks"))
+        return try JSONValue.json(result)
+    }
+
+    // MARK: resource（US-E1-05）
+
+    private static let resourceAdd = MCPTool(
+        name: "resource_add",
+        description: "添加资源（US-E1-05）：人员/设备/素材，单位与效率参与投入换算",
+        inputSchema: Schema.object(
+            properties: [
+                "name": Schema.string(),
+                "kind": Schema.string(enumValues: ["person", "equipment", "material", "group"]),
+                "units": Schema.number(),
+                "efficiency": Schema.number(),
+            ],
+            required: ["name"]
+        )
+    ) { args, session in
+        let a = try ToolArgs(args)
+        let id = try session.resourceAdd(
+            name: a.string("name"),
+            kind: a.optionalResourceKind("kind") ?? .person,
+            units: a.optionalDouble("units") ?? 1,
+            efficiency: a.optionalDouble("efficiency") ?? 1
+        )
+        return .object(["resourceID": .string(id.uuidString)])
+    }
+
+    private static let resourceList = MCPTool(
+        name: "resource_list",
+        description: "列出项目资源（US-E1-05）",
+        inputSchema: Schema.object(properties: [:])
+    ) { _, session in
+        let resources = try session.resourceList()
+        return .object(["resources": .array(try resources.map { try JSONValue.json($0) })])
+    }
 }
 
 /// 项目工具结果组装。
 private enum ProjectResults {
     static func metadata(_ meta: ProjectMetadata) throws -> JSONValue {
-        .object([
+        var result: [String: JSONValue] = [
             "projectID": .string(meta.id.uuidString),
             "title": .string(meta.title),
-        ])
+        ]
+        let formatter = ISO8601DateFormatter()
+        if let start = meta.projectStart { result["projectStart"] = .string(formatter.string(from: start)) }
+        if let end = meta.projectEnd { result["projectEnd"] = .string(formatter.string(from: end)) }
+        return .object(result)
     }
 }
 
@@ -380,6 +464,37 @@ private struct ToolArgs {
     }
 
     /// 时限规格：type:ISO8601（如 startNoLaterThan:2026-11-05T00:00:00Z）。
+    /// 相关性数组：元素 {"predecessorID":"UUID","type":"fs","lagDays":0}，type/lagDays 可省略。
+    func optionalDependencies(_ key: String) throws -> [TaskDependency]? {
+        guard let value = dict[key] else { return nil }
+        guard let array = value.arrayValue else {
+            throw ToolError.invalidArgument("参数 \(key) 必须是数组")
+        }
+        return try array.map { item in
+            guard let obj = item.objectValue,
+                  let rawID = obj["predecessorID"]?.stringValue,
+                  let uuid = UUID(uuidString: rawID) else {
+                throw ToolError.invalidArgument(
+                    "参数 \(key) 的元素格式应为 {\"predecessorID\":\"UUID\",\"type\":\"fs\",\"lagDays\":0}"
+                )
+            }
+            let type: TaskDependency.DependencyType
+            if let rawType = obj["type"]?.stringValue {
+                guard let parsed = TaskDependency.DependencyType(rawValue: rawType) else {
+                    throw ToolError.invalidArgument("参数 \(key) 的相关性类型非法：\(rawType)（fs/ff/ss/sf）")
+                }
+                type = parsed
+            } else {
+                type = .fs
+            }
+            return TaskDependency(
+                predecessorID: uuid,
+                type: type,
+                lagDays: obj["lagDays"]?.doubleValue ?? 0
+            )
+        }
+    }
+
     func optionalConstraint(_ key: String) throws -> SchedulingConstraint? {
         guard let raw = dict[key]?.stringValue else { return nil }
         let parts = raw.split(separator: ":", maxSplits: 1)
@@ -426,6 +541,44 @@ private struct ToolArgs {
             throw ToolError.invalidArgument("参数 \(key) 非法：\(raw)（pending/in_progress/done/blocked）")
         }
         return status
+    }
+
+    func optionalResourceKind(_ key: String) throws -> ResourceKind? {
+        guard let raw = dict[key]?.stringValue else { return nil }
+        guard let kind = ResourceKind(rawValue: raw) else {
+            throw ToolError.invalidArgument("参数 \(key) 非法：\(raw)（person/equipment/material/group）")
+        }
+        return kind
+    }
+
+    /// 批量回写清单：[{"taskID":"UUID","status":"done","progress":1}]。
+    func statusUpdates(_ key: String) throws -> [KairoSession.StatusUpdateInput] {
+        guard let array = dict[key]?.arrayValue else {
+            throw ToolError.invalidArgument("参数 \(key) 必须是数组")
+        }
+        return try array.map { item in
+            guard let obj = item.objectValue,
+                  let rawID = obj["taskID"]?.stringValue,
+                  let uuid = UUID(uuidString: rawID) else {
+                throw ToolError.invalidArgument(
+                    "参数 \(key) 的元素格式应为 {\"taskID\":\"UUID\",\"status\":\"done\",\"progress\":1}"
+                )
+            }
+            let status: TaskStatus?
+            if let rawStatus = obj["status"]?.stringValue {
+                guard let parsed = TaskStatus(rawValue: rawStatus) else {
+                    throw ToolError.invalidArgument("参数 \(key) 的状态非法：\(rawStatus)（pending/in_progress/done/blocked）")
+                }
+                status = parsed
+            } else {
+                status = nil
+            }
+            return KairoSession.StatusUpdateInput(
+                taskID: uuid,
+                status: status,
+                progress: obj["progress"]?.doubleValue
+            )
+        }
     }
 
     func stringArray(_ key: String) -> [String] {

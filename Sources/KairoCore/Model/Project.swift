@@ -6,17 +6,24 @@ public struct ProjectMetadata: Codable, Hashable, Sendable {
     public var title: String
     public var createdAt: Date
     public var updatedAt: Date
+    /// 项目时间线（F-20-02）：排期与违例的默认边界；未设则由显式参数或任务数据推导。
+    public var projectStart: Date?
+    public var projectEnd: Date?
 
     public init(
         id: UUID = UUID(),
         title: String = "未命名项目",
         createdAt: Date = Date(),
-        updatedAt: Date = Date()
+        updatedAt: Date = Date(),
+        projectStart: Date? = nil,
+        projectEnd: Date? = nil
     ) {
         self.id = id
         self.title = title
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.projectStart = projectStart
+        self.projectEnd = projectEnd
     }
 }
 

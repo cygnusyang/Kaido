@@ -45,6 +45,7 @@ private func toolResult(_ value: JSONValue) throws -> JSONValue {
         "task_add", "task_list", "task_get", "task_update", "task_delete",
         "wbs_import",
         "schedule_compute", "schedule_critical_path", "violations_list", "status_update",
+        "status_batch_update", "resource_add", "resource_list",
     ])
     #expect(tools.allSatisfy { $0.objectValue?["inputSchema"]?.objectValue?["type"]?.stringValue == "object" })
     let taskAdd = tools.first { $0.objectValue?["name"]?.stringValue == "task_add" }
@@ -77,6 +78,43 @@ private func toolResult(_ value: JSONValue) throws -> JSONValue {
 }
 
 
+@Test func taskAddWithDependenciesCreatesFSChain() throws {
+    let server = MCPServer()
+    _ = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_create","arguments":{"title":"相关性项目","projectStart":"2026-11-02T00:00:00Z"}}}"#
+    )
+    let a = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"task_add","arguments":{"title":"前驱","durationDays":2}}}"#
+    )
+    let aID = try #require(try toolResult(a).objectValue?["taskID"]?.stringValue)
+    let b = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"task_add","arguments":{"title":"后继","durationDays":3,"dependencies":[{"predecessorID":"\#(aID)","type":"fs"}]}}}"#
+    )
+    let bID = try #require(try toolResult(b).objectValue?["taskID"]?.stringValue)
+
+    let get = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"task_get","arguments":{"taskID":"\#(bID)"}}}"#
+    )
+    let deps = try toolResult(get).objectValue?["dependencies"]?.arrayValue ?? []
+    #expect(deps.count == 1)
+    #expect(deps.first?.objectValue?["predecessorID"]?.stringValue == aID)
+    #expect(deps.first?.objectValue?["type"]?.stringValue == "fs")
+
+    // 排期传播：后继的开始应等于前驱的结束。
+    let schedule = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"schedule_compute","arguments":{"projectStart":"2026-11-02T00:00:00Z"}}}"#
+    )
+    let scheduled = try toolResult(schedule).objectValue?["tasks"]?.arrayValue ?? []
+    let aEntry = scheduled.first { $0.objectValue?["taskID"]?.stringValue == aID }
+    let bEntry = scheduled.first { $0.objectValue?["taskID"]?.stringValue == bID }
+    #expect(bEntry?.objectValue?["scheduledStart"]?.stringValue == aEntry?.objectValue?["scheduledFinish"]?.stringValue)
+}
+
 // MARK: - 错误契约
 
 @Test func unknownMethodReturnsJSONRPCError() throws {
@@ -100,6 +138,53 @@ private func toolResult(_ value: JSONValue) throws -> JSONValue {
     let failure = try JSONDecoder().decode(JSONValue.self, from: Data(text.utf8))
     #expect(failure.objectValue?["code"]?.stringValue == "project_not_open")
     #expect(failure.objectValue?["message"]?.stringValue != nil)
+}
+
+@Test func statusBatchUpdateReportsPerTaskSuccessAndFailure() throws {
+    let server = MCPServer()
+    _ = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_create","arguments":{"title":"批量回写"}}}"#
+    )
+    let a = try send(server, #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"task_add","arguments":{"title":"任务一"}}}"#)
+    let aID = try #require(try toolResult(a).objectValue?["taskID"]?.stringValue)
+    let b = try send(server, #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"task_add","arguments":{"title":"任务二"}}}"#)
+    let bID = try #require(try toolResult(b).objectValue?["taskID"]?.stringValue)
+    let missing = UUID().uuidString
+
+    let response = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"status_batch_update","arguments":{"tasks":[{"taskID":"\#(aID)","status":"done"},{"taskID":"\#(bID)","progress":0.5},{"taskID":"\#(missing)","status":"done"}]}}}"#
+    )
+    let result = try toolResult(response)
+    #expect(result.objectValue?["succeeded"]?.doubleValue == 2)
+    #expect(result.objectValue?["failed"]?.doubleValue == 1)
+    let entries = result.objectValue?["entries"]?.arrayValue ?? []
+    #expect(entries.count == 3)
+    #expect(entries.last?.objectValue?["ok"]?.boolValue == false)
+    #expect(entries.last?.objectValue?["error"]?.stringValue != nil)
+}
+
+@Test func resourceAddThenListRoundTrip() throws {
+    let server = MCPServer()
+    _ = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_create","arguments":{"title":"资源项目"}}}"#
+    )
+    let add = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"resource_add","arguments":{"name":"李工","kind":"person","units":1,"efficiency":0.9}}}"#
+    )
+    let id = try #require(try toolResult(add).objectValue?["resourceID"]?.stringValue)
+    let list = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"resource_list","arguments":{}}}"#
+    )
+    let resources = try toolResult(list).objectValue?["resources"]?.arrayValue ?? []
+    #expect(resources.count == 1)
+    #expect(resources.first?.objectValue?["id"]?.stringValue == id)
+    #expect(resources.first?.objectValue?["name"]?.stringValue == "李工")
+    #expect(resources.first?.objectValue?["efficiency"]?.doubleValue == 0.9)
 }
 
 // MARK: - Sprint 2 工具（schedule / violations / status）

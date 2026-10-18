@@ -1,5 +1,6 @@
 import Foundation
 import KairoCore
+import KairoCommands
 
 /// CLI 选项到核心枚举的解析。值集与 KairoCore 枚举 rawValue 对齐。
 enum CLIEnums {
@@ -40,8 +41,8 @@ enum CLIEnums {
     static func constraint(_ raw: String?) throws -> SchedulingConstraint? {
         guard let raw else { return nil }
         let parts = raw.split(separator: ":", maxSplits: 1)
-        guard parts.count == 2, let date = ISO8601DateFormatter().date(from: String(parts[1])) else {
-            throw UsageError(message: "无效时限：\(raw)（格式 type:ISO8601，如 startNoLaterThan:2026-11-05T00:00:00Z）")
+        guard parts.count == 2, let date = CLIEnums.parseDate(String(parts[1])) else {
+            throw UsageError(message: "无效时限：\(raw)（格式 type:日期，如 startNoLaterThan:2026-11-05 或 ISO8601 完整形式）")
         }
         switch String(parts[0]) {
         case "startNoEarlierThan": return .startNoEarlierThan(date)
@@ -53,6 +54,16 @@ enum CLIEnums {
         }
     }
 
+    /// 日期解析：ISO8601 完整形式或 YYYY-MM-DD（UTC 零点）。
+    static func parseDate(_ raw: String) -> Date? {
+        if let date = ISO8601DateFormatter().date(from: raw) { return date }
+        let day = DateFormatter()
+        day.dateFormat = "yyyy-MM-dd"
+        day.timeZone = TimeZone(identifier: "UTC")
+        day.locale = Locale(identifier: "en_US_POSIX")
+        return day.date(from: raw)
+    }
+
     /// 资源种类解析（F-23-01：person/equipment/material/group）。
     static func resourceKind(_ raw: String?) throws -> ResourceKind? {
         guard let raw else { return nil }
@@ -62,10 +73,12 @@ enum CLIEnums {
         return v
     }
 
-    /// 相关性规格：predecessorID[:type[:lag]]，type ∈ fs/ff/ss/sf。
-    static func dependency(_ spec: String) throws -> TaskDependency {
-        let parts = spec.split(separator: ":")
-        guard let idRaw = parts.first, let id = UUID(uuidString: String(idRaw)) else {
+    /// 相关性规格：predecessor[:type[:lag]]，predecessor 为完整 UUID 或唯一前缀，
+    /// type ∈ fs/ff/ss/sf。前缀在会话打开后经 `resolve(in:)` 解析。
+    static func dependency(_ spec: String) throws -> DependencySpec {
+        // 保留空段：":fs" 的前驱为空，属用法错误而非前缀 "fs"。
+        let parts = spec.split(separator: ":", omittingEmptySubsequences: false)
+        guard let raw = parts.first, !raw.isEmpty else {
             throw CLIError.invalidDependency(spec)
         }
         let type = parts.count > 1 ? parts[1].lowercased() : "fs"
@@ -73,7 +86,20 @@ enum CLIEnums {
             throw CLIError.invalidDependencyType(String(type))
         }
         let lag = parts.count > 2 ? (Double(parts[2]) ?? 0) : 0
-        return TaskDependency(predecessorID: id, type: depType, lagDays: lag)
+        return DependencySpec(predecessor: String(raw), type: depType, lagDays: lag)
+    }
+}
+
+/// 待解析的相关性规格（前驱可为完整 UUID 或唯一前缀）。
+struct DependencySpec {
+    let predecessor: String
+    let type: TaskDependency.DependencyType
+    let lagDays: Double
+
+    /// 用已打开的项目会话解析前驱标识。
+    func resolve(in session: KairoSession) throws -> TaskDependency {
+        let id = try CLIRouter.resolveTaskID(predecessor, in: session)
+        return TaskDependency(predecessorID: id, type: type, lagDays: lagDays)
     }
 }
 
