@@ -336,6 +336,9 @@ struct CLIJSONTests {
             progress: 1
         )
         let json = try CLIOutput.taskListJSON([task])
+        // 钉住 hook 消费的字面字段，防止 key 名或 enum 编码漂移。
+        #expect(json.contains("\"title\":\"接口设计\""))
+        #expect(json.contains("\"status\":\"done\""))
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let decoded = try decoder.decode([TaskItem].self, from: Data(json.utf8))
@@ -346,6 +349,14 @@ struct CLIJSONTests {
         #expect(item.parentID == parentID)
         #expect(item.tags == ["设计"])
         #expect(item.progress == 1)
+    }
+
+    @Test func taskListRejectsUnknownOptions() {
+        // 未知选项必须报用法错误（退出码 2），不能静默退回人类可读输出。
+        let code = CLIRouter.run(arguments: [
+            "task", "list", "--jsn", "--file", "/nonexistent/kairo/demo.kairo",
+        ])
+        #expect(code == 2)
     }
 
     @Test func taskListJSONUsesISODates() throws {

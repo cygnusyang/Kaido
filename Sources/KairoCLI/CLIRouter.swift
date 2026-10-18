@@ -151,6 +151,7 @@ struct CLIRouter {
 
     /// kairo task list [--parent <UUID>] [--filter <文本>] [--json] [--file <路径>]。
     private static func taskList(_ o: Options) throws {
+        try o.rejectUnknown(["--parent", "--filter", "--json", "--file"])
         let rawParent = o.value(for: "--parent")
         let filter = o.value(for: "--filter") ?? ""
         let session = KairoSession()

@@ -18,6 +18,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import unicodedata
 
 
 def find_cli():
@@ -34,13 +35,22 @@ def find_cli():
 
 
 def note(message):
-    print(f"kairo-hook: {message}", file=sys.stderr)
+    """向 stderr 写一行；剥离控制字符，避免把事件文本原样注入终端。"""
+    clean = "".join(ch for ch in str(message) if unicodedata.category(ch)[0] != "C")
+    print(f"kairo-hook: {clean}", file=sys.stderr)
+
+
+def normalize(text):
+    """标题比较前统一 Unicode 形式与首尾空白。"""
+    return unicodedata.normalize("NFC", text).strip()
 
 
 def run(cli, args):
     """执行 CLI，返回 (ok, stdout, stderr)。"""
     try:
-        result = subprocess.run([cli] + args, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(
+            [cli] + args, capture_output=True, text=True, encoding="utf-8", timeout=10
+        )
     except (OSError, subprocess.TimeoutExpired) as error:
         return False, "", str(error)
     return result.returncode == 0, result.stdout, result.stderr
@@ -65,7 +75,9 @@ def sync_status(cli, project, subject):
     matches = [
         task
         for task in tasks
-        if isinstance(task, dict) and task.get("title") == subject
+        if isinstance(task, dict)
+        and isinstance(task.get("title"), str)
+        and normalize(task["title"]) == subject
     ]
     if len(matches) != 1:
         note(f"「{subject}」匹配 {len(matches)} 个 Kairo 任务，跳过回写")
@@ -91,11 +103,17 @@ def main():
     except (json.JSONDecodeError, UnicodeDecodeError):
         note("输入不是合法 JSON，跳过")
         return 0
+    if not isinstance(event, dict):
+        note("事件不是 JSON 对象，跳过")
+        return 0
 
     if event.get("hook_event_name") != "TaskCompleted":
         return 0
 
-    subject = (event.get("task_subject") or "").strip()
+    raw_subject = event.get("task_subject")
+    if not isinstance(raw_subject, str):
+        return 0
+    subject = normalize(raw_subject)
     project = os.environ.get("KAIRO_PROJECT")
     if not subject or not project:
         return 0
@@ -123,4 +141,8 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception as error:  # noqa: BLE001 - hook 不阻塞任务完成
+        note(f"意外错误，跳过：{error}")
+        sys.exit(0)
