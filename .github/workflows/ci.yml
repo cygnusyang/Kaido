@@ -1,9 +1,6 @@
-# Kairo Linux CI（G3 判据 4：核心在 Linux 编译并通过全量单测）
-#
-# 选型：swift-actions/setup-swift 而非 swift:6.0-jammy Docker 容器（二选一）。
-# 理由：setup-swift 直接安装 Swift.org 官方二进制工具链，无需容器默认用户/
-# 工作目录/网络约定，GitHub 托管运行器缓存更友好、启动更快；KairoCore 仅依赖
-# Foundation 子集（ADR-004），无系统包需求，不引入容器层。
+# Kairo CI：Linux 构建门禁（风险 R1 缓解，ADR-004 可移植性验证）
+# 选型：官方 swift:6.0-jammy 容器镜像（ADR 记录于 docs/02-architecture.md §7 第 2 条）——
+# 镜像自带完整 Linux 工具链，避免 setup-swift action 的版本漂移。
 name: CI
 
 on:
@@ -12,22 +9,18 @@ on:
   pull_request:
 
 jobs:
-  linux-build-test:
+  linux-core:
+    name: Linux 核心构建与测试
     runs-on: ubuntu-latest
+    container: swift:6.0-jammy
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Swift
-        uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: "6.0"
+      - name: 核心边界门禁（ADR-004：KairoCore 零 UI 依赖）
+        run: ./tools/gate-core.sh
 
-      - name: Build
+      - name: 构建
         run: swift build
 
-      - name: Test
+      - name: 测试
         run: swift test
-
-      - name: Gate — KairoCore 零 UI 依赖（ADR-004）
-        run: bash tools/gate-core.sh
