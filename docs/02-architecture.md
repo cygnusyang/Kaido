@@ -33,6 +33,8 @@
 
 核心（KairoCore）承载全部业务逻辑：数据模型、调度引擎、存储、查询过滤；接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）互不依赖、能力对等，只复用核心。该结构对应 vision §4 与 G3 判据。
 
+Sprint 4 起，UI 与命令层之间加入 `KairoPresentation`（Foundation-only）：视图状态与核心数据经纯函数生成平台中立快照，视图只消费快照并发出动作。分层与写路径见 [ADR-013](#adr-013-呈现层与唯一写路径sprint-4)。
+
 ### 1.2 数据流（核心闭环，vision §3）
 
 ```
@@ -107,7 +109,7 @@
 | `task_list` | `parentID?`, `filter?` | `[TaskItem]` | US-E4-01 |
 | `task_get` | `taskID` | `TaskItem` | US-E4-01 |
 | `task_update` | `taskID` + 可变字段（含 `dependencies` / `constraint` / `schedulingPolicy` / `assignments`） | `TaskItem` | US-E1-02、US-E2-01 |
-| `task_delete` | `taskID` | `ok` | US-E1-02 |
+| `task_delete` | `taskID` | `ok`（级联删除全部子任务） | US-E1-02 |
 | `wbs_import` | `nodes`（嵌套任务树） | `rootIDs`, `total`, `warnings` | US-E1-04 |
 | `schedule_compute` | `projectStart?`, `projectEnd?`（缺省用项目时间线） | 每任务最早/最晚/选定安排与宽延 | US-E2-02 |
 | `schedule_critical_path` | `slackLimit?` | 宽延明细与 `isCritical` | US-E2-03 |
@@ -137,7 +139,7 @@ kairo task add <title> [--kind task|group|milestone] [--parent <id>] [--due <dat
 kairo task list [--filter "<自然语言>"] [--parent <id>] [--json]
 kairo task get <id>
 kairo task update <id> [--title] [--status] [--priority] [--progress] [--due]
-kairo task delete <id>
+kairo task delete <id>                  # 连同全部子任务一并删除
 kairo wbs import -f <file.json|file.md> [--report]
 kairo dep add <taskID> --predecessor <id> [--type FS|FF|SS|SF] [--lag <expr>]
 kairo dep remove <taskID> --predecessor <id>
@@ -174,6 +176,8 @@ kairo version
 插件清单与命令由 `claude plugin validate Plugins/claude-code` 校验。
 
 ### 3.4 macOS 应用层构成（Sprint 3）
+
+> 本小节记录 Sprint 3 的实现状态。Sprint 4 UI 重设计以 [ADR-013](#adr-013-呈现层与唯一写路径sprint-4) 为准：`ProjectStore` 由 `WorkspaceStore` 取代；`ContentView`、`GanttView` 拆分为大纲、时间画布与检查器组件；所有写入经 `KairoSession`。
 
 应用层只做呈现与交互，业务判断全部下沉到 KairoCore 纯函数：
 
@@ -310,6 +314,55 @@ Kairo/
 | ADR-010 | MVP 期自实现最小 stdio JSON-RPC（零第三方依赖，仅 initialize/tools 列表/工具调用 三组方法），Phase 2 复核官方 Swift MCP SDK | 已接受 | 2026-10-17 lead 裁定；协议面小可全量测试，消除 SDK 演进风险；接口契约（ADR-005）不受影响 |
 | ADR-012 | 嵌套可选结构（如 WBSNode.children）一律自定义 `init(from:)`，禁用合成 Codable 的必填语义 | 已接受 | Sprint 1 回顾 P3；叶子节点解码失败教训 |
 | ADR-011 | `.kairo` 读写兼容规则：文件携带 `formatVersion`；读取忽略未知字段（前向兼容）；字段只增不改语义 | 已接受 | 2026-10-17 lead 裁定；JSON 人工可读、AI 可写、git 友好（ADR-003 补充） |
+| ADR-013 | 引入 Foundation-only 呈现层 `KairoPresentation`：视图只消费 `WorkspaceSnapshot` 并发出 `WorkspaceAction`；所有写入经 `KairoSession` 唯一写路径；排期缓存按写置脏、按读重算 | 已接受 | 2026-10-18 lead 裁定；UI 与 MCP/CLI 语义同源；快照边界支撑多平台与可测试性。详见 §6.1 |
+
+### ADR-013 呈现层与唯一写路径（Sprint 4）
+
+分层：
+
+```
+KairoCore          Foundation-only：模型、排期、违例、查询、布局几何
+   ↑
+KairoCommands      Foundation-only：KairoSession（唯一写入口）
+   ↑
+KairoPresentation  Foundation-only：视图状态 → 平台中立快照 + 动作
+   ↑
+KairoMacApp        SwiftUI：WorkspaceStore 适配、壳层、绘制与手势
+
+KairoMCP / KairoCLI → KairoCommands → KairoCore
+```
+
+依赖方向单向。`KairoPresentation` 不得 import SwiftUI、AppKit 或 Combine。`KairoCore`、`KairoCommands`、`KairoPresentation` 必须能在 iOS 与 Linux 编译；macOS 应用仍是本期唯一 UI 壳。
+
+决策：
+
+1. **快照边界**：视图不读 `Project`、不绑定 `TaskItem`。视图只接收 `WorkspaceSnapshot` 并发出 `WorkspaceAction`。
+2. **唯一写路径**：所有变更经 `KairoSession`。UI 不得直接调用 `Project.add/update/remove`。MCP、CLI 与 UI 使用同一命令语义。
+3. **排期缓存**：会话的每个写方法置脏；读取排期时按需重算一次。UI 不自行重算排期。
+4. **项目时间线缺失**（D-003）：`ScheduleEngine` 按「最早任务 `startDate` → 今天」推导锚点，并在结果中记录 `projectStartDerived`。界面显示推导提示与「设置项目开始日期」入口，禁止从 1970 年起排。该推导只决定时间轴原点，不固定任务自身开始。
+5. **行对齐与画布分层**：计划模式使用单一纵向滚动容器加 `LazyVStack` 提供行骨架；时间画布使用一个与内容等高、宽度为画布视口的 `Canvas` 叠加层统一绘制。禁止两个独立滚动视图用偏移同步。
+6. **撤销**：应用层维护快照式撤销栈（`ProjectState`，50 步，连续输入 500ms 合并）。撤销记录同时保存选择与展开集合；恢复后校验目标仍存在，缺失则回项目页。
+7. **日期语义**：`startDate` 是用户意图，不驱动自动排期；`dueDate` 是截止日期，只用于风险提示与时限窗口，不驱动排期。逾期口径为「计划结束 < 今天且未完成」，无排期时退回 `dueDate`；截止风险口径为「`dueDate` 存在且计划结束 > `dueDate` 且未完成」。
+8. **外部更新**：应用前台每 2 秒比较 `.kairo` 的 mtime。会话维护 `hasUnsavedChanges`；保存后清除并记录自身写入的 mtime。用户选择「保留本地」后记录已确认的 mtime，文件再次变化才重新提示。本期不做差异比较与自动合并。
+
+核心层新增：
+
+- `ProjectSummary`：加权总进度、任务/群组/里程碑计数、逾期数、error/warning 计数、重要路径数、剩余天数、健康点。健康占比的分母固定为未完成叶子任务。
+- `OutlineTree`：过滤、展开、同级排序、祖先保留、群组聚合。聚合始终基于全量子树；过滤只影响可见性。
+- `OutlineMoving`：拖拽重排的目标父级与索引计算，拒绝拖入自身或后代。
+- `DependencyEditing`：四型 CRUD、环校验、重复归一、删除时清理悬空引用。
+- `ProjectState`：`{metadata, tasks, resources}` 值快照，供撤销与恢复。
+- `ScheduleAnchor`：项目开始锚点推导与 `projectStartDerived` 标记。
+- `ScheduleResult.unscheduledTaskIDs`：依赖环、空群组等无法排期的任务；`hasSchedule` 为存在有效排期且不在该集合。
+- `ProjectMetadata.direction`：默认 `.forward`；按 ADR-011/ADR-012 写自定义 `init(from:)` 与 `decodeIfPresent`，旧文件缺省为 forward。
+- `ViolationEngine.ruleCategories`：规则目录（代码、名称、severity），违例页空态与检查器共用。
+- `KairoSession` 字段更新使用显式 patch 语义（unchanged / set / clear）；`dueDate`、`assignee` 可被清空；状态、进度与 `completedAt` 走统一状态回写入口。
+
+不变量：
+
+- 界面显示的计数、健康点与违例必须来自同一核心计算结果。
+- 快照类型不携带颜色、字号或任何视觉 token。
+- 视图文件的模型引用由 `tools/gate-ui.sh` 按词边界检查；`WorkspaceStore` 为唯一允许的适配层。
 
 ## 7. 已确认决策（2026-10-17 lead 裁定）
 
