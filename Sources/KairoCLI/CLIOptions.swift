@@ -34,6 +34,11 @@ struct Options {
         value(for: key).flatMap(Double.init)
     }
 
+    /// 布尔开关（无值选项，如 `--json`）。
+    func flag(_ key: String) -> Bool {
+        items.contains(key)
+    }
+
     /// 校验所有 --选项 都在允许集合内；发现未知选项即用法错误（避免静默忽略）。
     func rejectUnknown(_ allowed: [String]) throws {
         for item in items where item.hasPrefix("--") && !allowed.contains(item) {

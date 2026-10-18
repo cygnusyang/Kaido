@@ -315,6 +315,47 @@ struct RouteErrorTests {
     }
 }
 
+// MARK: - JSON 输出（US-E5-02 验收 2 / 插件完成 hook）
+
+struct CLIJSONTests {
+    @Test func flagDetection() {
+        let o = Options(["task", "list", "--json", "--file", "x.kairo"])
+        #expect(o.flag("--json"))
+        #expect(!o.flag("--pretty"))
+    }
+
+    @Test func taskListJSONEncodesStableFields() throws {
+        let parentID = UUID()
+        let task = TaskItem(
+            title: "接口设计",
+            status: .done,
+            tags: ["设计"],
+            kind: .task,
+            parentID: parentID,
+            durationDays: 2,
+            progress: 1
+        )
+        let json = try CLIOutput.taskListJSON([task])
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode([TaskItem].self, from: Data(json.utf8))
+        let item = try #require(decoded.first)
+        #expect(item.id == task.id)
+        #expect(item.title == "接口设计")
+        #expect(item.status == .done)
+        #expect(item.parentID == parentID)
+        #expect(item.tags == ["设计"])
+        #expect(item.progress == 1)
+    }
+
+    @Test func taskListJSONUsesISODates() throws {
+        let date = ISO8601DateFormatter().date(from: "2026-10-18T08:00:00Z")!
+        let task = TaskItem(title: "已完成", status: .done, completedAt: date)
+        let json = try CLIOutput.taskListJSON([task])
+        #expect(json.contains("2026-10-18T08:00:00Z"))
+    }
+}
+
 // MARK: - Sprint 2 命令（schedule / status / resource）
 
 struct Sprint2CommandTests {

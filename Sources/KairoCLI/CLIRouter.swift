@@ -149,7 +149,7 @@ struct CLIRouter {
         print("已创建任务：\(shortID(id)) \(title)")
     }
 
-    /// kairo task list [--parent <UUID>] [--filter <文本>] [--file <路径>]。
+    /// kairo task list [--parent <UUID>] [--filter <文本>] [--json] [--file <路径>]。
     private static func taskList(_ o: Options) throws {
         let rawParent = o.value(for: "--parent")
         let filter = o.value(for: "--filter") ?? ""
@@ -157,7 +157,11 @@ struct CLIRouter {
         _ = try session.openProject(at: fileURL(o.value(for: "--file")))
         let parentID = try rawParent.map { try resolveTaskID($0, in: session) }
         let tasks = try session.listTasks(parentID: parentID, filter: filter)
-        for task in tasks { print(taskListLine(task)) }
+        if o.flag("--json") {
+            print(try CLIOutput.taskListJSON(tasks))
+        } else {
+            for task in tasks { print(taskListLine(task)) }
+        }
     }
 
     /// kairo task get <ID> [--file <路径>]：多行详情。
