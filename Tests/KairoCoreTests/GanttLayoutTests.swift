@@ -251,4 +251,25 @@ struct GanttLayoutTests {
         )
         #expect(width == 32)
     }
+
+    @Test func pannedWindowStartMovesOppositeToDrag() {
+        // 向右拖 100pt（每日 20pt）→ 窗口起点左移 5 天。
+        #expect(
+            GanttLayoutEngine.pannedWindowStart(from: monday, translationX: 100, dayWidth: 20)
+                == monday.addingTimeInterval(-5 * 86_400)
+        )
+        // 向左拖 40pt（每日 20pt）→ 窗口起点右移 2 天。
+        #expect(
+            GanttLayoutEngine.pannedWindowStart(from: monday, translationX: -40, dayWidth: 20)
+                == monday.addingTimeInterval(2 * 86_400)
+        )
+    }
+
+    @Test func pannedWindowStartClampsDayWidthToAvoidDivisionExplosion() {
+        // 每日宽度下限 0.5pt：拖 100pt 最多平移 200 天。
+        #expect(
+            GanttLayoutEngine.pannedWindowStart(from: monday, translationX: 100, dayWidth: 0)
+                == monday.addingTimeInterval(-200 * 86_400)
+        )
+    }
 }

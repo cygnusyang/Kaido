@@ -287,7 +287,7 @@ Kairo/
 │   └── claude-code/                  # 斜杠命令 + hooks + .mcp.json 模板
 ├── Tests/
 │   ├── KairoCoreTests/               # 核心全量单测（Linux 亦编译；现有 17 项迁入）
-│   ├── MacOSAppTests/                # 应用层测试
+│   ├── AppTests/                     # 应用层测试（Store 交互 + ImageRenderer 离屏渲染）
 │   └── InterfaceTests/               # MCP/CLI 对等性契约测试（US-E5-05）
 └── docs/                             # 本文档集（00-vision / 01-prd / 02-architecture / 03-roadmap / features）
 ```

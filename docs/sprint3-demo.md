@@ -2,7 +2,7 @@
 
 - 日期：2026-10-18
 - 范围：US-E4-03、US-E4-04、US-E4-05、US-E4-07、US-E5-03、US-E5-04
-- 结论：代码与自动化证据齐备；GUI 视觉与键盘交互待人工确认（见 §7）。
+- 结论：代码与自动化证据齐备；GUI 渲染与交互逻辑已自动化覆盖，视觉美观与真人操作手感待人工确认（见 §7、§8）。
 
 ## 1. 甘特视图基础（US-E4-04）
 
@@ -37,7 +37,16 @@
 - 三档缩放的每日宽度与刻度标签；
 - 窗口结束时间随视图宽度变化；
 - 「适合项目」宽度换算与覆盖值优先级；
-- 进度与重要路径标记透传。
+- 进度与重要路径标记透传；
+- 拖动平移的方向换算与每日宽度下限（`pannedWindowStart`）。
+
+`Tests/AppTests/GUIRenderTests.swift` 用 `ImageRenderer` 离屏渲染（无窗口）验证界面确实绘制：
+
+- 大纲模式渲染出多色内容；
+- 切到甘特后画面差异 > 5%；
+- 日 / 周 / 月三档缩放两两产生不同画面；
+- 平移窗口起点 7 天后画面改变；
+- 打开查找栏后画面改变。
 
 ## 2. 大纲层级编辑（US-E4-03）
 
@@ -66,6 +75,15 @@
 - 子树枚举含后代并防御自环；
 - `Project.insert(after:)` 的插入位置。
 
+`Tests/AppTests/ProjectStoreTests.swift` 直接驱动 `.onKeyPress` 的处理目标：
+
+- Tab 缩进到上一同级任务；Shift-Tab 回到顶层并排在父任务之后；
+- Return 在选中任务后插入同级任务并选中新任务；群组按 Return 时新任务成为子项；
+- 无选中时三个命令均不改变任务列表。
+
+按键事件本身由 SwiftUI `.onKeyPress` 合成；本套件验证其调用的 Store 方法，
+不在测试中伪造 AppKit 键盘事件。
+
 ## 3. 命令面板（US-E4-05）
 
 ### 已实现
@@ -80,6 +98,15 @@
 2. 输入「甘特」，确认只剩视图相关命令；按 Return，确认主区域切到甘特。
 3. 对照菜单栏逐项核对：文件（打开 ⌘O、保存 ⌘S）、编辑（⌘] / ⌘[ / ⌘↩）、任务（⌘⌥N / ⌘⌥G / ⌘⌥M）、视图（⌘⌥V）、查找（⌘F / ⌘G / ⌘⇧G / ⌘⌥E / ⌘K）。
 
+### 自动化证据
+
+`Tests/AppTests` 覆盖：
+
+- 注册表 16 条命令、ID 唯一、5 个分组齐全，快捷键标签正确（⌘K、⇧⌘G、⌘↩）；
+- `CommandPalette.matching` 按标题过滤（「甘特」只剩 `view.gantt`），空查询返回全部；
+- 视图命令切换 `ProjectStore.viewMode`，⌘K 命令打开面板；
+- 打开面板后离屏渲染画面差异 > 5%。
+
 ## 4. 违例面板与时限修正（US-E4-07）
 
 ### 已实现
@@ -90,8 +117,19 @@
 ### 人工验收步骤
 
 1. 首页演示数据中选中「发布 v1.0」，在检查器把「时限」设为「最晚结束」，日期选昨天。
-2. 工具栏打开「违例」面板，确认出现「因先决条件无法满足『结束不晚于』时限」（`constraint_is_prerequisite`），任务行出现橙色图标。
+2. 工具栏打开「违例」面板，确认出现「因先决条件无法满足『结束不晚于』时限」（`constraint_is_prerequisite`），任务行出现橙色图标。同一时限还会伴随一条负宽延记录（`cannot_schedule_asap_alap`）；两条均属预期。
 3. 把时限日期改到 30 天后，或把「时限」改回「无」，确认违例消失、图标消失，计划开始/结束与宽延随之更新。
+
+### 自动化证据
+
+`Tests/AppTests` 用演示数据设置「发布 v1.0」的 `endNoLaterThan`（昨天）后
+（Store 断言在 `ProjectStoreTests`，画面断言在 `GUIRenderTests`）：
+
+- `ProjectStore.violations` 含 `constraint_is_prerequisite` 与 `cannot_schedule_asap_alap`，`taskID` 指向该任务，消息含任务标题；
+- 清空时限后该任务的违例消失；
+- 打开违例面板后离屏渲染画面差异 > 5%。
+
+D-002（演示数据未设项目时间线导致排期落在 1970 纪元）由这组测试发现并修复，见 [defects.md](defects.md)。
 
 ## 5. Claude Code 插件回写（US-E5-03）
 
@@ -175,14 +213,16 @@ $ kairo task list --json --file live.kairo | jq -r '.[] | "\(.title) \(.status)"
 gate-core: KairoCore 无 AppKit/SwiftUI/Cocoa import，通过（19 个 Swift 文件）
 gate=0
 build=0
-Test run with 171 tests in 27 suites passed
+Test run with 197 tests in 30 suites passed
 ```
+
+测试分布：KairoCore 124、Interface 51、AppTests 22。
 
 ## 8. 遗留项
 
 | 项 | 状态 | 去向 |
 |---|---|---|
-| GUI 视觉与键盘交互人工确认（§1–§4） | 待人工 | 本 Demo 验收会 |
+| GUI 视觉美观与真人操作手感（§1–§4） | 待人工；渲染与交互逻辑已自动化覆盖 | 本 Demo 验收会 |
 | Claude Code 完成信号 hook | 已配置并按标题匹配；脚本级与真实会话验证通过 | 标题重名时安全跳过；应用打开同一文件时不自动刷新 |
 | `.app` 打包与 URL scheme 注册 | 未完成 | 发布工程；当前仅能通过 `swift run` 运行并接收系统转发的 URL |
 | 非工作时段按项目/资源日历着色 | 未完成 | 工作日历模型（F-22-06），Sprint 5 |

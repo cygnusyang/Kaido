@@ -25,6 +25,27 @@ struct GanttView: View {
     private let rowHeight: CGFloat = 24
     private let headerHeight: CGFloat = 30
 
+    /// 初始缩放与视窗参数供测试注入；应用内调用使用默认值。
+    init(
+        tasks: [TaskItem],
+        schedule: ScheduleResult?,
+        selection: UUID?,
+        violationIDs: Set<UUID>,
+        onSelect: @escaping (UUID?) -> Void,
+        initialZoom: GanttZoom = .week,
+        fitsToWidth: Bool = true,
+        initialWindowStart: Date? = nil
+    ) {
+        self.tasks = tasks
+        self.schedule = schedule
+        self.selection = selection
+        self.violationIDs = violationIDs
+        self.onSelect = onSelect
+        _zoom = State(initialValue: initialZoom)
+        _fitToWidth = State(initialValue: fitsToWidth)
+        _windowStart = State(initialValue: initialWindowStart)
+    }
+
     private var calendar: Calendar { Calendar.current }
 
     var body: some View {
@@ -162,8 +183,11 @@ struct GanttView: View {
                     fitToWidth = false
                 }
                 let dayWidth = pinnedDayWidth ?? layout.dayWidth
-                let days = -Double(value.translation.width) / max(dayWidth, 0.5)
-                windowStart = anchor.addingTimeInterval(days * 86_400)
+                windowStart = GanttLayoutEngine.pannedWindowStart(
+                    from: anchor,
+                    translationX: Double(value.translation.width),
+                    dayWidth: dayWidth
+                )
             }
             .onEnded { _ in
                 dragAnchor = nil

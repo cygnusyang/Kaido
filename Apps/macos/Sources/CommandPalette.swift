@@ -9,6 +9,11 @@ struct CommandPalette: View {
     @FocusState private var fieldFocused: Bool
 
     private var filtered: [KairoCommand] {
+        Self.matching(query, in: commands)
+    }
+
+    /// 按命令标题不区分大小写过滤（US-E4-05 验收 2）；空查询返回全部命令。
+    static func matching(_ query: String, in commands: [KairoCommand]) -> [KairoCommand] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return commands }
         return commands.filter { $0.title.localizedCaseInsensitiveContains(trimmed) }

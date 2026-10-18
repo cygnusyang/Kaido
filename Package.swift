@@ -42,6 +42,12 @@ let package = Package(
             dependencies: ["KairoCore", "KairoCommands"],
             path: "Tests/KairoCoreTests"
         ),
+        // 应用层（GUI）测试：视图渲染、门店状态与键盘交互
+        .testTarget(
+            name: "AppTests",
+            dependencies: ["KairoMacApp", "KairoCore", "KairoCommands"],
+            path: "Tests/AppTests"
+        ),
         // MCP/CLI 对等性契约测试（US-E5-05）
         .testTarget(
             name: "InterfaceTests",

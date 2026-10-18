@@ -211,4 +211,15 @@ public enum GanttLayoutEngine {
         guard days > 0 else { return GanttZoom.day.dayWidth }
         return max(viewWidth, 1) / days
     }
+
+    /// 拖动日期标头后的窗口起点（F-14-13）：向右拖动使时间窗左移，
+    /// 向左拖动使时间窗右移。
+    public static func pannedWindowStart(
+        from anchor: Date,
+        translationX: Double,
+        dayWidth: Double
+    ) -> Date {
+        let days = -translationX / max(dayWidth, 0.5)
+        return anchor.addingTimeInterval(days * 86_400)
+    }
 }
