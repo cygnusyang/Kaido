@@ -156,6 +156,9 @@ $ kairo task list --json --file live.kairo
 
 任务由 `pending` 变为 `done`，证明 `TaskCompleted` 事件到 CLI 回写的链路贯通。
 
+并发验证：同一项目内并行触发 5 个不同标题的 `TaskCompleted`，5 个任务全部落盘为
+`done`（hook 对项目路径加排他锁，避免原子替换写导致丢更新）。
+
 ## 6. 深链 kairo://（US-E5-04）
 
 - 支持 `kairo://task/<完整 UUID 或 ≥4 位前缀>`、`kairo://task?title=<标题>`、`kairo://project/<id>`。

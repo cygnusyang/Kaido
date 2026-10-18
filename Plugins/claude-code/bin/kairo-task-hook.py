@@ -8,12 +8,16 @@
 - 仅在 KAIRO_PROJECT 指向 .kairo 文件、且标题恰好匹配一个 Kairo 任务时回写。
 - 已为 done 的任务跳过；匹配 0 个或多个时只写 stderr，不改数据。
 - 始终以 0 退出，不阻塞 Claude Code 的任务完成。
+- 对项目文件加排他锁，避免并行子代理同时完成时互相覆盖回写结果。
 """
 
+import fcntl
+import hashlib
 import json
 import os
 import subprocess
 import sys
+import tempfile
 
 
 def find_cli():
@@ -31,6 +35,54 @@ def find_cli():
 
 def note(message):
     print(f"kairo-hook: {message}", file=sys.stderr)
+
+
+def run(cli, args):
+    """执行 CLI，返回 (ok, stdout, stderr)。"""
+    try:
+        result = subprocess.run([cli] + args, capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return False, "", str(error)
+    return result.returncode == 0, result.stdout, result.stderr
+
+
+def sync_status(cli, project, subject):
+    """在项目文件锁内完成「读取列表 → 匹配标题 → 回写」。"""
+    ok, stdout, stderr = run(cli, ["task", "list", "--json", "--file", project])
+    if not ok:
+        note(f"读取任务列表失败：{stderr.strip()}")
+        return
+
+    try:
+        tasks = json.loads(stdout)
+    except json.JSONDecodeError:
+        note("任务列表不是合法 JSON，跳过")
+        return
+    if not isinstance(tasks, list):
+        note("任务列表格式不符，跳过")
+        return
+
+    matches = [
+        task
+        for task in tasks
+        if isinstance(task, dict) and task.get("title") == subject
+    ]
+    if len(matches) != 1:
+        note(f"「{subject}」匹配 {len(matches)} 个 Kairo 任务，跳过回写")
+        return
+
+    task = matches[0]
+    if task.get("status") == "done":
+        return
+
+    ok, _, stderr = run(
+        cli,
+        ["status", "update", str(task.get("id", "")), "--status", "done", "--file", project],
+    )
+    if ok:
+        note(f"已回写「{subject}」为 done")
+    else:
+        note(f"状态回写失败：{stderr.strip()}")
 
 
 def main():
@@ -53,62 +105,20 @@ def main():
         note("未找到 KairoCLI，跳过（先 swift build，或设置 KAIRO_CLI_BIN）")
         return 0
 
+    # CLI 以原子替换写文件，项目文件的 inode 会变，不能直接锁它；
+    # 改锁按项目真实路径派生的稳定排他锁，避免并行完成互相覆盖。
+    real = os.path.realpath(project)
+    lock_name = "kairo-hook-" + hashlib.sha256(real.encode()).hexdigest()[:16] + ".lock"
+    lock_path = os.path.join(tempfile.gettempdir(), lock_name)
     try:
-        listing = subprocess.run(
-            [cli, "task", "list", "--json", "--file", project],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        note(f"读取任务列表失败：{error}")
-        return 0
-    if listing.returncode != 0:
-        note(f"读取任务列表失败：{listing.stderr.strip()}")
-        return 0
-
-    try:
-        tasks = json.loads(listing.stdout)
-    except json.JSONDecodeError:
-        note("任务列表不是合法 JSON，跳过")
-        return 0
-    if not isinstance(tasks, list):
-        note("任务列表格式不符，跳过")
-        return 0
-
-    matches = [task for task in tasks if task.get("title") == subject]
-    if len(matches) != 1:
-        note(f"「{subject}」匹配 {len(matches)} 个 Kairo 任务，跳过回写")
-        return 0
-
-    task = matches[0]
-    if task.get("status") == "done":
-        return 0
-
-    try:
-        update = subprocess.run(
-            [
-                cli,
-                "status",
-                "update",
-                str(task.get("id", "")),
-                "--status",
-                "done",
-                "--file",
-                project,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        note(f"状态回写失败：{error}")
-        return 0
-    if update.returncode != 0:
-        note(f"状态回写失败：{update.stderr.strip()}")
-        return 0
-
-    note(f"已回写「{subject}」为 done")
+        with open(lock_path, "a") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                sync_status(cli, project, subject)
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+    except OSError as error:
+        note(f"无法获取项目锁：{error}")
     return 0
 
 
