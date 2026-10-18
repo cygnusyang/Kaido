@@ -96,30 +96,34 @@
 
 以下为接口事实源（US-E5-05：CLI 与插件从本清单派生）。工具名、输入、输出为契约草案，Sprint 1 复核后定稿。
 
+已实装工具（Sprint 2 定稿，16 个）：
+
 | 工具名 | 输入（要点） | 输出 | 覆盖 US |
 |---|---|---|---|
-| `kairo_project_open` | `path` | `ProjectSummary` | US-E6-01 |
-| `kairo_project_create` | `title`, `settings?`（方向/排程间隔/起止日期） | `projectID` | US-E1-01 |
-| `kairo_project_save` | — | `savedAt` | US-E6-01 |
-| `kairo_project_summary` | — | 任务数/完成%/跨度/成本/差异 | US-E4-06 |
-| `kairo_task_create` | `title`, `kind?`, `parentID?`, `startDate?`, `dueDate?`, `priority?`, `effort?`, `duration?`, `notes?`, `tags?` | `taskID` | US-E1-02/03/05 |
-| `kairo_task_list` | `filter?`, `parentID?` | `[TaskBrief]` | US-E4-01 |
-| `kairo_task_get` | `taskID` | `TaskFull` | US-E4-01 |
-| `kairo_task_update` | `taskID`, 可变字段… | `TaskFull` | US-E1-02 |
-| `kairo_task_delete` | `taskID` | `ok` | US-E1-02 |
-| `kairo_wbs_import` | `nodes`（嵌套：标题/kind/投入/子节点…） | `[taskID]`（映射树）+ 保真报告 | US-E1-04 |
-| `kairo_dependency_add` | `taskID`, `predecessorID`, `type(FS/FF/SS/SF)`, `lag?` | `Dependency` | US-E2-01 |
-| `kairo_dependency_remove` | `taskID`, `predecessorID` | `ok` | US-E2-01 |
-| `kairo_dependency_list` | `taskID` | `[Dependency]` | US-E2-01 |
-| `kairo_schedule_compute` | — | 重新安排的 `Project` + `[Violation]` | US-E2-02 |
-| `kairo_schedule_query` | `taskID?` | 最早/最晚时间、宽延、重要路径 | US-E2-03 |
-| `kairo_status_update` | `taskID`, `status?`, `progress?`, `completedAt?` | `TaskFull` | US-E3-01 |
-| `kairo_status_batch_update` | `tasks: [{taskID, status?, progress?}]` | 逐条成功/失败明细 | US-E3-02 |
-| `kairo_violations_list` | — | `[Violation]`（类型/涉及任务/原因） | US-E2-05/E4-07 |
-| `kairo_resource_create` | `name`, `type`, `units?`, `efficiency?` | `resourceID` | US-E1-05 |
-| `kairo_resource_list` | — | `[ResourceBrief]` | US-E1-05 |
-| `kairo_resource_assign` | `taskID`, `resourceID`, `units` | `Assignment` | US-E1-05 |
-| `kairo_report` | `format(markdown)`, `range?` | 叙述式周报（Markdown） | US-E4-06 扩展 |
+| `project_create` | `title`, `projectStart?`, `projectEnd?` | 项目元数据 | US-E1-01 |
+| `project_open` | `path` | 项目元数据 | US-E6-01 |
+| `project_save` | `path?` | `savedAt`, `path` | US-E6-01 |
+| `task_add` | `title`, `kind?`, `parentID?`, `effortHours?`, `durationDays?`, `notes?`, `priority?`, `status?`, `tags?`, `dependencies?`, `constraint?`, `schedulingPolicy?` | `taskID` | US-E1-02/03/05、US-E2-01 |
+| `task_list` | `parentID?`, `filter?` | `[TaskItem]` | US-E4-01 |
+| `task_get` | `taskID` | `TaskItem` | US-E4-01 |
+| `task_update` | `taskID` + 可变字段（含 `dependencies` / `constraint` / `schedulingPolicy`） | `TaskItem` | US-E1-02、US-E2-01 |
+| `task_delete` | `taskID` | `ok` | US-E1-02 |
+| `wbs_import` | `nodes`（嵌套任务树） | `rootIDs`, `total`, `warnings` | US-E1-04 |
+| `schedule_compute` | `projectStart?`, `projectEnd?`（缺省用项目时间线） | 每任务最早/最晚/选定安排与宽延 | US-E2-02 |
+| `schedule_critical_path` | `slackLimit?` | 宽延明细与 `isCritical` | US-E2-03 |
+| `violations_list` | — | `[Violation]`（类型/涉及任务/原因） | US-E2-05 |
+| `status_update` | `taskID`, `status?`, `progress?` | `TaskItem` + `groupProgress` | US-E3-01/02 |
+| `status_batch_update` | `tasks: [{taskID, status?, progress?}]` | 逐条成功/失败明细 | US-E3-02 |
+| `resource_add` | `name`, `kind?`, `units?`, `efficiency?` | `resourceID` | US-E1-05 |
+| `resource_list` | — | `[Resource]` | US-E1-05 |
+
+`dependencies` 元素为 `{"predecessorID":"UUID","type":"fs","lagDays":0}`；`constraint` 为
+`type:ISO8601`。工具清单以 `Sources/KairoMCP/Tools.swift` 为唯一事实源（ADR-005），
+CLI 从同一命令层派生。
+
+后续规划工具（尚未实装）：`project_summary`、`dependency_add` / `dependency_remove` /
+`dependency_list`（当前经 `task_add` / `task_update` 的 `dependencies` 参数完成）、
+`schedule_rearrange`、`resource_assign`、`report`。
 
 **错误契约**：所有工具失败时返回结构化错误（`{ code, message, taskID? }`），不得抛未捕获异常；非法参数（如进度 > 1、任务不存在）返回参数错误码。
 

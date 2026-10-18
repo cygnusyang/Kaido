@@ -1,185 +1,233 @@
 # Sprint 2 验收 Demo——排期计算与状态回写闭环
 
-> 日期：2026-10-18 · 执行环境：macOS（本地时区 UTC+8，日期渲染以本地午夜为锚，ISO 输出为 UTC 时刻）
+> 日期：2026-10-18 · 执行环境：macOS（本地时区 UTC+8，ISO 输出为 UTC 时刻）
 > 对应 Roadmap：Sprint 2「调度引擎 + 状态回写闭环」（[03-roadmap.md](03-roadmap.md)）
-> 验收口径：全程无人点界面，Claude Code 经 MCP 与 CLI 各复现一次「建 WBS → 排期 → 违例 → 回写 → 群组聚合」。
+> 验收口径：全程无人点界面，同一场景分别经 MCP 与 CLI 执行一次「建 WBS → 排期 → 违例 → 回写 → 群组聚合」。
 
 ## 1. 目标
 
 验证 Sprint 2 交付物在真实执行中的行为：
 
 - 调度引擎纯函数（US-E2-01/02）：FS/FF/SS/SF 相关性传播 + 时限 + ASAP/ALAP；
-- 违例引擎基础集（US-E2-05）：环、时限冲突、超项目范围；
+- 违例引擎基础集（US-E2-05）：环、时限冲突、超项目范围、负宽延；
 - 重要路径与宽延（US-E2-03）；
 - 状态回写与群组完成度聚合（US-E3-01/02）；
-- 资源模型与投入换算（US-E1-05）。
+- 资源模型与投入换算（US-E1-05，部分）；
+- MCP 与 CLI 契约对等（US-E5-05）。
 
-## 2. MCP 管道
+## 2. 场景
 
-经 `kairo-mcp`（stdio JSON-RPC）逐请求调用，工具清单含 Sprint 2 新增
-`schedule_compute` / `schedule_critical_path` / `violations_list` / `status_update`。
+项目时间线为 2026-11-02 至 2026-11-08，任务树如下：
 
-### 2.1 建 WBS（含一条故意时限冲突）
+| 任务 | 持续时间 | 相关性 / 时限 |
+|---|---|---|
+| Sprint2交付群组（群组） | — | — |
+| ├ 规格评审 | 2 天 | — |
+| ├ 实现 | 3 天 | FS ← 规格评审 |
+| └ 验收 | 1 天 | FS ← 实现 |
+| 发布准备 | 2 天 | 开始不早于 2026-11-12（晚于项目结束） |
+| 发布截止 | 1 天 | FS ← 实现；开始不晚于 2026-11-04 |
 
-```json
-project_create  {"title":"演示项目"}
-task_add        {"title":"Sprint2交付群组","kind":"group"}
-task_add        {"title":"规格评审","parentID":"<群组>","durationDays":2}
-task_add        {"title":"实现","parentID":"<群组>","durationDays":3}
-task_add        {"title":"验收","parentID":"<群组>","durationDays":1}
-task_add        {"title":"发布准备","durationDays":2}
-task_add        {"title":"发布截止","durationDays":2,"constraint":"startNoLaterThan:2026-11-10T00:00:00Z"}
-```
+两个故意设置的冲突用于触发不同违例码：
 
-`发布截止` 被故意设为「开始不晚于 2026-11-10」且持续 2 天，而项目结束 2026-11-08
-——时限窗口容不下任务持续时间，构成一条预期违例。
+- `发布准备` 的「开始不早于」时限晚于项目最晚开始窗口 → F-30-05（`constraint_is_dependency`）；
+- `发布截止` 的前驱把最早开始推到 2026-11-06，晚于时限 2026-11-04 → F-30-04（`constraint_is_prerequisite`）。
 
-### 2.2 排期计算
+## 3. MCP 管道
 
-```
-schedule_compute  {"projectStart":"2026-11-02T00:00:00Z","projectEnd":"2026-11-08T00:00:00Z"}
-```
+测试客户端以 stdio 启动 `KairoMCP`，逐行发送 JSON-RPC 请求。工具清单包含 Sprint 2 新增的
+`schedule_compute` / `schedule_critical_path` / `violations_list` / `status_update` /
+`status_batch_update` / `resource_add` / `resource_list`；
+`task_add` 与 `task_update` 的 `dependencies` 参数接受 `{"predecessorID","type","lagDays"}` 数组。
 
-执行摘录（日期为 UTC 时刻，本地时区 UTC+8 午夜即当日 16:00Z）：
-
-```
-9911EA14  2026-11-01T16:00:00Z → 2026-11-02T16:00:00Z（1 天）
-E0F94B29  2026-11-01T16:00:00Z → 2026-11-03T16:00:00Z（2 天）规格评审
-359050BE  2026-11-01T16:00:00Z → 2026-11-04T16:00:00Z（3 天）实现
-9125A2E8  2026-11-01T16:00:00Z → 2026-11-02T16:00:00Z（1 天）验收
-687EDB34  2026-11-01T16:00:00Z → 2026-11-03T16:00:00Z（2 天）发布准备
-6E44FF2D  2026-11-01T16:00:00Z → 2026-11-03T16:00:00Z（2 天）发布截止
-```
-
-### 2.3 违例列表
+### 3.1 建树与排期
 
 ```
-violations_list  {}
+project_create: 演示项目 2026-11-02T00:00:00Z → 2026-11-08T00:00:00Z
+IDS: G=04762EF9 S=67A3A54D I=219BCAF6 A=1B3B0EBE P=906577A5 D=F1E70A60
+
+== schedule_compute == 6 个任务
+  04762EF9 Sprint2交付群组 2026-11-01T16:00:00Z → 2026-11-02T16:00:00Z （1 天，宽延 5）
+  67A3A54D 规格评审       2026-11-01T16:00:00Z → 2026-11-03T16:00:00Z （2 天，宽延 -3）
+  219BCAF6 实现         2026-11-03T16:00:00Z → 2026-11-06T16:00:00Z （3 天，宽延 -3）
+  1B3B0EBE 验收         2026-11-06T16:00:00Z → 2026-11-07T16:00:00Z （1 天，宽延 0）
+  906577A5 发布准备       2026-11-11T16:00:00Z → 2026-11-13T16:00:00Z （2 天，宽延 -6）
+  F1E70A60 发布截止       2026-11-06T16:00:00Z → 2026-11-07T16:00:00Z （1 天，宽延 -3）
 ```
 
-执行摘录——`发布截止` 的时限窗口冲突被报告：
+FS 链传播正确：`实现` 从 `规格评审` 结束时刻开始，`验收` 从 `实现` 结束时刻开始。
+
+### 3.2 违例列表
 
 ```
-[error] constraint_is_dependency：任务「发布截止」的「开始不晚于」时限与相关性链冲突：窗口无法容纳任务持续时间
+== violations_list == 7 条
+  [task_ends_after_project_end] 任务「发布准备」的结束日期晚于项目结束日期
+  [cannot_schedule_asap_alap] 任务「规格评审」无法安排：最晚开始早于最早开始（负宽延）
+  [cannot_schedule_asap_alap] 任务「实现」无法安排：最晚开始早于最早开始（负宽延）
+  [cannot_schedule_asap_alap] 任务「发布准备」无法安排：最晚开始早于最早开始（负宽延）
+  [cannot_schedule_asap_alap] 任务「发布截止」无法安排：最晚开始早于最早开始（负宽延）
+  [constraint_is_dependency] 任务「发布准备」的「开始不早于」时限与相关性链冲突：最晚开始早于时限
+  [constraint_is_prerequisite] 任务「发布截止」因先决条件无法满足「开始不晚于」时限
 ```
 
-### 2.4 逐任务回写与群组聚合
+7 条违例由两个硬时限级联产生：`发布截止` 的时限压住 `实现` 的最晚结束，进而把同一链上的
+`规格评审`、`实现`、`发布截止` 全部推成负宽延；`发布准备` 的时限把它推出项目结束边界。
+硬时限必须满足，级联负宽延是引擎对「不可能同时满足」的如实报告。
+
+### 3.3 重要路径
 
 ```
-status_update  {"taskID":"<规格评审>","status":"done"}
-status_update  {"taskID":"<实现>","status":"done"}
-status_update  {"taskID":"<验收>","status":"done"}
-status_update  {"taskID":"<发布截止>","status":"done"}
-status_update  {"taskID":"<发布准备>","progress":0.5}
+== schedule_critical_path == 5 个任务（宽延限制 0 天）
+  04762EF9 Sprint2交付群组 总宽延 5 天 / 自由宽延 5 天
+  67A3A54D 规格评审       * 总宽延 -3 天 / 自由宽延 0 天
+  219BCAF6 实现         * 总宽延 -3 天 / 自由宽延 0 天
+  1B3B0EBE 验收         * 总宽延 0 天 / 自由宽延 0 天
+  906577A5 发布准备       * 总宽延 -6 天 / 自由宽延 -6 天
+  F1E70A60 发布截止       * 总宽延 -3 天 / 自由宽延 -3 天
 ```
 
-执行摘录（规格评审/实现/验收/发布截止均记录完成时间）：
+`isCritical` 的口径为「总宽延 ≤ 宽延限制」，负宽延任务同样纳入。群组容器总宽延为 5，不在重要路径中。
+
+### 3.4 状态回写与群组聚合
 
 ```
-规格评审: status=done progress=1 completedAt=有
-实现:     status=done progress=1 completedAt=有
-验收:     status=done progress=1 completedAt=有
-发布截止: status=done progress=1 completedAt=有
-```
+== status_update（回写）==
+  规格评审: status=done progress=1 completedAt=有
+  实现: status=done progress=1 completedAt=有
+  验收: status=done progress=1 completedAt=有
+  发布截止: status=done progress=1 completedAt=有
+  发布准备: status=pending progress=0.5
 
-群组完成度聚合（只读查询群组）：
-
-```
-status_update  {"taskID":"<群组>"}
 群组聚合 groupProgress=1
+已保存：/tmp/kairo-s2-mcp.kairo
 ```
 
-规格评审/实现/验收全部完成 → 群组完成度 100%，符合 US-E3-02 的投入加权聚合。
+群组 `Sprint2交付群组` 的三个叶子（规格评审、实现、验收）全部完成，投入加权聚合为 100%；
+`发布准备` 与 `发布截止` 不在该群组内，不影响聚合值。
 
-## 3. CLI 复现同一序列
+### 3.5 批量回写与资源
 
-`kairo` 命令逐条执行，行为与 MCP 对等（US-E5-02）。
-
-### 3.1 建 WBS（CLI 用 `--dep` 建立 FS 链，时限冲突同款）
-
-```bash
-kairo project create 演示项目 --file demo.kairo
-kairo task add Sprint2交付群组 --kind group --file demo.kairo
-kairo task add 规格评审 --parent <群组> --duration 2 --file demo.kairo
-kairo task add 实现 --parent <群组> --duration 3 --dep <规格评审>:fs --file demo.kairo
-kairo task add 验收 --parent <群组> --duration 1 --dep <实现>:fs --file demo.kairo
-kairo task add 发布准备 --duration 2 --file demo.kairo
-kairo task add 发布截止 --duration 1 --dep <实现>:fs \
-  --constraint startNoLaterThan:2026-11-04T00:00:00Z --file demo.kairo
-```
-
-### 3.2 排期、违例与重要路径
-
-```bash
-kairo schedule compute --start 2026-11-02T00:00:00Z --end 2026-11-13T00:00:00Z --file demo.kairo
-kairo violations --file demo.kairo
-kairo schedule path --file demo.kairo
-```
-
-执行摘录：
+打开上一节保存的项目，批量回写两条（一条成功、一条指向不存在的任务），并添加资源：
 
 ```
-== 排期计算 ==
+== status_batch_update == 成功 1 条，失败 1 条
+  已回写：906577A5 发布准备 （done，进度 1）
+  失败：00000000 任务不存在
+
+== resource_add == 4EAB17CD
+== resource_list == 1 个资源
+  4EAB17CD 李工（person，单位 1，效率 0.9）
+```
+
+失败条目只影响自身，成功条目正常落盘；返回明细含每条任务的 `ok` 与 `error`。
+
+## 4. CLI 复现同一序列
+
+CLI 使用与 MCP 相同的命令层（`KairoSession`，ADR-005），参数为短 ID 前缀。
+
+```
+已创建项目：C81AEF56「演示项目」
+已保存：/tmp/kairo-s2.kairo
+IDS: G=109CD63F S=5750712F I=66B2F892 A=9CB15E36 P=C824CD08 D=5ABDAFC1
+
+== schedule compute ==
 已计算排期：6 个任务
-  CA261717 规格评审  2026-11-01T16:00:00Z → 2026-11-03T16:00:00Z（2 天，ASAP）
-  EA94A18D 实现      2026-11-03T16:00:00Z → 2026-11-06T16:00:00Z（3 天，ASAP）
-  B656CFA9 发布截止  2026-11-06T16:00:00Z → 2026-11-07T16:00:00Z（1 天，ASAP）
-
-== 违例列表 ==
-违例：1 条
-  [错误] constraint_is_dependency：任务「发布截止」的「开始不晚于」时限与相关性链冲突：窗口无法容纳任务持续时间
-
-== 重要路径 ==
-重要路径：4 个任务（宽延限制 0 天）
-  规格评审 *  总宽延 0 天 / 自由宽延 0 天
-  实现     *  总宽延 0 天 / 自由宽延 0 天
-  验收     *  总宽延 0 天 / 自由宽延 0 天
-  发布截止 *  总宽延 0 天 / 自由宽延 0 天
+  109CD63F Sprint2交付群组  2026-11-01T16:00:00Z → 2026-11-02T16:00:00Z（1 天，ASAP）
+  5750712F 规格评审  2026-11-01T16:00:00Z → 2026-11-03T16:00:00Z（2 天，ASAP）
+  66B2F892 实现  2026-11-03T16:00:00Z → 2026-11-06T16:00:00Z（3 天，ASAP）
+  9CB15E36 验收  2026-11-06T16:00:00Z → 2026-11-07T16:00:00Z（1 天，ASAP）
+  C824CD08 发布准备  2026-11-11T16:00:00Z → 2026-11-13T16:00:00Z（2 天，ASAP）
+  5ABDAFC1 发布截止  2026-11-06T16:00:00Z → 2026-11-07T16:00:00Z（1 天，ASAP）
 ```
 
-重要路径覆盖规格评审 → 实现 → 验收 → 发布截止链路，均总宽延 0；并行任务有正宽延。
-
-### 3.3 状态回写与群组聚合
-
-```bash
-kairo status update <规格评审> --status done --file demo.kairo
-kairo status update <实现> --status done --file demo.kairo
-kairo status update <验收> --status done --file demo.kairo
-kairo status update <发布截止> --status done --file demo.kairo
-kairo status update <发布准备> --progress 0.5 --file demo.kairo
-kairo status update <群组> --file demo.kairo   # 只读查询聚合
-```
-
-执行摘录：
+排期结果与 MCP 一致，仅任务 ID 不同。违例与重要路径输出同样一致：
 
 ```
-已回写：CA261717 规格评审（已完成，进度 100%）  完成度聚合：100%
-已回写：EA94A18D 实现（已完成，进度 100%）    完成度聚合：100%
-已回写：F8BABE8F 发布准备（待办，进度 50%）   完成度聚合：50%
-已回写：2B2873C0 Sprint2交付群组（待办，进度 0%）完成度聚合：100%
+== violations ==
+违例：7 条
+  [错误] task_ends_after_project_end：任务「发布准备」的结束日期晚于项目结束日期
+  [错误] cannot_schedule_asap_alap：任务「规格评审」无法安排：最晚开始早于最早开始（负宽延）
+  [错误] cannot_schedule_asap_alap：任务「实现」无法安排：最晚开始早于最早开始（负宽延）
+  [错误] cannot_schedule_asap_alap：任务「发布准备」无法安排：最晚开始早于最早开始（负宽延）
+  [错误] cannot_schedule_asap_alap：任务「发布截止」无法安排：最晚开始早于最早开始（负宽延）
+  [错误] constraint_is_dependency：任务「发布准备」的「开始不早于」时限与相关性链冲突：最晚开始早于时限
+  [错误] constraint_is_prerequisite：任务「发布截止」因先决条件无法满足「开始不晚于」时限
+
+== schedule path ==
+重要路径：5 个任务（宽延限制 0 天）
+  109CD63F Sprint2交付群组  总宽延 5 天 / 自由宽延 5 天
+  5750712F 规格评审 *  总宽延 -3 天 / 自由宽延 0 天
+  66B2F892 实现 *  总宽延 -3 天 / 自由宽延 0 天
+  9CB15E36 验收 *  总宽延 0 天 / 自由宽延 0 天
+  C824CD08 发布准备 *  总宽延 -6 天 / 自由宽延 -6 天
+  5ABDAFC1 发布截止 *  总宽延 -3 天 / 自由宽延 -3 天
 ```
 
-### 3.4 资源
-
-```bash
-kairo resource add 李工 --type person --units 1 --efficiency 0.9 --file demo.kairo
-kairo resource list --file demo.kairo
-```
-
-执行摘录：
+状态回写记录实际完成时间（2026-10-18，而非计划日期），群组聚合为 100%：
 
 ```
-已添加资源：A4024DF5 李工（人员，单位 1，效率 0.9）
-A4024DF5 李工（人员，单位 1，效率 0.9）
+== status update ==
+已回写：5750712F 规格评审（已完成，进度 100%）
+完成于：2026-10-18T07:29:16Z
+完成度聚合：100%
+已回写：66B2F892 实现（已完成，进度 100%）
+完成于：2026-10-18T07:29:16Z
+完成度聚合：100%
+已回写：9CB15E36 验收（已完成，进度 100%）
+完成于：2026-10-18T07:29:16Z
+完成度聚合：100%
+已回写：5ABDAFC1 发布截止（已完成，进度 100%）
+完成于：2026-10-18T07:29:16Z
+完成度聚合：100%
+已回写：C824CD08 发布准备（待办，进度 50%）
+完成度聚合：50%
+
+== 群组聚合（只读）==
+已回写：109CD63F Sprint2交付群组（待办，进度 0%）
+完成度聚合：100%
 ```
 
-## 4. 观察与说明
+群组容器自身的状态与进度保持 0，聚合值单独返回，避免把容器当成可执行任务。
 
-- **日期渲染**：引擎以自然日（24h）为最小单位（工作周日历属 US-E2-04，本 Sprint 不做）；
-  本机时区 UTC+8 使 ISO 输出显示为当日 16:00Z。跨时区一致性依赖日历参数，属已知口径。
-- **违例语义**：单侧时限（开始/结束不早于/不晚于）与相关性链窗口冲突归
-  `constraint_is_dependency`；任务同时带开始与结束时限且窗口小于持续时间时归
-  `constraint_window_too_narrow`（F-30-03）。本演示为单侧时限场景。
-- **群组聚合**：按后代叶子任务的投入加权（无投入叶子按 1 计），群组容器自身不产生投入。
-- **零第三方依赖**：全程 `swift build` / `swift test` 与 `tools/gate-core.sh` 通过，
+批量回写命令 `status batch <JSON>` 接受短 ID 前缀，逐条报告成功/失败：
+
+```
+已回写：C824CD08 发布准备（已完成，进度 100%）
+失败：00000000 找不到任务：00000000
+批量结果：成功 1 条，失败 1 条
+```
+
+资源命令：
+
+```
+已添加资源：CC92023D 李工（人员，单位 1，效率 0.9）
+CC92023D 李工（人员，单位 1，效率 0.9）
+```
+
+## 5. 接口对等性
+
+CLI 直接打开 MCP 保存的 `/tmp/kairo-s2-mcp.kairo` 并列出任务：
+
+```
+04762EF9 Sprint2交付群组 [群组] 待办
+67A3A54D 规格评审 已完成 · 持续 2 天
+219BCAF6 实现 已完成 · 持续 3 天
+1B3B0EBE 验收 已完成 · 持续 1 天
+906577A5 发布准备 待办 · 持续 2 天
+F1E70A60 发布截止 已完成 · 持续 1 天
+```
+
+两个接口层读写同一 `.kairo` 文件，状态与持续性字段完整往返。
+
+## 6. 观察与说明
+
+- **日期渲染**：引擎以自然日（24 小时）为最小单位，工作周日历属 US-E2-04，本 Sprint 不做。
+  本机时区 UTC+8 使 ISO 输出显示为当日 16:00Z；跨时区一致性依赖日历参数，属已知口径。
+- **时限语义**：单侧时限与相关性链窗口冲突归 `constraint_is_dependency`（F-30-05），
+  先决条件把任务推到时限之后归 `constraint_is_prerequisite`（F-30-04）；
+  任务同时带开始侧与结束侧时限且窗口小于持续时间时归 `constraint_window_too_narrow`（F-30-03）。
+- **负宽延级联**：硬时限压住共享前驱的最晚窗口时，同一链上的任务全部产生负宽延。
+  这是引擎对不可满足计划的如实报告，不是计算错误。
+- **群组聚合**：按后代叶子任务的投入加权；无投入的叶子按 1 计；群组容器自身不产生投入。
+- **零第三方依赖**：`swift build`、`swift test`（121 项）与 `tools/gate-core.sh` 通过，
   KairoCore 无 AppKit/SwiftUI/Cocoa import。

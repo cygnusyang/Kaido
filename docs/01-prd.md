@@ -380,7 +380,7 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 | US-E1-02 | 单任务创建、更新与删除 | E1 | P0 | 完成 | 现有 MVP 已具备 |
 | US-E1-03 | 层级任务树（群组/子任务/里程碑） | E1 | P0 | 完成 | Sprint 1（TaskKind/parentID；应用层级树展示） |
 | US-E1-04 | 批量导入任务树（结构化 WBS） | E1 | P0 | 完成 | Sprint 1（wbs_import 工具 + CLI 子命令；叶子解码 bug 修复） |
-| US-E1-05 | 任务信息完整化 | E1 | P1 | 已接受 | — |
+| US-E1-05 | 任务信息完整化 | E1 | P1 | 进行中 | Sprint 2 落地资源模型与 effort/duration 换算；资源分配与富备注链接待做 |
 | US-E2-01 | 相关性模型（FS/FF/SS/SF+前导时间） | E2 | P0 | 完成 | Sprint 2（数据模型 Sprint 1；FS/FF/SS/SF+lag 传播计算落地） |
 | US-E2-02 | 排期计算 | E2 | P0 | 完成 | Sprint 2（ScheduleEngine 纯函数 + schedule_compute） |
 | US-E2-03 | 重要路径与宽延 | E2 | P1 | 完成 | Sprint 2（总/自由宽延 + 宽延限制 + schedule_critical_path） |
@@ -388,7 +388,7 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 | US-E2-05 | 时限约束与基础违例检测 | E2 | P1 | 完成 | Sprint 2（违例引擎 F-30 基础集 + violations_list） |
 | US-E2-06 | 基线快照与差异 | E2 | P2 | 提议 | — |
 | US-E3-01 | 单任务状态与进度回写 | E3 | P0 | 完成 | Sprint 2（statusUpdate：done 记 completedAt + 进度 1；非法进度拒绝） |
-| US-E3-02 | 批量回写与群组完成度聚合 | E3 | P0 | 完成 | Sprint 2（groupProgress 后代叶子投入加权聚合，无投入叶子按 1 计） |
+| US-E3-02 | 批量回写与群组完成度聚合 | E3 | P0 | 完成 | Sprint 2（status_batch_update 逐条明细 + groupProgress 投入加权聚合） |
 | US-E3-03 | 重新安排未完成任务 | E3 | P1 | 已接受 | — |
 | US-E3-04 | 字段级版本历史 | E3 | P1 | 已接受 | — |
 | US-E3-05 | 同步冲突的 AI 差异说明 | E3 | P2 | 提议 | — |
@@ -399,11 +399,11 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 | US-E4-05 | 命令面板（⌘K） | E4 | P0 | 已接受 | — |
 | US-E4-06 | 项目摘要面板 | E4 | P1 | 已接受 | — |
 | US-E4-07 | 检查器与违例面板 | E4 | P1 | 已接受 | — |
-| US-E5-01 | MCP 服务 | E5 | P0 | 完成 | Sprint 1 子集（9 工具、stdio JSON-RPC 零依赖，ADR-010） |
-| US-E5-02 | CLI | E5 | P0 | 完成 | Sprint 1 子集（project/task/wbs 与 MCP 契约同源） |
+| US-E5-01 | MCP 服务 | E5 | P0 | 完成 | Sprint 2 扩至 16 工具（含排期/违例/批量回写/资源；dependencies 参数）；stdio JSON-RPC 零依赖，ADR-010 |
+| US-E5-02 | CLI | E5 | P0 | 完成 | Sprint 2 补齐 schedule/violations/status（含 batch）/resource 对等命令；与 MCP 契约同源 |
 | US-E5-03 | Claude Code 插件 | E5 | P0 | 已接受 | AI 场景新增 |
 | US-E5-04 | 深链协议（kairo://） | E5 | P1 | 已接受 | — |
-| US-E5-05 | 接口一致性保障 | E5 | P0 | 完成 | Sprint 1（InterfaceTests 对等性契约测试 21 项） |
+| US-E5-05 | 接口一致性保障 | E5 | P0 | 完成 | Sprint 2（InterfaceTests 对等性契约测试 35 项；CLI 打开 MCP 文件验证） |
 | US-E5-06 | JSON Schema 导出 | E5 | P1 | 提议 | — |
 | US-E6-01 | .kairo 单文件读写 | E6 | P0 | 完成 | Sprint 1（formatVersion + 前向兼容；MCP/CLI/应用三方互通） |
 | US-E6-02 | 自动保存与文件监控 | E6 | P1 | 已接受 | — |
