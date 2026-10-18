@@ -39,6 +39,19 @@ MCP 启动脚本按以下顺序定位服务：
 
 ## 已配置的 hook
 
-当前版本不配置 hook。任务完成回写由 `/kairo done` 显式触发：Claude Code 的任务工具
-与 Kairo 任务之间没有 ID 映射，自动检测完成信号会误伤或漏写。待 Sprint 4 引入映射后，
-再以 hook 自动回写（US-E5-03 验收第 3 条）。
+`hooks/hooks.json` 注册 `TaskCompleted` 事件，调用 `bin/kairo-task-hook`：
+
+1. 读取事件 JSON 的 `task_subject`（Claude Code 任务标题）。
+2. 用 `KairoCLI task list --json` 读取 `KAIRO_PROJECT` 项目，按标题精确匹配。
+3. 恰好匹配一个任务且状态不是 `done` 时，执行 `kairo status update <id> --status done`。
+
+标题是两套任务系统之间唯一的连接键：`/kairo plan` 建 WBS 时让 Claude Code 任务与
+Kairo 任务同名，且标题在项目内保持唯一。
+
+安全边界：
+
+- 匹配 0 个或多个任务、缺少 `KAIRO_PROJECT`、找不到 `KairoCLI` 时只向 stderr 写原因，
+  不回写、不阻塞 Claude Code 的任务完成（始终以 0 退出）。
+- hook 经 CLI 直接写 `.kairo` 文件。应用打开同一文件时不会自动刷新，需重新打开；
+  hook 运行前先保存应用内改动，避免被文件内容覆盖。
+- 可用 `KAIRO_CLI_BIN` 指定 CLI 路径（与 `KAIRO_MCP_BIN` 同义）。

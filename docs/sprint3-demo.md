@@ -117,7 +117,34 @@ MCP 工具。下面的会话直接驱动 `KairoMCP` stdio（与插件内 `bin/ka
 
 - 时间为 UTC；本机时区 UTC+8，`2026-11-01T16:00:00Z` 即本地 2026-11-02 00:00。
 - 界面开发在接口设计结束后开始，证明 FS 依赖进入排期；群组完成度在子任务完成后为 1。
-- 插件清单与命令通过 `claude plugin validate --strict`；hooks 未配置（见 §7）。
+- 插件清单与命令通过 `claude plugin validate --strict`。
+
+### 完成信号 hook（US-E5-03 验收 3）
+
+`hooks/hooks.json` 注册 `TaskCompleted`，按事件中的 `task_subject` 与 Kairo 任务标题
+精确匹配，唯一命中时经 CLI 回写 `done`。2026-10-18 用真实 `.kairo` 文件驱动脚本：
+
+```
+$ echo '{"hook_event_name":"TaskCompleted","task_subject":"接口设计"}' | KAIRO_PROJECT=... kairo-task-hook
+kairo-hook: 已回写「接口设计」为 done
+hook_exit=0
+$ kairo task list --json ...
+接口设计 done
+界面开发 pending
+
+$ ... task_subject=重名任务（两个同名任务）
+kairo-hook: 「重名任务」匹配 2 个 Kairo 任务，跳过回写
+ambiguous_exit=0
+
+$ ... task_subject=不存在的任务
+kairo-hook: 「不存在的任务」匹配 0 个 Kairo 任务，跳过回写
+nomatch_exit=0
+
+$ ... 未设置 KAIRO_PROJECT / 非 TaskCompleted 事件
+noenv_exit=0 / otherevent_exit=0
+```
+
+所有负路径均以 0 退出且不改数据；真实 Claude Code 会话内的触发待插件加载后确认。
 
 ## 6. 深链 kairo://（US-E5-04）
 
@@ -131,7 +158,7 @@ MCP 工具。下面的会话直接驱动 `KairoMCP` stdio（与插件内 `bin/ka
 gate-core: KairoCore 无 AppKit/SwiftUI/Cocoa import，通过（19 个 Swift 文件）
 gate=0
 build=0
-Test run with 159 tests in 25 suites passed
+Test run with 162 tests in 26 suites passed
 ```
 
 ## 8. 遗留项
@@ -139,7 +166,7 @@ Test run with 159 tests in 25 suites passed
 | 项 | 状态 | 去向 |
 |---|---|---|
 | GUI 视觉与键盘交互人工确认（§1–§4） | 待人工 | 本 Demo 验收会 |
-| Claude Code 完成信号 hook | 未配置 | 需先建立 Claude Code 任务与 Kairo 任务的 ID 映射 |
+| Claude Code 完成信号 hook | 已配置并按标题匹配（脚本级验证） | 待插件加载后的真实会话确认；标题重名时安全跳过 |
 | `.app` 打包与 URL scheme 注册 | 未完成 | 发布工程；当前仅能通过 `swift run` 运行并接收系统转发的 URL |
 | 非工作时段按项目/资源日历着色 | 未完成 | 工作日历模型（F-22-06），Sprint 5 |
 | 甘特横向滚动条 | 未实现 | 当前用拖动标头平移；需要时再评估滚动与时间窗的交互 |
