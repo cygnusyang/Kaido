@@ -13,7 +13,12 @@ struct KairoApp: App {
 
     var body: some Scene {
         WindowGroup("Kairo") {
-            ContentView(store: store, find: find, deepLinkTaskID: $deepLinkTaskID)
+            ContentView(
+                store: store,
+                find: find,
+                commands: commandCatalog,
+                deepLinkTaskID: $deepLinkTaskID
+            )
                 .onOpenURL { handleDeepLink($0) }
                 .fileImporter(
                     isPresented: $showOpenPanel,
@@ -47,14 +52,18 @@ struct KairoApp: App {
                 }
         }
         .commands {
-            KairoCommands(find: find)
-            CommandGroup(after: .saveItem) {
-                Button("打开…") { showOpenPanel = true }
-                    .keyboardShortcut("o", modifiers: .command)
-                Button("保存") { saveDocument() }
-                    .keyboardShortcut("s", modifiers: .command)
-            }
+            KairoMenuCommands(commands: commandCatalog)
         }
+    }
+
+    /// 全应用命令注册表：菜单栏与 ⌘K 面板共用（US-E4-05 验收 3）。
+    private var commandCatalog: [KairoCommand] {
+        KairoCommandCatalog.make(
+            store: store,
+            find: find,
+            requestOpen: { showOpenPanel = true },
+            requestSave: { saveDocument() }
+        )
     }
 
     // MARK: - 深链
@@ -120,20 +129,3 @@ struct KairoApp: App {
     }
 }
 
-/// App menu for find actions. Buttons act on the shared `FindModel`
-/// instance owned by the app.
-struct KairoCommands: Commands {
-    @ObservedObject var find: FindModel
-
-    var body: some Commands {
-        CommandMenu("查找") {
-            Button("查找下一个") { find.findNext() }
-                .keyboardShortcut("g", modifiers: .command)
-            Button("查找上一个") { find.findPrevious() }
-                .keyboardShortcut("g", modifiers: [.command, .shift])
-            Divider()
-            Toggle("正则模式", isOn: $find.regexMode)
-                .keyboardShortcut("e", modifiers: [.command, .option])
-        }
-    }
-}

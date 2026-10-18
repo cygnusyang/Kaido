@@ -5,14 +5,13 @@ import KairoCore
 struct ContentView: View {
     @ObservedObject var store: ProjectStore
     @ObservedObject var find: FindModel
+    /// 命令注册表（⌘K 面板与菜单栏同源）。
+    let commands: [KairoCommand]
     /// kairo:// 深链解析出的待选中任务（nil = 无待处理深链）。
     @Binding var deepLinkTaskID: UUID?
 
     @State private var filterText = ""
-    @State private var selectedTaskID: UUID?
-    @State private var showFindBar = false
     @State private var scrollTargetID: UUID?
-    @State private var showViolations = false
     @State private var adapter = FindAdapter()
     @FocusState private var findFieldFocused: Bool
 
@@ -32,7 +31,7 @@ struct ContentView: View {
     }
 
     private var selectedTask: TaskItem? {
-        guard let id = selectedTaskID else { return nil }
+        guard let id = store.selection else { return nil }
         return project.tasks.first { $0.id == id }
     }
 
@@ -55,86 +54,151 @@ struct ContentView: View {
         VStack(spacing: 0) {
             searchHeader
             Divider()
-            HStack(spacing: 0) {
-                ScrollViewReader { proxy in
-                    TaskOutlineList(
-                        selection: $selectedTaskID,
-                        nodes: rootNodes,
-                        violationIDs: violationIDs,
-                        onViolationTap: { showViolations = true }
-                    )
-                    .onChange(of: scrollTargetID) { _, target in
-                        guard let target else { return }
-                        withAnimation { proxy.scrollTo(target, anchor: .center) }
-                        scrollTargetID = nil
-                    }
-                }
-                if let selectedTask {
-                    Divider()
-                    DetailPane(
-                        task: binding(for: selectedTask),
-                        project: project,
-                        scheduled: store.schedule?.scheduled(selectedTask.id)
-                    )
-                        .frame(width: 320)
-                }
-            }
-            if showViolations {
+            editorContent
+            if store.showViolations {
                 Divider()
-                ViolationsPanel(
-                    violations: store.violations,
-                    onSelectTask: { id in
-                        selectedTaskID = id
-                        scrollTargetID = id
-                    },
-                    onClose: { showViolations = false }
-                )
-                .frame(height: 180)
+                violationsSection
             }
         }
-        .background(findShortcutButton)
+        .overlay {
+            if store.showCommandPalette {
+                CommandPalette(commands: commands, onDismiss: { store.showCommandPalette = false })
+            }
+        }
         .onAppear {
             adapter.reveal = { index in revealMatch(at: index) }
             refreshFindTarget()
         }
         .onChange(of: filteredTasks) { _, _ in refreshFindTarget() }
+        .onChange(of: store.showFindBar) { _, shown in
+            if shown {
+                DispatchQueue.main.async { findFieldFocused = true }
+            }
+        }
         .onChange(of: deepLinkTaskID) { _, id in
             guard let id else { return }
-            selectedTaskID = id
+            store.selection = id
             scrollTargetID = id
             deepLinkTaskID = nil
         }
         .onChange(of: find.lastFindString) { _, _ in find.rescan() }
         .onChange(of: find.regexMode) { _, _ in find.rescan() }
-        .toolbar {
-            ToolbarItem {
-                Button {
-                    showViolations.toggle()
-                } label: {
-                    Label(
-                        store.violations.isEmpty ? "违例" : "违例 \(store.violations.count)",
-                        systemImage: store.violations.isEmpty
-                            ? "checkmark.circle"
-                            : "exclamationmark.triangle"
-                    )
-                }
-                .help("显示或隐藏违例面板")
-            }
-            ToolbarItem {
-                Menu {
-                    Button("任务") { addTask(kind: .task) }
-                    Button("群组") { addTask(kind: .group) }
-                    Button("里程碑") { addTask(kind: .milestone) }
-                } label: {
-                    Label("新建任务", systemImage: "plus")
-                }
-                .help("新建任务 / 群组 / 里程碑")
-            }
-        }
+        .toolbar { editorToolbar }
         .frame(minWidth: 760, minHeight: 480)
     }
 
+    /// 主区域：任务大纲或甘特，加右侧检查器。
+    private var editorContent: some View {
+        HStack(spacing: 0) {
+            primaryView
+            if let selectedTask {
+                Divider()
+                DetailPane(
+                    task: binding(for: selectedTask),
+                    project: project,
+                    scheduled: store.schedule?.scheduled(selectedTask.id)
+                )
+                .frame(width: 320)
+            }
+        }
+    }
+
+    private var primaryView: some View {
+        Group {
+            if store.viewMode == .gantt {
+                GanttView(
+                    tasks: filteredTasks,
+                    schedule: store.schedule,
+                    selection: store.selection,
+                    violationIDs: violationIDs,
+                    onSelect: { store.selection = $0 }
+                )
+            } else {
+                outlineView
+            }
+        }
+    }
+
+    private var outlineView: some View {
+        ScrollViewReader { proxy in
+            TaskOutlineList(
+                selection: $store.selection,
+                nodes: rootNodes,
+                violationIDs: violationIDs,
+                onViolationTap: { store.showViolations = true }
+            )
+            .onChange(of: scrollTargetID) { _, target in
+                guard let target else { return }
+                withAnimation { proxy.scrollTo(target, anchor: .center) }
+                scrollTargetID = nil
+            }
+            .onKeyPress(phases: .down) { press in
+                if press.key == .tab { return handleTab(press) }
+                if press.key == .return { return handleReturn() }
+                return .ignored
+            }
+        }
+    }
+
+    private var violationsSection: some View {
+        ViolationsPanel(
+            violations: store.violations,
+            onSelectTask: { id in
+                store.selection = id
+                scrollTargetID = id
+            },
+            onClose: { store.showViolations = false }
+        )
+        .frame(height: 180)
+    }
+
+    @ToolbarContentBuilder
+    private var editorToolbar: some ToolbarContent {
+        ToolbarItem { viewModePicker }
+        ToolbarItem { violationsButton }
+        ToolbarItem { newTaskMenu }
+    }
+
+    private var violationsButton: some View {
+        Button {
+            store.showViolations.toggle()
+        } label: {
+            Label(violationsTitle, systemImage: violationsIcon)
+        }
+        .help("显示或隐藏违例面板")
+    }
+
+    private var violationsTitle: String {
+        store.violations.isEmpty ? "违例" : "违例 \(store.violations.count)"
+    }
+
+    private var violationsIcon: String {
+        store.violations.isEmpty ? "checkmark.circle" : "exclamationmark.triangle"
+    }
+
+    private var newTaskMenu: some View {
+        Menu {
+            Button("任务") { addTask(kind: .task) }
+            Button("群组") { addTask(kind: .group) }
+            Button("里程碑") { addTask(kind: .milestone) }
+        } label: {
+            Label("新建任务", systemImage: "plus")
+        }
+        .help("新建任务 / 群组 / 里程碑")
+    }
+
     // MARK: - Subviews
+
+    /// 任务 / 甘特视图切换（F-12-02）。独立成属性以隔离类型检查。
+    private var viewModePicker: some View {
+        Picker("视图", selection: $store.viewMode) {
+            ForEach(ViewMode.allCases) { mode in
+                Text(mode.title).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+        .help("切换任务大纲与甘特视图")
+    }
 
     private var searchHeader: some View {
         VStack(spacing: 8) {
@@ -147,7 +211,7 @@ struct ContentView: View {
             if !clauses.isEmpty {
                 filterChipRow
             }
-            if showFindBar {
+            if store.showFindBar {
                 findBar
             }
         }
@@ -207,18 +271,6 @@ struct ContentView: View {
         }
     }
 
-    /// Invisible ⌘F target that shows the find bar and focuses its field.
-    private var findShortcutButton: some View {
-        Button("查找") {
-            showFindBar = true
-            DispatchQueue.main.async {
-                findFieldFocused = true
-            }
-        }
-        .keyboardShortcut("f", modifiers: .command)
-        .hidden()
-    }
-
     // MARK: - Helpers
 
     private func chipLabel(for token: String) -> String {
@@ -239,13 +291,28 @@ struct ContentView: View {
 
     /// 新建任务 / 群组 / 里程碑；选中任务时作为其子项加入。
     private func addTask(kind: TaskKind) {
-        let title: String
-        switch kind {
-        case .task: title = "新任务"
-        case .group: title = "新群组"
-        case .milestone: title = "新里程碑"
+        let id = store.addTask(kind: kind)
+        scrollTargetID = id
+    }
+
+    /// Tab / Shift-Tab：缩进或出缩进（US-E4-03）。
+    private func handleTab(_ press: KeyPress) -> KeyPress.Result {
+        guard let id = store.selection else { return .ignored }
+        if press.modifiers.contains(.shift) {
+            store.outdent(id)
+        } else {
+            store.indent(id)
         }
-        store.add(TaskItem(title: title, kind: kind, parentID: selectedTaskID))
+        return .handled
+    }
+
+    /// Return：在选中任务之后新建同级任务并选中它。
+    private func handleReturn() -> KeyPress.Result {
+        guard let id = store.selection else { return .ignored }
+        let newID = store.insertSibling(after: id)
+        store.selection = newID
+        scrollTargetID = newID
+        return .handled
     }
 
     private func binding(for task: TaskItem) -> Binding<TaskItem> {
@@ -264,7 +331,7 @@ struct ContentView: View {
         let tasks = filteredTasks
         guard tasks.indices.contains(index) else { return }
         let task = tasks[index]
-        selectedTaskID = task.id
+        store.selection = task.id
         scrollTargetID = task.id
     }
 }
