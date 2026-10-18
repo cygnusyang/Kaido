@@ -24,14 +24,61 @@ public struct SessionError: Error, Equatable, Sendable, CustomStringConvertible 
     public var description: String { message }
 }
 
+/// 可选字段补丁（ADR-013）：区分「不修改」「设为值」「清空」。
+public enum FieldPatch<T: Sendable>: Sendable {
+    case unchanged
+    case set(T)
+    case clear
+}
+
+/// 任务字段补丁（ADR-013）：`updateTask(id:patch:)` 使用；可选字段支持清空。
+public struct TaskPatch: Sendable {
+    public var title: String?
+    public var notes: String?
+    public var priority: TaskPriority?
+    public var status: TaskStatus?
+    public var progress: Double?
+    public var tags: [String]?
+    public var kind: TaskKind?
+    public var schedulingPolicy: SchedulingPolicy?
+    public var dependencies: [TaskDependency]?
+    public var assignments: [TaskAssignment]?
+    public var startDate: FieldPatch<Date> = .unchanged
+    public var dueDate: FieldPatch<Date> = .unchanged
+    public var assignee: FieldPatch<String> = .unchanged
+    public var parentID: FieldPatch<UUID> = .unchanged
+    public var effortHours: FieldPatch<Double> = .unchanged
+    public var durationDays: FieldPatch<Double> = .unchanged
+    public var constraint: FieldPatch<SchedulingConstraint> = .unchanged
+
+    public init() {}
+}
+
 /// MCP 与 CLI 共享的命令实现层（ADR-005 契约同源）。
 /// 持有当前项目与会话状态；project / task / wbs 操作全部经由此处，
 /// 两个接口层只做参数路由与输出呈现。
 public final class KairoSession {
     public private(set) var project: Project?
     public private(set) var projectURL: URL?
+    /// 是否存在未保存修改（ADR-013 / 外部更新检测）。
+    public private(set) var hasUnsavedChanges = false
+    /// 写操作版本号：每次变更递增，供异步加载判断期间是否有新编辑。
+    public private(set) var revision: UInt64 = 0
 
     public init() {}
+
+    // MARK: - 缓存与脏标记
+
+    /// 任一写操作后置脏；读取排期时按需重算一次。
+    private func markChanged() {
+        lastSchedule = nil
+        hasUnsavedChanges = true
+        revision &+= 1
+    }
+
+    private func markSaved() {
+        hasUnsavedChanges = false
+    }
 
     // MARK: - 项目
 
@@ -49,6 +96,8 @@ public final class KairoSession {
         project.metadata.updatedAt = Date()
         self.project = project
         projectURL = nil
+        markChanged()
+        markSaved()
         return project.metadata
     }
 
@@ -66,14 +115,78 @@ public final class KairoSession {
                 message: "无法读取项目文件：\(url.lastPathComponent)"
             )
         }
-        self.project = project
-        projectURL = url
+        adoptProject(project, from: url)
         return project.metadata
     }
 
-    /// 记录项目保存路径（应用层另存为完成后回填，供后续直存）。
-    public func setProjectURL(_ url: URL) {
+    /// 接管已在后台解码的项目（应用层异步打开，避免主线程阻塞）。
+    public func adoptProject(_ project: Project, from url: URL) {
+        normalizeGroupKinds(in: project)
+        self.project = project
         projectURL = url
+        markChanged()
+        markSaved()
+    }
+
+    /// 文件导出器已把快照写入磁盘：回填路径并清除脏标记，避免重复写文件。
+    public func noteExported(to url: URL) {
+        projectURL = url
+        markSaved()
+    }
+
+    /// 加载规范化警告（如「有子项的任务已按群组处理」）。
+    public private(set) var loadWarnings: [String] = []
+
+    /// 更新项目元数据；开始/结束日期可显式清空。
+    @discardableResult
+    public func updateProjectMetadata(
+        title: String? = nil,
+        projectStart: FieldPatch<Date> = .unchanged,
+        projectEnd: FieldPatch<Date> = .unchanged,
+        direction: ScheduleDirection? = nil
+    ) throws -> ProjectMetadata {
+        guard let project else { throw notOpen() }
+        if let title { project.metadata.title = title }
+        if let direction { project.metadata.direction = direction }
+        Self.apply(projectStart, to: &project.metadata.projectStart)
+        Self.apply(projectEnd, to: &project.metadata.projectEnd)
+        project.metadata.updatedAt = Date()
+        markChanged()
+        return project.metadata
+    }
+
+    /// 当前项目值快照（撤销栈与呈现层输入）。
+    public func snapshot() throws -> ProjectState {
+        guard let project else { throw notOpen() }
+        return ProjectState(project: project)
+    }
+
+    /// 用快照恢复项目（撤销/重做）。
+    public func restore(_ state: ProjectState) throws {
+        guard let project else { throw notOpen() }
+        state.apply(to: project)
+        project.metadata.updatedAt = Date()
+        markChanged()
+    }
+
+    /// 任务首次获得子项时提升为群组，保证「有子项 ⇒ kind == .group」始终成立。
+    private func promoteToGroupIfNeeded(_ parentID: UUID?, in project: Project) {
+        guard let parentID,
+              let index = project.tasks.firstIndex(where: { $0.id == parentID }),
+              project.tasks[index].kind != .group else { return }
+        project.tasks[index].kind = .group
+    }
+
+    /// 群组唯一判据为 `kind == .group`；有子项但类型不符的旧数据在加载时规范化。
+    private func normalizeGroupKinds(in project: Project) {
+        let parentIDs = Set(project.tasks.compactMap(\.parentID))
+        var warnings: [String] = []
+        for (index, task) in project.tasks.enumerated()
+        where parentIDs.contains(task.id) && task.kind != .group {
+            project.tasks[index].kind = .group
+            warnings.append("任务「\(task.title)」有子项，已按群组处理")
+        }
+        loadWarnings = warnings
     }
 
     /// 保存项目；未指定路径时使用已打开项目的路径。
@@ -94,6 +207,7 @@ public final class KairoSession {
             throw SessionError(code: .fileUnreadable, message: "保存失败：\(error.localizedDescription)")
         }
         projectURL = target
+        markSaved()
         return project.metadata
     }
 
@@ -113,19 +227,26 @@ public final class KairoSession {
         dependencies: [TaskDependency] = [],
         constraint: SchedulingConstraint? = nil,
         schedulingPolicy: SchedulingPolicy = .asap,
-        assignments: [TaskAssignment] = []
+        assignments: [TaskAssignment] = [],
+        startDate: Date? = nil,
+        dueDate: Date? = nil,
+        assignee: String? = nil
     ) throws -> UUID {
         guard let project else { throw notOpen() }
         if let parentID, project.tasksByID[parentID] == nil {
             throw SessionError(code: .invalidArgument, message: "父任务不存在", taskID: parentID)
         }
+        promoteToGroupIfNeeded(parentID, in: project)
         try validate(assignments: assignments, in: project)
         let task = TaskItem(
             title: title,
             notes: notes,
+            startDate: startDate,
+            dueDate: dueDate,
             priority: priority,
             status: status,
             tags: tags,
+            assignee: assignee,
             kind: kind,
             parentID: parentID,
             effortHours: effortHours,
@@ -136,6 +257,7 @@ public final class KairoSession {
             assignments: assignments
         )
         project.add(task)
+        markChanged()
         return task.id
     }
 
@@ -184,8 +306,14 @@ public final class KairoSession {
         if let assignments { try validate(assignments: assignments, in: project) }
         var task = project.tasks[index]
         if let title { task.title = title }
-        if let kind { task.kind = kind }
-        if let parentID { task.parentID = parentID }
+        if let kind {
+            task.kind = kind
+            try validateKind(of: task, id: id, in: project)
+        }
+        if let parentID {
+            task.parentID = parentID
+            try validateParent(of: task, id: id, in: project)
+        }
         if let effortHours { task.effortHours = effortHours }
         if let durationDays { task.durationDays = durationDays }
         if let notes { task.notes = notes }
@@ -198,7 +326,93 @@ public final class KairoSession {
         if let schedulingPolicy { task.schedulingPolicy = schedulingPolicy }
         if let assignments { task.assignments = assignments }
         project.tasks[index] = task
+        if let parentID { promoteToGroupIfNeeded(parentID, in: project) }
+        markChanged()
         return task
+    }
+
+    /// 补丁式字段更新（ADR-013）：可选字段可显式清空；状态与进度走统一回写入口。
+    @discardableResult
+    public func updateTask(id: UUID, patch: TaskPatch) throws -> TaskItem {
+        guard let project else { throw notOpen() }
+        guard let index = project.tasks.firstIndex(where: { $0.id == id }) else {
+            throw SessionError(code: .taskNotFound, message: "任务不存在", taskID: id)
+        }
+        if let assignments = patch.assignments { try validate(assignments: assignments, in: project) }
+        if let progress = patch.progress, !(0...1).contains(progress) {
+            throw SessionError(code: .invalidArgument, message: "进度必须介于 0 与 1 之间", taskID: id)
+        }
+        var task = project.tasks[index]
+        if let title = patch.title { task.title = title }
+        if let notes = patch.notes { task.notes = notes }
+        if let priority = patch.priority { task.priority = priority }
+        if let tags = patch.tags { task.tags = tags }
+        if let kind = patch.kind {
+            task.kind = kind
+            try validateKind(of: task, id: id, in: project)
+        }
+        if let schedulingPolicy = patch.schedulingPolicy { task.schedulingPolicy = schedulingPolicy }
+        if let dependencies = patch.dependencies { task.dependencies = dependencies }
+        if let assignments = patch.assignments { task.assignments = assignments }
+        Self.apply(patch.startDate, to: &task.startDate)
+        Self.apply(patch.dueDate, to: &task.dueDate)
+        Self.apply(patch.assignee, to: &task.assignee)
+        Self.apply(patch.parentID, to: &task.parentID)
+        Self.apply(patch.effortHours, to: &task.effortHours)
+        Self.apply(patch.durationDays, to: &task.durationDays)
+        Self.apply(patch.constraint, to: &task.constraint)
+        Self.applyStatus(status: patch.status, progress: patch.progress, to: &task)
+        // 仅父级实际变更时校验与提升，避免逐键更新做全量子树遍历。
+        if case .set = patch.parentID {
+            try validateParent(of: task, id: id, in: project)
+        }
+        project.tasks[index] = task
+        if case .set = patch.parentID {
+            promoteToGroupIfNeeded(task.parentID, in: project)
+        }
+        markChanged()
+        return task
+    }
+
+    /// 父任务引用必须存在且不能指向自身；父级首次获得子项时提升为群组。
+    private func validateParent(of task: TaskItem, id: UUID, in project: Project) throws {
+        guard let parentID = task.parentID else { return }
+        guard parentID != id else {
+            throw SessionError(
+                code: .invalidArgument,
+                message: "父任务不能是任务自身",
+                taskID: id
+            )
+        }
+        guard project.tasksByID[parentID] != nil else {
+            throw SessionError(code: .invalidArgument, message: "父任务不存在", taskID: parentID)
+        }
+        guard !OutlineEditor.subtreeIDs(of: id, in: project.tasks).contains(parentID) else {
+            throw SessionError(
+                code: .invalidArgument,
+                message: "不能把任务移动到自身或后代之下",
+                taskID: id
+            )
+        }
+    }
+
+    /// 有子项的任务必须是群组；拒绝经由 CLI/MCP 显式降级类型。
+    private func validateKind(of task: TaskItem, id: UUID, in project: Project) throws {
+        guard task.kind != .group,
+              project.tasks.contains(where: { $0.parentID == id }) else { return }
+        throw SessionError(
+            code: .invalidArgument,
+            message: "任务存在子项，不能改为非群组类型",
+            taskID: id
+        )
+    }
+
+    private static func apply<V>(_ patch: FieldPatch<V>, to value: inout V?) {
+        switch patch {
+        case .unchanged: break
+        case .set(let newValue): value = newValue
+        case .clear: value = nil
+        }
     }
 
     /// 校验分配引用的资源存在（US-E1-05）；悬空引用在写入前拒绝。
@@ -213,20 +427,121 @@ public final class KairoSession {
         }
     }
 
+    /// 删除任务；存在后代时一并删除，避免 MCP/CLI 绕过界面确认后留下悬空 parentID。
     @discardableResult
     public func deleteTask(id: UUID) throws -> Bool {
+        _ = try deleteSubtree(id: id)
+        return true
+    }
+
+    /// 级联删除任务及其全部后代，返回受影响任务数；同时清理悬空依赖。
+    @discardableResult
+    public func deleteTaskCascade(id: UUID) throws -> Int {
+        try deleteSubtree(id: id)
+    }
+
+    private func deleteSubtree(id: UUID) throws -> Int {
         guard let project else { throw notOpen() }
         guard project.tasksByID[id] != nil else {
             throw SessionError(code: .taskNotFound, message: "任务不存在", taskID: id)
         }
-        project.remove(id: id)
+        let removed = OutlineEditor.subtreeIDs(of: id, in: project.tasks)
+        let remaining = project.tasks.filter { !removed.contains($0.id) }
         // 指向被删任务的相关性一并移除（US-E1-02 验收）。
-        for (index, task) in project.tasks.enumerated() where task.dependencies.contains(where: { $0.predecessorID == id }) {
-            var updated = task
-            updated.dependencies.removeAll { $0.predecessorID == id }
-            project.tasks[index] = updated
+        project.replaceTasks(
+            DependencyEditing.removingDanglingReferences(to: removed, in: remaining)
+        )
+        markChanged()
+        return removed.count
+    }
+
+    // MARK: - 大纲移动（F-14-02 / ADR-013）
+
+    /// Tab 缩进；无上一同级任务时返回 nil。
+    @discardableResult
+    public func indentTask(id: UUID) throws -> [TaskItem]? {
+        guard let project else { throw notOpen() }
+        guard let updated = OutlineEditor.indent(id, in: project.tasks) else { return nil }
+        project.replaceTasks(updated)
+        promoteToGroupIfNeeded(project.tasksByID[id]?.parentID, in: project)
+        markChanged()
+        return updated
+    }
+
+    /// Shift-Tab 出缩进；已是顶层时返回 nil。
+    @discardableResult
+    public func outdentTask(id: UUID) throws -> [TaskItem]? {
+        guard let project else { throw notOpen() }
+        guard let updated = OutlineEditor.outdent(id, in: project.tasks) else { return nil }
+        project.replaceTasks(updated)
+        markChanged()
+        return updated
+    }
+
+    /// 拖拽重排：移动到目标父级与索引；拒绝移入自身或后代。
+    @discardableResult
+    public func moveTask(id: UUID, toParent parentID: UUID?, at index: Int) throws -> [TaskItem] {
+        guard let project else { throw notOpen() }
+        switch OutlineMoving.move(id, toParent: parentID, at: index, in: project.tasks) {
+        case .success(let updated):
+            project.replaceTasks(updated)
+            promoteToGroupIfNeeded(parentID, in: project)
+            markChanged()
+            return updated
+        case .failure(let error):
+            let message: String
+            switch error {
+            case .taskNotFound: message = "任务不存在"
+            case .targetNotFound: message = "目标父级不存在"
+            case .moveIntoSubtree: message = "不能把任务移动到自身或后代之下"
+            }
+            throw SessionError(code: .invalidArgument, message: message, taskID: id)
         }
-        return true
+    }
+
+    // MARK: - 相关性编辑（F-30-08 / ADR-013）
+
+    /// 添加或更新依赖（同前驱归一为一条）；成环被拒绝。
+    @discardableResult
+    public func addDependency(
+        to taskID: UUID,
+        predecessorID: UUID,
+        type: TaskDependency.DependencyType = .fs,
+        lagDays: Double = 0
+    ) throws -> TaskItem {
+        guard let project else { throw notOpen() }
+        let dependency = TaskDependency(
+            predecessorID: predecessorID, type: type, lagDays: lagDays
+        )
+        switch DependencyEditing.add(dependency, to: taskID, in: project.tasks) {
+        case .success(let updated):
+            project.replaceTasks(updated)
+            markChanged()
+            return project.tasksByID[taskID]!
+        case .failure(let error):
+            let message: String
+            switch error {
+            case .taskNotFound: message = "任务不存在"
+            case .predecessorNotFound: message = "前驱任务不存在"
+            case .selfDependency: message = "任务不能依赖自身"
+            case .cycle: message = "该依赖会形成相关性环"
+            }
+            throw SessionError(code: .invalidArgument, message: message, taskID: taskID)
+        }
+    }
+
+    /// 删除依赖；依赖不存在时原样返回。
+    @discardableResult
+    public func removeDependency(from taskID: UUID, predecessorID: UUID) throws -> TaskItem {
+        guard let project else { throw notOpen() }
+        switch DependencyEditing.remove(predecessorID: predecessorID, from: taskID, in: project.tasks) {
+        case .success(let updated):
+            project.replaceTasks(updated)
+            markChanged()
+            return project.tasksByID[taskID]!
+        case .failure:
+            throw SessionError(code: .taskNotFound, message: "任务不存在", taskID: taskID)
+        }
     }
 
     // MARK: - WBS 批量导入（US-E1-04）
@@ -240,7 +555,6 @@ public final class KairoSession {
         }
         var rootIDs: [UUID] = []
         var idByTitle: [String: UUID] = [:]
-        var warnings: [String] = []
 
         func walk(_ node: WBSNode, _ parent: UUID?) {
             let id = UUID()
@@ -267,12 +581,13 @@ public final class KairoSession {
             for child in node.children { walk(child, id) }
         }
         for node in nodes { walk(node, parentID) }
+        markChanged()
 
         return WBSImportResult(
             rootIDs: rootIDs,
             idByTitle: idByTitle,
             total: idByTitle.count,
-            warnings: warnings
+            warnings: []
         )
     }
 
@@ -289,7 +604,8 @@ public final class KairoSession {
             tasks: project.tasks,
             resources: project.resources,
             projectStart: projectStart ?? project.metadata.projectStart,
-            projectEnd: projectEnd ?? project.metadata.projectEnd
+            projectEnd: projectEnd ?? project.metadata.projectEnd,
+            direction: project.metadata.direction
         )
         lastSchedule = result
         return result
@@ -328,18 +644,32 @@ public final class KairoSession {
             throw SessionError(code: .invalidArgument, message: "进度必须介于 0 与 1 之间", taskID: id)
         }
         var task = project.tasks[index]
+        Self.applyStatus(status: status, progress: progress, to: &task)
+        project.tasks[index] = task
+        markChanged()
+        return task
+    }
+
+    /// 统一状态回写入口：`done` → 进度 1 + 完成时间；离开 `done` 清空完成时间；
+    /// 进度 100% → `done`（100% 与 done 双向联动）。
+    private static func applyStatus(status: TaskStatus?, progress: Double?, to task: inout TaskItem) {
         if let status {
             task.status = status
             if status == .done {
                 task.progress = 1
                 if task.completedAt == nil { task.completedAt = Date() }
+            } else {
+                task.completedAt = nil
             }
         }
         if let progress, task.status != .done {
-            task.progress = progress
+            task.progress = min(max(progress, 0), 1)
+            if task.progress >= 1 {
+                task.progress = 1
+                task.status = .done
+                if task.completedAt == nil { task.completedAt = Date() }
+            }
         }
-        project.tasks[index] = task
-        return task
     }
 
     // MARK: - 批量回写（US-E3-02）
@@ -452,6 +782,7 @@ public final class KairoSession {
         }
         let resource = Resource(name: name, kind: kind, units: units, efficiency: efficiency)
         project.resources.append(resource)
+        markChanged()
         return resource.id
     }
 
