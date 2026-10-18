@@ -19,6 +19,12 @@ public enum GanttZoom: String, CaseIterable, Codable, Sendable {
 /// `(计划开始 − 窗口起点)` 折算横坐标，超出窗口的条保留（由视图裁剪），
 /// 以便拖动窗口时条不会在边缘跳变。
 public struct GanttLayout: Equatable, Sendable {
+    /// 表头层级：上层月/年，下层日/周。
+    public enum TickTier: String, Codable, Sendable {
+        case upper
+        case lower
+    }
+
     public struct Bar: Equatable, Sendable {
         public var taskID: UUID
         public var x: Double
@@ -37,12 +43,59 @@ public struct GanttLayout: Equatable, Sendable {
         public var label: String
         /// 主要刻度（日档位的每月首日、月档位的每年首月）。
         public var isMajor: Bool
+        public var tier: TickTier
+
+        public init(date: Date, x: Double, label: String, isMajor: Bool, tier: TickTier = .lower) {
+            self.date = date
+            self.x = x
+            self.label = label
+            self.isMajor = isMajor
+            self.tier = tier
+        }
     }
 
     /// 非工作时段背景带（F-14-14）。
     public struct Band: Equatable, Sendable {
         public var x: Double
         public var width: Double
+    }
+
+    /// 直角折线段（依赖线由多段组成）。
+    public struct Segment: Equatable, Sendable {
+        public var startX: Double
+        public var startY: Double
+        public var endX: Double
+        public var endY: Double
+
+        public init(startX: Double, startY: Double, endX: Double, endY: Double) {
+            self.startX = startX
+            self.startY = startY
+            self.endX = endX
+            self.endY = endY
+        }
+    }
+
+    /// 一条依赖线：从 `predecessorID` 指向 `successorID`，最后一段终点即箭头位置。
+    public struct DependencyRoute: Equatable, Sendable {
+        public var predecessorID: UUID
+        public var successorID: UUID
+        public var type: TaskDependency.DependencyType
+        public var isCritical: Bool
+        public var segments: [Segment]
+
+        public init(
+            predecessorID: UUID,
+            successorID: UUID,
+            type: TaskDependency.DependencyType,
+            isCritical: Bool,
+            segments: [Segment]
+        ) {
+            self.predecessorID = predecessorID
+            self.successorID = successorID
+            self.type = type
+            self.isCritical = isCritical
+            self.segments = segments
+        }
     }
 
     public var windowStart: Date
@@ -55,8 +108,13 @@ public struct GanttLayout: Equatable, Sendable {
     public var contentStart: Date?
     public var contentEnd: Date?
     public var bars: [Bar]
+    /// 两级表头刻度：`tier == .lower` 为日/周标签，`.upper` 为月/年标签。
     public var ticks: [Tick]
     public var bands: [Band]
+    /// 今天线横坐标；今天不在窗口内时为 nil。
+    public var todayX: Double?
+    /// 可见任务之间的依赖路由。
+    public var dependencyRoutes: [DependencyRoute]
 }
 
 public enum GanttLayoutEngine {
@@ -71,7 +129,8 @@ public enum GanttLayoutEngine {
         var ends: [Date] = []
         if let projectStart = schedule.projectStart { starts.append(projectStart) }
         if let projectEnd = schedule.projectEnd { ends.append(projectEnd) }
-        for scheduled in schedule.tasks {
+        let unscheduled = Set(schedule.unscheduledTaskIDs)
+        for scheduled in schedule.tasks where !unscheduled.contains(scheduled.taskID) {
             starts.append(scheduled.scheduledStart)
             ends.append(scheduled.scheduledFinish)
         }
@@ -91,6 +150,9 @@ public enum GanttLayoutEngine {
     ///   - nonWorkingWeekdays: 非工作星期（`Calendar` 星期序号，1=周日）；默认周六、周日。
     ///     工作日历模型（F-22-06）落地前以此为视图默认。
     ///   - dayWidthOverride: 覆盖档位默认宽度（「缩放以适合项目」传 `fitDayWidth` 结果）。
+    ///   - rowIndexByTaskID: 可见行索引；提供时生成依赖路由（缺省不生成）。
+    ///   - rowHeight: 行高（点），用于依赖路由的行中心与行边界。
+    ///   - today: 今天线基准日；nil 时不生成 `todayX`。
     public static func make(
         tasks: [TaskItem],
         schedule: ScheduleResult?,
@@ -99,7 +161,10 @@ public enum GanttLayoutEngine {
         viewWidth: Double,
         windowStart requestedStart: Date? = nil,
         nonWorkingWeekdays: Set<Int> = [1, 7],
-        dayWidthOverride: Double? = nil
+        dayWidthOverride: Double? = nil,
+        rowIndexByTaskID: [UUID: Int] = [:],
+        rowHeight: Double = 28,
+        today: Date? = nil
     ) -> GanttLayout {
         let content = contentRange(tasks: tasks, schedule: schedule, calendar: calendar)
         let width = max(viewWidth, 1)
@@ -116,7 +181,8 @@ public enum GanttLayoutEngine {
                 .map { $0.filter(\.isCritical).map(\.taskID) } ?? []
         )
         var bars: [GanttLayout.Bar] = []
-        for scheduled in schedule?.tasks ?? [] {
+        let unscheduledIDs = Set(schedule?.unscheduledTaskIDs ?? [])
+        for scheduled in schedule?.tasks ?? [] where !unscheduledIDs.contains(scheduled.taskID) {
             let start = scheduled.scheduledStart
             let finish = scheduled.scheduledFinish
             guard finish > windowStart, start < windowEnd else { continue }
@@ -136,8 +202,38 @@ public enum GanttLayoutEngine {
             )
         }
 
-        var ticks: [GanttLayout.Tick] = []
+        var lowerTicks: [GanttLayout.Tick] = []
+        var upperTicks: [GanttLayout.Tick] = []
+        var upperDates: Set<Date> = []
         var bands: [GanttLayout.Band] = []
+
+        func appendUpper(_ date: Date, x: Double, label: String) {
+            let day = calendar.startOfDay(for: date)
+            guard upperDates.insert(day).inserted else { return }
+            upperTicks.append(GanttLayout.Tick(
+                date: day, x: x, label: label, isMajor: true, tier: .upper
+            ))
+        }
+
+        let firstDay = calendar.component(.day, from: windowStart)
+        let firstMonth = calendar.component(.month, from: windowStart)
+        let firstYear = calendar.component(.year, from: windowStart)
+        switch zoom {
+        case .day, .week:
+            // 窗口起点不在月初时补当月上层标签，避免上层表头空白。
+            if firstDay != 1 {
+                appendUpper(
+                    windowStart,
+                    x: 0,
+                    label: firstMonth == 1 ? "\(firstYear)年1月" : "\(firstMonth)月"
+                )
+            }
+        case .month:
+            if firstMonth != 1 {
+                appendUpper(windowStart, x: 0, label: "\(firstYear)年")
+            }
+        }
+
         var cursor = windowStart
         while cursor < windowEnd {
             let weekday = calendar.component(.weekday, from: cursor)
@@ -147,46 +243,68 @@ public enum GanttLayoutEngine {
             let offset = cursor.timeIntervalSince(windowStart) / 86_400
             let x = offset * dayWidth
 
-            if nonWorkingWeekdays.contains(weekday) {
+            // 月缩放隐藏非工作带，避免条纹噪声（设计规格 §5.1）。
+            if zoom != .month, nonWorkingWeekdays.contains(weekday) {
                 bands.append(GanttLayout.Band(x: x, width: dayWidth))
             }
 
             switch zoom {
             case .day:
-                ticks.append(
-                    GanttLayout.Tick(
-                        date: cursor,
+                lowerTicks.append(GanttLayout.Tick(
+                    date: cursor, x: x, label: "\(day)", isMajor: false, tier: .lower
+                ))
+                if day == 1 {
+                    appendUpper(
+                        cursor,
                         x: x,
-                        label: day == 1 ? "\(month)月" : "\(day)",
-                        isMajor: day == 1
+                        label: month == 1 ? "\(year)年1月" : "\(month)月"
                     )
-                )
+                }
             case .week:
                 if weekday == calendar.firstWeekday {
-                    ticks.append(
-                        GanttLayout.Tick(
-                            date: cursor,
-                            x: x,
-                            label: "\(month)/\(day)",
-                            isMajor: day == 1
-                        )
+                    lowerTicks.append(GanttLayout.Tick(
+                        date: cursor, x: x, label: "\(month)/\(day)", isMajor: false, tier: .lower
+                    ))
+                }
+                if day == 1 {
+                    appendUpper(
+                        cursor,
+                        x: x,
+                        label: month == 1 ? "\(year)年1月" : "\(month)月"
                     )
                 }
             case .month:
                 if day == 1 {
-                    ticks.append(
-                        GanttLayout.Tick(
-                            date: cursor,
-                            x: x,
-                            label: month == 1 ? "\(year)" : "\(month)月",
-                            isMajor: month == 1
-                        )
-                    )
+                    lowerTicks.append(GanttLayout.Tick(
+                        date: cursor,
+                        x: x,
+                        label: month == 1 ? "\(year)" : "\(month)月",
+                        isMajor: month == 1,
+                        tier: .lower
+                    ))
+                    if month == 1 {
+                        appendUpper(cursor, x: x, label: "\(year)年")
+                    }
                 }
             }
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
             cursor = next
         }
+
+        let todayX: Double? = {
+            guard let today else { return nil }
+            let day = calendar.startOfDay(for: today)
+            guard day >= windowStart, day < windowEnd else { return nil }
+            return day.timeIntervalSince(windowStart) / 86_400 * dayWidth
+        }()
+
+        let routes = dependencyRoutes(
+            tasks: tasks,
+            bars: bars,
+            rowIndexByTaskID: rowIndexByTaskID,
+            rowHeight: rowHeight,
+            criticalIDs: criticalIDs
+        )
 
         return GanttLayout(
             windowStart: windowStart,
@@ -196,9 +314,167 @@ public enum GanttLayoutEngine {
             contentStart: content?.start,
             contentEnd: content?.end,
             bars: bars,
-            ticks: ticks,
-            bands: bands
+            ticks: lowerTicks + upperTicks,
+            bands: bands,
+            todayX: todayX,
+            dependencyRoutes: routes
         )
+    }
+
+    // MARK: - 依赖路由
+
+    /// 生成可见任务之间的直角折线路由（ADR-013）。
+    ///
+    /// 路由沿行边界横向走线，只在起点/终点行内垂直，避免穿越其他任务条；
+    /// 跨行时在中间行选择无条体遮挡的垂直通道。
+    private static func dependencyRoutes(
+        tasks: [TaskItem],
+        bars: [GanttLayout.Bar],
+        rowIndexByTaskID: [UUID: Int],
+        rowHeight: Double,
+        criticalIDs: Set<UUID>
+    ) -> [GanttLayout.DependencyRoute] {
+        guard !rowIndexByTaskID.isEmpty, rowHeight > 0 else { return [] }
+        let barByID = Dictionary(uniqueKeysWithValues: bars.map { ($0.taskID, $0) })
+        let rowByID = rowIndexByTaskID
+        // 按行分桶：逐条跨行路由只扫描中间行，避免 1000 任务 × 依赖数退化为 O(n²)。
+        var barsByRow: [Int: [GanttLayout.Bar]] = [:]
+        for bar in bars {
+            guard let row = rowByID[bar.taskID] else { continue }
+            barsByRow[row, default: []].append(bar)
+        }
+
+        func centerY(_ row: Int) -> Double {
+            Double(row) * rowHeight + rowHeight / 2
+        }
+
+        /// 跨行通道：优先取两端点中点；若中间行有条体遮挡，移到这些条体右侧。
+        func laneX(sourceX: Double, targetX: Double, sourceRow: Int, targetRow: Int) -> Double {
+            let preferred = (sourceX + targetX) / 2
+            let lowRow = min(sourceRow, targetRow) + 1
+            let highRow = max(sourceRow, targetRow) - 1
+            guard lowRow <= highRow else { return preferred }
+            var middleBars: [GanttLayout.Bar] = []
+            for row in lowRow...highRow {
+                middleBars.append(contentsOf: barsByRow[row] ?? [])
+            }
+            let collides = middleBars.contains {
+                preferred > $0.x - 2 && preferred < $0.x + $0.width + 2
+            }
+            guard collides else { return preferred }
+            let rightEdge = middleBars.map { $0.x + $0.width }.max() ?? preferred
+            return rightEdge + 6
+        }
+
+        var routes: [GanttLayout.DependencyRoute] = []
+        for task in tasks {
+            guard let successorRow = rowByID[task.id], let successorBar = barByID[task.id] else {
+                continue
+            }
+            for dependency in task.dependencies {
+                guard let predecessorRow = rowByID[dependency.predecessorID],
+                      let predecessorBar = barByID[dependency.predecessorID] else { continue }
+
+                let gap: Double = 4
+                let sourceX: Double
+                let targetX: Double
+                switch dependency.type {
+                case .fs:
+                    sourceX = predecessorBar.x + predecessorBar.width + gap
+                    targetX = successorBar.x - gap
+                case .ff:
+                    sourceX = predecessorBar.x + predecessorBar.width + gap
+                    targetX = successorBar.x + successorBar.width + gap
+                case .ss:
+                    sourceX = predecessorBar.x - gap
+                    targetX = successorBar.x - gap
+                case .sf:
+                    sourceX = predecessorBar.x - gap
+                    targetX = successorBar.x + successorBar.width + gap
+                }
+                let sourceY = centerY(predecessorRow)
+                let targetY = centerY(successorRow)
+
+                let segments: [GanttLayout.Segment]
+                if predecessorRow == successorRow {
+                    if sourceX < targetX {
+                        segments = [GanttLayout.Segment(
+                            startX: sourceX, startY: sourceY, endX: targetX, endY: targetY
+                        )]
+                    } else {
+                        // 同向后折：从行上边界绕行。
+                        let corridorY = Double(predecessorRow) * rowHeight
+                        segments = compactSegments([
+                            GanttLayout.Segment(
+                                startX: sourceX, startY: sourceY, endX: sourceX, endY: corridorY
+                            ),
+                            GanttLayout.Segment(
+                                startX: sourceX, startY: corridorY, endX: targetX, endY: corridorY
+                            ),
+                            GanttLayout.Segment(
+                                startX: targetX, startY: corridorY, endX: targetX, endY: targetY
+                            )
+                        ])
+                    }
+                } else {
+                    let downward = successorRow > predecessorRow
+                    let sourceBoundary = downward
+                        ? Double(predecessorRow + 1) * rowHeight
+                        : Double(predecessorRow) * rowHeight
+                    let targetBoundary = downward
+                        ? Double(successorRow) * rowHeight
+                        : Double(successorRow + 1) * rowHeight
+                    let lane = laneX(
+                        sourceX: sourceX,
+                        targetX: targetX,
+                        sourceRow: predecessorRow,
+                        targetRow: successorRow
+                    )
+                    var path: [GanttLayout.Segment] = [
+                        GanttLayout.Segment(
+                            startX: sourceX, startY: sourceY, endX: sourceX, endY: sourceBoundary
+                        )
+                    ]
+                    if sourceBoundary == targetBoundary {
+                        // 相邻行：行边界即共同走廊。
+                        path.append(GanttLayout.Segment(
+                            startX: sourceX, startY: sourceBoundary, endX: targetX, endY: targetBoundary
+                        ))
+                    } else {
+                        path.append(GanttLayout.Segment(
+                            startX: sourceX, startY: sourceBoundary, endX: lane, endY: sourceBoundary
+                        ))
+                        path.append(GanttLayout.Segment(
+                            startX: lane, startY: sourceBoundary, endX: lane, endY: targetBoundary
+                        ))
+                        path.append(GanttLayout.Segment(
+                            startX: lane, startY: targetBoundary, endX: targetX, endY: targetBoundary
+                        ))
+                    }
+                    path.append(GanttLayout.Segment(
+                        startX: targetX, startY: targetBoundary, endX: targetX, endY: targetY
+                    ))
+                    segments = compactSegments(path)
+                }
+
+                routes.append(GanttLayout.DependencyRoute(
+                    predecessorID: dependency.predecessorID,
+                    successorID: task.id,
+                    type: dependency.type,
+                    isCritical: criticalIDs.contains(dependency.predecessorID)
+                        && criticalIDs.contains(task.id),
+                    segments: segments
+                ))
+            }
+        }
+        return routes
+    }
+
+    /// 去掉零长度线段：端点重合段无绘制意义，且会干扰命中与箭头方向判断。
+    private static func compactSegments(_ segments: [GanttLayout.Segment]) -> [GanttLayout.Segment] {
+        segments.filter {
+            abs($0.endX - $0.startX) > 0.001 || abs($0.endY - $0.startY) > 0.001
+        }
     }
 
     /// 「缩放以适合项目」：让内容范围恰好铺满可用宽度（F-14-13）。

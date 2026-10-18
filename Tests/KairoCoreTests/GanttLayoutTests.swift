@@ -167,7 +167,7 @@ struct GanttLayoutTests {
         #expect(layout.dayWidth == 5)
     }
 
-    @Test func dayZoomTicksIncludeMonthStart() {
+    @Test func dayZoomTicksUseTwoTiers() {
         let layout = GanttLayoutEngine.make(
             tasks: [],
             schedule: nil,
@@ -176,12 +176,15 @@ struct GanttLayoutTests {
             viewWidth: 5 * 32,
             windowStart: day(2026, 11, 28)
         )
-        #expect(layout.ticks.count == 5)
-        let majors = layout.ticks.filter(\.isMajor)
-        #expect(majors.count == 1)
-        #expect(majors.first?.date == day(2026, 12, 1))
-        #expect(majors.first?.label == "12月")
-        #expect(majors.first?.x == 96)
+        let lower = layout.ticks.filter { $0.tier == .lower }
+        #expect(lower.map(\.label) == ["28", "29", "30", "1", "2"])
+        #expect(lower.allSatisfy { !$0.isMajor })
+
+        let upper = layout.ticks.filter { $0.tier == .upper }
+        #expect(upper.map(\.label) == ["11月", "12月"])
+        #expect(upper.map(\.x) == [0.0, 96.0])
+        #expect(upper.filter { !$0.isMajor }.isEmpty)
+        #expect(upper.last?.date == day(2026, 12, 1))
     }
 
     @Test func monthZoomTicksAtMonthStart() {
@@ -193,8 +196,180 @@ struct GanttLayoutTests {
             viewWidth: 60 * 5,
             windowStart: day(2026, 11, 1)
         )
-        #expect(layout.ticks.map(\.label) == ["11月", "12月"])
-        #expect(layout.ticks.map(\.x) == [0.0, 150.0])
+        let lower = layout.ticks.filter { $0.tier == .lower }
+        #expect(lower.map(\.label) == ["11月", "12月"])
+        #expect(lower.map(\.x) == [0.0, 150.0])
+
+        let upper = layout.ticks.filter { $0.tier == .upper }
+        #expect(upper.map(\.label) == ["2026年"])
+        #expect(upper.first?.x == 0)
+    }
+
+    @Test func monthZoomHidesNonWorkingBands() {
+        let month = GanttLayoutEngine.make(
+            tasks: [],
+            schedule: nil,
+            calendar: utc,
+            zoom: .month,
+            viewWidth: 60 * 5,
+            windowStart: day(2026, 11, 1)
+        )
+        #expect(month.bands.isEmpty)
+
+        let day = GanttLayoutEngine.make(
+            tasks: [],
+            schedule: nil,
+            calendar: utc,
+            zoom: .day,
+            viewWidth: 7 * 32,
+            windowStart: monday
+        )
+        #expect(!day.bands.isEmpty)
+    }
+
+    @Test func todayXTracksWindowBounds() throws {
+        let inside = GanttLayoutEngine.make(
+            tasks: [],
+            schedule: nil,
+            calendar: utc,
+            zoom: .day,
+            viewWidth: 7 * 32,
+            windowStart: monday,
+            today: day(2026, 11, 4)
+        )
+        let x = try #require(inside.todayX)
+        #expect(abs(x - 2 * 32) < 0.0001)
+
+        let outside = GanttLayoutEngine.make(
+            tasks: [],
+            schedule: nil,
+            calendar: utc,
+            zoom: .day,
+            viewWidth: 7 * 32,
+            windowStart: monday,
+            today: day(2026, 11, 1)
+        )
+        #expect(outside.todayX == nil)
+    }
+
+    @Test func dependencyRoutesConnectAllFourTypesAtBarEdges() throws {
+        let cases: [(TaskDependency.DependencyType, Double, Double)] = [
+            (.fs, 68, 92),
+            (.ff, 68, 164),
+            (.ss, -4, 92),
+            (.sf, -4, 164)
+        ]
+        for (type, expectedStartX, expectedEndX) in cases {
+            let predecessor = TaskItem(title: "前")
+            let successor = TaskItem(
+                title: "后",
+                dependencies: [TaskDependency(predecessorID: predecessor.id, type: type)]
+            )
+            let layout = GanttLayoutEngine.make(
+                tasks: [predecessor, successor],
+                schedule: result([
+                    scheduled(predecessor, start: monday, days: 2),
+                    scheduled(successor, start: day(2026, 11, 5), days: 2)
+                ]),
+                calendar: utc,
+                zoom: .day,
+                viewWidth: 400,
+                windowStart: monday,
+                rowIndexByTaskID: [predecessor.id: 0, successor.id: 1],
+                rowHeight: 28
+            )
+            let route = try #require(layout.dependencyRoutes.first)
+            #expect(layout.dependencyRoutes.count == 1)
+            #expect(route.type == type)
+            #expect(route.predecessorID == predecessor.id)
+            #expect(route.successorID == successor.id)
+
+            let first = try #require(route.segments.first)
+            let last = try #require(route.segments.last)
+            #expect(abs(first.startX - expectedStartX) < 0.0001)
+            #expect(abs(first.startY - 14) < 0.0001)
+            #expect(abs(last.endX - expectedEndX) < 0.0001)
+            #expect(abs(last.endY - 42) < 0.0001)
+            #expect(route.segments.allSatisfy { segment in
+                abs(segment.startX - segment.endX) < 0.0001
+                    || abs(segment.startY - segment.endY) < 0.0001
+            })
+        }
+    }
+
+    @Test func unscheduledTasksAreExcludedFromBarsAndContent() {
+        let task = TaskItem(title: "环")
+        let schedule = ScheduleResult(
+            tasks: [scheduled(task, start: monday, days: 2)],
+            unscheduledTaskIDs: [task.id]
+        )
+        #expect(
+            GanttLayoutEngine.contentRange(tasks: [task], schedule: schedule, calendar: utc) == nil
+        )
+        let layout = GanttLayoutEngine.make(
+            tasks: [task],
+            schedule: schedule,
+            calendar: utc,
+            zoom: .day,
+            viewWidth: 400,
+            windowStart: monday
+        )
+        #expect(layout.bars.isEmpty)
+    }
+
+    @Test func dependencyRoutesSkipUnscheduledEndpoints() {
+        let predecessor = TaskItem(title: "前")
+        let successor = TaskItem(
+            title: "后",
+            dependencies: [TaskDependency(predecessorID: predecessor.id)]
+        )
+        let layout = GanttLayoutEngine.make(
+            tasks: [predecessor, successor],
+            schedule: result([scheduled(predecessor, start: monday, days: 2)]),
+            calendar: utc,
+            zoom: .day,
+            viewWidth: 400,
+            windowStart: monday,
+            rowIndexByTaskID: [predecessor.id: 0, successor.id: 1]
+        )
+        #expect(layout.dependencyRoutes.isEmpty)
+    }
+
+    @Test func dependencyRoutesAvoidMiddleRowBars() throws {
+        let predecessor = TaskItem(title: "前")
+        let middle = TaskItem(title: "中")
+        let successor = TaskItem(
+            title: "后",
+            dependencies: [TaskDependency(predecessorID: predecessor.id)]
+        )
+        let layout = GanttLayoutEngine.make(
+            tasks: [predecessor, middle, successor],
+            schedule: result([
+                scheduled(predecessor, start: monday, days: 2),
+                scheduled(middle, start: monday, days: 10),
+                scheduled(successor, start: day(2026, 11, 5), days: 2)
+            ]),
+            calendar: utc,
+            zoom: .day,
+            viewWidth: 400,
+            windowStart: monday,
+            rowIndexByTaskID: [predecessor.id: 0, middle.id: 1, successor.id: 2],
+            rowHeight: 28
+        )
+        let route = try #require(layout.dependencyRoutes.first)
+        // 中间行条体占据 x 0...320；通道必须落在条体右侧之外。
+        let lane = try #require(route.segments.first { segment in
+            abs(segment.startX - segment.endX) < 0.0001
+                && abs(segment.startY - 28) < 0.0001
+                && abs(segment.endY - 56) < 0.0001
+        })
+        #expect(lane.startX > 320)
+        // 穿过中间行（y 28...56）的垂直线都必须落在条体右侧。
+        let crossing = route.segments.filter { segment in
+            abs(segment.startX - segment.endX) < 0.0001
+                && max(segment.startY, 28) < min(segment.endY, 56)
+        }
+        #expect(crossing.allSatisfy { $0.startX > 320 })
     }
 
     @Test func windowEndFollowsViewWidth() {
