@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 100 100">
+  <!-- Kairo foreground L2 · AI satellite nodes at 62% like Coffer narrow tooth -->
+  <defs>
+    <linearGradient id="glass2" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.62"/>
+      <stop offset="1" stop-color="#d6c8ff" stop-opacity="0.45"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#glass2)">
+    <circle cx="84" cy="34" r="4.2"/>
+    <circle cx="88" cy="50" r="4.2"/>
+    <circle cx="84" cy="66" r="4.2"/>
+  </g>
+</svg>

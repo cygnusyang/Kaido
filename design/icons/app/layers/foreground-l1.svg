@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 100 100">
+  <!-- Kairo foreground L1 · plan bars + AI hub (glass), Coffer glass stops -->
+  <defs>
+    <linearGradient id="glass" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.99"/>
+      <stop offset="0.6" stop-color="#eee9ff" stop-opacity="0.88"/>
+      <stop offset="1" stop-color="#d6c8ff" stop-opacity="0.74"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#glass)">
+    <!-- Gantt / plan capsules (solid, no thin strokes) -->
+    <rect x="18" y="28" width="42" height="11" rx="5.5"/>
+    <rect x="18" y="44.5" width="52" height="11" rx="5.5"/>
+    <rect x="18" y="61" width="34" height="11" rx="5.5"/>
+    <!-- AI hub -->
+    <circle cx="72" cy="50" r="9"/>
+  </g>
+</svg>
