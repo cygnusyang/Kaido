@@ -124,7 +124,10 @@ enum KairoCommandCatalog {
                 title: "查找…",
                 group: "查找",
                 shortcut: KairoShortcut(key: "f", modifiers: .command),
-                action: { store.showFindBar = true }
+                action: {
+                    store.showFindBar = true
+                    store.findFocusToken += 1
+                }
             ),
             KairoCommand(
                 id: "find.next",

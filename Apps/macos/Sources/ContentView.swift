@@ -70,10 +70,8 @@ struct ContentView: View {
             refreshFindTarget()
         }
         .onChange(of: filteredTasks) { _, _ in refreshFindTarget() }
-        .onChange(of: store.showFindBar) { _, shown in
-            if shown {
-                DispatchQueue.main.async { findFieldFocused = true }
-            }
+        .onChange(of: store.findFocusToken) { _, _ in
+            DispatchQueue.main.async { findFieldFocused = true }
         }
         .onChange(of: deepLinkTaskID) { _, id in
             guard let id else { return }

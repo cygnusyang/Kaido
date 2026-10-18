@@ -27,6 +27,8 @@ final class ProjectStore: ObservableObject {
     @Published var viewMode: ViewMode = .outline
     @Published var showViolations = false
     @Published var showFindBar = false
+    /// 每次 ⌘F 递增，用于在查找栏已打开时重新聚焦输入框。
+    @Published var findFocusToken = 0
     @Published var showCommandPalette = false
     /// 当前项目的排期违例（US-E4-07）；项目每次变更后重算。
     @Published private(set) var violations: [Violation] = []
