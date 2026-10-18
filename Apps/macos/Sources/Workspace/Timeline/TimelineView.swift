@@ -138,6 +138,11 @@ struct TimelineBody: View {
         return gantt.bars.first { $0.taskID == id } == nil ? nil : id
     }
 
+    /// 画布高亮的活动任务：悬停优先，否则用当前选中；依赖线据此隔离。
+    private var activeTaskID: UUID? {
+        hoveredTaskID ?? store.selection
+    }
+
     // MARK: - 绘制
 
     private func draw(
@@ -219,7 +224,7 @@ struct TimelineBody: View {
         offset: CGFloat
     ) {
         for dependency in gantt.dependencies {
-            let isHovered = hoveredTaskID.map {
+            let related = activeTaskID.map {
                 dependency.predecessorID == $0 || dependency.successorID == $0
             } ?? false
             let color: Color
@@ -228,8 +233,9 @@ struct TimelineBody: View {
             } else {
                 color = DesignTokens.dependency
             }
-            let opacity: Double = hoveredTaskID == nil || isHovered ? 1 : 0.2
-            let lineWidth: CGFloat = dependency.isCritical && gantt.showsCriticalPath ? 1.5 : 1
+            let opacity: Double = activeTaskID == nil || related ? 1 : 0.2
+            let baseWidth: CGFloat = dependency.isCritical && gantt.showsCriticalPath ? 1.5 : 1
+            let lineWidth: CGFloat = related ? max(baseWidth, 1.5) : baseWidth
 
             var path = Path()
             for segment in dependency.segments {
@@ -316,6 +322,9 @@ struct TimelineBody: View {
                 diamond,
                 with: .color(bar.isOverdue ? DesignTokens.overdue : DesignTokens.criticalGraphic)
             )
+            if bar.taskID == store.selection {
+                context.stroke(diamond, with: .color(DesignTokens.accentStrong), lineWidth: 2)
+            }
             drawLabel(context: &context, size: size, text: title, x: center.x + 9, y: center.y)
             drawViolationBadge(context: &context, bar: bar, x: center.x + 7, y: rowTop + 4)
             return
@@ -347,6 +356,11 @@ struct TimelineBody: View {
             context.stroke(shape, with: .color(DesignTokens.overdue), lineWidth: 1.5)
         } else if bar.isCritical && gantt.showsCriticalPath {
             context.stroke(shape, with: .color(DesignTokens.criticalGraphic), lineWidth: 1.5)
+        }
+        // 选中任务条：accent 外描边盖在逾期/关键描边之上，点击后在画布上立即可辨。
+        if bar.taskID == store.selection {
+            let outline = Path(roundedRect: rect.insetBy(dx: -1.5, dy: -1.5), cornerRadius: radius + 1.5)
+            context.stroke(outline, with: .color(DesignTokens.accentStrong), lineWidth: 2)
         }
 
         drawViolationBadge(context: &context, bar: bar, x: rect.maxX + 2, y: rowTop + 4)
