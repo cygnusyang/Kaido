@@ -1,6 +1,26 @@
 // swift-tools-version:5.9
 import PackageDescription
 
+// macOS 应用与 GUI 测试仅在 macOS 主机参与构建；Linux CI 只验证核心与接口层（ADR-004）。
+#if os(macOS)
+let macOSAppTargets: [Target] = [
+    // macOS SwiftUI 应用（import KairoCore；经 KairoCommands 命令层实现 .kairo 读写）
+    .executableTarget(
+        name: "KairoMacApp",
+        dependencies: ["KairoCore", "KairoCommands"],
+        path: "Apps/macos/Sources"
+    ),
+    // 应用层（GUI）测试：视图渲染、门面状态与键盘交互
+    .testTarget(
+        name: "AppTests",
+        dependencies: ["KairoMacApp", "KairoCore", "KairoCommands"],
+        path: "Tests/AppTests"
+    )
+]
+#else
+let macOSAppTargets: [Target] = []
+#endif
+
 let package = Package(
     name: "Kairo",
     platforms: [
@@ -11,12 +31,6 @@ let package = Package(
         .target(
             name: "KairoCore",
             path: "Sources/KairoCore"
-        ),
-        // macOS SwiftUI 应用（import KairoCore；经 KairoCommands 命令层实现 .kairo 读写）
-        .executableTarget(
-            name: "KairoMacApp",
-            dependencies: ["KairoCore", "KairoCommands"],
-            path: "Apps/macos/Sources"
         ),
         // MCP/CLI 共享命令层（ADR-005 契约同源）
         .target(
@@ -42,17 +56,11 @@ let package = Package(
             dependencies: ["KairoCore", "KairoCommands"],
             path: "Tests/KairoCoreTests"
         ),
-        // 应用层（GUI）测试：视图渲染、门店状态与键盘交互
-        .testTarget(
-            name: "AppTests",
-            dependencies: ["KairoMacApp", "KairoCore", "KairoCommands"],
-            path: "Tests/AppTests"
-        ),
         // MCP/CLI 对等性契约测试（US-E5-05）
         .testTarget(
             name: "InterfaceTests",
             dependencies: ["KairoCore", "KairoCommands", "KairoMCP", "KairoCLI"],
             path: "Tests/InterfaceTests"
         )
-    ]
+    ] + macOSAppTargets
 )
