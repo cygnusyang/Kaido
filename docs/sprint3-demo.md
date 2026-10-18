@@ -128,7 +128,7 @@ MCP 工具。下面的会话直接驱动 `KairoMCP` stdio（与插件内 `bin/ka
 $ echo '{"hook_event_name":"TaskCompleted","task_subject":"接口设计"}' | KAIRO_PROJECT=... kairo-task-hook
 kairo-hook: 已回写「接口设计」为 done
 hook_exit=0
-$ kairo task list --json ...
+$ kairo task list --json ... | jq -r '.[] | "\(.title) \(.status)"'
 接口设计 done
 界面开发 pending
 
@@ -150,7 +150,7 @@ noenv_exit=0 / otherevent_exit=0
 `TaskCreate` 创建「接线测试」并用 `TaskUpdate` 标记完成。会话结束后读取同一 `.kairo`：
 
 ```
-$ kairo task list --json --file live.kairo
+$ kairo task list --json --file live.kairo | jq -r '.[] | "\(.title) \(.status)"'
 接线测试 done
 ```
 
@@ -158,6 +158,10 @@ $ kairo task list --json --file live.kairo
 
 并发验证：同一项目内并行触发 5 个不同标题的 `TaskCompleted`，5 个任务全部落盘为
 `done`（hook 对项目路径加排他锁，避免原子替换写导致丢更新）。
+
+自动化证据：`Tests/InterfaceTests/TaskHookTests.swift` 用假 CLI 驱动 hook，覆盖唯一命中、
+重名跳过、0 命中、已完成不重写、无关事件、缺 `KAIRO_PROJECT`、非法事件与非法任务列表，
+并断言所有路径退出码为 0。
 
 ## 6. 深链 kairo://（US-E5-04）
 
@@ -171,7 +175,7 @@ $ kairo task list --json --file live.kairo
 gate-core: KairoCore 无 AppKit/SwiftUI/Cocoa import，通过（19 个 Swift 文件）
 gate=0
 build=0
-Test run with 162 tests in 26 suites passed
+Test run with 171 tests in 27 suites passed
 ```
 
 ## 8. 遗留项

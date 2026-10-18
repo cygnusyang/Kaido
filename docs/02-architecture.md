@@ -129,12 +129,12 @@ CLI 从同一命令层派生。
 
 ### 3.2 CLI 命令清单草案
 
-动词与 MCP 工具对等（G3 判据 2）。输出默认人类可读，`--json` 时输出结构化数据。
+动词与 MCP 工具对等（G3 判据 2）。输出默认人类可读，`--json` 时输出结构化数据（Sprint 3 先在 `task list` 落地，其余命令按需扩展）。
 
 ```
 kairo project open|create|save|summary <path> [--title] [--direction] [--precision]
 kairo task add <title> [--kind task|group|milestone] [--parent <id>] [--due <date>] [--priority] [--effort] [--notes]
-kairo task list [--filter "<自然语言>"] [--parent <id>]
+kairo task list [--filter "<自然语言>"] [--parent <id>] [--json]
 kairo task get <id>
 kairo task update <id> [--title] [--status] [--priority] [--progress] [--due]
 kairo task delete <id>
