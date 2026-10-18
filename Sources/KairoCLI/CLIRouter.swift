@@ -226,15 +226,19 @@ struct CLIRouter {
         print("已更新任务：\(shortID(task.id)) \(task.title)")
     }
 
-    /// kairo task delete <ID> [--file <路径>]。
+    /// kairo task delete <ID> [--file <路径>]：删除任务及其全部子任务。
     private static func taskDelete(_ o: Options) throws {
         let rawID = try o.operand(0, name: "任务 ID")
         let session = KairoSession()
         try openForEdit(session, o)
         let id = try resolveTaskID(rawID, in: session)
-        _ = try session.deleteTask(id: id)
+        let removed = try session.deleteTaskCascade(id: id)
         try session.saveProject()
-        print("已删除任务：\(shortID(id))")
+        if removed > 1 {
+            print("已删除任务及其 \(removed - 1) 个子任务：\(shortID(id))")
+        } else {
+            print("已删除任务：\(shortID(id))")
+        }
     }
 
     // MARK: - wbs

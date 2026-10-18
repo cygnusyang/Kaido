@@ -236,7 +236,7 @@ struct ToolRegistry {
 
     private static let taskDelete = MCPTool(
         name: "task_delete",
-        description: "删除任务并移除指向它的相关性（US-E1-02）",
+        description: "删除任务及其全部子任务，并移除指向它们的相关性（US-E1-02）",
         inputSchema: Schema.object(properties: ["taskID": Schema.string()], required: ["taskID"])
     ) { args, session in
         let a = try ToolArgs(args)
