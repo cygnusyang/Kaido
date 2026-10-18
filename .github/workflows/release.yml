@@ -1,0 +1,65 @@
+name: release
+
+# tag 推送触发：编译、测试、打包 Kairo.app 并发布 GitHub Release。
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 检出 Swift 版本
+        run: swift --version
+
+      - name: 测试
+        run: swift test
+
+      - name: 编译打包
+        run: bash tools/build.sh
+
+      - name: 压缩应用
+        run: |
+          # ditto 保留代码签名与元数据；zip 会破坏签名。
+          ditto -c -k --sequesterRsrc --keepParent dist/Kairo.app "Kairo-${GITHUB_REF_NAME}.zip"
+
+      - name: 提取本版本 changelog
+        id: changelog
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [ -f CHANGELOG.md ]; then
+            awk -v t="$TAG" '
+              $0 == "## " t { found=1; next }
+              /^## / && found { exit }
+              found { print }
+            ' CHANGELOG.md > release-notes.md
+          fi
+          if [ ! -s release-notes.md ]; then
+            # 无对应章节时回退：按提交自动生成。
+            echo "CHANGELOG.md 中没有「## $TAG」章节，使用自动生成的发布说明。" > release-notes.md
+            printf '\n<!-- auto-notes -->\n' >> release-notes.md
+            echo "has_autonotes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 创建 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.changelog.outputs.has_autonotes }}" = "true" ]; then
+            # 无 CHANGELOG 章节：本地说明 + GitHub 自动生成的提交列表。
+            sed -i '' '/<!-- auto-notes -->/d' release-notes.md
+            gh release create "$GITHUB_REF_NAME" "Kairo-${GITHUB_REF_NAME}.zip" \
+              --title "Kairo ${GITHUB_REF_NAME}" \
+              --notes-file release-notes.md \
+              --generate-notes
+          else
+            gh release create "$GITHUB_REF_NAME" "Kairo-${GITHUB_REF_NAME}.zip" \
+              --title "Kairo ${GITHUB_REF_NAME}" \
+              --notes-file release-notes.md
+          fi
