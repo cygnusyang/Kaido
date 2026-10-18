@@ -8,6 +8,10 @@ import KairoCommands
 @MainActor
 final class ProjectStore: ObservableObject {
     @Published private(set) var project: Project
+    /// 当前项目的排期违例（US-E4-07）；项目每次变更后重算。
+    @Published private(set) var violations: [Violation] = []
+    /// 最近一次排期结果（检查器展示计划开始/结束与宽延）。
+    @Published private(set) var schedule: ScheduleResult?
     private let session: KairoSession
 
     init() {
@@ -18,6 +22,7 @@ final class ProjectStore: ObservableObject {
         let seed = SeedData.makeProject()
         for task in seed.tasks { session.project?.add(task) }
         self.project = session.project ?? Project()
+        recomputeViolations()
     }
 
     /// 已打开项目的保存路径（nil = 尚未保存过）。
@@ -27,6 +32,7 @@ final class ProjectStore: ObservableObject {
     func open(url: URL) throws {
         _ = try session.openProject(at: url)
         project = session.project ?? project
+        recomputeViolations()
         objectWillChange.send()
     }
 
@@ -43,16 +49,32 @@ final class ProjectStore: ObservableObject {
 
     func add(_ task: TaskItem) {
         project.add(task)
+        recomputeViolations()
         objectWillChange.send()
     }
 
     func update(_ task: TaskItem) {
         project.update(task)
+        recomputeViolations()
         objectWillChange.send()
     }
 
     func remove(id: UUID) {
         project.remove(id: id)
+        recomputeViolations()
         objectWillChange.send()
+    }
+
+    /// 排期结果随项目字段变化重算；违例引擎在结果上运行（ADR-007）。
+    /// 项目时间线未设时引擎按任务推导，不阻断面板展示。
+    private func recomputeViolations() {
+        let result = ScheduleEngine.compute(
+            tasks: project.tasks,
+            resources: project.resources,
+            projectStart: project.metadata.projectStart,
+            projectEnd: project.metadata.projectEnd
+        )
+        schedule = result
+        violations = ViolationEngine.check(result: result, tasks: project.tasks)
     }
 }

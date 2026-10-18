@@ -398,7 +398,7 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 | US-E4-04 | 甘特视图基础 | E4 | P1 | 已接受 | — |
 | US-E4-05 | 命令面板（⌘K） | E4 | P0 | 已接受 | — |
 | US-E4-06 | 项目摘要面板 | E4 | P1 | 已接受 | — |
-| US-E4-07 | 检查器与违例面板 | E4 | P1 | 已接受 | — |
+| US-E4-07 | 检查器与违例面板 | E4 | P1 | 进行中 | Sprint 3：违例面板与行内图标已实现；待验收 Demo 确认 |
 | US-E5-01 | MCP 服务 | E5 | P0 | 完成 | Sprint 2 扩至 16 工具（含排期/违例/批量回写/资源；dependencies 参数）；stdio JSON-RPC 零依赖，ADR-010 |
 | US-E5-02 | CLI | E5 | P0 | 完成 | Sprint 2 补齐 schedule/violations/status（含 batch）/resource 对等命令；与 MCP 契约同源 |
 | US-E5-03 | Claude Code 插件 | E5 | P0 | 进行中 | Sprint 3：插件清单、`.mcp.json`、`/kairo plan/done/status` 已落地；完成信号 hook 待任务 ID 映射 |

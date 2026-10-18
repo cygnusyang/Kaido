@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var selectedTaskID: UUID?
     @State private var showFindBar = false
     @State private var scrollTargetID: UUID?
+    @State private var showViolations = false
     @State private var adapter = FindAdapter()
     @FocusState private var findFieldFocused: Bool
 
@@ -35,6 +36,11 @@ struct ContentView: View {
         return project.tasks.first { $0.id == id }
     }
 
+    /// 存在违例的任务 ID 集合（US-E4-07：行内图标）。
+    private var violationIDs: Set<UUID> {
+        Set(store.violations.compactMap(\.taskID))
+    }
+
     /// 按 parentID 构树（根为 parentID == nil）；List(children:) 渲染层级。
     private var rootNodes: [TaskNode] {
         let byParent = Dictionary(grouping: filteredTasks) { $0.parentID }
@@ -51,7 +57,12 @@ struct ContentView: View {
             Divider()
             HStack(spacing: 0) {
                 ScrollViewReader { proxy in
-                    TaskOutlineList(selection: $selectedTaskID, nodes: rootNodes)
+                    TaskOutlineList(
+                        selection: $selectedTaskID,
+                        nodes: rootNodes,
+                        violationIDs: violationIDs,
+                        onViolationTap: { showViolations = true }
+                    )
                     .onChange(of: scrollTargetID) { _, target in
                         guard let target else { return }
                         withAnimation { proxy.scrollTo(target, anchor: .center) }
@@ -60,9 +71,25 @@ struct ContentView: View {
                 }
                 if let selectedTask {
                     Divider()
-                    DetailPane(task: binding(for: selectedTask), project: project)
+                    DetailPane(
+                        task: binding(for: selectedTask),
+                        project: project,
+                        scheduled: store.schedule?.scheduled(selectedTask.id)
+                    )
                         .frame(width: 320)
                 }
+            }
+            if showViolations {
+                Divider()
+                ViolationsPanel(
+                    violations: store.violations,
+                    onSelectTask: { id in
+                        selectedTaskID = id
+                        scrollTargetID = id
+                    },
+                    onClose: { showViolations = false }
+                )
+                .frame(height: 180)
             }
         }
         .background(findShortcutButton)
@@ -80,6 +107,19 @@ struct ContentView: View {
         .onChange(of: find.lastFindString) { _, _ in find.rescan() }
         .onChange(of: find.regexMode) { _, _ in find.rescan() }
         .toolbar {
+            ToolbarItem {
+                Button {
+                    showViolations.toggle()
+                } label: {
+                    Label(
+                        store.violations.isEmpty ? "违例" : "违例 \(store.violations.count)",
+                        systemImage: store.violations.isEmpty
+                            ? "checkmark.circle"
+                            : "exclamationmark.triangle"
+                    )
+                }
+                .help("显示或隐藏违例面板")
+            }
             ToolbarItem {
                 Menu {
                     Button("任务") { addTask(kind: .task) }
@@ -254,10 +294,17 @@ private struct TaskNode: Identifiable {
 /// 树行包装：给类型检查器一个具体返回类型，避免 List(children:) 泛型推断超时。
 private struct TaskTreeRow: View {
     let node: TaskNode
+    let hasViolation: Bool
+    let onViolationTap: () -> Void
+
     var body: some View {
-        TaskRow(task: node.task)
-            .tag(node.task.id)
-            .id(node.task.id)
+        TaskRow(
+            task: node.task,
+            hasViolation: hasViolation,
+            onViolationTap: onViolationTap
+        )
+        .tag(node.task.id)
+        .id(node.task.id)
     }
 }
 
@@ -265,10 +312,16 @@ private struct TaskTreeRow: View {
 private struct TaskOutlineList: View {
     @Binding var selection: UUID?
     let nodes: [TaskNode]
+    let violationIDs: Set<UUID>
+    let onViolationTap: () -> Void
 
     var body: some View {
         List(nodes, children: \TaskNode.children, selection: $selection) { node in
-            TaskTreeRow(node: node)
+            TaskTreeRow(
+                node: node,
+                hasViolation: violationIDs.contains(node.task.id),
+                onViolationTap: onViolationTap
+            )
         }
         .listStyle(.inset)
     }
@@ -276,6 +329,8 @@ private struct TaskOutlineList: View {
 
 private struct TaskRow: View {
     let task: TaskItem
+    let hasViolation: Bool
+    let onViolationTap: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -284,6 +339,15 @@ private struct TaskRow: View {
                 .foregroundStyle(statusColor)
                 .frame(width: 16)
                 .padding(.top, 2)
+            if hasViolation {
+                Button(action: onViolationTap) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+                .help("存在排期违例，点击查看违例面板")
+                .padding(.top, 2)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(task.title)
@@ -398,11 +462,89 @@ private struct FilterChip: View {
     }
 }
 
+// MARK: - Violations panel（US-E4-07）
+
+private struct ViolationsPanel: View {
+    let violations: [Violation]
+    let onSelectTask: (UUID) -> Void
+    let onClose: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Label("违例", systemImage: "exclamationmark.triangle")
+                    .font(.headline)
+                Text("\(violations.count)")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(.quaternary, in: Capsule())
+                Spacer()
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.plain)
+                .help("关闭违例面板")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            Divider()
+            if violations.isEmpty {
+                ContentUnavailableView(
+                    "没有违例",
+                    systemImage: "checkmark.circle",
+                    description: Text("当前项目排期满足已检查的约束。")
+                )
+            } else {
+                List(violations, id: \.self) { violation in
+                    Button {
+                        if let id = violation.taskID { onSelectTask(id) }
+                    } label: {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: violation.severity == .error
+                                ? "xmark.octagon.fill"
+                                : "exclamationmark.triangle.fill")
+                                .foregroundStyle(violation.severity == .error ? Color.red : Color.orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(violationTypeLabel(violation.code))
+                                    .font(.callout.weight(.medium))
+                                Text(violation.message)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(violation.taskID == nil ? "" : "定位到相关任务")
+                }
+                .listStyle(.inset)
+            }
+        }
+    }
+}
+
+private func violationTypeLabel(_ code: String) -> String {
+    switch code {
+    case "cycle": return "相关性环"
+    case "task_ends_after_project_end": return "超出项目结束日期"
+    case "task_starts_before_project_start": return "早于项目开始日期"
+    case "cannot_schedule_asap_alap": return "无法安排 ASAP/ALAP"
+    case "constraint_is_prerequisite": return "时限与先决条件冲突"
+    case "constraint_is_dependency": return "时限与相关性冲突"
+    case "constraint_window_too_narrow": return "时限窗口过窄"
+    default: return code
+    }
+}
+
 // MARK: - Detail editor
 
 private struct DetailPane: View {
     @Binding var task: TaskItem
     let project: Project
+    let scheduled: ScheduledTask?
 
     var body: some View {
         Form {
@@ -428,6 +570,21 @@ private struct DetailPane: View {
                 if task.isOverdue {
                     Label("已逾期", systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
+                }
+                Picker("时限", selection: constraintKindBinding) {
+                    ForEach(ConstraintKind.allCases) { kind in
+                        Text(kind.label).tag(kind)
+                    }
+                }
+                if constraintKind != .none {
+                    DatePicker("时限日期", selection: constraintDateBinding, displayedComponents: .date)
+                }
+                if let scheduled {
+                    LabeledContent("计划开始", value: dayText(scheduled.scheduledStart))
+                    LabeledContent("计划结束", value: dayText(scheduled.scheduledFinish))
+                    LabeledContent("持续时间", value: numberText(scheduled.durationDays) + " 天")
+                    LabeledContent("总宽延", value: numberText(scheduled.totalSlackDays) + " 天")
+                    LabeledContent("自由宽延", value: numberText(scheduled.freeSlackDays) + " 天")
                 }
             }
             Section("负责人") {
@@ -471,6 +628,86 @@ private struct DetailPane: View {
     private func dependencyTitle(_ dependency: TaskDependency) -> String {
         let name = project.tasks.first { $0.id == dependency.predecessorID }?.title ?? "未知任务"
         return "\(name)（\(dependency.type.rawValue.uppercased())）"
+    }
+
+    // MARK: - 时限编辑（F-22-04：单时限模型）
+
+    private var constraintKind: ConstraintKind {
+        switch task.constraint {
+        case .none: return .none
+        case .startNoEarlierThan: return .startNoEarlierThan
+        case .startNoLaterThan: return .startNoLaterThan
+        case .endNoEarlierThan: return .endNoEarlierThan
+        case .endNoLaterThan: return .endNoLaterThan
+        }
+    }
+
+    private var constraintDate: Date {
+        switch task.constraint {
+        case .none: return Date()
+        case .startNoEarlierThan(let date), .startNoLaterThan(let date),
+             .endNoEarlierThan(let date), .endNoLaterThan(let date):
+            return date
+        }
+    }
+
+    private var constraintKindBinding: Binding<ConstraintKind> {
+        Binding(
+            get: { constraintKind },
+            set: { kind in
+                let date = constraintDate
+                switch kind {
+                case .none: task.constraint = nil
+                case .startNoEarlierThan: task.constraint = .startNoEarlierThan(date)
+                case .startNoLaterThan: task.constraint = .startNoLaterThan(date)
+                case .endNoEarlierThan: task.constraint = .endNoEarlierThan(date)
+                case .endNoLaterThan: task.constraint = .endNoLaterThan(date)
+                }
+            }
+        )
+    }
+
+    private var constraintDateBinding: Binding<Date> {
+        Binding(
+            get: { constraintDate },
+            set: { date in
+                switch constraintKind {
+                case .none: break
+                case .startNoEarlierThan: task.constraint = .startNoEarlierThan(date)
+                case .startNoLaterThan: task.constraint = .startNoLaterThan(date)
+                case .endNoEarlierThan: task.constraint = .endNoEarlierThan(date)
+                case .endNoLaterThan: task.constraint = .endNoLaterThan(date)
+                }
+            }
+        )
+    }
+
+    private func dayText(_ date: Date) -> String {
+        date.formatted(date: .abbreviated, time: .omitted)
+    }
+
+    private func numberText(_ value: Double) -> String {
+        String(format: value == value.rounded() ? "%.0f" : "%.1f", value)
+    }
+}
+
+private enum ConstraintKind: String, CaseIterable, Identifiable {
+    case none
+    case startNoEarlierThan
+    case startNoLaterThan
+    case endNoEarlierThan
+    case endNoLaterThan
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .none: return "无"
+        case .startNoEarlierThan: return "开始不早于"
+        case .startNoLaterThan: return "开始不晚于"
+        case .endNoEarlierThan: return "结束不早于"
+        case .endNoLaterThan: return "结束不晚于"
+        }
     }
 }
 
