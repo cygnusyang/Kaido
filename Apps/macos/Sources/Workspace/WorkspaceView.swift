@@ -276,10 +276,12 @@ struct WorkspaceView: View {
                 OutlineHeaderView(layout: layout)
                     .frame(width: sizes.outlineWidth, height: DesignTokens.headerHeight)
                 if sizes.showsTimeline {
-                    verticalRule
+                    OutlineResizeHandle(store: store, baseWidth: sizes.outlineWidth)
                     TimelineHeaderView(store: store, gantt: gantt, width: sizes.canvasWidth)
                 }
             }
+            // 表头固定 44pt：分界线等弹性子视图不得抬高表头、挤压滚动区。
+            .frame(height: DesignTokens.headerHeight)
             horizontalRule
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
@@ -292,7 +294,7 @@ struct WorkspaceView: View {
                         )
                         .frame(width: sizes.outlineWidth)
                         if sizes.showsTimeline {
-                            verticalRule
+                            OutlineResizeHandle(store: store, baseWidth: sizes.outlineWidth)
                             TimelineBody(
                                 store: store,
                                 rows: rows,
@@ -323,7 +325,7 @@ struct WorkspaceView: View {
                 }
             }
         }
-        .frame(width: sizes.mainWidth, height: height)
+        .frame(width: sizes.mainWidth, height: height, alignment: .top)
     }
 
     private var projectStartBanner: some View {
@@ -352,12 +354,6 @@ struct WorkspaceView: View {
         Rectangle()
             .fill(DesignTokens.separator)
             .frame(height: 1)
-    }
-
-    private var verticalRule: some View {
-        Rectangle()
-            .fill(DesignTokens.separator)
-            .frame(width: 1)
     }
 
     private func inspectorDivider(sizes: WorkspaceSizes) -> some View {
@@ -640,6 +636,44 @@ private struct InspectorResizeHandle: View {
                                 guard let base = dragBase else { return }
                                 store.dispatch(.setInspectorWidth(
                                     Double(base - value.translation.width)
+                                ))
+                            }
+                            .onEnded { _ in dragBase = nil }
+                    )
+            }
+    }
+}
+
+/// 大纲与时间画布之间的分界线（对齐 OmniPlan）：向右拖加大纲、向左拖扩大甘特，
+/// 宽度经 `.setOutlineWidth` 夹取并持久化。
+private struct OutlineResizeHandle: View {
+    @ObservedObject var store: WorkspaceStore
+    let baseWidth: CGFloat
+
+    @State private var dragBase: CGFloat?
+
+    var body: some View {
+        Rectangle()
+            .fill(DesignTokens.separator)
+            .frame(width: 1)
+            .overlay {
+                Color.clear
+                    .frame(width: 7)
+                    .contentShape(Rectangle())
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.resizeLeftRight.set()
+                        } else {
+                            NSCursor.arrow.set()
+                        }
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 1)
+                            .onChanged { value in
+                                if dragBase == nil { dragBase = baseWidth }
+                                guard let base = dragBase else { return }
+                                store.dispatch(.setOutlineWidth(
+                                    Double(base + value.translation.width)
                                 ))
                             }
                             .onEnded { _ in dragBase = nil }
