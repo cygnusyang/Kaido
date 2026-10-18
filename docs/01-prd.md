@@ -401,7 +401,7 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 | US-E4-07 | 检查器与违例面板 | E4 | P1 | 进行中 | Sprint 3：违例面板与行内图标已实现；待验收 Demo 确认 |
 | US-E5-01 | MCP 服务 | E5 | P0 | 完成 | Sprint 2 扩至 16 工具（含排期/违例/批量回写/资源；dependencies 参数）；stdio JSON-RPC 零依赖，ADR-010 |
 | US-E5-02 | CLI | E5 | P0 | 完成 | Sprint 2 补齐 schedule/violations/status（含 batch）/resource 对等命令；与 MCP 契约同源；Sprint 3 增加 `task list --json` 机器可读输出 |
-| US-E5-03 | Claude Code 插件 | E5 | P0 | 进行中 | Sprint 3：插件清单、`.mcp.json`、`/kairo plan/done/status`、`TaskCompleted` hook 已落地；hook 按标题回写，待真实会话确认 |
+| US-E5-03 | Claude Code 插件 | E5 | P0 | 进行中 | Sprint 3：插件清单、`.mcp.json`、`/kairo plan/done/status`、`TaskCompleted` hook 已落地；hook 按标题回写，真实会话验证通过 |
 | US-E5-04 | 深链协议（kairo://） | E5 | P1 | 进行中 | Sprint 3：解析与定位逻辑 + 应用 onOpenURL 已落地；`.app` 打包并注册 URL scheme 待发布工程 |
 | US-E5-05 | 接口一致性保障 | E5 | P0 | 完成 | Sprint 2（InterfaceTests 对等性契约测试 35 项；CLI 打开 MCP 文件验证） |
 | US-E5-06 | JSON Schema 导出 | E5 | P1 | 提议 | — |

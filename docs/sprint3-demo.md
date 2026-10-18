@@ -144,7 +144,17 @@ $ ... 未设置 KAIRO_PROJECT / 非 TaskCompleted 事件
 noenv_exit=0 / otherevent_exit=0
 ```
 
-所有负路径均以 0 退出且不改数据；真实 Claude Code 会话内的触发待插件加载后确认。
+所有负路径均以 0 退出且不改数据。
+
+真实会话验证：以 `claude --plugin-dir Plugins/claude-code -p` 启动会话，让会话用
+`TaskCreate` 创建「接线测试」并用 `TaskUpdate` 标记完成。会话结束后读取同一 `.kairo`：
+
+```
+$ kairo task list --json --file live.kairo
+接线测试 done
+```
+
+任务由 `pending` 变为 `done`，证明 `TaskCompleted` 事件到 CLI 回写的链路贯通。
 
 ## 6. 深链 kairo://（US-E5-04）
 
@@ -166,7 +176,7 @@ Test run with 162 tests in 26 suites passed
 | 项 | 状态 | 去向 |
 |---|---|---|
 | GUI 视觉与键盘交互人工确认（§1–§4） | 待人工 | 本 Demo 验收会 |
-| Claude Code 完成信号 hook | 已配置并按标题匹配（脚本级验证） | 待插件加载后的真实会话确认；标题重名时安全跳过 |
+| Claude Code 完成信号 hook | 已配置并按标题匹配；脚本级与真实会话验证通过 | 标题重名时安全跳过；应用打开同一文件时不自动刷新 |
 | `.app` 打包与 URL scheme 注册 | 未完成 | 发布工程；当前仅能通过 `swift run` 运行并接收系统转发的 URL |
 | 非工作时段按项目/资源日历着色 | 未完成 | 工作日历模型（F-22-06），Sprint 5 |
 | 甘特横向滚动条 | 未实现 | 当前用拖动标头平移；需要时再评估滚动与时间窗的交互 |
