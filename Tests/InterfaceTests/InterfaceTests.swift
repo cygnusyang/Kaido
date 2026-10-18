@@ -187,6 +187,32 @@ private func toolResult(_ value: JSONValue) throws -> JSONValue {
     #expect(resources.first?.objectValue?["efficiency"]?.doubleValue == 0.9)
 }
 
+@Test func taskAssignmentDrivesDurationFromEffort() throws {
+    let server = MCPServer()
+    _ = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_create","arguments":{"title":"投入换算"}}}"#
+    )
+    let res = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"resource_add","arguments":{"name":"李工","efficiency":1}}}"#
+    )
+    let resourceID = try #require(try toolResult(res).objectValue?["resourceID"]?.stringValue)
+    let task = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"task_add","arguments":{"title":"受分配任务","effortHours":8,"assignments":[{"resourceID":"\#(resourceID)","units":1}]}}}"#
+    )
+    _ = try #require(try toolResult(task).objectValue?["taskID"]?.stringValue)
+
+    let schedule = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"schedule_compute","arguments":{"projectStart":"2026-11-02T00:00:00Z"}}}"#
+    )
+    let scheduled = try toolResult(schedule).objectValue?["tasks"]?.arrayValue ?? []
+    // duration = 8h / 8h 每日 / (1 单位 × 100% 效率) = 1 天。
+    #expect(scheduled.first?.objectValue?["durationDays"]?.doubleValue == 1)
+}
+
 // MARK: - Sprint 2 工具（schedule / violations / status）
 
 @Test func scheduleComputeReportsConstraintConflictThenViolationsList() throws {

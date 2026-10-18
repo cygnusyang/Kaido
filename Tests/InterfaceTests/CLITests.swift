@@ -73,6 +73,19 @@ struct OptionsParsingTests {
         #expect(throws: CLIError.self) { _ = try CLIEnums.dependency(":fs") }
     }
 
+    @Test func assignmentSpecParsesPrefixAndUnits() throws {
+        let spec = try CLIEnums.assignment("A1B2C3D4")
+        #expect(spec.resource == "A1B2C3D4")
+        #expect(spec.units == 1)
+
+        let half = try CLIEnums.assignment("A1B2C3D4:0.5")
+        #expect(half.units == 0.5)
+
+        #expect(throws: UsageError.self) { _ = try CLIEnums.assignment(":2") }
+        #expect(throws: UsageError.self) { _ = try CLIEnums.assignment("A1B2C3D4:0") }
+        #expect(throws: UsageError.self) { _ = try CLIEnums.assignment("A1B2C3D4:abc") }
+    }
+
     @Test func schedulingPolicyAndConstraintParse() throws {
         #expect(try CLIEnums.schedulingPolicy("alap") == .alap)
         #expect(try CLIEnums.schedulingPolicy(nil) == nil)
@@ -403,6 +416,54 @@ struct Sprint2CommandTests {
         #expect(project.resources.first?.name == "李工")
         #expect(project.resources.first?.kind == .person)
         #expect(project.resources.first?.efficiency == 0.9)
+    }
+
+    @Test func taskAddAndUpdateWithAssignmentByPrefix() throws {
+        let scratch = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: scratch.dir) }
+        let file = scratch.kairo
+
+        try CLIRouter.execute(arguments: ["project", "create", "分配演示", "--file", file.path])
+        try CLIRouter.execute(arguments: ["resource", "add", "李工", "--file", file.path])
+        let resourceID = try #require(try KairoFile.load(from: file).resources.first).id
+        let prefix = String(resourceID.uuidString.prefix(8))
+
+        try CLIRouter.execute(arguments: [
+            "task", "add", "受分配任务",
+            "--effort", "16",
+            "--assign", "\(prefix):2",
+            "--file", file.path,
+        ])
+        let taskID = try #require(try KairoFile.load(from: file).tasks.first).id
+        var task = try #require(try KairoFile.load(from: file).tasks.first)
+        #expect(task.assignments.count == 1)
+        #expect(task.assignments.first?.resourceID == resourceID)
+        #expect(task.assignments.first?.units == 2)
+
+        // 更新：默认单位 1 覆盖原分配。
+        try CLIRouter.execute(arguments: [
+            "task", "update", taskID.uuidString,
+            "--assign", prefix,
+            "--file", file.path,
+        ])
+        task = try #require(try KairoFile.load(from: file).tasks.first)
+        #expect(task.assignments.count == 1)
+        #expect(task.assignments.first?.units == 1)
+    }
+
+    @Test func taskAddWithUnknownResourceFailsAndWritesNothing() throws {
+        let scratch = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: scratch.dir) }
+        let file = scratch.kairo
+
+        try CLIRouter.execute(arguments: ["project", "create", "悬空分配演示", "--file", file.path])
+        let code = CLIRouter.run(arguments: [
+            "task", "add", "悬空分配任务",
+            "--assign", "DEADBEEF:1",
+            "--file", file.path,
+        ])
+        #expect(code == 2)
+        #expect(try KairoFile.load(from: file).tasks.isEmpty)
     }
 
     private func addTaskID(

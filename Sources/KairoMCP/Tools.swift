@@ -132,6 +132,10 @@ struct ToolRegistry {
                 ])),
                 "constraint": Schema.string(),
                 "schedulingPolicy": Schema.string(enumValues: ["asap", "alap"]),
+                "assignments": Schema.arrayOf(Schema.object(properties: [
+                    "resourceID": Schema.string(),
+                    "units": Schema.number(),
+                ], required: ["resourceID"])),
             ],
             required: ["title"]
         )
@@ -149,7 +153,8 @@ struct ToolRegistry {
             tags: a.stringArray("tags"),
             dependencies: try a.optionalDependencies("dependencies") ?? [],
             constraint: try a.optionalConstraint("constraint"),
-            schedulingPolicy: try a.optionalSchedulingPolicy("schedulingPolicy") ?? .asap
+            schedulingPolicy: try a.optionalSchedulingPolicy("schedulingPolicy") ?? .asap,
+            assignments: try a.optionalAssignments("assignments") ?? []
         )
         return .object(["taskID": .string(id.uuidString)])
     }
@@ -200,6 +205,10 @@ struct ToolRegistry {
                 ])),
                 "constraint": Schema.string(),
                 "schedulingPolicy": Schema.string(enumValues: ["asap", "alap"]),
+                "assignments": Schema.arrayOf(Schema.object(properties: [
+                    "resourceID": Schema.string(),
+                    "units": Schema.number(),
+                ], required: ["resourceID"])),
             ],
             required: ["taskID"]
         )
@@ -219,7 +228,8 @@ struct ToolRegistry {
             tags: a.optionalStringArray("tags"),
             dependencies: try a.optionalDependencies("dependencies"),
             constraint: try a.optionalConstraint("constraint"),
-            schedulingPolicy: try a.optionalSchedulingPolicy("schedulingPolicy")
+            schedulingPolicy: try a.optionalSchedulingPolicy("schedulingPolicy"),
+            assignments: try a.optionalAssignments("assignments")
         )
         return try JSONValue.json(task)
     }
@@ -492,6 +502,24 @@ private struct ToolArgs {
                 type: type,
                 lagDays: obj["lagDays"]?.doubleValue ?? 0
             )
+        }
+    }
+
+    /// 分配数组：元素 {"resourceID":"UUID","units":1}，units 可省略（默认 1）。
+    func optionalAssignments(_ key: String) throws -> [TaskAssignment]? {
+        guard let value = dict[key] else { return nil }
+        guard let array = value.arrayValue else {
+            throw ToolError.invalidArgument("参数 \(key) 必须是数组")
+        }
+        return try array.map { item in
+            guard let obj = item.objectValue,
+                  let rawID = obj["resourceID"]?.stringValue,
+                  let uuid = UUID(uuidString: rawID) else {
+                throw ToolError.invalidArgument(
+                    "参数 \(key) 的元素格式应为 {\"resourceID\":\"UUID\",\"units\":1}"
+                )
+            }
+            return TaskAssignment(resourceID: uuid, units: obj["units"]?.doubleValue ?? 1)
         }
     }
 

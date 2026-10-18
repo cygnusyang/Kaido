@@ -112,12 +112,14 @@ public final class KairoSession {
         tags: [String] = [],
         dependencies: [TaskDependency] = [],
         constraint: SchedulingConstraint? = nil,
-        schedulingPolicy: SchedulingPolicy = .asap
+        schedulingPolicy: SchedulingPolicy = .asap,
+        assignments: [TaskAssignment] = []
     ) throws -> UUID {
         guard let project else { throw notOpen() }
         if let parentID, project.tasksByID[parentID] == nil {
             throw SessionError(code: .invalidArgument, message: "父任务不存在", taskID: parentID)
         }
+        try validate(assignments: assignments, in: project)
         let task = TaskItem(
             title: title,
             notes: notes,
@@ -130,7 +132,8 @@ public final class KairoSession {
             durationDays: durationDays,
             dependencies: dependencies,
             constraint: constraint,
-            schedulingPolicy: schedulingPolicy
+            schedulingPolicy: schedulingPolicy,
+            assignments: assignments
         )
         project.add(task)
         return task.id
@@ -171,12 +174,14 @@ public final class KairoSession {
         tags: [String]? = nil,
         dependencies: [TaskDependency]? = nil,
         constraint: SchedulingConstraint? = nil,
-        schedulingPolicy: SchedulingPolicy? = nil
+        schedulingPolicy: SchedulingPolicy? = nil,
+        assignments: [TaskAssignment]? = nil
     ) throws -> TaskItem {
         guard let project else { throw notOpen() }
         guard let index = project.tasks.firstIndex(where: { $0.id == id }) else {
             throw SessionError(code: .taskNotFound, message: "任务不存在", taskID: id)
         }
+        if let assignments { try validate(assignments: assignments, in: project) }
         var task = project.tasks[index]
         if let title { task.title = title }
         if let kind { task.kind = kind }
@@ -191,8 +196,21 @@ public final class KairoSession {
         if let dependencies { task.dependencies = dependencies }
         if let constraint { task.constraint = constraint }
         if let schedulingPolicy { task.schedulingPolicy = schedulingPolicy }
+        if let assignments { task.assignments = assignments }
         project.tasks[index] = task
         return task
+    }
+
+    /// 校验分配引用的资源存在（US-E1-05）；悬空引用在写入前拒绝。
+    private func validate(assignments: [TaskAssignment], in project: Project) throws {
+        let resourceIDs = Set(project.resources.map(\.id))
+        for assignment in assignments where !resourceIDs.contains(assignment.resourceID) {
+            throw SessionError(
+                code: .invalidArgument,
+                message: "资源不存在",
+                taskID: assignment.resourceID
+            )
+        }
     }
 
     @discardableResult

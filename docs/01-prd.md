@@ -380,7 +380,7 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 | US-E1-02 | 单任务创建、更新与删除 | E1 | P0 | 完成 | 现有 MVP 已具备 |
 | US-E1-03 | 层级任务树（群组/子任务/里程碑） | E1 | P0 | 完成 | Sprint 1（TaskKind/parentID；应用层级树展示） |
 | US-E1-04 | 批量导入任务树（结构化 WBS） | E1 | P0 | 完成 | Sprint 1（wbs_import 工具 + CLI 子命令；叶子解码 bug 修复） |
-| US-E1-05 | 任务信息完整化 | E1 | P1 | 进行中 | Sprint 2 落地资源模型与 effort/duration 换算；资源分配与富备注链接待做 |
+| US-E1-05 | 任务信息完整化 | E1 | P1 | 进行中 | Sprint 2 落地资源模型、effort/duration 换算与资源分配（MCP `assignments` / CLI `--assign`）；富备注链接待 UI 落地 |
 | US-E2-01 | 相关性模型（FS/FF/SS/SF+前导时间） | E2 | P0 | 完成 | Sprint 2（数据模型 Sprint 1；FS/FF/SS/SF+lag 传播计算落地） |
 | US-E2-02 | 排期计算 | E2 | P0 | 完成 | Sprint 2（ScheduleEngine 纯函数 + schedule_compute） |
 | US-E2-03 | 重要路径与宽延 | E2 | P1 | 完成 | Sprint 2（总/自由宽延 + 宽延限制 + schedule_critical_path） |

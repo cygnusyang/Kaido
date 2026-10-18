@@ -103,6 +103,35 @@ struct DependencySpec {
     }
 }
 
+/// 资源分配规格：resource[:units]，resource 为完整 UUID 或唯一前缀（US-E1-05）。
+struct AssignmentSpec {
+    let resource: String
+    let units: Double
+
+    func resolve(in session: KairoSession) throws -> TaskAssignment {
+        let id = try CLIRouter.resolveResourceID(resource, in: session)
+        return TaskAssignment(resourceID: id, units: units)
+    }
+}
+
+extension CLIEnums {
+    /// 解析 `资源[:单位]`；单位必须为正数，默认 1。
+    static func assignment(_ spec: String) throws -> AssignmentSpec {
+        let parts = spec.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+        guard let raw = parts.first, !raw.isEmpty else {
+            throw UsageError(message: "无效分配：\(spec)（格式 资源ID或前缀[:单位]）")
+        }
+        var units = 1.0
+        if parts.count > 1 {
+            guard let value = Double(parts[1]), value > 0 else {
+                throw UsageError(message: "无效分配单位：\(parts[1])（应为正数）")
+            }
+            units = value
+        }
+        return AssignmentSpec(resource: String(raw), units: units)
+    }
+}
+
 /// CLI 专属错误：枚举值不合法。
 enum CLIError: Error, CustomStringConvertible {
     case invalidPriority(String)

@@ -37,11 +37,13 @@ struct EffortDurationConversionTests {
         #expect(s.durationDays == 4)
     }
 
-    @Test func effortWithoutAssignmentDefaultsOneDay() throws {
-        let t = TaskItem(title: "任务", effortHours: 8)
-        let result = ScheduleEngine.compute(tasks: [t], calendar: utc)
-        let s = try #require(result.scheduled(t.id))
-        #expect(s.durationDays == 1)
+    @Test func effortWithoutAssignmentConvertsAtOneUnit() throws {
+        // 无分配时按 1 个 100% 单位换算：8h → 1 天，16h → 2 天（US-E1-05 验收 1）。
+        let eight = TaskItem(title: "八小时", effortHours: 8)
+        let sixteen = TaskItem(title: "十六小时", effortHours: 16)
+        let result = ScheduleEngine.compute(tasks: [eight, sixteen], calendar: utc)
+        #expect(try #require(result.scheduled(eight.id)).durationDays == 1)
+        #expect(try #require(result.scheduled(sixteen.id)).durationDays == 2)
     }
 
     @Test func durationDaysTakesPrecedenceOverEffort() throws {

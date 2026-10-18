@@ -103,10 +103,10 @@
 | `project_create` | `title`, `projectStart?`, `projectEnd?` | 项目元数据 | US-E1-01 |
 | `project_open` | `path` | 项目元数据 | US-E6-01 |
 | `project_save` | `path?` | `savedAt`, `path` | US-E6-01 |
-| `task_add` | `title`, `kind?`, `parentID?`, `effortHours?`, `durationDays?`, `notes?`, `priority?`, `status?`, `tags?`, `dependencies?`, `constraint?`, `schedulingPolicy?` | `taskID` | US-E1-02/03/05、US-E2-01 |
+| `task_add` | `title`, `kind?`, `parentID?`, `effortHours?`, `durationDays?`, `notes?`, `priority?`, `status?`, `tags?`, `dependencies?`, `constraint?`, `schedulingPolicy?`, `assignments?` | `taskID` | US-E1-02/03/05、US-E2-01 |
 | `task_list` | `parentID?`, `filter?` | `[TaskItem]` | US-E4-01 |
 | `task_get` | `taskID` | `TaskItem` | US-E4-01 |
-| `task_update` | `taskID` + 可变字段（含 `dependencies` / `constraint` / `schedulingPolicy`） | `TaskItem` | US-E1-02、US-E2-01 |
+| `task_update` | `taskID` + 可变字段（含 `dependencies` / `constraint` / `schedulingPolicy` / `assignments`） | `TaskItem` | US-E1-02、US-E2-01 |
 | `task_delete` | `taskID` | `ok` | US-E1-02 |
 | `wbs_import` | `nodes`（嵌套任务树） | `rootIDs`, `total`, `warnings` | US-E1-04 |
 | `schedule_compute` | `projectStart?`, `projectEnd?`（缺省用项目时间线） | 每任务最早/最晚/选定安排与宽延 | US-E2-02 |

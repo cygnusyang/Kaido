@@ -59,8 +59,9 @@ public enum ScheduleEngine {
 
     // MARK: - 持续时间
 
-    /// 每任务持续时间（天）：里程碑恒为 0；有 durationDays 用之；有投入且有分配时
-    /// 按 duration = effort / Σ(units × efficiency) 换算（F-22-03，8h/日工作周简化）；否则 1 天。
+    /// 每任务持续时间（天）：里程碑恒为 0；有 durationDays 用之；有投入时
+    /// 按 duration = effort / Σ(units × efficiency) 换算（F-22-03，8h/日工作周简化）。
+    /// 无分配资源时按 1 个 100% 单位（8h/日）换算（US-E1-05 验收 1）。
     private static func durationsByTask(_ tasks: [TaskItem], resourceByID: [UUID: Resource]) -> [UUID: Double] {
         var result: [UUID: Double] = [:]
         for task in tasks {
@@ -73,7 +74,7 @@ public enum ScheduleEngine {
         if task.kind == .milestone { return 0 }
         if let d = task.durationDays, d > 0 { return d }
         if let effort = task.effortHours, effort > 0 {
-            let capacity = capacity(of: task, resourceByID: resourceByID)
+            let capacity = task.assignments.isEmpty ? 1 : capacity(of: task, resourceByID: resourceByID)
             if capacity > 0 { return effort / 8 / capacity }
         }
         return 1 // 无 duration 的叶子任务默认 1 天

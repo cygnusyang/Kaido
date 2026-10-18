@@ -121,6 +121,7 @@ struct CLIRouter {
         let status = try CLIEnums.status(o.value(for: "--status")) ?? .pending
         let tags = splitTags(o.value(for: "--tags"))
         let depSpecs = try o.values(for: "--dep").map { try CLIEnums.dependency($0) }
+        let assignSpecs = try o.values(for: "--assign").map { try CLIEnums.assignment($0) }
         let constraint = try CLIEnums.constraint(o.value(for: "--constraint"))
         let policy = try CLIEnums.schedulingPolicy(o.value(for: "--policy")) ?? .asap
 
@@ -128,6 +129,7 @@ struct CLIRouter {
         try openForEdit(session, o)
         let parentID = try rawParent.map { try resolveTaskID($0, in: session) }
         let deps = try depSpecs.map { try $0.resolve(in: session) }
+        let assignments = try assignSpecs.map { try $0.resolve(in: session) }
         let id = try session.addTask(
             title: title,
             kind: kind,
@@ -140,7 +142,8 @@ struct CLIRouter {
             tags: tags,
             dependencies: deps,
             constraint: constraint,
-            schedulingPolicy: policy
+            schedulingPolicy: policy,
+            assignments: assignments
         )
         try session.saveProject()
         print("已创建任务：\(shortID(id)) \(title)")
@@ -171,6 +174,7 @@ struct CLIRouter {
     /// kairo task update <ID> [--title/--kind/--parent/--effort/--duration/--notes/--priority/--status/--progress/--tags]。
     private static func taskUpdate(_ o: Options) throws {
         let depSpecs = try o.values(for: "--dep").map { try CLIEnums.dependency($0) }
+        let assignSpecs = try o.values(for: "--assign").map { try CLIEnums.assignment($0) }
         let rawID = try o.operand(0, name: "任务 ID")
         let title = o.value(for: "--title")
         let kind = try CLIEnums.kind(o.value(for: "--kind"))
@@ -187,7 +191,7 @@ struct CLIRouter {
         try o.rejectUnknown([
             "--title", "--kind", "--parent", "--effort", "--duration", "--notes",
             "--priority", "--status", "--progress", "--tags", "--dep",
-            "--constraint", "--policy", "--file",
+            "--constraint", "--policy", "--assign", "--file",
         ])
 
         let session = KairoSession()
@@ -195,6 +199,7 @@ struct CLIRouter {
         let id = try resolveTaskID(rawID, in: session)
         let parentID = try rawParent.map { try resolveTaskID($0, in: session) }
         let deps = try depSpecs.map { try $0.resolve(in: session) }
+        let assignments = try assignSpecs.map { try $0.resolve(in: session) }
         let task = try session.updateTask(
             id: id,
             title: title,
@@ -209,7 +214,8 @@ struct CLIRouter {
             tags: tags,
             dependencies: depSpecs.isEmpty ? nil : deps,
             constraint: constraint,
-            schedulingPolicy: policy
+            schedulingPolicy: policy,
+            assignments: assignSpecs.isEmpty ? nil : assignments
         )
         try session.saveProject()
         print("已更新任务：\(shortID(task.id)) \(task.title)")
@@ -445,6 +451,23 @@ struct CLIRouter {
         }
     }
 
+    /// 解析资源标识：接受完整 UUID 或唯一前缀（≥4 位）。
+    static func resolveResourceID(_ raw: String, in session: KairoSession) throws -> UUID {
+        if let full = UUID(uuidString: raw) { return full }
+        let prefix = raw.lowercased()
+        guard prefix.count >= 4 else {
+            throw UsageError(message: "资源 ID 前缀至少 4 位：\(raw)")
+        }
+        let candidates = (session.project?.resources ?? []).map(\.id).filter {
+            $0.uuidString.lowercased().hasPrefix(prefix)
+        }
+        switch candidates.count {
+        case 1: return candidates[0]
+        case 0: throw UsageError(message: "找不到资源：\(raw)")
+        default: throw UsageError(message: "资源 ID 前缀不唯一（\(candidates.count) 个匹配）：\(raw)")
+        }
+    }
+
     private static func shortID(_ id: UUID) -> String {
         String(id.uuidString.prefix(8))
     }
@@ -486,6 +509,13 @@ struct CLIRouter {
                 var text = "  - \(title)（\(dep.type.rawValue.uppercased())）"
                 if dep.lagDays != 0 { text += " 前导 \(formatNumber(dep.lagDays)) 天" }
                 lines.append(text)
+            }
+        }
+        if !task.assignments.isEmpty {
+            lines.append("分配：")
+            for assignment in task.assignments {
+                let name = project.resources.first { $0.id == assignment.resourceID }?.name ?? "未知资源"
+                lines.append("  - \(name)（\(formatNumber(assignment.units)) 单位）")
             }
         }
         if !task.notes.isEmpty { lines.append("备注：\(task.notes)") }
