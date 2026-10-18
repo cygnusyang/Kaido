@@ -194,7 +194,7 @@ struct GanttLayoutTests {
             windowStart: day(2026, 11, 1)
         )
         #expect(layout.ticks.map(\.label) == ["11月", "12月"])
-        #expect(layout.ticks.map(\.x) == [0, 30 * 5])
+        #expect(layout.ticks.map(\.x) == [0.0, 150.0])
     }
 
     @Test func windowEndFollowsViewWidth() {

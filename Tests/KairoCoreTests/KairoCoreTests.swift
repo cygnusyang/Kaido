@@ -24,8 +24,7 @@ private func makeTask(
     )
 }
 
-@MainActor
-private final class StubFindTarget: @MainActor FindTarget {
+private final class StubFindTarget: FindTarget {
     var texts: [String]
     private(set) var revealed: [Int] = []
 
