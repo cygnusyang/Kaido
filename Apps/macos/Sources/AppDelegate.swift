@@ -26,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func saveAndTerminate(_ store: WorkspaceStore) -> NSApplication.TerminateReply {
-        if let url = store.projectURL {
+        if store.projectURL != nil {
             store.save()
             guard store.saveState != .failed else {
                 showSaveError(store)
