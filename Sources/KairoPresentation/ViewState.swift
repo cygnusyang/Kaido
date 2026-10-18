@@ -26,6 +26,8 @@ public enum RevealStatus: String, Codable, Hashable, Sendable {
 public struct WorkspaceViewState: Hashable, Sendable {
     public var mode: WorkspaceMode
     public var chartFocused: Bool
+    /// 大纲列显示/隐藏；隐藏时时间画布占满主区。
+    public var outlineVisible: Bool
     /// 用户偏好大纲宽度（320–640），夹取不回写。
     public var outlineWidth: Double
     public var expandedTaskIDs: Set<UUID>
@@ -50,6 +52,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
     public init(
         mode: WorkspaceMode = .plan,
         chartFocused: Bool = false,
+        outlineVisible: Bool = true,
         outlineWidth: Double = 600,
         expandedTaskIDs: Set<UUID> = [],
         selectedTaskID: UUID? = nil,
@@ -68,6 +71,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
     ) {
         self.mode = mode
         self.chartFocused = chartFocused
+        self.outlineVisible = outlineVisible
         self.outlineWidth = outlineWidth
         self.expandedTaskIDs = expandedTaskIDs
         self.selectedTaskID = selectedTaskID

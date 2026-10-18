@@ -28,6 +28,7 @@ public enum WorkspaceAction: Equatable, Sendable {
     case setInspectorTab(InspectorTab)
     case setInspectorLocked(Bool)
     case setInspectorWidth(Double)
+    case setOutlineVisible(Bool)
     case setOutlineWidth(Double)
 
     // 任务编辑（经会话）

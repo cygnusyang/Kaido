@@ -733,6 +733,7 @@ struct WorkspaceStoreTests {
         let first = WorkspaceStore(defaults: defaults)
         first.dispatch(.setMode(.outline))
         first.dispatch(.setOutlineWidth(480))
+        first.dispatch(.setOutlineVisible(false))
         first.dispatch(.setZoom(.day))
         first.dispatch(.setInspectorWidth(360))
         first.dispatch(.setInspectorTab(.violations))
@@ -741,10 +742,55 @@ struct WorkspaceStoreTests {
         let second = WorkspaceStore(defaults: defaults)
         #expect(second.viewState.mode == .plan)
         #expect(second.viewState.outlineWidth == 480)
+        #expect(!second.viewState.outlineVisible)
         #expect(second.viewState.zoom == .day)
         #expect(second.viewState.inspectorWidth == 360)
         #expect(second.viewState.inspectorTab == .violations)
         #expect(second.viewState.expandedTaskIDs.isEmpty)
+
+        second.dispatch(.setOutlineVisible(true))
+        #expect(second.viewState.outlineVisible)
+    }
+
+    @Test func hidingOutlineGivesCanvasFullWidth() {
+        let store = makeStore()
+
+        store.dispatch(.setOutlineVisible(false))
+
+        #expect(!store.viewState.outlineVisible)
+        // 大纲隐藏后画布占满主区：快照甘特窗口按全宽视口生成。
+        #expect(store.snapshot.gantt.bars.count == store.snapshot.outline.rows.count)
+    }
+
+    @Test func outlineColumnsScaleWithWidth() {
+        // 600pt 基准：不压缩。
+        let base = OutlineColumnLayout(
+            columns: OutlineColumn.visibleColumns(outlineWidth: 600),
+            totalWidth: 600,
+            focused: false
+        )
+        #expect(base.width(of: .assignee) == 76)
+
+        // 收窄到 360pt：固定列按 0.6 下限压缩，标题吃剩余宽度。
+        let narrow = OutlineColumnLayout(
+            columns: OutlineColumn.visibleColumns(outlineWidth: 360),
+            totalWidth: 360,
+            focused: false
+        )
+        #expect(narrow.width(of: .status) == 18 * 0.6)
+        let fixedSum = narrow.columns
+            .filter { $0 != .title }
+            .reduce(0.0) { $0 + narrow.width(of: $1) }
+        #expect(abs(narrow.width(of: .title) - (360 - fixedSum)) < 0.001)
+        #expect(narrow.width(of: .title) >= 120)
+
+        // 聚焦标签栏不压缩。
+        let focused = OutlineColumnLayout(
+            columns: [.status, .violation, .title],
+            totalWidth: 180,
+            focused: true
+        )
+        #expect(focused.width(of: .status) == 18)
     }
 
     // MARK: - 外部更新

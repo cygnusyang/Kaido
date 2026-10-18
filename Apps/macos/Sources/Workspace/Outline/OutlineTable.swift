@@ -32,17 +32,22 @@ struct OutlineRowsList: View {
     }
 }
 
-/// 列宽计算：固定列按 token，标题列吃掉剩余宽度。
+/// 列宽计算：非标题列随大纲宽度等比压缩，标题列吃掉剩余宽度。
 struct OutlineColumnLayout {
     let columns: [OutlineColumn]
     let totalWidth: CGFloat
     let focused: Bool
 
+    /// 压缩系数：以 600pt 为基准，最窄压到 0.6；聚焦标签栏不压缩。
+    private var scale: CGFloat {
+        focused ? 1 : min(max(totalWidth / 600, 0.6), 1)
+    }
+
     func width(of column: OutlineColumn) -> CGFloat {
         if column == .title {
-            return max(totalWidth - fixedWidthTotal, focused ? 0 : 160)
+            return max(totalWidth - fixedWidthTotal, focused ? 0 : 120)
         }
-        return CGFloat(column.width(bodyFontSize: 13))
+        return CGFloat(column.width(bodyFontSize: 13)) * scale
     }
 
     private var fixedWidthTotal: CGFloat {

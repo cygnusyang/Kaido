@@ -194,6 +194,16 @@ struct WorkspaceView: View {
             .help("新建任务")
 
             Button {
+                store.dispatch(.setOutlineVisible(!store.viewState.outlineVisible))
+            } label: {
+                Image(systemName: "sidebar.leading")
+                    .foregroundStyle(store.viewState.outlineVisible
+                        ? DesignTokens.textPrimary
+                        : DesignTokens.textSecondary)
+            }
+            .help(store.viewState.outlineVisible ? "隐藏任务列表" : "显示任务列表")
+
+            Button {
                 store.dispatch(.setInspectorVisible(!store.viewState.inspectorVisible))
             } label: {
                 Image(systemName: "sidebar.right")
@@ -257,9 +267,11 @@ struct WorkspaceView: View {
     private func planArea(sizes: WorkspaceSizes, height: CGFloat) -> some View {
         let rows = store.snapshot.outline.rows
         let gantt = store.snapshot.gantt
-        let columns = sizes.focused
-            ? [.status, .violation, .title]
-            : OutlineColumn.visibleColumns(outlineWidth: Double(sizes.outlineWidth))
+        let columns = !sizes.showsOutline
+            ? []
+            : (sizes.focused
+                ? [.status, .violation, .title]
+                : OutlineColumn.visibleColumns(outlineWidth: Double(sizes.outlineWidth)))
         let layout = OutlineColumnLayout(
             columns: columns,
             totalWidth: sizes.outlineWidth,
@@ -273,10 +285,14 @@ struct WorkspaceView: View {
                 projectStartBanner
             }
             HStack(spacing: 0) {
-                OutlineHeaderView(layout: layout)
-                    .frame(width: sizes.outlineWidth, height: DesignTokens.headerHeight)
+                if sizes.showsOutline {
+                    OutlineHeaderView(layout: layout)
+                        .frame(width: sizes.outlineWidth, height: DesignTokens.headerHeight)
+                }
                 if sizes.showsTimeline {
-                    OutlineResizeHandle(store: store, baseWidth: sizes.outlineWidth)
+                    if sizes.showsOutline {
+                        OutlineResizeHandle(store: store, baseWidth: sizes.outlineWidth)
+                    }
                     TimelineHeaderView(store: store, gantt: gantt, width: sizes.canvasWidth)
                 }
             }
@@ -286,15 +302,19 @@ struct WorkspaceView: View {
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
                     HStack(alignment: .top, spacing: 0) {
-                        OutlineRowsList(
-                            store: store,
-                            rows: rows,
-                            layout: layout,
-                            editingTaskID: $editingTaskID
-                        )
-                        .frame(width: sizes.outlineWidth)
+                        if sizes.showsOutline {
+                            OutlineRowsList(
+                                store: store,
+                                rows: rows,
+                                layout: layout,
+                                editingTaskID: $editingTaskID
+                            )
+                            .frame(width: sizes.outlineWidth)
+                        }
                         if sizes.showsTimeline {
-                            OutlineResizeHandle(store: store, baseWidth: sizes.outlineWidth)
+                            if sizes.showsOutline {
+                                OutlineResizeHandle(store: store, baseWidth: sizes.outlineWidth)
+                            }
                             TimelineBody(
                                 store: store,
                                 rows: rows,
@@ -465,6 +485,7 @@ struct WorkspaceSizes {
     let outlineWidth: CGFloat
     let canvasWidth: CGFloat
     let showsTimeline: Bool
+    let showsOutline: Bool
     let focused: Bool
     let inspectorDocked: Bool
     let inspectorWidth: CGFloat
@@ -485,6 +506,17 @@ struct WorkspaceSizes {
             self.outlineWidth = main
             self.canvasWidth = 0
             self.showsTimeline = false
+            self.showsOutline = true
+            return
+        }
+
+        // 大纲隐藏：时间画布占满主区。
+        guard state.outlineVisible else {
+            self.focused = false
+            self.outlineWidth = 0
+            self.canvasWidth = main
+            self.showsTimeline = true
+            self.showsOutline = false
             return
         }
 
@@ -518,6 +550,7 @@ struct WorkspaceSizes {
             self.canvasWidth = 0
             self.showsTimeline = false
         }
+        self.showsOutline = true
     }
 }
 
@@ -646,6 +679,8 @@ private struct InspectorResizeHandle: View {
 
 /// 大纲与时间画布之间的分界线（对齐 OmniPlan）：向右拖加大纲、向左拖扩大甘特，
 /// 宽度经 `.setOutlineWidth` 夹取并持久化。
+///
+/// 手势用 `.highPriorityGesture`：滚动容器内的分界线不得被滚动手势吞掉。
 private struct OutlineResizeHandle: View {
     @ObservedObject var store: WorkspaceStore
     let baseWidth: CGFloat
@@ -658,7 +693,7 @@ private struct OutlineResizeHandle: View {
             .frame(width: 1)
             .overlay {
                 Color.clear
-                    .frame(width: 7)
+                    .frame(width: 9)
                     .contentShape(Rectangle())
                     .onHover { hovering in
                         if hovering {
@@ -667,7 +702,7 @@ private struct OutlineResizeHandle: View {
                             NSCursor.arrow.set()
                         }
                     }
-                    .gesture(
+                    .highPriorityGesture(
                         DragGesture(minimumDistance: 1)
                             .onChanged { value in
                                 if dragBase == nil { dragBase = baseWidth }

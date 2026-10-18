@@ -83,8 +83,10 @@ final class WorkspaceStore: ObservableObject {
     }()
 
     /// 持久化的视图偏好；视图模式与筛选不写入（启动固定计划模式）。
+    /// 新增字段用可选值解码，旧数据缺省时保持默认。
     private struct StoredPreferences: Codable {
         var outlineWidth: Double
+        var outlineVisible: Bool?
         var expandedTaskIDs: [UUID]
         var zoom: GanttZoom
         var usesFitZoom: Bool
@@ -136,6 +138,9 @@ final class WorkspaceStore: ObservableObject {
             ?? Self.allParentIDs(in: session.project?.tasks ?? [])
         if let stored {
             state.outlineWidth = stored.outlineWidth
+            if let outlineVisible = stored.outlineVisible {
+                state.outlineVisible = outlineVisible
+            }
             state.zoom = stored.zoom
             state.usesFitZoom = stored.usesFitZoom
             state.windowStart = stored.windowStart
@@ -384,6 +389,9 @@ final class WorkspaceStore: ObservableObject {
 
         case .setInspectorWidth(let width):
             mutateView { $0.inspectorWidth = min(max(width, 280), 420) }
+
+        case .setOutlineVisible(let visible):
+            mutateView { $0.outlineVisible = visible }
 
         case .setOutlineWidth(let width):
             mutateView { $0.outlineWidth = min(max(width, 320), 640) }
@@ -1038,6 +1046,7 @@ final class WorkspaceStore: ObservableObject {
     private func savePreferences() {
         let stored = StoredPreferences(
             outlineWidth: viewState.outlineWidth,
+            outlineVisible: viewState.outlineVisible,
             expandedTaskIDs: Array(viewState.expandedTaskIDs),
             zoom: viewState.zoom,
             usesFitZoom: viewState.usesFitZoom,
