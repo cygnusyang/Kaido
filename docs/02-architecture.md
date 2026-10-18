@@ -296,6 +296,7 @@ Kairo/
 | ADR-008 | 报告走 AI 叙述式 Markdown，不做 HTML 模板引擎 | 已接受 | F-33-05/07；AI 时代口径，报告直接进知识库/Obsidian 流水线 |
 | ADR-009 | 现有 `assignee: String?` 迁移为资源分配（`TaskAssignment`），保留便捷显示 | 已接受 | 04-glossary「分配」；F-22-08/F-23-01；迁移兼容 |
 | ADR-010 | MVP 期自实现最小 stdio JSON-RPC（零第三方依赖，仅 initialize/tools 列表/工具调用 三组方法），Phase 2 复核官方 Swift MCP SDK | 已接受 | 2026-10-17 lead 裁定；协议面小可全量测试，消除 SDK 演进风险；接口契约（ADR-005）不受影响 |
+| ADR-012 | 嵌套可选结构（如 WBSNode.children）一律自定义 `init(from:)`，禁用合成 Codable 的必填语义 | 已接受 | Sprint 1 回顾 P3；叶子节点解码失败教训 |
 | ADR-011 | `.kairo` 读写兼容规则：文件携带 `formatVersion`；读取忽略未知字段（前向兼容）；字段只增不改语义 | 已接受 | 2026-10-17 lead 裁定；JSON 人工可读、AI 可写、git 友好（ADR-003 补充） |
 
 ## 7. 已确认决策（2026-10-17 lead 裁定）

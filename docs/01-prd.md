@@ -376,12 +376,12 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 
 | 编号 | 标题 | Epic | 优先级 | 状态 | 备注 |
 |---|---|---|---|---|---|
-| US-E1-01 | 新建项目 | E1 | P1 | 已接受 | — |
+| US-E1-01 | 新建项目 | E1 | P1 | 完成 | Sprint 1（project_create MCP/CLI/应用三面可用） |
 | US-E1-02 | 单任务创建、更新与删除 | E1 | P0 | 完成 | 现有 MVP 已具备 |
-| US-E1-03 | 层级任务树（群组/子任务/里程碑） | E1 | P0 | 已接受 | 相关性模型重构（dependencies→TaskDependency） |
-| US-E1-04 | 批量导入任务树（结构化 WBS） | E1 | P0 | 已接受 | AI 场景新增 |
+| US-E1-03 | 层级任务树（群组/子任务/里程碑） | E1 | P0 | 完成 | Sprint 1（TaskKind/parentID；应用层级树展示） |
+| US-E1-04 | 批量导入任务树（结构化 WBS） | E1 | P0 | 完成 | Sprint 1（wbs_import 工具 + CLI 子命令；叶子解码 bug 修复） |
 | US-E1-05 | 任务信息完整化 | E1 | P1 | 已接受 | — |
-| US-E2-01 | 相关性模型（FS/FF/SS/SF+前导时间） | E2 | P0 | 已接受 | 相关性模型重构（dependencies→TaskDependency） |
+| US-E2-01 | 相关性模型（FS/FF/SS/SF+前导时间） | E2 | P0 | 进行中 | Sprint 1 已落数据模型；传播计算属 Sprint 2 |
 | US-E2-02 | 排期计算 | E2 | P0 | 已接受 | — |
 | US-E2-03 | 重要路径与宽延 | E2 | P1 | 已接受 | — |
 | US-E2-04 | 工作时数日历 | E2 | P1 | 已接受 | — |
@@ -399,13 +399,13 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 | US-E4-05 | 命令面板（⌘K） | E4 | P0 | 已接受 | — |
 | US-E4-06 | 项目摘要面板 | E4 | P1 | 已接受 | — |
 | US-E4-07 | 检查器与违例面板 | E4 | P1 | 已接受 | — |
-| US-E5-01 | MCP 服务 | E5 | P0 | 已接受 | AI 场景新增 |
-| US-E5-02 | CLI | E5 | P0 | 已接受 | AI 场景新增 |
+| US-E5-01 | MCP 服务 | E5 | P0 | 完成 | Sprint 1 子集（9 工具、stdio JSON-RPC 零依赖，ADR-010） |
+| US-E5-02 | CLI | E5 | P0 | 完成 | Sprint 1 子集（project/task/wbs 与 MCP 契约同源） |
 | US-E5-03 | Claude Code 插件 | E5 | P0 | 已接受 | AI 场景新增 |
 | US-E5-04 | 深链协议（kairo://） | E5 | P1 | 已接受 | — |
-| US-E5-05 | 接口一致性保障 | E5 | P0 | 已接受 | AI 场景新增 |
+| US-E5-05 | 接口一致性保障 | E5 | P0 | 完成 | Sprint 1（InterfaceTests 对等性契约测试 21 项） |
 | US-E5-06 | JSON Schema 导出 | E5 | P1 | 提议 | — |
-| US-E6-01 | .kairo 单文件读写 | E6 | P0 | 已接受 | — |
+| US-E6-01 | .kairo 单文件读写 | E6 | P0 | 完成 | Sprint 1（formatVersion + 前向兼容；MCP/CLI/应用三方互通） |
 | US-E6-02 | 自动保存与文件监控 | E6 | P1 | 已接受 | — |
 | US-E6-03 | CSV 导入导出与保真报告 | E6 | P1 | 已接受 | — |
 | US-E6-04 | 模板（另存为/默认模板） | E6 | P2 | 提议 | — |
