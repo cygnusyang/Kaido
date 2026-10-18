@@ -1,0 +1,662 @@
+import AppKit
+import SwiftUI
+import KairoCore
+import KairoPresentation
+
+/// 主窗口：计划工作台 / 全宽大纲。
+///
+/// 壳层只消费 `WorkspaceStore` 的快照与动作，不直接读写核心模型。
+struct WorkspaceView: View {
+    @ObservedObject var store: WorkspaceStore
+    let commands: [KairoCommand]
+
+    @State private var editingTaskID: UUID?
+    @State private var scrollTarget: UUID?
+    @State private var findAdapter = RowsFindAdapter()
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if store.filterBarVisible {
+                FilterBar(store: store)
+                Divider()
+            }
+            if store.externalUpdatePending {
+                ExternalUpdateBar(store: store)
+            }
+            workspaceContent
+            Divider()
+            StatusBarView(store: store)
+        }
+        .background(DesignTokens.surfaceBase)
+        .toolbar { toolbarContent }
+        .overlay {
+            if store.showCommandPalette {
+                CommandPalette(commands: commands) {
+                    store.showCommandPalette = false
+                }
+            }
+        }
+        .overlay {
+            if store.showsLoadingSkeleton {
+                LoadingSkeletonView()
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            if let notice = store.notice {
+                noticeToast(notice)
+            }
+        }
+        .alert(
+            "无法完成操作",
+            isPresented: Binding(
+                get: { store.alertMessage != nil },
+                set: { if !$0 { store.alertMessage = nil } }
+            )
+        ) {
+            Button("好", role: .cancel) {
+                store.alertMessage = nil
+            }
+        } message: {
+            Text(store.alertMessage ?? "")
+        }
+        .confirmationDialog(
+            store.pendingDeletion.map { "删除群组「\($0.title)」？" } ?? "删除？",
+            isPresented: Binding(
+                get: { store.pendingDeletion != nil },
+                set: { if !$0 { store.pendingDeletion = nil } }
+            ),
+            presenting: store.pendingDeletion
+        ) { pending in
+            Button("删除 \(pending.affectedCount) 个任务", role: .destructive) {
+                store.confirmPendingDeletion()
+            }
+            Button("取消", role: .cancel) {
+                store.pendingDeletion = nil
+            }
+        } message: { pending in
+            Text("「\(pending.title)」包含 \(max(pending.affectedCount - 1, 0)) 个子任务，将一并删除。该操作可以撤销。")
+        }
+        .confirmationDialog(
+            "当前项目有未保存的修改",
+            isPresented: Binding(
+                get: { store.pendingOpenURL != nil },
+                set: { if !$0 { store.cancelPendingOpen() } }
+            )
+        ) {
+            Button("丢弃修改并打开", role: .destructive) {
+                store.discardChangesAndOpenPending()
+            }
+            if store.canSavePendingOpen {
+                Button("保存并打开") {
+                    store.saveAndOpenPending()
+                }
+            }
+            Button("取消", role: .cancel) {
+                store.cancelPendingOpen()
+            }
+        } message: {
+            Text("打开其他项目会丢失当前项目中未保存的修改。")
+        }
+        .onAppear {
+            findAdapter.onReveal = { store.reveal($0) }
+            findAdapter.rows = store.snapshot.outline.rows
+            store.find.attach(target: findAdapter)
+        }
+        .onChange(of: store.snapshot.outline.rows) { _, rows in
+            findAdapter.rows = rows
+            store.find.rescan()
+        }
+    }
+
+    // MARK: - 工具栏
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigation) {
+            Picker("视图", selection: Binding(
+                get: { store.viewState.mode },
+                set: { store.dispatch(.setMode($0)) }
+            )) {
+                Text("计划").tag(WorkspaceMode.plan)
+                Text("大纲").tag(WorkspaceMode.outline)
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 132)
+            .help("计划 ⌥⌘1 · 大纲 ⌥⌘2")
+        }
+
+        ToolbarItemGroup(placement: .primaryAction) {
+            if !AIFilterTranslator.translate(store.viewState.filterText).isEmpty {
+                Button {
+                    store.filterBarVisible = true
+                } label: {
+                    Label("AI 筛选", systemImage: "sparkles")
+                        .foregroundStyle(DesignTokens.criticalText)
+                }
+                .help("自然语言筛选已解析为结构化条件")
+            }
+
+            Menu {
+                ForEach(GanttZoom.allCases, id: \.self) { zoom in
+                    Button(zoomTitle(zoom)) {
+                        store.dispatch(.setZoom(zoom))
+                    }
+                }
+                Divider()
+                Button("适合项目") {
+                    store.dispatch(.setFitZoom(true))
+                }
+                Divider()
+                Button(store.viewState.showBarLabels ? "隐藏任务条标签" : "显示任务条标签") {
+                    store.dispatch(.toggleBarLabels)
+                }
+            } label: {
+                Label(store.snapshot.statusBar.zoomLabel, systemImage: "arrow.left.and.right")
+            }
+            .help("时间缩放")
+
+            Button {
+                store.dispatch(.toggleCriticalPath)
+            } label: {
+                Image(systemName: "point.3.connected.trianglepath.dotted")
+                    .foregroundStyle(store.viewState.showCriticalPath
+                        ? DesignTokens.criticalGraphic
+                        : DesignTokens.textSecondary)
+            }
+            .help(store.viewState.showCriticalPath ? "隐藏重要路径" : "显示重要路径")
+
+            Button {
+                store.dispatch(.setInspectorVisible(true))
+                store.dispatch(.setInspectorTab(.violations))
+            } label: {
+                Image(systemName: "exclamationmark.triangle")
+                    .overlay(alignment: .topTrailing) {
+                        if violationCount > 0 {
+                            Circle()
+                                .fill(DesignTokens.violationError)
+                                .frame(width: 6, height: 6)
+                                .offset(x: 2, y: -2)
+                        }
+                    }
+            }
+            .help("违例（⌥⌘V）")
+
+            Menu {
+                Button("新建任务") { store.dispatch(.createTask(parentID: nil, kind: .task)) }
+                    .keyboardShortcut("n", modifiers: [.command, .option])
+                Button("新建群组") { store.dispatch(.createTask(parentID: nil, kind: .group)) }
+                    .keyboardShortcut("g", modifiers: [.command, .option])
+                Button("新建里程碑") { store.dispatch(.createTask(parentID: nil, kind: .milestone)) }
+                    .keyboardShortcut("m", modifiers: [.command, .option])
+            } label: {
+                Image(systemName: "plus")
+            }
+            .help("新建任务")
+
+            Button {
+                store.dispatch(.setInspectorVisible(!store.viewState.inspectorVisible))
+            } label: {
+                Image(systemName: "sidebar.right")
+                    .foregroundStyle(store.viewState.inspectorVisible
+                        ? DesignTokens.textPrimary
+                        : DesignTokens.textSecondary)
+            }
+            .help(store.viewState.inspectorVisible ? "隐藏检查器" : "显示检查器")
+        }
+    }
+
+    private var violationCount: Int {
+        store.snapshot.statusBar.violationErrorCount + store.snapshot.statusBar.violationWarningCount
+    }
+
+    private func zoomTitle(_ zoom: GanttZoom) -> String {
+        switch zoom {
+        case .day: return "日"
+        case .week: return "周"
+        case .month: return "月"
+        }
+    }
+
+    // MARK: - 工作区
+
+    private var workspaceContent: some View {
+        GeometryReader { geo in
+            let sizes = WorkspaceSizes(state: store.viewState, width: geo.size.width)
+            HStack(spacing: 0) {
+                planArea(sizes: sizes, height: geo.size.height)
+                if sizes.inspectorDocked {
+                    inspectorDivider(sizes: sizes)
+                    InspectorView(
+                        store: store,
+                        snapshot: store.snapshot.inspector,
+                        width: sizes.inspectorWidth,
+                        onClose: { store.dispatch(.setInspectorVisible(false)) }
+                    )
+                }
+            }
+            .overlay(alignment: .trailing) {
+                if store.viewState.inspectorVisible, !sizes.inspectorDocked {
+                    overlayInspector(height: geo.size.height)
+                }
+            }
+            .onAppear {
+                store.setViewport(
+                    canvasWidth: Double(sizes.canvasWidth),
+                    canvasHeight: Double(max(geo.size.height - 45, 1))
+                )
+            }
+            .onChange(of: sizes.canvasWidth) { _, width in
+                store.setViewport(
+                    canvasWidth: Double(width),
+                    canvasHeight: Double(max(geo.size.height - 45, 1))
+                )
+            }
+        }
+    }
+
+    private func planArea(sizes: WorkspaceSizes, height: CGFloat) -> some View {
+        let rows = store.snapshot.outline.rows
+        let gantt = store.snapshot.gantt
+        let columns = sizes.focused
+            ? [.status, .violation, .title]
+            : OutlineColumn.visibleColumns(outlineWidth: Double(sizes.outlineWidth))
+        let layout = OutlineColumnLayout(
+            columns: columns,
+            totalWidth: sizes.outlineWidth,
+            focused: sizes.focused
+        )
+        let bannerHeight: CGFloat = gantt.projectStartDerived && sizes.showsTimeline ? 24 : 0
+        let bodyHeight = max(height - DesignTokens.headerHeight - 1 - bannerHeight, 1)
+
+        return VStack(spacing: 0) {
+            if gantt.projectStartDerived && sizes.showsTimeline {
+                projectStartBanner
+            }
+            HStack(spacing: 0) {
+                OutlineHeaderView(layout: layout)
+                    .frame(width: sizes.outlineWidth, height: DesignTokens.headerHeight)
+                if sizes.showsTimeline {
+                    verticalRule
+                    TimelineHeaderView(store: store, gantt: gantt, width: sizes.canvasWidth)
+                }
+            }
+            horizontalRule
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    HStack(alignment: .top, spacing: 0) {
+                        OutlineRowsList(
+                            store: store,
+                            rows: rows,
+                            layout: layout,
+                            editingTaskID: $editingTaskID
+                        )
+                        .frame(width: sizes.outlineWidth)
+                        if sizes.showsTimeline {
+                            verticalRule
+                            TimelineBody(
+                                store: store,
+                                rows: rows,
+                                gantt: gantt,
+                                width: sizes.canvasWidth,
+                                viewportHeight: bodyHeight
+                            )
+                        }
+                    }
+                    .frame(width: sizes.mainWidth, alignment: .topLeading)
+                }
+                .coordinateSpace(name: WorkspaceScrollSpace.name)
+                .focusable()
+                .onKeyPress(keys: [.upArrow, .downArrow, .return, .tab, .escape]) { press in
+                    handleKey(press, rows: rows)
+                }
+                .onChange(of: scrollTarget) { _, id in
+                    guard let id else { return }
+                    withAnimation(.easeInOut(duration: 0.12)) {
+                        proxy.scrollTo(id, anchor: .center)
+                    }
+                    scrollTarget = nil
+                }
+                .overlay {
+                    if let reason = store.snapshot.outline.emptyReason {
+                        EmptyWorkspaceView(reason: reason, store: store)
+                    }
+                }
+            }
+        }
+        .frame(width: sizes.mainWidth, height: height)
+    }
+
+    private var projectStartBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "info.circle")
+                .font(.system(size: 11))
+                .foregroundStyle(DesignTokens.textSecondary)
+            Text("未设置项目开始日期，已按最早任务开始日期推导。")
+                .font(.system(size: DesignTokens.captionFontSize))
+                .foregroundStyle(DesignTokens.textSecondary)
+            Spacer(minLength: 0)
+            Button("设置项目开始日期") {
+                store.dispatch(.select(nil))
+                store.dispatch(.setInspectorTab(.inspector))
+            }
+            .buttonStyle(.link)
+            .font(.system(size: DesignTokens.captionFontSize))
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 24)
+        .frame(maxWidth: .infinity)
+        .background(DesignTokens.surfaceChrome)
+    }
+
+    private var horizontalRule: some View {
+        Rectangle()
+            .fill(DesignTokens.separator)
+            .frame(height: 1)
+    }
+
+    private var verticalRule: some View {
+        Rectangle()
+            .fill(DesignTokens.separator)
+            .frame(width: 1)
+    }
+
+    private func inspectorDivider(sizes: WorkspaceSizes) -> some View {
+        InspectorResizeHandle(store: store, baseWidth: sizes.inspectorWidth)
+    }
+
+    private func overlayInspector(height: CGFloat) -> some View {
+        ZStack(alignment: .trailing) {
+            Color.black.opacity(0.001)
+                .contentShape(Rectangle())
+                .onTapGesture { store.dispatch(.setInspectorVisible(false)) }
+            InspectorView(
+                store: store,
+                snapshot: store.snapshot.inspector,
+                width: 300,
+                onClose: { store.dispatch(.setInspectorVisible(false)) }
+            )
+            .background(DesignTokens.surfaceElevated)
+            .overlay(alignment: .leading) {
+                Rectangle()
+                    .fill(DesignTokens.separator)
+                    .frame(width: 1)
+            }
+            .shadow(color: .black.opacity(0.18), radius: 12, x: -2, y: 0)
+        }
+        .frame(height: height)
+        .onExitCommand { store.dispatch(.setInspectorVisible(false)) }
+    }
+
+    private func noticeToast(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            Text(message)
+                .font(.system(size: DesignTokens.captionFontSize))
+            Button {
+                store.clearNotice()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(DesignTokens.surfaceElevated, in: RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(DesignTokens.separator, lineWidth: 1)
+        }
+        .padding(10)
+        .padding(.bottom, 24)
+        .task(id: message) {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            store.clearNotice()
+        }
+    }
+
+    // MARK: - 键盘
+
+    private func handleKey(_ press: KeyPress, rows: [PlanRow]) -> KeyPress.Result {
+        switch press.key {
+        case .upArrow:
+            moveSelection(offset: -1, rows: rows)
+            return .handled
+        case .downArrow:
+            moveSelection(offset: 1, rows: rows)
+            return .handled
+        case .return:
+            editingTaskID = store.selection
+            return .handled
+        case .tab:
+            // ⌃Tab 保留为全键盘访问出口，不得被缩进快捷键截断。
+            if press.modifiers.contains(.control) { return .ignored }
+            guard let id = store.selection else { return .ignored }
+            if press.modifiers.contains(.shift) {
+                store.dispatch(.outdent(id))
+            } else {
+                store.dispatch(.indent(id))
+            }
+            return .handled
+        case .escape:
+            editingTaskID = nil
+            return .handled
+        default:
+            return .ignored
+        }
+    }
+
+    private func moveSelection(offset: Int, rows: [PlanRow]) {
+        guard !rows.isEmpty else { return }
+        guard let current = store.selection,
+              let index = rows.firstIndex(where: { $0.id == current }) else {
+            let id = rows.first?.id
+            store.dispatch(.select(id))
+            scrollTarget = id
+            return
+        }
+        let target = min(max(index + offset, 0), rows.count - 1)
+        let id = rows[target].id
+        store.dispatch(.select(id))
+        scrollTarget = id
+    }
+}
+
+// MARK: - 尺寸
+
+/// 响应式宽度分配（ui-redesign §2.2）：检查器 → 画布保底 → 大纲夹取。
+struct WorkspaceSizes {
+    let mainWidth: CGFloat
+    let outlineWidth: CGFloat
+    let canvasWidth: CGFloat
+    let showsTimeline: Bool
+    let focused: Bool
+    let inspectorDocked: Bool
+    let inspectorWidth: CGFloat
+
+    init(state: WorkspaceViewState, width: CGFloat) {
+        let docked = state.inspectorVisible && width >= DesignTokens.inspectorThreshold
+        let inspector = min(
+            max(CGFloat(state.inspectorWidth), DesignTokens.inspectorMinWidth),
+            DesignTokens.inspectorMaxWidth
+        )
+        let main = max(width - (docked ? inspector + 1 : 0), 0)
+        self.inspectorDocked = docked
+        self.inspectorWidth = inspector
+        self.mainWidth = main
+
+        guard state.mode == .plan else {
+            self.focused = false
+            self.outlineWidth = main
+            self.canvasWidth = 0
+            self.showsTimeline = false
+            return
+        }
+
+        let focus = state.chartFocused
+        var outline: CGFloat
+        if focus {
+            outline = DesignTokens.focusedOutlineWidth
+        } else {
+            outline = min(
+                max(CGFloat(state.outlineWidth), DesignTokens.outlineMinWidth),
+                DesignTokens.outlineMaxWidth
+            )
+            let maxOutline = main - 1 - DesignTokens.canvasMinWidth
+            if maxOutline >= DesignTokens.outlineMinWidth {
+                outline = min(outline, maxOutline)
+            } else {
+                outline = max(main - 1, 0)
+            }
+            if state.inspectorVisible && !docked {
+                outline = min(outline, DesignTokens.outlineMinWidth)
+            }
+        }
+        let canvas = max(main - outline - 1, 0)
+        self.focused = focus
+        if canvas > 0 {
+            self.outlineWidth = outline
+            self.canvasWidth = canvas
+            self.showsTimeline = true
+        } else {
+            self.outlineWidth = main
+            self.canvasWidth = 0
+            self.showsTimeline = false
+        }
+    }
+}
+
+// MARK: - 空态
+
+private struct EmptyWorkspaceView: View {
+    let reason: EmptyReason
+    @ObservedObject var store: WorkspaceStore
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 24))
+                .foregroundStyle(DesignTokens.textSecondary)
+            Text(title)
+                .font(.system(size: DesignTokens.bodyFontSize, weight: .semibold))
+                .foregroundStyle(DesignTokens.textPrimary)
+            Text(detail)
+                .font(.system(size: DesignTokens.captionFontSize))
+                .foregroundStyle(DesignTokens.textSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
+            actions
+        }
+        .padding(20)
+        .background(DesignTokens.surfaceElevated, in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .strokeBorder(DesignTokens.separator, lineWidth: 1)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignTokens.surfaceBase.opacity(0.92))
+    }
+
+    private var symbol: String {
+        switch reason {
+        case .noTasks: return "square.stack.3d.up"
+        case .noMatches: return "line.3.horizontal.decrease.circle"
+        case .noSchedule: return "calendar.badge.exclamationmark"
+        }
+    }
+
+    private var title: String {
+        switch reason {
+        case .noTasks: return "项目中还没有任务"
+        case .noMatches: return "没有匹配的任务"
+        case .noSchedule: return "任务尚未排期"
+        }
+    }
+
+    private var detail: String {
+        switch reason {
+        case .noTasks:
+            return "新建任务开始规划，或通过 MCP 工具导入现有 WBS。"
+        case .noMatches:
+            return "调整筛选条件，或清除筛选查看全部任务。"
+        case .noSchedule:
+            return "设置项目开始日期，或检查相关性环与时限设置。"
+        }
+    }
+
+    @ViewBuilder
+    private var actions: some View {
+        switch reason {
+        case .noTasks:
+            HStack(spacing: 10) {
+                Button("新建任务") {
+                    store.dispatch(.createTask(parentID: nil, kind: .task))
+                }
+                Button("通过 MCP 导入…") {
+                    store.alertMessage = "使用 MCP 工具 create_project / add_task 导入 WBS，或在终端运行 kairo。"
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        case .noMatches:
+            Button("清除筛选") {
+                store.dispatch(.setFilter(""))
+            }
+        case .noSchedule:
+            Button("设置项目开始日期") {
+                store.dispatch(.select(nil))
+                store.dispatch(.setInspectorTab(.inspector))
+            }
+        }
+    }
+}
+
+// MARK: - 查找适配
+
+/// 检查器拖宽把手：以手势开始时的宽度为基准，避免夹取造成漂移。
+private struct InspectorResizeHandle: View {
+    @ObservedObject var store: WorkspaceStore
+    let baseWidth: CGFloat
+
+    @State private var dragBase: CGFloat?
+
+    var body: some View {
+        Rectangle()
+            .fill(DesignTokens.separator)
+            .frame(width: 1)
+            .overlay {
+                Color.clear
+                    .frame(width: 6)
+                    .contentShape(Rectangle())
+                    .onHover { hovering in
+                        if hovering {
+                            NSCursor.resizeLeftRight.set()
+                        } else {
+                            NSCursor.arrow.set()
+                        }
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 1)
+                            .onChanged { value in
+                                if dragBase == nil { dragBase = baseWidth }
+                                guard let base = dragBase else { return }
+                                store.dispatch(.setInspectorWidth(
+                                    Double(base - value.translation.width)
+                                ))
+                            }
+                            .onEnded { _ in dragBase = nil }
+                    )
+            }
+    }
+}
+
+/// 把可见大纲行接到 `FindController`；命中后统一走「揭示目标」。
+final class RowsFindAdapter: FindTarget {
+    var rows: [PlanRow] = []
+    var onReveal: ((UUID) -> Void)?
+
+    var findableText: [String] { rows.map(\.title) }
+
+    func revealMatch(at index: Int) {
+        guard rows.indices.contains(index) else { return }
+        onReveal?(rows[index].id)
+    }
+}

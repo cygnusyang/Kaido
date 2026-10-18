@@ -1,0 +1,1095 @@
+import AppKit
+import Foundation
+import SwiftUI
+import KairoCommands
+import KairoCore
+import KairoPresentation
+
+/// 应用适配层（ADR-013）：持有会话、视图状态与撤销栈，输出平台中立快照。
+///
+/// 所有变更经 `KairoSession`；视图只发 `WorkspaceAction`，不读写 `Project`。
+@MainActor
+final class WorkspaceStore: ObservableObject {
+    @Published private(set) var snapshot: WorkspaceSnapshot
+    @Published private(set) var viewState: WorkspaceViewState
+    @Published private(set) var viewport: WorkspaceViewport
+    @Published private(set) var saveState: SaveState = .saved
+    @Published private(set) var loadWarnings: [String] = []
+    /// 错误提示（会话拒绝、文件读写失败）。
+    @Published var alertMessage: String?
+    /// 非模态提示（揭示结果、保存失败等）。
+    @Published private(set) var notice: String?
+
+    // 壳层共享状态（命令面板 / 查找栏由命令注册表驱动）。
+    @Published var showCommandPalette = false
+    @Published var showFindBar = false
+    @Published var findFocusToken = 0
+    @Published var filterBarVisible = true
+
+    @ObservedObject private(set) var find = FindModel()
+
+    /// 锁定检查器时冻结的任务；删除后保留快照用于提示。
+    @Published private(set) var lockedTaskID: UUID?
+    @Published private(set) var lockedTaskTitle: String?
+
+    /// 删除确认（群组或含子项的任务）。
+    struct PendingDeletion: Identifiable {
+        var id: UUID { taskID }
+        var taskID: UUID
+        var title: String
+        var affectedCount: Int
+    }
+
+    @Published var pendingDeletion: PendingDeletion?
+
+    /// 磁盘文件已被外部修改且本地存在未保存修改。
+    @Published private(set) var externalUpdatePending = false
+    /// 有待打开的项目，但当前项目存在未保存修改；等待用户选择保存/丢弃/取消。
+    @Published private(set) var pendingOpenURL: URL?
+    /// 异步打开进行中；超过 150ms 才显示骨架屏，避免闪烁。
+    @Published private(set) var isLoading = false
+    @Published private(set) var showsLoadingSkeleton = false
+
+    /// 被「揭示目标」临时挂起的筛选文本。
+    private var suspendedFilterText: String?
+
+    private let session: KairoSession
+    private let calendar: Calendar
+    private let defaults: UserDefaults
+    /// 项目文件解码入口；测试可注入受控加载以覆盖载入期间的编辑竞争。
+    private let projectLoader: @Sendable (URL) throws -> Project
+    private var monitorTimer: Timer?
+    private var knownDiskMtime: Date?
+    private var pendingExternalMtime: Date?
+    private var acknowledgedMtime: Date?
+    /// 外部文件读取失败时的 mtime；相同版本不重复重试与弹窗。
+    private var failedExternalMtime: Date?
+    private var loadingToken: UUID?
+    private var dropExpandTask: Task<Void, Never>?
+    private var dropExpandTargetID: UUID?
+    /// 打开另存为面板时的会话版本；用于判断导出期间是否又有新修改。
+    private var exportRevision: UInt64?
+
+    /// 文件导出的值快照：随每次刷新更新，避免 SwiftUI body 每次求值都重建。
+    private(set) var exportState = ProjectState(
+        metadata: ProjectMetadata(), tasks: [], resources: []
+    )
+
+    private static let preferencesKey = "kairo.workspace.preferences.v1"
+    private static let clockFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    /// 持久化的视图偏好；视图模式与筛选不写入（启动固定计划模式）。
+    private struct StoredPreferences: Codable {
+        var outlineWidth: Double
+        var expandedTaskIDs: [UUID]
+        var zoom: GanttZoom
+        var usesFitZoom: Bool
+        var windowStart: Date?
+        var inspectorWidth: Double
+        var inspectorTab: InspectorTab
+    }
+
+    private struct UndoEntry {
+        var state: ProjectState
+        var selectedTaskID: UUID?
+        var expandedTaskIDs: Set<UUID>
+    }
+
+    private var undoStack: [UndoEntry] = []
+    private var redoStack: [UndoEntry] = []
+    private var lastMergeKey: String?
+    private var lastMergeAt: Date = .distantPast
+
+    // MARK: - 初始化
+
+    init(
+        now: Date = Date(),
+        defaults: UserDefaults = .standard,
+        projectLoader: @escaping @Sendable (URL) throws -> Project = {
+            try KairoFile.load(from: $0)
+        }
+    ) {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        self.calendar = calendar
+        self.defaults = defaults
+        self.projectLoader = projectLoader
+
+        let session = KairoSession()
+        self.session = session
+        _ = try? session.createProject(title: "未命名项目")
+        let seed = SeedData.makeProject()
+        if let project = session.project {
+            project.metadata.projectStart = seed.metadata.projectStart
+            project.metadata.projectEnd = seed.metadata.projectEnd
+            project.metadata.direction = seed.metadata.direction
+            for task in seed.tasks { project.add(task) }
+        }
+
+        let stored = Self.loadPreferences(from: defaults)
+        var state = WorkspaceViewState()
+        state.expandedTaskIDs = stored.map { Set($0.expandedTaskIDs) }
+            ?? Self.allParentIDs(in: session.project?.tasks ?? [])
+        if let stored {
+            state.outlineWidth = stored.outlineWidth
+            state.zoom = stored.zoom
+            state.usesFitZoom = stored.usesFitZoom
+            state.windowStart = stored.windowStart
+            state.inspectorWidth = stored.inspectorWidth
+            state.inspectorTab = stored.inspectorTab
+        }
+        self.viewState = state
+        let viewport = WorkspaceViewport(canvasWidth: 760, canvasHeight: 640)
+        self.viewport = viewport
+        let initialState = (try? session.snapshot())
+            ?? ProjectState(metadata: ProjectMetadata(), tasks: [], resources: [])
+        self.exportState = initialState
+        self.snapshot = Self.makeSnapshot(
+            state: initialState,
+            session: session,
+            viewState: state,
+            viewport: viewport,
+            saveState: .saved,
+            calendar: calendar,
+            now: now
+        )
+        self.saveState = session.hasUnsavedChanges ? .unsaved : .saved
+
+        let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkExternalUpdate()
+            }
+        }
+        // 菜单跟踪、窗口缩放与滚动期间仍检测外部更新。
+        RunLoop.main.add(timer, forMode: .common)
+        monitorTimer = timer
+    }
+
+    deinit {
+        monitorTimer?.invalidate()
+    }
+
+    // MARK: - 派生
+
+    var projectURL: URL? { session.projectURL }
+    var hasUnsavedChanges: Bool { session.hasUnsavedChanges }
+    var selection: UUID? { viewState.selectedTaskID }
+
+    /// 仅深链解析等主线程内部逻辑使用；视图不得读取。
+    var exportProject: Project { session.project ?? Project() }
+
+    /// 文件导出的值快照在 `refresh()` 中更新；FileDocument 可能在后台线程编码，不得传活模型。
+
+    /// 锁定选择发生漂移（真实选择与锁定任务不同）。
+    var inspectorSelectionDrift: Bool {
+        viewState.inspectorLocked
+            && lockedTaskID != nil
+            && viewState.selectedTaskID != lockedTaskID
+    }
+
+    var selectedTaskTitle: String? {
+        guard let id = viewState.selectedTaskID else { return nil }
+        return session.project?.tasksByID[id]?.title
+    }
+
+    // MARK: - 刷新
+
+    func refresh(now: Date = Date()) {
+        if saveState != .failed {
+            saveState = session.hasUnsavedChanges ? .unsaved : .saved
+        }
+        let state = (try? session.snapshot())
+            ?? ProjectState(metadata: ProjectMetadata(), tasks: [], resources: [])
+        exportState = state
+        snapshot = Self.makeSnapshot(
+            state: state,
+            session: session,
+            viewState: inspectorState(for: viewState),
+            viewport: viewport,
+            saveState: saveState,
+            calendar: calendar,
+            now: now
+        )
+        // 锁定时检查器使用冻结任务；状态栏仍显示真实选择。
+        if viewState.inspectorLocked, let title = selectedTaskTitle {
+            snapshot.statusBar.selectionSummary = title
+        }
+        savePreferences()
+    }
+
+    private func inspectorState(for state: WorkspaceViewState) -> WorkspaceViewState {
+        guard state.inspectorLocked, let lockedTaskID else { return state }
+        var copy = state
+        copy.selectedTaskID = lockedTaskID
+        return copy
+    }
+
+    private static func makeSnapshot(
+        state: ProjectState,
+        session: KairoSession,
+        viewState: WorkspaceViewState,
+        viewport: WorkspaceViewport,
+        saveState: SaveState,
+        calendar: Calendar,
+        now: Date
+    ) -> WorkspaceSnapshot {
+        let schedule = (try? session.computeSchedule()) ?? session.lastSchedule
+        let violations = schedule.map {
+            ViolationEngine.check(result: $0, tasks: state.tasks)
+        } ?? []
+        return WorkspacePresenter.make(
+            state: state,
+            schedule: schedule,
+            violations: violations,
+            viewState: viewState,
+            viewport: viewport,
+            calendar: calendar,
+            now: now,
+            saveState: saveState
+        )
+    }
+
+    // MARK: - 视图状态
+
+    func setViewport(canvasWidth: Double, canvasHeight: Double) {
+        let width = max(canvasWidth, 1)
+        let height = max(canvasHeight, 1)
+        guard abs(width - viewport.canvasWidth) > 0.5
+                || abs(height - viewport.canvasHeight) > 0.5 else { return }
+        viewport = WorkspaceViewport(canvasWidth: width, canvasHeight: height)
+        refresh()
+    }
+
+    func clearNotice() {
+        notice = nil
+    }
+
+    // MARK: - 动作路由
+
+    func dispatch(_ action: WorkspaceAction) {
+        switch action {
+        case .select(let id):
+            restoreSuspendedFilterIfNeeded(selecting: id)
+            if id != viewState.highlightedTaskID {
+                viewState.highlightedTaskID = nil
+            }
+            viewState.selectedTaskID = id
+            refresh()
+
+        case .reveal(let id):
+            reveal(id)
+
+        case .highlight(let id):
+            viewState.highlightedTaskID = id
+            refresh()
+
+        case .copyTaskLink(let id):
+            copyTaskLink(id)
+
+        case .toggleExpanded(let id):
+            mutateView {
+                if $0.expandedTaskIDs.contains(id) {
+                    $0.expandedTaskIDs.remove(id)
+                } else {
+                    $0.expandedTaskIDs.insert(id)
+                }
+            }
+
+        case .setExpanded(let ids):
+            mutateView { $0.expandedTaskIDs = ids }
+
+        case .setMode(let mode):
+            mutateView {
+                $0.mode = mode
+                if mode == .outline { $0.chartFocused = false }
+            }
+
+        case .toggleChartFocus:
+            mutateView {
+                if $0.mode == .outline {
+                    $0.mode = .plan
+                    $0.chartFocused = true
+                } else {
+                    $0.chartFocused.toggle()
+                }
+            }
+
+        case .setZoom(let zoom):
+            mutateView {
+                $0.zoom = zoom
+                $0.usesFitZoom = false
+            }
+
+        case .setFitZoom(let enabled):
+            mutateView {
+                $0.usesFitZoom = enabled
+                if enabled { $0.windowStart = nil }
+            }
+
+        case .panWindow(let date):
+            mutateView {
+                $0.windowStart = calendar.startOfDay(for: date)
+                $0.usesFitZoom = false
+            }
+
+        case .goToToday:
+            mutateView {
+                let today = calendar.startOfDay(for: Date())
+                $0.windowStart = today.addingTimeInterval(-7 * 86_400)
+                $0.usesFitZoom = false
+            }
+
+        case .setFilter(let text):
+            suspendedFilterText = nil
+            mutateView {
+                $0.filterText = text
+                $0.revealStatus = nil
+            }
+
+        case .toggleCriticalPath:
+            mutateView { $0.showCriticalPath.toggle() }
+
+        case .toggleBarLabels:
+            mutateView { $0.showBarLabels.toggle() }
+
+        case .setInspectorVisible(let visible):
+            mutateView {
+                $0.inspectorVisible = visible
+                if !visible { $0.inspectorLocked = false }
+            }
+            if !visible {
+                lockedTaskID = nil
+                lockedTaskTitle = nil
+            }
+
+        case .setInspectorTab(let tab):
+            mutateView {
+                $0.inspectorTab = tab
+                $0.inspectorVisible = true
+            }
+
+        case .setInspectorLocked(let locked):
+            if locked {
+                lockedTaskID = viewState.selectedTaskID
+                lockedTaskTitle = selectedTaskTitle
+            } else {
+                lockedTaskID = nil
+                lockedTaskTitle = nil
+            }
+            mutateView { $0.inspectorLocked = locked }
+
+        case .setInspectorWidth(let width):
+            mutateView { $0.inspectorWidth = min(max(width, 280), 420) }
+
+        case .setOutlineWidth(let width):
+            mutateView { $0.outlineWidth = min(max(width, 320), 640) }
+
+        case .createTask(let parentID, let kind):
+            createTask(kind: kind, parentID: parentID)
+
+        case .createSibling(let id):
+            createSibling(after: id)
+
+        case .rename(let id, let title):
+            update(id: id, mergeKey: "rename-\(id)") {
+                var patch = TaskPatch()
+                patch.title = title
+                try self.session.updateTask(id: id, patch: patch)
+            }
+
+        case .setPriority(let id, let priority):
+            update(id: id, mergeKey: "priority-\(id)") {
+                var patch = TaskPatch()
+                patch.priority = priority
+                try self.session.updateTask(id: id, patch: patch)
+            }
+
+        case .setNotes(let id, let notes):
+            update(id: id, mergeKey: "notes-\(id)") {
+                var patch = TaskPatch()
+                patch.notes = notes
+                try self.session.updateTask(id: id, patch: patch)
+            }
+
+        case .setStatus(let id, let status):
+            update(id: id, mergeKey: "status-\(id)") {
+                try self.session.statusUpdate(id: id, status: status)
+            }
+
+        case .setProgress(let id, let progress):
+            update(id: id, mergeKey: "progress-\(id)") {
+                try self.session.statusUpdate(id: id, progress: min(max(progress, 0), 1))
+            }
+
+        case .setDueDate(let id, let date):
+            update(id: id, mergeKey: "due-\(id)") {
+                var patch = TaskPatch()
+                patch.dueDate = date.map(FieldPatch.set) ?? .clear
+                try self.session.updateTask(id: id, patch: patch)
+            }
+
+        case .setAssignee(let id, let name):
+            update(id: id, mergeKey: "assignee-\(id)") {
+                var patch = TaskPatch()
+                patch.assignee = name.map(FieldPatch.set) ?? .clear
+                try self.session.updateTask(id: id, patch: patch)
+            }
+
+        case .setDuration(let id, let days):
+            update(id: id, mergeKey: "duration-\(id)") {
+                var patch = TaskPatch()
+                patch.durationDays = days.map(FieldPatch.set) ?? .clear
+                try self.session.updateTask(id: id, patch: patch)
+            }
+
+        case .move(let id, let parentID, let index):
+            update(id: id, mergeKey: nil) {
+                try self.session.moveTask(id: id, toParent: parentID, at: index)
+            }
+
+        case .indent(let id):
+            pushUndo(mergeKey: nil)
+            do {
+                _ = try session.indentTask(id: id)
+                // 新父级自动展开，缩进后的任务不消失。
+                if let parent = session.project?.tasksByID[id]?.parentID {
+                    viewState.expandedTaskIDs.insert(parent)
+                }
+            } catch {
+                report(error)
+            }
+            refresh()
+
+        case .outdent(let id):
+            update(id: id, mergeKey: nil) {
+                _ = try self.session.outdentTask(id: id)
+            }
+
+        case .delete(let id):
+            delete(id: id)
+
+        case .addDependency(let taskID, let predecessorID, let type, let lagDays):
+            update(id: taskID, mergeKey: nil) {
+                try self.session.addDependency(
+                    to: taskID, predecessorID: predecessorID, type: type, lagDays: lagDays
+                )
+            }
+
+        case .removeDependency(let taskID, let predecessorID):
+            update(id: taskID, mergeKey: nil) {
+                try self.session.removeDependency(from: taskID, predecessorID: predecessorID)
+            }
+
+        case .setProjectTitle(let title):
+            mutateProject(mergeKey: "project-title") {
+                try self.session.updateProjectMetadata(title: title)
+            }
+
+        case .setProjectStart(let date):
+            mutateProject(mergeKey: "project-start") {
+                try self.session.updateProjectMetadata(
+                    projectStart: date.map(FieldPatch.set) ?? .clear
+                )
+            }
+
+        case .setProjectEnd(let date):
+            mutateProject(mergeKey: "project-end") {
+                try self.session.updateProjectMetadata(
+                    projectEnd: date.map(FieldPatch.set) ?? .clear
+                )
+            }
+
+        case .setProjectDirection(let direction):
+            mutateProject(mergeKey: nil) {
+                try self.session.updateProjectMetadata(direction: direction)
+            }
+
+        case .undo:
+            undo()
+
+        case .redo:
+            redo()
+
+        case .save:
+            save()
+
+        case .reloadExternal:
+            reloadExternal()
+
+        case .keepLocal:
+            acknowledgedMtime = pendingExternalMtime
+            pendingExternalMtime = nil
+            externalUpdatePending = false
+            notice = "已保留本地版本"
+        }
+    }
+
+    // MARK: - 变更辅助
+
+    private func mutateView(_ change: (inout WorkspaceViewState) -> Void) {
+        change(&viewState)
+        refresh()
+    }
+
+    /// 记录撤销点；相同 `mergeKey` 在 500ms 内合并为一步。
+    private func pushUndo(mergeKey: String?) {
+        let now = Date()
+        if let mergeKey, mergeKey == lastMergeKey, now.timeIntervalSince(lastMergeAt) < 0.5,
+           !undoStack.isEmpty {
+            lastMergeAt = now
+            return
+        }
+        if let state = try? session.snapshot() {
+            undoStack.append(UndoEntry(
+                state: state,
+                selectedTaskID: viewState.selectedTaskID,
+                expandedTaskIDs: viewState.expandedTaskIDs
+            ))
+            if undoStack.count > 50 { undoStack.removeFirst(undoStack.count - 50) }
+            redoStack.removeAll()
+        }
+        lastMergeKey = mergeKey
+        lastMergeAt = now
+    }
+
+    private func update(
+        id: UUID,
+        mergeKey: String?,
+        _ body: () throws -> Void
+    ) {
+        pushUndo(mergeKey: mergeKey)
+        do {
+            try body()
+        } catch {
+            report(error)
+        }
+        refresh()
+    }
+
+    private func mutateProject(mergeKey: String?, _ body: () throws -> Void) {
+        pushUndo(mergeKey: mergeKey)
+        do {
+            try body()
+        } catch {
+            report(error)
+        }
+        refresh()
+    }
+
+    private func createTask(kind: TaskKind, parentID: UUID?) {
+        let title: String
+        switch kind {
+        case .task: title = "新任务"
+        case .group: title = "新群组"
+        case .milestone: title = "新里程碑"
+        }
+        let parent = parentID ?? insertionParent()
+        pushUndo(mergeKey: nil)
+        do {
+            let id = try session.addTask(title: title, kind: kind, parentID: parent)
+            viewState.selectedTaskID = id
+            if let parent { viewState.expandedTaskIDs.insert(parent) }
+        } catch {
+            report(error)
+        }
+        refresh()
+    }
+
+    /// 在指定任务之后插入同级任务（`⌘↩` 与右键菜单）。
+    private func createSibling(after id: UUID) {
+        guard let project = session.project,
+              let task = project.tasksByID[id] else {
+            createTask(kind: .task, parentID: insertionParent())
+            return
+        }
+        let parent = task.parentID
+        let siblings = project.tasks.filter { $0.parentID == parent }
+        let index = (siblings.firstIndex { $0.id == id } ?? siblings.count - 1) + 1
+        pushUndo(mergeKey: nil)
+        do {
+            let newID = try session.addTask(title: "新任务", kind: .task, parentID: parent)
+            try session.moveTask(id: newID, toParent: parent, at: index)
+            viewState.selectedTaskID = newID
+            if let parent { viewState.expandedTaskIDs.insert(parent) }
+        } catch {
+            report(error)
+        }
+        refresh()
+    }
+
+    private func insertionParent() -> UUID? {
+        guard let id = viewState.selectedTaskID,
+              let task = session.project?.tasksByID[id] else { return nil }
+        return task.kind == .group ? id : task.parentID
+    }
+
+    /// 依赖选择器条目（不含模型细节，视图不读 `Project`）。
+    struct TaskChoice: Identifiable, Hashable {
+        var id: UUID
+        var title: String
+    }
+
+    /// 可作为前驱的候选：排除自身、后代与已有前驱。
+    func predecessorCandidates(for taskID: UUID) -> [TaskChoice] {
+        guard let project = session.project,
+              let task = project.tasksByID[taskID] else { return [] }
+        let excluded = OutlineEditor.subtreeIDs(of: taskID, in: project.tasks)
+        let existing = Set(task.dependencies.map(\.predecessorID))
+        return project.tasks
+            .filter { !excluded.contains($0.id) && !existing.contains($0.id) }
+            .map { TaskChoice(id: $0.id, title: $0.title) }
+    }
+
+    // MARK: - 拖拽重排
+
+    struct MoveTarget: Equatable {
+        var parentID: UUID?
+        var index: Int
+    }
+
+    /// 筛选激活时禁用拖拽重排（计划 §3.4）。
+    var allowsDragReorder: Bool {
+        viewState.filterText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// 拖到群组行 → 成为最后一个子项；拖到普通行 → 插到其后作为同级。
+    ///
+    /// 索引按 `OutlineMoving` 的语义计算：移除被拖子树之后的位置。
+    func moveTarget(draggedID: UUID, onto targetID: UUID) -> MoveTarget? {
+        guard allowsDragReorder,
+              draggedID != targetID,
+              let project = session.project else { return nil }
+        let movingIDs = OutlineEditor.subtreeIDs(of: draggedID, in: project.tasks)
+        guard !movingIDs.isEmpty, !movingIDs.contains(targetID) else { return nil }
+        let remaining = project.tasks.filter { !movingIDs.contains($0.id) }
+        guard let target = remaining.first(where: { $0.id == targetID }) else { return nil }
+        if target.kind == .group {
+            let index = remaining.filter { $0.parentID == targetID }.count
+            return MoveTarget(parentID: targetID, index: index)
+        }
+        let siblings = remaining.filter { $0.parentID == target.parentID }
+        guard let position = siblings.firstIndex(where: { $0.id == targetID }) else {
+            return nil
+        }
+        return MoveTarget(parentID: target.parentID, index: position + 1)
+    }
+
+    /// 悬停 600ms 自动展开收合的群组（拖拽重排）；延迟可注入供测试缩短。
+    func scheduleDropExpand(on id: UUID, delayNanoseconds: UInt64 = 600_000_000) {
+        cancelDropExpand()
+        guard let task = session.project?.tasksByID[id],
+              task.kind == .group,
+              !viewState.expandedTaskIDs.contains(id) else { return }
+        dropExpandTargetID = id
+        dropExpandTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delayNanoseconds)
+            guard !Task.isCancelled, let self else { return }
+            self.viewState.expandedTaskIDs.insert(id)
+            self.dropExpandTask = nil
+            self.dropExpandTargetID = nil
+            self.refresh()
+        }
+    }
+
+    /// 只取消指定行的待展开计时；其他行的 `dropExited` 不得取消本行。
+    func cancelDropExpand(on id: UUID? = nil) {
+        if let id, dropExpandTargetID != id { return }
+        dropExpandTask?.cancel()
+        dropExpandTask = nil
+        dropExpandTargetID = nil
+    }
+
+    /// 删除入口：叶子任务直接删除；有子项的任务一律确认后级联删除。
+    func requestDelete(id: UUID) {
+        guard let project = session.project, let task = project.tasksByID[id] else { return }
+        let hasChildren = project.tasks.contains { $0.parentID == id }
+        if task.kind == .group || hasChildren {
+            let affected = OutlineEditor.subtreeIDs(of: id, in: project.tasks).count
+            pendingDeletion = PendingDeletion(
+                taskID: id, title: task.title, affectedCount: affected
+            )
+        } else {
+            dispatch(.delete(id))
+        }
+    }
+
+    func confirmPendingDeletion() {
+        guard let pending = pendingDeletion else { return }
+        pendingDeletion = nil
+        dispatch(.delete(pending.taskID))
+    }
+
+    private func delete(id: UUID) {
+        // 删除后子树已不存在，受影响的 id 必须在删除前计算。
+        let removed = session.project.map {
+            OutlineEditor.subtreeIDs(of: id, in: $0.tasks)
+        } ?? [id]
+        pushUndo(mergeKey: nil)
+        do {
+            _ = try session.deleteTaskCascade(id: id)
+            removeFromViewSelection(removed: removed)
+        } catch {
+            report(error)
+        }
+        refresh()
+    }
+
+    private func removeFromViewSelection(removed: Set<UUID>) {
+        if let selected = viewState.selectedTaskID, removed.contains(selected) {
+            viewState.selectedTaskID = nil
+        }
+        if let locked = lockedTaskID, removed.contains(locked) {
+            // 保留标题快照，提示「任务已删除」。
+            lockedTaskID = nil
+            lockedTaskTitle = lockedTaskTitle ?? "任务"
+        }
+        viewState.expandedTaskIDs.subtract(removed)
+    }
+
+    // MARK: - 撤销 / 重做
+
+    private func undo() {
+        guard let entry = undoStack.popLast() else {
+            notice = "没有可撤销的操作"
+            return
+        }
+        guard let current = try? session.snapshot() else { return }
+        redoStack.append(UndoEntry(
+            state: current,
+            selectedTaskID: viewState.selectedTaskID,
+            expandedTaskIDs: viewState.expandedTaskIDs
+        ))
+        apply(entry)
+    }
+
+    private func redo() {
+        guard let entry = redoStack.popLast() else {
+            notice = "没有可重做的操作"
+            return
+        }
+        guard let current = try? session.snapshot() else { return }
+        undoStack.append(UndoEntry(
+            state: current,
+            selectedTaskID: viewState.selectedTaskID,
+            expandedTaskIDs: viewState.expandedTaskIDs
+        ))
+        apply(entry)
+    }
+
+    private func apply(_ entry: UndoEntry) {
+        do {
+            try session.restore(entry.state)
+        } catch {
+            report(error)
+        }
+        let existing = Set(entry.state.tasks.map(\.id))
+        viewState.selectedTaskID = entry.selectedTaskID.flatMap {
+            existing.contains($0) ? $0 : nil
+        }
+        viewState.expandedTaskIDs = entry.expandedTaskIDs.filter { existing.contains($0) }
+        if let locked = lockedTaskID, !existing.contains(locked) { lockedTaskID = nil }
+        lastMergeKey = nil
+        refresh()
+    }
+
+    // MARK: - 揭示目标
+
+    /// 「临时显示」只在被揭示任务保持选中时有效；选择移到别处即恢复原筛选。
+    private func restoreSuspendedFilterIfNeeded(selecting id: UUID?) {
+        guard let text = suspendedFilterText else { return }
+        guard id != viewState.highlightedTaskID else { return }
+        suspendedFilterText = nil
+        viewState.filterText = text
+    }
+
+    /// 展开祖先、必要时临时清除筛选、选中目标；不切换检查器页签。
+    func reveal(_ id: UUID) {
+        guard let project = session.project else { return }
+        guard let task = project.tasksByID[id] else {
+            viewState.selectedTaskID = nil
+            viewState.highlightedTaskID = nil
+            viewState.revealStatus = .missing
+            notice = "任务已删除"
+            refresh()
+            return
+        }
+
+        var ancestors: Set<UUID> = []
+        var parent = task.parentID
+        var hops = 0
+        while let current = parent, project.tasksByID[current] != nil, hops <= project.tasks.count {
+            ancestors.insert(current)
+            parent = project.tasksByID[current]?.parentID
+            hops += 1
+        }
+        viewState.expandedTaskIDs.formUnion(ancestors)
+
+        var status = RevealStatus.visible
+        let clauses = AIFilterTranslator.translate(viewState.filterText)
+        if !clauses.isEmpty {
+            let matched = Set(AIFilterTranslator.apply(clauses: clauses, to: project.tasks).map(\.id))
+            if !matched.contains(id) {
+                suspendedFilterText = viewState.filterText
+                viewState.filterText = ""
+                status = .temporarilyShown
+            }
+        }
+        viewState.selectedTaskID = id
+        viewState.highlightedTaskID = id
+        viewState.revealStatus = status
+        switch status {
+        case .visible:
+            notice = nil
+        case .temporarilyShown:
+            notice = "「\(task.title)」已被筛选隐藏，已临时显示"
+        case .missing:
+            break
+        }
+        refresh()
+    }
+
+    // MARK: - 文件
+
+    @discardableResult
+    func open(url: URL) -> Bool {
+        do {
+            _ = try session.openProject(at: url)
+            finishOpen()
+            return true
+        } catch {
+            report(error)
+            return false
+        }
+    }
+
+    /// 文件选择器入口：有未保存修改时先询问，避免静默丢弃工作。
+    func openAsync(url: URL) {
+        guard !isLoading else {
+            notice = "正在载入项目，请稍后重试打开"
+            return
+        }
+        guard !session.hasUnsavedChanges else {
+            pendingOpenURL = url
+            return
+        }
+        startOpenAsync(url: url)
+    }
+
+    var canSavePendingOpen: Bool {
+        pendingOpenURL != nil && session.projectURL != nil
+    }
+
+    func cancelPendingOpen() {
+        pendingOpenURL = nil
+    }
+
+    func discardChangesAndOpenPending() {
+        guard let url = pendingOpenURL else { return }
+        pendingOpenURL = nil
+        startOpenAsync(url: url)
+    }
+
+    func saveAndOpenPending() {
+        guard pendingOpenURL != nil else { return }
+        save()
+        guard saveState != .failed else { return }
+        discardChangesAndOpenPending()
+    }
+
+    /// 后台解码，主线程接管；超过 150ms 显示骨架屏。
+    private func startOpenAsync(url: URL) {
+        guard !isLoading else { return }
+        // 载入期间用户仍可编辑旧项目；接管前核对版本，避免静默覆盖新改动。
+        let revisionAtStart = session.revision
+        let token = UUID()
+        loadingToken = token
+        isLoading = true
+        showsLoadingSkeleton = false
+
+        Task {
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            guard isLoading, loadingToken == token else { return }
+            showsLoadingSkeleton = true
+        }
+
+        let accessing = url.startAccessingSecurityScopedResource()
+        let loader = projectLoader
+        Task { [weak self] in
+            let loaded: Result<Project, Error> = await Task.detached(priority: .userInitiated) {
+                Result { try loader(url) }
+            }.value
+            if accessing { url.stopAccessingSecurityScopedResource() }
+            guard let self, self.loadingToken == token else { return }
+            switch loaded {
+            case .success(let project) where self.session.revision == revisionAtStart:
+                self.session.adoptProject(project, from: url)
+                self.finishOpen()
+            case .success:
+                // 载入期间有新编辑：保留当前内容，重新进入保存/丢弃/取消确认。
+                self.pendingOpenURL = url
+                self.notice = "载入期间项目有新修改，已保留本地内容；请再次确认打开"
+            case .failure(let error):
+                self.report(error)
+            }
+            self.isLoading = false
+            self.showsLoadingSkeleton = false
+            self.loadingToken = nil
+        }
+    }
+
+    private func finishOpen() {
+        loadWarnings = session.loadWarnings
+        resetViewStateForLoadedProject()
+        undoStack.removeAll()
+        redoStack.removeAll()
+        pendingDeletion = nil
+        pendingOpenURL = nil
+        saveState = .saved
+        recordDiskVersion(at: session.projectURL)
+        notice = loadWarnings.first
+        refresh()
+    }
+
+    func save(to url: URL? = nil) {
+        do {
+            _ = try session.saveProject(to: url)
+            saveState = .saved
+            recordDiskVersion(at: session.projectURL)
+            refresh()
+        } catch {
+            saveState = .failed
+            report(error)
+            refresh()
+        }
+    }
+
+    /// 复制任务深链（`kairo://task/<id>`），由适配层写入剪贴板。
+    func copyTaskLink(_ id: UUID) {
+        let link = "kairo://task/\(id.uuidString)"
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(link, forType: .string)
+        notice = "已复制任务链接"
+    }
+
+    /// 打开另存为面板前记录版本，导出完成时据此判断快照是否仍然最新。
+    func beginExport() {
+        exportRevision = session.revision
+    }
+
+    /// 另存为完成：文件导出器已写入快照，这里只回填路径并清除脏标记，不重复写文件。
+    /// 面板打开期间若又有修改，导出内容已过期，改以内存为准直接写一次。
+    func rememberSaveURL(_ url: URL) {
+        let revision = exportRevision
+        exportRevision = nil
+        // 未经 beginExport 的调用无法确认导出内容是否最新，直接写内存内容。
+        if revision == nil || revision != session.revision {
+            save(to: url)
+            return
+        }
+        session.noteExported(to: url)
+        saveState = .saved
+        recordDiskVersion(at: url)
+        refresh()
+    }
+
+    /// 外部重载：丢失本地未保存修改，需由视图确认。
+    func reloadExternal() {
+        guard let url = session.projectURL else { return }
+        let mtime = pendingExternalMtime ?? Self.modificationDate(of: url)
+        if open(url: url) {
+            notice = mtime.map {
+                "已载入外部更新 \(Self.clockFormatter.string(from: $0))"
+            } ?? "已载入外部更新"
+        } else {
+            // 失败保留横幅；相同 mtime 不再重复尝试。
+            failedExternalMtime = mtime
+        }
+    }
+
+    private func resetViewStateForLoadedProject() {
+        let tasks = session.project?.tasks ?? []
+        viewState = WorkspaceViewState(
+            expandedTaskIDs: Self.allParentIDs(in: tasks),
+            inspectorVisible: viewState.inspectorVisible,
+            inspectorWidth: viewState.inspectorWidth,
+            showCriticalPath: viewState.showCriticalPath,
+            showBarLabels: viewState.showBarLabels
+        )
+        lockedTaskID = nil
+        lockedTaskTitle = nil
+        suspendedFilterText = nil
+    }
+
+    private static func allParentIDs(in tasks: [TaskItem]) -> Set<UUID> {
+        Set(tasks.compactMap(\.parentID))
+    }
+
+    // MARK: - 视图偏好持久化
+
+    private static func loadPreferences(from defaults: UserDefaults) -> StoredPreferences? {
+        guard let data = defaults.data(forKey: preferencesKey) else { return nil }
+        return try? JSONDecoder().decode(StoredPreferences.self, from: data)
+    }
+
+    private func savePreferences() {
+        let stored = StoredPreferences(
+            outlineWidth: viewState.outlineWidth,
+            expandedTaskIDs: Array(viewState.expandedTaskIDs),
+            zoom: viewState.zoom,
+            usesFitZoom: viewState.usesFitZoom,
+            windowStart: viewState.windowStart,
+            inspectorWidth: viewState.inspectorWidth,
+            inspectorTab: viewState.inspectorTab
+        )
+        guard let data = try? JSONEncoder().encode(stored) else { return }
+        defaults.set(data, forKey: Self.preferencesKey)
+    }
+
+    // MARK: - 外部更新检测
+
+    /// 比较磁盘 mtime（应用前台每 2 秒调用一次；测试可直接调用）。
+    func checkExternalUpdate() {
+        guard let url = session.projectURL,
+              let mtime = Self.modificationDate(of: url) else { return }
+        if let acknowledgedMtime, mtime <= acknowledgedMtime { return }
+        if let knownDiskMtime, mtime == knownDiskMtime { return }
+        if let failedExternalMtime, mtime <= failedExternalMtime { return }
+
+        if session.hasUnsavedChanges {
+            pendingExternalMtime = mtime
+            externalUpdatePending = true
+        } else if open(url: url) {
+            notice = "已载入外部更新 \(Self.clockFormatter.string(from: mtime))"
+        } else {
+            failedExternalMtime = mtime
+        }
+    }
+
+    private func recordDiskVersion(at url: URL?) {
+        knownDiskMtime = url.flatMap { Self.modificationDate(of: $0) }
+        pendingExternalMtime = nil
+        acknowledgedMtime = nil
+        failedExternalMtime = nil
+        externalUpdatePending = false
+    }
+
+    private static func modificationDate(of url: URL) -> Date? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
+    }
+
+    // MARK: - 错误
+
+    private func report(_ error: Error) {
+        if let sessionError = error as? SessionError {
+            alertMessage = sessionError.message
+        } else if let fileError = error as? KairoFileError {
+            alertMessage = fileError.description
+        } else {
+            alertMessage = error.localizedDescription
+        }
+    }
+}

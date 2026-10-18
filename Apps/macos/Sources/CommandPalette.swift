@@ -12,11 +12,14 @@ struct CommandPalette: View {
         Self.matching(query, in: commands)
     }
 
-    /// 按命令标题不区分大小写过滤（US-E4-05 验收 2）；空查询返回全部命令。
+    /// 按命令标题与搜索别名不区分大小写过滤（US-E4-05 验收 2）；空查询返回全部命令。
     static func matching(_ query: String, in commands: [KairoCommand]) -> [KairoCommand] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return commands }
-        return commands.filter { $0.title.localizedCaseInsensitiveContains(trimmed) }
+        return commands.filter { command in
+            command.title.localizedCaseInsensitiveContains(trimmed)
+                || command.aliases.contains { $0.localizedCaseInsensitiveContains(trimmed) }
+        }
     }
 
     var body: some View {
@@ -64,12 +67,12 @@ struct CommandPalette: View {
                 .padding(.vertical, 8)
             }
             .frame(width: 480)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            .background(DesignTokens.surfaceElevated, in: RoundedRectangle(cornerRadius: 12))
             .overlay {
                 RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(Color.secondary.opacity(0.25), lineWidth: 1)
+                    .strokeBorder(DesignTokens.separator, lineWidth: 1)
             }
-            .shadow(radius: 24)
+            .shadow(color: .black.opacity(0.22), radius: 24)
             .padding(.top, 80)
         }
         .onAppear { fieldFocused = true }

@@ -3,22 +3,20 @@ import KairoCore
 
 @main
 struct KairoApp: App {
-    @StateObject private var store = ProjectStore()
-    @StateObject private var find = FindModel()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var store = WorkspaceStore()
     @State private var showOpenPanel = false
     @State private var showSavePanel = false
     @State private var errorMessage: String?
-    /// 由 kairo:// 深链解析出的待选中任务；ContentView 消费后清空。
-    @State private var deepLinkTaskID: UUID?
 
     var body: some Scene {
         WindowGroup("Kairo") {
-            ContentView(
-                store: store,
-                find: find,
-                commands: commandCatalog,
-                deepLinkTaskID: $deepLinkTaskID
-            )
+            WorkspaceView(store: store, commands: commandCatalog)
+                .frame(
+                    minWidth: DesignTokens.minimumWindowWidth,
+                    minHeight: DesignTokens.minimumWindowHeight
+                )
+                .onAppear { appDelegate.store = store }
                 .onOpenURL { handleDeepLink($0) }
                 .fileImporter(
                     isPresented: $showOpenPanel,
@@ -31,12 +29,12 @@ struct KairoApp: App {
                 }
                 .fileExporter(
                     isPresented: $showSavePanel,
-                    document: KairoDocument(project: store.project),
+                    document: KairoDocument(state: store.exportState),
                     contentType: .kairo,
                     defaultFilename: "project.kairo"
                 ) { result in
                     if case .success(let url) = result {
-                        rememberExportedURL(url)
+                        finishExport(to: url)
                     }
                 }
                 .alert(
@@ -51,6 +49,10 @@ struct KairoApp: App {
                     Text(errorMessage ?? "")
                 }
         }
+        .defaultSize(
+            width: DesignTokens.defaultWindowWidth,
+            height: DesignTokens.defaultWindowHeight
+        )
         .commands {
             KairoMenuCommands(commands: commandCatalog)
         }
@@ -60,7 +62,6 @@ struct KairoApp: App {
     private var commandCatalog: [KairoCommand] {
         KairoCommandCatalog.make(
             store: store,
-            find: find,
             requestOpen: { showOpenPanel = true },
             requestSave: { saveDocument() }
         )
@@ -74,18 +75,19 @@ struct KairoApp: App {
             errorMessage = "无法识别的 Kairo 链接：\(url.absoluteString)"
             return
         }
-        let match = KairoDeepLinkResolver.resolve(link, in: store.project)
+        let project = store.exportProject
+        let match = KairoDeepLinkResolver.resolve(link, in: project)
         switch link.target {
         case .projectID:
             if !match.projectMatched {
-                errorMessage = "链接指向其他项目；当前项目为「\(store.project.metadata.title)」"
+                errorMessage = "链接指向其他项目；当前项目为「\(project.metadata.title)」"
             }
         case .taskID, .taskTitle:
             guard let id = match.taskID else {
                 errorMessage = "链接中的任务不在当前项目中：\(url.absoluteString)"
                 return
             }
-            deepLinkTaskID = id
+            store.reveal(id)
             if match.matchCount > 1 {
                 errorMessage = "有 \(match.matchCount) 个同名任务，已定位第一个"
             }
@@ -95,37 +97,31 @@ struct KairoApp: App {
     // MARK: - 文件操作
 
     private func openFile(_ url: URL) {
-        let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-        do {
-            try store.open(url: url)
-        } catch {
-            presentError(error)
-        }
+        store.openAsync(url: url)
     }
 
     private func saveDocument() {
         if store.projectURL != nil {
-            do {
-                try store.save()
-            } catch {
-                presentError(error)
+            store.save()
+            if let message = store.alertMessage {
+                errorMessage = message
+                store.alertMessage = nil
             }
         } else {
             // 尚无保存路径：走 fileExporter 选择位置。
+            store.beginExport()
             showSavePanel = true
         }
     }
 
-    private func rememberExportedURL(_ url: URL) {
-        // fileExporter 已写 .kairo（与 saveProject 同一编码器）；回填路径供 ⌘S 直存。
+    private func finishExport(to url: URL) {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        // 文件导出器已写入快照；再次 save 会重复写同一文件。
         store.rememberSaveURL(url)
-    }
-
-    private func presentError(_ error: Error) {
-        errorMessage = String(describing: error)
+        if let message = store.alertMessage {
+            errorMessage = message
+            store.alertMessage = nil
+        }
     }
 }
-

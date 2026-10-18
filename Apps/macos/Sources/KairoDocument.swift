@@ -16,10 +16,11 @@ extension UTType {
 struct KairoDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.kairo] }
 
-    let project: Project
+    /// 值快照而非活模型：系统可能在非主线程调用 `fileWrapper`。
+    let state: ProjectState
 
-    init(project: Project) {
-        self.project = project
+    init(state: ProjectState) {
+        self.state = state
     }
 
     init(configuration: ReadConfiguration) throws {
@@ -27,6 +28,8 @@ struct KairoDocument: FileDocument {
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        let project = Project()
+        state.apply(to: project)
         let data = try KairoFile.encode(project: project)
         return FileWrapper(regularFileWithContents: data)
     }

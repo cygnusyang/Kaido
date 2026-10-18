@@ -1,0 +1,802 @@
+import Foundation
+import Testing
+import KairoCommands
+import KairoCore
+import KairoPresentation
+@testable import KairoMacApp
+
+/// 应用适配层交互测试：动作经会话生效、快照刷新、撤销、文件与命令注册表。
+/// 视图画面由 `GUIRenderTests` 离屏渲染覆盖。
+@MainActor
+@Suite("WorkspaceStore 交互")
+struct WorkspaceStoreTests {
+    /// 每个测试使用独立偏好域，避免写入开发者真实配置。
+    private func makeStore() -> WorkspaceStore {
+        makeStore(projectLoader: { try KairoFile.load(from: $0) })
+    }
+
+    private func makeStore(
+        projectLoader: @escaping @Sendable (URL) throws -> Project
+    ) -> WorkspaceStore {
+        let suite = "kairo.apptests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
+        defaults.removePersistentDomain(forName: suite)
+        return WorkspaceStore(defaults: defaults, projectLoader: projectLoader)
+    }
+
+    private func makeCatalog(_ store: WorkspaceStore) -> [KairoCommand] {
+        KairoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {})
+    }
+
+    private func command(_ commands: [KairoCommand], _ id: String) throws -> KairoCommand {
+        try #require(commands.first { $0.id == id })
+    }
+
+    private func rows(_ store: WorkspaceStore) -> [PlanRow] {
+        store.snapshot.outline.rows
+    }
+
+    private func row(_ store: WorkspaceStore, _ title: String) throws -> PlanRow {
+        try #require(rows(store).first { $0.title == title })
+    }
+
+    private func task(_ store: WorkspaceStore, _ title: String) throws -> TaskItem {
+        try #require(store.exportProject.tasks.first { $0.title == title })
+    }
+
+    private func indexOf(_ store: WorkspaceStore, _ id: UUID) throws -> Int {
+        try #require(store.exportProject.tasks.firstIndex { $0.id == id })
+    }
+
+    // MARK: - 初始状态
+
+    @Test func storeSeedsDemoProjectAndSchedule() throws {
+        let store = makeStore()
+        #expect(rows(store).count == 10)
+        #expect(store.viewState.mode == .plan)
+        #expect(store.selection == nil)
+        #expect(rows(store).contains { $0.hasSchedule })
+
+        let gantt = store.snapshot.gantt
+        #expect(gantt.bars.count > 0)
+        #expect(gantt.bars.count <= rows(store).count)
+    }
+
+    @Test func schedulePlacesDependentTaskAfterPredecessor() throws {
+        let store = makeStore()
+        let backend = try row(store, "实现搜索后端")
+        let review = try row(store, "Code Review 搜索模块")
+        let backendFinish = try #require(backend.scheduledFinish)
+        let reviewStart = try #require(review.scheduledStart)
+        #expect(reviewStart >= backendFinish)
+    }
+
+    // MARK: - 命令注册表（菜单与 ⌘K 同源）
+
+    @Test func catalogIsSingleSourceForMenuAndPalette() {
+        let commands = makeCatalog(makeStore())
+        #expect(commands.count == 22)
+        #expect(Set(commands.map(\.id)).count == commands.count)
+        #expect(Set(commands.map(\.group)) == Set(["文件", "编辑", "大纲", "任务", "视图", "查找"]))
+        #expect(commands.allSatisfy { !$0.title.isEmpty })
+        #expect(commands.contains { $0.id == "palette.show" })
+    }
+
+    @Test func shortcutLabelsMatchMenuBindings() throws {
+        let commands = makeCatalog(makeStore())
+        #expect(try command(commands, "palette.show").shortcut?.label == "⌘K")
+        #expect(try command(commands, "find.previous").shortcut?.label == "⇧⌘G")
+        #expect(try command(commands, "outline.newSibling").shortcut?.label == "⌘↩")
+        #expect(try command(commands, "view.plan").shortcut?.label == "⌥⌘1")
+        #expect(try command(commands, "view.outline").shortcut?.label == "⌥⌘2")
+        #expect(try command(commands, "view.focus").shortcut?.label == "⌥⌘L")
+        #expect(try command(commands, "view.violations").shortcut?.label == "⌥⌘V")
+        #expect(try command(commands, "view.today").shortcut?.label == "⌥⌘T")
+        #expect(try command(commands, "view.criticalPath").shortcut == nil)
+        #expect(try command(commands, "edit.undo").shortcut?.label == "⌘Z")
+        #expect(try command(commands, "edit.redo").shortcut?.label == "⇧⌘Z")
+    }
+
+    @Test func undoRedoCommandsRouteThroughSession() throws {
+        let store = makeStore()
+        let commands = makeCatalog(store)
+        let backend = try task(store, "实现搜索后端")
+
+        store.dispatch(.delete(backend.id))
+        #expect(!store.exportProject.tasks.contains { $0.id == backend.id })
+
+        try command(commands, "edit.undo").action()
+        #expect(store.exportProject.tasks.contains { $0.id == backend.id })
+
+        try command(commands, "edit.redo").action()
+        #expect(!store.exportProject.tasks.contains { $0.id == backend.id })
+    }
+
+    @Test func viewCatalogCommandsSwitchMode() throws {
+        let store = makeStore()
+        let commands = makeCatalog(store)
+
+        try command(commands, "view.outline").action()
+        #expect(store.viewState.mode == .outline)
+
+        try command(commands, "view.plan").action()
+        #expect(store.viewState.mode == .plan)
+    }
+
+    @Test func focusCommandFromOutlineEntersPlanMode() throws {
+        let store = makeStore()
+        let commands = makeCatalog(store)
+
+        try command(commands, "view.outline").action()
+        try command(commands, "view.focus").action()
+
+        #expect(store.viewState.mode == .plan)
+        #expect(store.viewState.chartFocused)
+    }
+
+    @Test func violationsCommandOpensInspectorTab() throws {
+        let store = makeStore()
+        try command(makeCatalog(store), "view.violations").action()
+        #expect(store.viewState.inspectorVisible)
+        #expect(store.viewState.inspectorTab == .violations)
+        #expect(store.snapshot.inspector.tab == .violations)
+    }
+
+    @Test func paletteCommandOpensPaletteAndFiltersByAlias() throws {
+        let store = makeStore()
+        try command(makeCatalog(store), "palette.show").action()
+        #expect(store.showCommandPalette)
+
+        let commands = makeCatalog(store)
+        #expect(CommandPalette.matching("甘特", in: commands).map(\.id) == ["view.outline"])
+        #expect(CommandPalette.matching("任务视图", in: commands).map(\.id) == ["view.plan"])
+        #expect(CommandPalette.matching("  ", in: commands).count == commands.count)
+        #expect(CommandPalette.matching("不存在的命令", in: commands).isEmpty)
+    }
+
+    @Test func findCommandReopensAndRefocusesEveryPress() throws {
+        let store = makeStore()
+        let show = try command(makeCatalog(store), "find.show")
+
+        show.action()
+        #expect(store.showFindBar)
+        let firstToken = store.findFocusToken
+
+        show.action()
+        #expect(store.findFocusToken == firstToken + 1)
+    }
+
+    // MARK: - 大纲动作
+
+    @Test func indentAndOutdentMoveTaskThroughSession() throws {
+        let store = makeStore()
+        let review = try task(store, "Code Review 搜索模块")
+        let release = try task(store, "发布 v1.0")
+
+        store.dispatch(.select(release.id))
+        store.dispatch(.indent(release.id))
+
+        #expect(try task(store, "发布 v1.0").parentID == review.id)
+        #expect(try row(store, "发布 v1.0").depth == 1)
+
+        store.dispatch(.outdent(release.id))
+
+        let moved = try task(store, "发布 v1.0")
+        #expect(moved.parentID == nil)
+        #expect(try indexOf(store, moved.id) > indexOf(store, review.id))
+    }
+
+    @Test func dropTargetAppendsToGroupAndInsertsAfterSibling() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+        let design = try task(store, "设计首页原型")
+
+        store.dispatch(.createTask(parentID: nil, kind: .group))
+        let groupID = try #require(store.selection)
+        store.dispatch(.createTask(parentID: groupID, kind: .task))
+
+        let intoGroup = try #require(store.moveTarget(draggedID: backend.id, onto: groupID))
+        #expect(intoGroup.parentID == groupID)
+        #expect(intoGroup.index == 1)
+        store.dispatch(.move(backend.id, parentID: groupID, index: intoGroup.index))
+        #expect(try task(store, "实现搜索后端").parentID == groupID)
+
+        let afterSibling = try #require(store.moveTarget(
+            draggedID: design.id,
+            onto: groupID
+        ))
+        #expect(afterSibling.parentID == groupID)
+
+        let anchorID = try task(store, "整理用户反馈").id
+        let after = try #require(store.moveTarget(draggedID: design.id, onto: anchorID))
+        store.dispatch(.move(design.id, parentID: after.parentID, index: after.index))
+
+        let siblings = store.exportProject.tasks.filter { $0.parentID == nil }
+        let anchorPosition = try #require(siblings.firstIndex { $0.id == anchorID })
+        let designPosition = try #require(siblings.firstIndex { $0.id == design.id })
+        #expect(designPosition == anchorPosition + 1)
+
+        store.dispatch(.setFilter("搜索"))
+        #expect(store.moveTarget(draggedID: design.id, onto: anchorID) == nil)
+    }
+
+    @Test func dropHoverAutoExpandsCollapsedGroup() async throws {
+        let store = makeStore()
+        store.dispatch(.createTask(parentID: nil, kind: .group))
+        let groupID = try #require(store.selection)
+        store.dispatch(.createTask(parentID: groupID, kind: .task))
+        store.dispatch(.toggleExpanded(groupID))
+        #expect(try !row(store, "新群组").isExpanded)
+
+        // 注入 1ms 延迟：并行测试负载下 600ms 计时器可能长期得不到唤醒。
+        store.scheduleDropExpand(on: groupID, delayNanoseconds: 1_000_000)
+        let deadline = Date().addingTimeInterval(5)
+        while try !row(store, "新群组").isExpanded && Date() < deadline {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+
+        #expect(try row(store, "新群组").isExpanded)
+    }
+
+    @Test func dropExitCancelsPendingExpand() async throws {
+        let store = makeStore()
+        store.dispatch(.createTask(parentID: nil, kind: .group))
+        let groupID = try #require(store.selection)
+        store.dispatch(.toggleExpanded(groupID))
+        #expect(try !row(store, "新群组").isExpanded)
+
+        store.scheduleDropExpand(on: groupID)
+        store.cancelDropExpand()
+        try await Task.sleep(nanoseconds: 800_000_000)
+
+        #expect(try !row(store, "新群组").isExpanded)
+    }
+
+    @Test func dropExitOnAnotherRowKeepsPendingExpand() async throws {
+        let store = makeStore()
+        store.dispatch(.setExpanded([]))
+        store.dispatch(.createTask(parentID: nil, kind: .group))
+        let group = try #require(store.selection)
+        store.dispatch(.createTask(parentID: nil, kind: .group))
+        let other = try #require(store.selection)
+        store.dispatch(.setExpanded([]))
+
+        store.scheduleDropExpand(on: group, delayNanoseconds: 1_000_000)
+        // 另一行的 dropExited 不得取消本行计时。
+        store.cancelDropExpand(on: other)
+        let deadline = Date().addingTimeInterval(5)
+        while !store.viewState.expandedTaskIDs.contains(group) && Date() < deadline {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+
+        #expect(store.viewState.expandedTaskIDs.contains(group))
+    }
+
+    @Test func dropTargetRejectsSelf() {
+        let store = makeStore()
+        let backend = store.snapshot.outline.rows[0]
+        #expect(store.moveTarget(draggedID: backend.id, onto: backend.id) == nil)
+    }
+
+    @Test func createSiblingInsertsAfterSelectionAndSelectsIt() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+
+        store.dispatch(.select(backend.id))
+        store.dispatch(.createSibling(after: backend.id))
+
+        let newID = try #require(store.selection)
+        let created = try #require(store.exportProject.tasks.first { $0.id == newID })
+        #expect(created.title == "新任务")
+        #expect(created.parentID == nil)
+        #expect(try indexOf(store, newID) == indexOf(store, backend.id) + 1)
+        #expect(rows(store).contains { $0.id == newID })
+    }
+
+    @Test func createTaskUsesExplicitParentAndSelectsIt() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+
+        store.dispatch(.createTask(parentID: backend.id, kind: .task))
+
+        let newID = try #require(store.selection)
+        let created = try #require(store.exportProject.tasks.first { $0.id == newID })
+        #expect(created.parentID == backend.id)
+        #expect(created.title == "新任务")
+        #expect(try row(store, "新任务").depth == 1)
+    }
+
+    @Test func groupDeleteRequiresConfirmationThenRemovesSubtree() throws {
+        let store = makeStore()
+        store.dispatch(.select(nil))
+        store.dispatch(.createTask(parentID: nil, kind: .group))
+        let groupID = try #require(store.selection)
+
+        store.dispatch(.createTask(parentID: groupID, kind: .task))
+        let childID = try #require(store.selection)
+
+        store.requestDelete(id: groupID)
+        let pending = try #require(store.pendingDeletion)
+        #expect(pending.taskID == groupID)
+        #expect(pending.affectedCount == 2)
+
+        store.dispatch(.select(childID))
+        store.confirmPendingDeletion()
+
+        #expect(!store.exportProject.tasks.contains { $0.id == groupID })
+        #expect(!store.exportProject.tasks.contains { $0.id == childID })
+        #expect(store.pendingDeletion == nil)
+        #expect(store.selection == nil)
+    }
+
+    @Test func addingChildPromotesParentAndDeleteCascades() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+        #expect(backend.kind == .task)
+
+        store.dispatch(.createTask(parentID: backend.id, kind: .task))
+        let childID = try #require(store.selection)
+
+        #expect(try task(store, "实现搜索后端").kind == .group)
+        #expect(try row(store, "实现搜索后端").kind == .group)
+
+        store.requestDelete(id: backend.id)
+        let pending = try #require(store.pendingDeletion)
+        #expect(pending.affectedCount == 2)
+
+        store.confirmPendingDeletion()
+        #expect(!store.exportProject.tasks.contains { $0.id == backend.id })
+        #expect(!store.exportProject.tasks.contains { $0.id == childID })
+        #expect(!store.exportProject.tasks.contains { $0.parentID == backend.id })
+    }
+
+    @Test func deletingLeafTaskClearsSelection() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+        store.dispatch(.select(backend.id))
+
+        store.dispatch(.delete(backend.id))
+
+        #expect(!store.exportProject.tasks.contains { $0.id == backend.id })
+        #expect(store.selection == nil)
+    }
+
+    // MARK: - 字段更新与派生
+
+    @Test func progressAndStatusRefreshSnapshot() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+
+        store.dispatch(.setProgress(backend.id, 0.25))
+        #expect(try row(store, "实现搜索后端").progress == 0.25)
+
+        store.dispatch(.setStatus(backend.id, .done))
+        let done = try row(store, "实现搜索后端")
+        #expect(done.status == .done)
+        #expect(done.progress == 1)
+    }
+
+    @Test func dependencyCycleIsRejectedWithAlert() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+        let review = try task(store, "Code Review 搜索模块")
+
+        // 种子数据中 review 已是 backend 的后继；反向添加会成环。
+        store.dispatch(.addDependency(
+            taskID: backend.id,
+            predecessorID: review.id,
+            type: .fs,
+            lagDays: 0
+        ))
+
+        #expect(store.alertMessage != nil)
+        #expect(try task(store, "实现搜索后端").dependencies.isEmpty)
+    }
+
+    @Test func predecessorCandidatesExcludeSelfAndExisting() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+        let review = try task(store, "Code Review 搜索模块")
+
+        let candidates = Set(store.predecessorCandidates(for: review.id).map(\.id))
+        #expect(!candidates.contains(review.id))
+        #expect(!candidates.contains(backend.id))
+        #expect(!candidates.isEmpty)
+    }
+
+    @Test func filterWithNoMatchesProducesEmptyState() {
+        let store = makeStore()
+        store.dispatch(.setFilter("zzz-nothing-matches"))
+
+        #expect(rows(store).isEmpty)
+        #expect(store.snapshot.outline.emptyReason == .noMatches)
+    }
+
+    // MARK: - 撤销 / 重做
+
+    @Test func consecutiveRenamesMergeIntoOneUndoStep() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+        let original = backend.title
+
+        store.dispatch(.rename(backend.id, "第一次改名"))
+        store.dispatch(.rename(backend.id, "第二次改名"))
+        #expect(try task(store, "第二次改名").title == "第二次改名")
+
+        store.dispatch(.undo)
+        #expect(try task(store, original).title == original)
+
+        store.dispatch(.redo)
+        #expect(try task(store, "第二次改名").title == "第二次改名")
+    }
+
+    @Test func undoRestoresDeletedTask() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+
+        store.dispatch(.delete(backend.id))
+        #expect(!store.exportProject.tasks.contains { $0.id == backend.id })
+
+        store.dispatch(.undo)
+        #expect(store.exportProject.tasks.contains { $0.id == backend.id })
+    }
+
+    // MARK: - 检查器与揭示
+
+    @Test func inspectorLockKeepsFrozenTaskWhileSelectionMoves() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+        let review = try task(store, "Code Review 搜索模块")
+
+        store.dispatch(.select(backend.id))
+        store.dispatch(.setInspectorLocked(true))
+        store.dispatch(.select(review.id))
+
+        #expect(store.inspectorSelectionDrift)
+        guard case .task(let inspector) = store.snapshot.inspector.content else {
+            Issue.record("锁定后检查器应停留在任务页")
+            return
+        }
+        #expect(inspector.taskID == backend.id)
+        #expect(store.snapshot.statusBar.selectionSummary == "Code Review 搜索模块")
+    }
+
+    @Test func revealExpandsCollapsedAncestors() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+
+        store.dispatch(.createTask(parentID: backend.id, kind: .task))
+        let childID = try #require(store.selection)
+
+        store.dispatch(.toggleExpanded(backend.id))
+        #expect(!rows(store).contains { $0.id == childID })
+
+        store.dispatch(.reveal(childID))
+        #expect(store.selection == childID)
+        #expect(rows(store).contains { $0.id == childID })
+    }
+
+    @Test func revealMissingTaskClearsSelectionAndNotifies() {
+        let store = makeStore()
+        store.dispatch(.select(nil))
+        store.dispatch(.reveal(UUID()))
+
+        #expect(store.selection == nil)
+        #expect(store.notice == "任务已删除")
+        guard case .project = store.snapshot.inspector.content else {
+            Issue.record("目标缺失后检查器应回到项目页")
+            return
+        }
+    }
+
+    // MARK: - 文件
+
+    @Test func saveThenOpenRoundTripsProject() throws {
+        let store = makeStore()
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-store-tests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("roundtrip.kairo")
+
+        store.save(to: url)
+        #expect(store.alertMessage == nil)
+        #expect(FileManager.default.fileExists(atPath: url.path))
+
+        let reopened = makeStore()
+        reopened.open(url: url)
+        #expect(reopened.alertMessage == nil)
+        #expect(reopened.exportProject.tasks.count == store.exportProject.tasks.count)
+        #expect(reopened.projectURL?.standardizedFileURL == url.standardizedFileURL)
+    }
+
+    @Test func dirtyOpenWaitsForUserChoice() async throws {
+        let store = makeStore()
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-dirty-open-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let first = directory.appendingPathComponent("first.kairo")
+        let second = directory.appendingPathComponent("second.kairo")
+
+        store.save(to: first)
+        store.dispatch(.setProjectTitle("未保存标题"))
+        #expect(store.hasUnsavedChanges)
+
+        let writer = makeStore()
+        writer.dispatch(.setProjectTitle("另一个项目"))
+        writer.save(to: second)
+
+        store.openAsync(url: second)
+        #expect(store.pendingOpenURL?.standardizedFileURL == second.standardizedFileURL)
+        #expect(store.exportProject.metadata.title == "未保存标题")
+
+        store.cancelPendingOpen()
+        #expect(store.pendingOpenURL == nil)
+        #expect(store.exportProject.metadata.title == "未保存标题")
+
+        store.openAsync(url: second)
+        store.discardChangesAndOpenPending()
+        for _ in 0..<200 where store.isLoading {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        #expect(store.pendingOpenURL == nil)
+        #expect(store.exportProject.metadata.title == "另一个项目")
+        #expect(!store.hasUnsavedChanges)
+    }
+
+    @Test func editsDuringAsyncOpenArePreserved() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-open-race-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("remote.kairo")
+
+        let writer = makeStore()
+        writer.dispatch(.setProjectTitle("磁盘项目"))
+        writer.save(to: url)
+
+        // 受控加载：先阻塞解码，测试在载入窗口内编辑旧项目，再放行。
+        let gate = DispatchSemaphore(value: 0)
+        let store = makeStore(projectLoader: { url in
+            gate.wait()
+            return try KairoFile.load(from: url)
+        })
+        store.openAsync(url: url)
+        store.dispatch(.setProjectTitle("载入期间编辑"))
+        gate.signal()
+
+        let deadline = Date().addingTimeInterval(5)
+        while store.isLoading && Date() < deadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        #expect(!store.isLoading)
+        #expect(store.pendingOpenURL?.standardizedFileURL == url.standardizedFileURL)
+        #expect(store.exportProject.metadata.title == "载入期间编辑")
+    }
+
+    @Test func openWhileLoadingIsReportedInsteadOfSilentlyDropped() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-open-busy-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let first = directory.appendingPathComponent("first.kairo")
+        let second = directory.appendingPathComponent("second.kairo")
+
+        let writer = makeStore()
+        writer.dispatch(.setProjectTitle("第一个项目"))
+        writer.save(to: first)
+        writer.dispatch(.setProjectTitle("第二个项目"))
+        writer.save(to: second)
+
+        let gate = DispatchSemaphore(value: 0)
+        let store = makeStore(projectLoader: { url in
+            gate.wait()
+            return try KairoFile.load(from: url)
+        })
+        store.openAsync(url: first)
+        #expect(store.isLoading)
+
+        store.openAsync(url: second)
+        #expect(store.notice?.contains("正在载入") == true)
+        #expect(store.pendingOpenURL == nil)
+
+        gate.signal()
+        let deadline = Date().addingTimeInterval(5)
+        while store.isLoading && Date() < deadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        #expect(store.exportProject.metadata.title == "第一个项目")
+    }
+
+    @Test func adoptingExportedFileDoesNotRewriteDiskFile() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-export-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("exported.kairo")
+
+        let store = makeStore()
+        store.save(to: url)
+        let original = try Data(contentsOf: url)
+        store.dispatch(.setProjectTitle("导出前修改"))
+        #expect(store.hasUnsavedChanges)
+        // 生产路径：面板打开时记录版本；导出完成后内容仍是最新，只回填路径。
+        store.beginExport()
+
+        store.rememberSaveURL(url)
+
+        #expect(!store.hasUnsavedChanges)
+        #expect(store.projectURL?.standardizedFileURL == url.standardizedFileURL)
+        #expect(try Data(contentsOf: url) == original)
+    }
+
+    @Test func exportDuringEditFallsBackToDirectSave() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-export-stale-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("exported.kairo")
+
+        let store = makeStore()
+        store.save(to: url)
+        let original = try Data(contentsOf: url)
+        store.beginExport()
+        // 面板打开期间继续编辑：导出器写的快照已过期，完成时应以内存为准重写。
+        store.dispatch(.setProjectTitle("面板打开后修改"))
+        #expect(store.hasUnsavedChanges)
+
+        store.rememberSaveURL(url)
+
+        #expect(!store.hasUnsavedChanges)
+        #expect(try Data(contentsOf: url) != original)
+        let reloaded = makeStore()
+        reloaded.open(url: url)
+        #expect(reloaded.exportProject.metadata.title == "面板打开后修改")
+    }
+
+    @Test func fieldEditorUndoIsInertWithoutKeyWindow() {
+        #expect(!FieldEditorUndo.perform(redo: false))
+        #expect(!FieldEditorUndo.perform(redo: true))
+    }
+
+    @Test func unrulyExternalFileIsNotRetriedRepeatedly() throws {
+        let store = makeStore()
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-broken-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("broken.kairo")
+
+        store.save(to: url)
+        try Data("not a kairo file".utf8).write(to: url)
+
+        store.checkExternalUpdate()
+        #expect(store.alertMessage != nil)
+        store.alertMessage = nil
+
+        store.checkExternalUpdate()
+        #expect(store.alertMessage == nil)
+    }
+
+    @Test func selectingElsewhereRestoresTemporarilySuspendedFilter() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+        store.dispatch(.setFilter("发布"))
+        #expect(store.viewState.filterText == "发布")
+
+        store.dispatch(.reveal(backend.id))
+        #expect(store.viewState.filterText.isEmpty)
+
+        let other = try task(store, "发布 v1.0")
+        store.dispatch(.select(other.id))
+        #expect(store.viewState.filterText == "发布")
+    }
+
+    // MARK: - 视图偏好持久化
+
+    @Test func openAsyncLoadsProjectAndClearsLoadingState() async throws {
+        let store = makeStore()
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-async-open-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("async.kairo")
+
+        store.save(to: url)
+        #expect(store.alertMessage == nil)
+
+        let reopened = makeStore()
+        reopened.openAsync(url: url)
+        #expect(reopened.isLoading)
+
+        for _ in 0..<200 where reopened.isLoading {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+
+        #expect(!reopened.isLoading)
+        #expect(!reopened.showsLoadingSkeleton)
+        #expect(reopened.alertMessage == nil)
+        #expect(reopened.projectURL?.standardizedFileURL == url.standardizedFileURL)
+        #expect(reopened.exportProject.tasks.count == store.exportProject.tasks.count)
+    }
+
+    @Test func viewPreferencesPersistAcrossStoresButModeDoesNot() {
+        let suite = "kairo.apptests.preferences.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let first = WorkspaceStore(defaults: defaults)
+        first.dispatch(.setMode(.outline))
+        first.dispatch(.setOutlineWidth(480))
+        first.dispatch(.setZoom(.day))
+        first.dispatch(.setInspectorWidth(360))
+        first.dispatch(.setInspectorTab(.violations))
+        first.dispatch(.setExpanded([]))
+
+        let second = WorkspaceStore(defaults: defaults)
+        #expect(second.viewState.mode == .plan)
+        #expect(second.viewState.outlineWidth == 480)
+        #expect(second.viewState.zoom == .day)
+        #expect(second.viewState.inspectorWidth == 360)
+        #expect(second.viewState.inspectorTab == .violations)
+        #expect(second.viewState.expandedTaskIDs.isEmpty)
+    }
+
+    // MARK: - 外部更新
+
+    @Test func externalChangeWithUnsavedEditsShowsBanner() throws {
+        let store = makeStore()
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-external-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("external.kairo")
+
+        store.save(to: url)
+        store.dispatch(.createTask(parentID: nil, kind: .task))
+        #expect(store.hasUnsavedChanges)
+
+        try rewriteExternally(url, title: "外部标题")
+        store.checkExternalUpdate()
+
+        #expect(store.externalUpdatePending)
+        #expect(store.exportProject.metadata.title == "未命名项目")
+
+        store.dispatch(.keepLocal)
+        #expect(!store.externalUpdatePending)
+        #expect(store.hasUnsavedChanges)
+    }
+
+    @Test func externalChangeWithoutLocalEditsReloadsAutomatically() throws {
+        let store = makeStore()
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-external-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("external.kairo")
+
+        store.save(to: url)
+        #expect(!store.hasUnsavedChanges)
+
+        try rewriteExternally(url, title: "外部标题")
+        store.checkExternalUpdate()
+
+        #expect(!store.externalUpdatePending)
+        #expect(store.exportProject.metadata.title == "外部标题")
+        #expect(store.notice?.hasPrefix("已载入外部更新") == true)
+    }
+
+    /// 用独立会话重写磁盘文件，模拟其他进程的保存。
+    private func rewriteExternally(_ url: URL, title: String) throws {
+        Thread.sleep(forTimeInterval: 0.05)
+        let writer = makeStore()
+        writer.dispatch(.setProjectTitle(title))
+        writer.save(to: url)
+        #expect(writer.alertMessage == nil)
+    }
+}

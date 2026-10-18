@@ -1,5 +1,32 @@
+import AppKit
 import SwiftUI
 import KairoCore
+import KairoPresentation
+
+/// 就地编辑时的原生文本撤销。
+///
+/// 菜单替换了系统的 `.undoRedo` 分组；若直接走会话快照，⌘Z 会把整条输入
+/// 连同上一次结构变更一起回退。文本字段持有焦点时优先交给字段编辑器。
+enum FieldEditorUndo {
+    @MainActor
+    static func perform(redo: Bool) -> Bool {
+        // `NSApp` 是隐式解包可选值：测试等无 AppKit 生命周期的进程里必须安全返回。
+        guard let app = NSApp,
+              let window = app.keyWindow,
+              let textView = window.firstResponder as? NSTextView,
+              let manager = textView.undoManager ?? window.undoManager else {
+            return false
+        }
+        if redo {
+            guard manager.canRedo else { return false }
+            manager.redo()
+        } else {
+            guard manager.canUndo else { return false }
+            manager.undo()
+        }
+        return true
+    }
+}
 
 /// 命令快捷键（菜单与命令面板共用同一份定义）。
 struct KairoShortcut {
@@ -29,15 +56,32 @@ struct KairoCommand: Identifiable {
     /// 菜单分组：文件 / 大纲 / 任务 / 视图 / 查找。
     let group: String
     let shortcut: KairoShortcut?
+    /// 旧标题，仅用于命令面板搜索（不显示在菜单）。
+    let aliases: [String]
     let action: @MainActor () -> Void
+
+    init(
+        id: String,
+        title: String,
+        group: String,
+        shortcut: KairoShortcut? = nil,
+        aliases: [String] = [],
+        action: @escaping @MainActor () -> Void
+    ) {
+        self.id = id
+        self.title = title
+        self.group = group
+        self.shortcut = shortcut
+        self.aliases = aliases
+        self.action = action
+    }
 }
 
 /// 命令注册表：应用内唯一的命令定义来源（US-E4-05 验收 3）。
 @MainActor
 enum KairoCommandCatalog {
     static func make(
-        store: ProjectStore,
-        find: FindModel,
+        store: WorkspaceStore,
         requestOpen: @escaping @MainActor () -> Void,
         requestSave: @escaping @MainActor () -> Void
     ) -> [KairoCommand] {
@@ -57,67 +101,133 @@ enum KairoCommandCatalog {
                 action: requestSave
             ),
             KairoCommand(
+                id: "edit.undo",
+                title: "撤销",
+                group: "编辑",
+                shortcut: KairoShortcut(key: "z", modifiers: .command),
+                action: {
+                    if !FieldEditorUndo.perform(redo: false) {
+                        store.dispatch(.undo)
+                    }
+                }
+            ),
+            KairoCommand(
+                id: "edit.redo",
+                title: "重做",
+                group: "编辑",
+                shortcut: KairoShortcut(key: "z", modifiers: [.command, .shift]),
+                action: {
+                    if !FieldEditorUndo.perform(redo: true) {
+                        store.dispatch(.redo)
+                    }
+                }
+            ),
+            KairoCommand(
                 id: "outline.indent",
                 title: "缩进",
                 group: "大纲",
                 shortcut: KairoShortcut(key: "]", modifiers: .command),
-                action: { store.indentSelected() }
+                action: {
+                    guard let id = store.selection else { return }
+                    store.dispatch(.indent(id))
+                }
             ),
             KairoCommand(
                 id: "outline.outdent",
                 title: "减少缩进",
                 group: "大纲",
                 shortcut: KairoShortcut(key: "[", modifiers: .command),
-                action: { store.outdentSelected() }
+                action: {
+                    guard let id = store.selection else { return }
+                    store.dispatch(.outdent(id))
+                }
             ),
             KairoCommand(
                 id: "outline.newSibling",
                 title: "新建同级任务",
                 group: "大纲",
                 shortcut: KairoShortcut(key: .return, modifiers: .command),
-                action: { store.insertSiblingAfterSelection() }
+                action: {
+                    if let id = store.selection {
+                        store.dispatch(.createSibling(after: id))
+                    } else {
+                        store.dispatch(.createTask(parentID: nil, kind: .task))
+                    }
+                }
             ),
             KairoCommand(
                 id: "task.new",
                 title: "新建任务",
                 group: "任务",
                 shortcut: KairoShortcut(key: "n", modifiers: [.command, .option]),
-                action: { store.addTask(kind: .task) }
+                action: { store.dispatch(.createTask(parentID: nil, kind: .task)) }
             ),
             KairoCommand(
                 id: "task.newGroup",
                 title: "新建群组",
                 group: "任务",
                 shortcut: KairoShortcut(key: "g", modifiers: [.command, .option]),
-                action: { store.addTask(kind: .group) }
+                action: { store.dispatch(.createTask(parentID: nil, kind: .group)) }
             ),
             KairoCommand(
                 id: "task.newMilestone",
                 title: "新建里程碑",
                 group: "任务",
                 shortcut: KairoShortcut(key: "m", modifiers: [.command, .option]),
-                action: { store.addTask(kind: .milestone) }
+                action: { store.dispatch(.createTask(parentID: nil, kind: .milestone)) }
+            ),
+            KairoCommand(
+                id: "view.plan",
+                title: "计划",
+                group: "视图",
+                shortcut: KairoShortcut(key: "1", modifiers: [.command, .option]),
+                aliases: ["任务视图"],
+                action: { store.dispatch(.setMode(.plan)) }
             ),
             KairoCommand(
                 id: "view.outline",
-                title: "任务视图",
+                title: "大纲",
                 group: "视图",
-                shortcut: nil,
-                action: { store.viewMode = .outline }
+                shortcut: KairoShortcut(key: "2", modifiers: [.command, .option]),
+                aliases: ["甘特视图"],
+                action: { store.dispatch(.setMode(.outline)) }
             ),
             KairoCommand(
-                id: "view.gantt",
-                title: "甘特视图",
+                id: "view.focus",
+                title: "图表聚焦",
                 group: "视图",
-                shortcut: nil,
-                action: { store.viewMode = .gantt }
+                shortcut: KairoShortcut(key: "l", modifiers: [.command, .option]),
+                action: { store.dispatch(.toggleChartFocus) }
             ),
             KairoCommand(
                 id: "view.violations",
-                title: "显示/隐藏违例面板",
+                title: "显示检查器·违例",
                 group: "视图",
                 shortcut: KairoShortcut(key: "v", modifiers: [.command, .option]),
-                action: { store.showViolations.toggle() }
+                aliases: ["显示/隐藏违例面板"],
+                action: {
+                    store.dispatch(.setInspectorVisible(true))
+                    store.dispatch(.setInspectorTab(.violations))
+                }
+            ),
+            KairoCommand(
+                id: "view.today",
+                title: "回到今天",
+                group: "视图",
+                shortcut: KairoShortcut(key: "t", modifiers: [.command, .option]),
+                action: { store.dispatch(.goToToday) }
+            ),
+            KairoCommand(
+                id: "view.criticalPath",
+                title: "显示/隐藏重要路径",
+                group: "视图",
+                action: { store.dispatch(.toggleCriticalPath) }
+            ),
+            KairoCommand(
+                id: "view.filterBar",
+                title: "显示筛选栏",
+                group: "视图",
+                action: { store.filterBarVisible = true }
             ),
             KairoCommand(
                 id: "find.show",
@@ -125,6 +235,7 @@ enum KairoCommandCatalog {
                 group: "查找",
                 shortcut: KairoShortcut(key: "f", modifiers: .command),
                 action: {
+                    store.filterBarVisible = true
                     store.showFindBar = true
                     store.findFocusToken += 1
                 }
@@ -134,21 +245,21 @@ enum KairoCommandCatalog {
                 title: "查找下一个",
                 group: "查找",
                 shortcut: KairoShortcut(key: "g", modifiers: .command),
-                action: { find.findNext() }
+                action: { store.find.findNext() }
             ),
             KairoCommand(
                 id: "find.previous",
                 title: "查找上一个",
                 group: "查找",
                 shortcut: KairoShortcut(key: "g", modifiers: [.command, .shift]),
-                action: { find.findPrevious() }
+                action: { store.find.findPrevious() }
             ),
             KairoCommand(
                 id: "find.regex",
                 title: "切换正则模式",
                 group: "查找",
                 shortcut: KairoShortcut(key: "e", modifiers: [.command, .option]),
-                action: { find.regexMode.toggle() }
+                action: { store.find.regexMode.toggle() }
             ),
             KairoCommand(
                 id: "palette.show",
@@ -169,6 +280,10 @@ struct KairoMenuCommands: Commands {
         CommandGroup(after: .saveItem) {
             Divider()
             items(group: "文件")
+        }
+        // 撤销/重做必须经过会话快照；替换系统 NSResponder 撤销入口。
+        CommandGroup(replacing: .undoRedo) {
+            items(group: "编辑")
         }
         CommandGroup(after: .pasteboard) {
             Divider()

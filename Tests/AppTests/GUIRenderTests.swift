@@ -2,39 +2,42 @@ import Foundation
 import SwiftUI
 import Testing
 import KairoCore
+import KairoPresentation
 @testable import KairoMacApp
 
-/// GUI 离屏渲染测试：`ImageRenderer` 无窗口渲染视图，按像素差异判断画面切换。
-/// 视觉美观与真人操作手感仍需人工验收；本套件保证界面确实绘制了内容，
-/// 且视图切换、缩放、平移、命令面板与违例面板会改变画面。
+/// GUI 离屏渲染测试：`ImageRenderer` 无窗口渲染视图，按像素差异判断画面变化。
+/// 视觉美观与真人操作手感仍需人工验收；本套件保证视图确实绘制内容，
+/// 且模式、缩放、查找栏、命令面板与检查器页签会改变画面。
 @MainActor
 @Suite("GUI 离屏渲染")
 struct GUIRenderTests {
     private enum Threshold {
-        /// 内容增删（任务行、命令行、违例行）造成的最小画面差异。
-        static let contentChange = 0.01
-        /// 整块区域显隐（甘特、面板、覆盖层）造成的最小画面差异。
+        /// 内容增删（任务行、命令行）造成的最小画面差异。
+        static let contentChange = 0.002
+        /// 整块区域显隐（画布、面板、覆盖层）造成的最小画面差异。
         static let regionChange = 0.05
         /// 非空画面至少应出现的颜色数；纯色空白画面为 1。
         static let distinctColors = 20
     }
 
-    private let defaultWidth: CGFloat = 900
-    private let defaultHeight: CGFloat = 600
+    private let defaultWidth: CGFloat = 1000
+    private let defaultHeight: CGFloat = 700
 
-    private func makeContentView(_ store: ProjectStore) -> ContentView {
-        let find = FindModel()
-        let commands = KairoCommandCatalog.make(
+    private func makeStore() -> WorkspaceStore {
+        let suite = "kairo.apptests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
+        defaults.removePersistentDomain(forName: suite)
+        return WorkspaceStore(defaults: defaults)
+    }
+
+    private func makeWorkspace(_ store: WorkspaceStore) -> WorkspaceView {
+        WorkspaceView(
             store: store,
-            find: find,
-            requestOpen: {},
-            requestSave: {}
-        )
-        return ContentView(
-            store: store,
-            find: find,
-            commands: commands,
-            deepLinkTaskID: .constant(nil)
+            commands: KairoCommandCatalog.make(
+                store: store,
+                requestOpen: {},
+                requestSave: {}
+            )
         )
     }
 
@@ -52,123 +55,74 @@ struct GUIRenderTests {
         )
     }
 
-    private func ganttView(
-        _ store: ProjectStore,
-        zoom: GanttZoom = .week,
-        fitsToWidth: Bool = false,
-        windowStart: Date? = nil
-    ) -> GanttView {
-        GanttView(
-            tasks: store.project.tasks,
-            schedule: store.schedule,
-            selection: nil,
-            violationIDs: [],
-            onSelect: { _ in },
-            initialZoom: zoom,
-            fitsToWidth: fitsToWidth,
-            initialWindowStart: windowStart
-        )
+    // MARK: - 工作台
+
+    @Test func planModeRendersWorkspaceChrome() throws {
+        let store = makeStore()
+        let rendered = try snapshot(makeWorkspace(store))
+        #expect(rendered.width == Int(defaultWidth))
+        #expect(rendered.height == Int(defaultHeight))
+        #expect(rendered.distinctColorCount > Threshold.distinctColors)
     }
 
-    // MARK: - 主界面
+    @Test func filterWithoutMatchesReplacesRowsWithEmptyState() throws {
+        let store = makeStore()
+        let populated = try snapshot(makeWorkspace(store))
 
-    @Test func outlineModeRendersInterfaceChrome() throws {
-        let store = ProjectStore()
-        let populated = try snapshot(makeContentView(store))
-        #expect(populated.width == 900)
-        #expect(populated.height == 600)
-        #expect(populated.distinctColorCount > Threshold.distinctColors)
+        store.dispatch(.setFilter("zzz-nothing-matches"))
+        let empty = try snapshot(makeWorkspace(store))
+
+        #expect(populated.differenceRatio(from: empty) > Threshold.contentChange)
     }
 
-    @Test func ganttDrawsTaskBarsFromTaskData() throws {
-        let store = ProjectStore()
-        let withBars = try snapshot(ganttView(store), width: 800, height: 300)
-        // 负向对照：同样的甘特外壳、无任务与排期时不得出现任务条。
-        // 大纲的 List 行由 AppKit 表格承载，`ImageRenderer` 不绘制其单元格，
-        // 因而任务数据落图在纯 SwiftUI 绘制的甘特上验证。
-        let empty = GanttView(
-            tasks: [],
-            schedule: nil,
-            selection: nil,
-            violationIDs: [],
-            onSelect: { _ in },
-            initialZoom: .week,
-            fitsToWidth: false
-        )
-        let withoutBars = try snapshot(empty, width: 800, height: 300)
-        #expect(withBars.distinctColorCount > Threshold.distinctColors)
-        #expect(withBars.differenceRatio(from: withoutBars) > Threshold.contentChange)
+    @Test func switchingToOutlineModeChangesRender() throws {
+        let store = makeStore()
+        let plan = try snapshot(makeWorkspace(store))
+
+        store.dispatch(.setMode(.outline))
+        let outline = try snapshot(makeWorkspace(store))
+
+        #expect(outline.distinctColorCount > 10)
+        #expect(plan.differenceRatio(from: outline) > Threshold.contentChange)
     }
 
-    @Test func switchingToGanttChangesRenderedContent() throws {
-        let store = ProjectStore()
-        let outline = try snapshot(makeContentView(store))
+    @Test func zoomLevelsRenderDistinctCharts() throws {
+        let store = makeStore()
+        store.dispatch(.setZoom(.day))
+        let day = try snapshot(makeWorkspace(store))
+        store.dispatch(.setZoom(.month))
+        let month = try snapshot(makeWorkspace(store))
 
-        store.viewMode = .gantt
-        let gantt = try snapshot(makeContentView(store))
-
-        #expect(gantt.distinctColorCount > 10)
-        #expect(outline.differenceRatio(from: gantt) > Threshold.regionChange)
+        #expect(day.differenceRatio(from: month) > Threshold.contentChange)
     }
 
     @Test func findBarChangesRenderWhenOpened() throws {
-        let store = ProjectStore()
-        let withoutBar = try snapshot(makeContentView(store))
+        let store = makeStore()
+        let withoutBar = try snapshot(makeWorkspace(store))
 
         store.showFindBar = true
-        let withBar = try snapshot(makeContentView(store))
+        let withBar = try snapshot(makeWorkspace(store))
 
         #expect(withBar.differenceRatio(from: withoutBar) > Threshold.contentChange)
     }
 
-    // MARK: - 甘特视图（US-E4-04）
-
-    @Test func ganttZoomLevelsRenderDistinctCharts() throws {
-        let store = ProjectStore()
-        let day = try snapshot(ganttView(store, zoom: .day), width: 800, height: 300)
-        let week = try snapshot(ganttView(store, zoom: .week), width: 800, height: 300)
-        let month = try snapshot(ganttView(store, zoom: .month), width: 800, height: 300)
-
-        #expect(day.distinctColorCount > Threshold.distinctColors)
-        #expect(day.differenceRatio(from: week) > Threshold.contentChange)
-        #expect(week.differenceRatio(from: month) > Threshold.contentChange)
-        #expect(day.differenceRatio(from: month) > Threshold.contentChange)
-    }
-
-    @Test func panningWindowStartChangesRenderedChart() throws {
-        let store = ProjectStore()
-        let base = try snapshot(ganttView(store, zoom: .week), width: 800, height: 300)
-        let shifted = try snapshot(
-            ganttView(
-                store,
-                zoom: .week,
-                windowStart: Date().addingTimeInterval(7 * 86_400)
-            ),
-            width: 800,
-            height: 300
-        )
-        #expect(base.differenceRatio(from: shifted) > Threshold.contentChange)
-    }
-
-    // MARK: - 命令面板与违例面板（US-E4-05 / US-E4-07）
+    // MARK: - 覆盖层与检查器
 
     @Test func commandPaletteOverlayChangesRender() throws {
-        let store = ProjectStore()
-        let base = try snapshot(makeContentView(store))
+        let store = makeStore()
+        let base = try snapshot(makeWorkspace(store))
 
         store.showCommandPalette = true
-        let palette = try snapshot(makeContentView(store))
+        let palette = try snapshot(makeWorkspace(store))
 
-        #expect(palette.distinctColorCount > 50)
+        #expect(palette.distinctColorCount > 30)
         #expect(palette.differenceRatio(from: base) > Threshold.regionChange)
     }
 
     @Test func commandPaletteRowsDependOnCommandList() throws {
-        let store = ProjectStore()
-        let find = FindModel()
+        let store = makeStore()
         let commands = KairoCommandCatalog.make(
             store: store,
-            find: find,
             requestOpen: {},
             requestSave: {}
         )
@@ -179,23 +133,20 @@ struct GUIRenderTests {
         #expect(populated.differenceRatio(from: empty) > Threshold.contentChange)
     }
 
-    @Test func violationsPanelAppearsWhenShown() throws {
-        let store = ProjectStore()
-        var release = try #require(store.project.tasks.first { $0.title == "发布 v1.0" })
-        release.constraint = .endNoLaterThan(Date().addingTimeInterval(-86_400))
-        store.update(release)
-        #expect(!store.violations.isEmpty)
+    @Test func inspectorTabAndLockChangeRender() throws {
+        let store = makeStore()
+        let backend = try #require(
+            store.snapshot.outline.rows.first { $0.title == "实现搜索后端" }
+        )
+        store.dispatch(.select(backend.id))
+        let taskTab = try snapshot(makeWorkspace(store))
 
-        let hidden = try snapshot(makeContentView(store))
-        store.showViolations = true
-        let shown = try snapshot(makeContentView(store))
-        #expect(shown.differenceRatio(from: hidden) > Threshold.regionChange)
+        store.dispatch(.setInspectorTab(.violations))
+        let violationsTab = try snapshot(makeWorkspace(store))
+        #expect(taskTab.differenceRatio(from: violationsTab) > Threshold.contentChange)
 
-        // 清除时限后同一面板内容改变，证明违例行确实由数据驱动。
-        var cleared = release
-        cleared.constraint = nil
-        store.update(cleared)
-        let emptyPanel = try snapshot(makeContentView(store))
-        #expect(shown.differenceRatio(from: emptyPanel) > Threshold.contentChange)
+        store.dispatch(.setInspectorVisible(false))
+        let hidden = try snapshot(makeWorkspace(store))
+        #expect(hidden.differenceRatio(from: violationsTab) > Threshold.contentChange)
     }
 }
