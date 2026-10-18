@@ -1,15 +1,15 @@
 import Foundation
 
 /// 违例引擎（ADR-007：违例规则集独立于调度，在调度纯函数输出上检测）。
-/// 基础集 7 条（F-30-03/04/05/06/08/13/14），规则语义见 docs/features/02-inspectors-scheduling.md。
+/// 基础集 8 条（F-30-03/04/05/06/08/13/14），规则语义见 docs/features/02-inspectors-scheduling.md。
 ///
 /// 单时限模型下的违例判定映射（每任务至多一个时限）：
 ///   startNoEarlierThan(x)：F-30-05，最晚开始 < x（相关性链把窗口压得过早）。
 ///   startNoLaterThan(x)  ：F-30-04，最早开始 > x（先决条件把开始推到时限之后）；
-///                          F-30-03，x + 持续 > 最晚结束（时限靠得太近，放不下持续时间）。
-///   endNoEarlierThan(x)  ：F-30-05，最晚结束 < x；
-///                          F-30-03，x − 持续 < 最早开始。
+///                          F-30-05，x + 持续 > 最晚结束（时限与相关性链窗口冲突）。
+///   endNoEarlierThan(x)  ：F-30-05，最晚结束 < x；x − 持续 < 最早开始（同上）。
 ///   endNoLaterThan(x)    ：F-30-04，最早结束 > x。
+/// 双时限模型：任务同时带开始侧与结束侧时限且窗口 < 持续时间 → F-30-03（时限靠得太近）。
 public enum ViolationEngine {
     public static func check(
         result: ScheduleResult,
@@ -22,6 +22,7 @@ public enum ViolationEngine {
         violations += projectBoundaryViolations(result: result, byID: byID)
         violations += negativeSlackViolations(result: result, byID: byID)
         violations += constraintViolations(result: result, byID: byID, calendar: calendar)
+        violations += constraintWindowViolations(result: result, byID: byID, calendar: calendar)
         return violations
     }
 
@@ -67,6 +68,46 @@ public enum ViolationEngine {
         return violations
     }
 
+    // MARK: - F-30-03 时限靠得太近（开始侧与结束侧时限窗口容不下持续时间）
+
+    private static func constraintWindowViolations(
+        result: ScheduleResult,
+        byID: [UUID: TaskItem],
+        calendar: Calendar
+    ) -> [Violation] {
+        result.tasks.compactMap { s in
+            guard let task = byID[s.taskID], let c = task.constraint else { return nil }
+            guard let window = Self.constraintWindow(for: task, calendar: calendar) else { return nil }
+            let needed = s.durationDays * 86400
+            guard window < needed else { return nil }
+            return Violation(
+                code: "constraint_window_too_narrow",
+                message: "任务「\(task.title)」的开始时限与结束时限相距过近（\(Int(window / 86400)) 天），无法容纳持续时间（\(Int(needed / 86400)) 天）",
+                taskID: s.taskID
+            )
+        }
+    }
+
+    /// 同时存在开始侧与结束侧时限时，返回两者间隔（秒）；否则 nil。
+    private static func constraintWindow(for task: TaskItem, calendar: Calendar) -> TimeInterval? {
+        guard let c = task.constraint else { return nil }
+        let startSide: Date?
+        let endSide: Date?
+        switch c {
+        case .startNoEarlierThan(let d), .startNoLaterThan(let d):
+            startSide = d
+            endSide = nil
+        case .endNoEarlierThan(let d), .endNoLaterThan(let d):
+            startSide = nil
+            endSide = d
+        }
+        // 单侧时限无窗口概念（另一侧来自相关性传播），交由 F-30-04/05 处理。
+        guard let start = startSide ?? task.startDate, let end = endSide ?? task.dueDate else {
+            return nil
+        }
+        return end.timeIntervalSince(start)
+    }
+
     // MARK: - F-30-06 负宽延（无法安排 ASAP/ALAP）
 
     private static func negativeSlackViolations(result: ScheduleResult, byID: [UUID: TaskItem]) -> [Violation] {
@@ -110,8 +151,8 @@ public enum ViolationEngine {
                 }
                 if x.addingTimeInterval(s.durationDays * 86400) > s.latestFinish {
                     violations.append(Violation(
-                        code: "constraint_conflicts_dependency",
-                        message: "任务「\(task.title)」的「开始不晚于」时限靠得太近，无法容纳任务持续时间",
+                        code: "constraint_is_dependency",
+                        message: "任务「\(task.title)」的「开始不晚于」时限与相关性链冲突：窗口无法容纳任务持续时间",
                         taskID: s.taskID
                     ))
                 }
@@ -125,8 +166,8 @@ public enum ViolationEngine {
                 }
                 if x.addingTimeInterval(-s.durationDays * 86400) < s.earliestStart {
                     violations.append(Violation(
-                        code: "constraint_conflicts_dependency",
-                        message: "任务「\(task.title)」的「结束不早于」时限靠得太近，无法容纳任务持续时间",
+                        code: "constraint_is_dependency",
+                        message: "任务「\(task.title)」的「结束不早于」时限与相关性链冲突：窗口无法容纳任务持续时间",
                         taskID: s.taskID
                     ))
                 }

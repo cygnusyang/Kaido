@@ -163,7 +163,7 @@ struct ConstraintIsDependencyTests {
     }
 }
 
-// MARK: - F-30-03 时限靠得太近
+// MARK: - F-30-05 时限与相关性链冲突
 
 struct ConstraintConflictsDependencyTests {
     @Test func startNoLaterThanTooCloseToFitDuration() throws {
@@ -172,14 +172,34 @@ struct ConstraintConflictsDependencyTests {
         // 时限 D0+2 + 持续 5 = D0+7 > 最晚结束 D0+6（项目结束）。
         let result = compute([t], end: day(2026, 11, 8))
         let vs = violations(result, [t])
-        #expect(codes(vs).contains("constraint_conflicts_dependency"))
+        #expect(codes(vs).contains("constraint_is_dependency"))
     }
 
     @Test func startNoLaterThanWithRoomHasNoViolation() throws {
         let t = task("受时限任务", duration: 2,
                      constraint: .startNoLaterThan(day(2026, 11, 10)))
         let result = compute([t], end: day(2026, 11, 20))
-        #expect(!codes(violations(result, [t])).contains("constraint_conflicts_dependency"))
+        #expect(!codes(violations(result, [t])).contains("constraint_is_dependency"))
+    }
+}
+
+// MARK: - F-30-03 时限靠得太近（开始侧 + 结束侧时限窗口 < 持续时间）
+
+struct ConstraintWindowTests {
+    @Test func startAndEndConstraintsWindowTooNarrow() throws {
+        let t = task("双时限任务", duration: 5,
+                     constraint: .startNoEarlierThan(day(2026, 11, 2)))
+        var withEnd = t
+        withEnd.dueDate = day(2026, 11, 4)  // 窗口 2 天 < 持续 5 天
+        let result = compute([withEnd], end: day(2026, 11, 20))
+        #expect(codes(violations(result, [withEnd])).contains("constraint_window_too_narrow"))
+    }
+
+    @Test func singleSidedConstraintHasNoWindowViolation() throws {
+        let t = task("单时限任务", duration: 5,
+                     constraint: .startNoLaterThan(day(2026, 11, 4)))
+        let result = compute([t], end: day(2026, 11, 20))
+        #expect(!codes(violations(result, [t])).contains("constraint_window_too_narrow"))
     }
 }
 

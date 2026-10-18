@@ -381,14 +381,14 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 | US-E1-03 | 层级任务树（群组/子任务/里程碑） | E1 | P0 | 完成 | Sprint 1（TaskKind/parentID；应用层级树展示） |
 | US-E1-04 | 批量导入任务树（结构化 WBS） | E1 | P0 | 完成 | Sprint 1（wbs_import 工具 + CLI 子命令；叶子解码 bug 修复） |
 | US-E1-05 | 任务信息完整化 | E1 | P1 | 已接受 | — |
-| US-E2-01 | 相关性模型（FS/FF/SS/SF+前导时间） | E2 | P0 | 进行中 | Sprint 1 已落数据模型；传播计算属 Sprint 2 |
-| US-E2-02 | 排期计算 | E2 | P0 | 已接受 | — |
-| US-E2-03 | 重要路径与宽延 | E2 | P1 | 已接受 | — |
+| US-E2-01 | 相关性模型（FS/FF/SS/SF+前导时间） | E2 | P0 | 完成 | Sprint 2（数据模型 Sprint 1；FS/FF/SS/SF+lag 传播计算落地） |
+| US-E2-02 | 排期计算 | E2 | P0 | 完成 | Sprint 2（ScheduleEngine 纯函数 + schedule_compute） |
+| US-E2-03 | 重要路径与宽延 | E2 | P1 | 完成 | Sprint 2（总/自由宽延 + 宽延限制 + schedule_critical_path） |
 | US-E2-04 | 工作时数日历 | E2 | P1 | 已接受 | — |
-| US-E2-05 | 时限约束与基础违例检测 | E2 | P1 | 已接受 | — |
+| US-E2-05 | 时限约束与基础违例检测 | E2 | P1 | 完成 | Sprint 2（违例引擎 F-30 基础集 + violations_list） |
 | US-E2-06 | 基线快照与差异 | E2 | P2 | 提议 | — |
-| US-E3-01 | 单任务状态与进度回写 | E3 | P0 | 已接受 | — |
-| US-E3-02 | 批量回写与群组完成度聚合 | E3 | P0 | 已接受 | — |
+| US-E3-01 | 单任务状态与进度回写 | E3 | P0 | 完成 | Sprint 2（statusUpdate：done 记 completedAt + 进度 1；非法进度拒绝） |
+| US-E3-02 | 批量回写与群组完成度聚合 | E3 | P0 | 完成 | Sprint 2（groupProgress 后代叶子投入加权聚合，无投入叶子按 1 计） |
 | US-E3-03 | 重新安排未完成任务 | E3 | P1 | 已接受 | — |
 | US-E3-04 | 字段级版本历史 | E3 | P1 | 已接受 | — |
 | US-E3-05 | 同步冲突的 AI 差异说明 | E3 | P2 | 提议 | — |
