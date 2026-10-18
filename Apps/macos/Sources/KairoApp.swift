@@ -70,7 +70,12 @@ struct KairoApp: App {
     // MARK: - 深链
 
     /// `kairo://task/<id>`、`kairo://task?title=<标题>`、`kairo://project/<id>`（US-E5-04）。
+    /// 双击 `.kairo` 文件走 LaunchServices 的 `file://` 事件，直接按文件打开。
     private func handleDeepLink(_ url: URL) {
+        if url.isFileURL {
+            openFile(url)
+            return
+        }
         guard let link = KairoDeepLink.parse(url) else {
             errorMessage = "无法识别的 Kairo 链接：\(url.absoluteString)"
             return
