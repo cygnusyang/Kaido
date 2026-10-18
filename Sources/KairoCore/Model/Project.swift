@@ -51,6 +51,20 @@ public final class Project {
         tasks.append(task)
     }
 
+    /// 在指定任务之后插入（Return 新建同级任务，US-E4-03）。
+    public func insert(_ task: TaskItem, after siblingID: UUID) {
+        if let index = tasks.firstIndex(where: { $0.id == siblingID }) {
+            tasks.insert(task, at: index + 1)
+        } else {
+            tasks.append(task)
+        }
+    }
+
+    /// 用新的大纲顺序替换任务列表（缩进/出缩进后调用）。
+    public func replaceTasks(_ newTasks: [TaskItem]) {
+        tasks = newTasks
+    }
+
     public func update(_ task: TaskItem) {
         guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
         tasks[index] = task
