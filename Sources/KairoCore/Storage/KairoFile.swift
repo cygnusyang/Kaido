@@ -16,7 +16,8 @@ public enum KairoFile {
         let envelope = Envelope(
             formatVersion: currentFormatVersion,
             project: project.metadata,
-            tasks: project.tasks
+            tasks: project.tasks,
+            resources: project.resources
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -35,6 +36,7 @@ public enum KairoFile {
         let project = Project()
         project.metadata = envelope.project
         project.tasks = envelope.tasks
+        project.resources = envelope.resources
         return project
     }
 
@@ -50,10 +52,39 @@ public enum KairoFile {
         return try decode(from: data)
     }
 
+    /// .kairo 信封：新增字段（resources）用自定义解码，缺失给默认值（ADR-011 前向兼容）。
     private struct Envelope: Codable {
         var formatVersion: Int
         var project: ProjectMetadata
         var tasks: [TaskItem]
+        var resources: [Resource]
+
+        private enum CodingKeys: String, CodingKey {
+            case formatVersion, project, tasks, resources
+        }
+
+        init(formatVersion: Int, project: ProjectMetadata, tasks: [TaskItem], resources: [Resource]) {
+            self.formatVersion = formatVersion
+            self.project = project
+            self.tasks = tasks
+            self.resources = resources
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            formatVersion = try c.decode(Int.self, forKey: .formatVersion)
+            project = try c.decode(ProjectMetadata.self, forKey: .project)
+            tasks = try c.decode([TaskItem].self, forKey: .tasks)
+            resources = try c.decodeIfPresent([Resource].self, forKey: .resources) ?? []
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(formatVersion, forKey: .formatVersion)
+            try c.encode(project, forKey: .project)
+            try c.encode(tasks, forKey: .tasks)
+            try c.encode(resources, forKey: .resources)
+        }
     }
 }
 

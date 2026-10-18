@@ -28,6 +28,8 @@ public struct ProjectMetadata: Codable, Hashable, Sendable {
 public final class Project {
     public var metadata: ProjectMetadata
     public var tasks: [TaskItem] = []
+    /// 资源清单（F-23-01）：供资源 CRUD 与投入↔持续时间换算。
+    public var resources: [Resource] = []
 
     public init(metadata: ProjectMetadata = ProjectMetadata()) {
         self.metadata = metadata

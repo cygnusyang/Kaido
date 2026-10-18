@@ -39,6 +39,8 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     public var schedulingPolicy: SchedulingPolicy
     /// 完成时间（US-E3-01 状态回写：状态置 done 时记录）。
     public var completedAt: Date?
+    /// 资源分配（F-22-08 / ADR-009）：任务↔资源分配列表；供投入↔持续时间换算。
+    public var assignments: [TaskAssignment]
 
     public init(
         id: UUID = UUID(),
@@ -58,7 +60,8 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         progress: Double = 0,
         constraint: SchedulingConstraint? = nil,
         schedulingPolicy: SchedulingPolicy = .asap,
-        completedAt: Date? = nil
+        completedAt: Date? = nil,
+        assignments: [TaskAssignment] = []
     ) {
         self.id = id
         self.title = title
@@ -78,6 +81,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         self.constraint = constraint
         self.schedulingPolicy = schedulingPolicy
         self.completedAt = completedAt
+        self.assignments = assignments
     }
 
     public var isOverdue: Bool {
@@ -90,7 +94,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id, title, notes, startDate, dueDate, priority, status, tags, assignee
         case kind, parentID, effortHours, durationDays, dependencies, progress
-        case constraint, schedulingPolicy, completedAt
+        case constraint, schedulingPolicy, completedAt, assignments
     }
 
     public init(from decoder: Decoder) throws {
@@ -122,6 +126,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         constraint = try c.decodeIfPresent(SchedulingConstraint.self, forKey: .constraint)
         schedulingPolicy = try c.decodeIfPresent(SchedulingPolicy.self, forKey: .schedulingPolicy) ?? .asap
         completedAt = try c.decodeIfPresent(Date.self, forKey: .completedAt)
+        assignments = try c.decodeIfPresent([TaskAssignment].self, forKey: .assignments) ?? []
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -144,5 +149,6 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         try c.encodeIfPresent(constraint, forKey: .constraint)
         try c.encode(schedulingPolicy, forKey: .schedulingPolicy)
         try c.encodeIfPresent(completedAt, forKey: .completedAt)
+        try c.encode(assignments, forKey: .assignments)
     }
 }

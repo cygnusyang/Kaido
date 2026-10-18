@@ -16,17 +16,19 @@ import Foundation
 public enum ScheduleEngine {
     public static func compute(
         tasks: [TaskItem],
+        resources: [Resource] = [],
         projectStart: Date? = nil,
         projectEnd: Date? = nil,
         direction: ScheduleDirection = .forward,
         calendar: Calendar = Calendar(identifier: .gregorian)
     ) -> ScheduleResult {
         let byID = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+        let resourceByID = Dictionary(uniqueKeysWithValues: resources.map { ($0.id, $0) })
         let startAnchor = projectStart.map { calendar.startOfDay(for: $0) }
         let endAnchor = projectEnd.map { calendar.startOfDay(for: $0) }
         let dayZero = calendar.startOfDay(for: Date(timeIntervalSince1970: 0))
 
-        let durations = durationsByTask(tasks)
+        let durations = durationsByTask(tasks, resourceByID: resourceByID)
         let cycleIDs = cycleTaskIDs(tasks, byID: byID)
         let cycleSet = Set(cycleIDs)
         let successorMap = successorMap(of: tasks, byID: byID)
@@ -57,20 +59,32 @@ public enum ScheduleEngine {
 
     // MARK: - 持续时间
 
-    /// 每任务持续时间（天）：里程碑恒为 0；有 durationDays 用之；否则叶子默认 1 天。
-    /// 投入↔持续时间换算（effortHours + 资源分配）在资源模型落地后实现（阶段 3）。
-    private static func durationsByTask(_ tasks: [TaskItem]) -> [UUID: Double] {
+    /// 每任务持续时间（天）：里程碑恒为 0；有 durationDays 用之；有投入且有分配时
+    /// 按 duration = effort / Σ(units × efficiency) 换算（F-22-03，8h/日工作周简化）；否则 1 天。
+    private static func durationsByTask(_ tasks: [TaskItem], resourceByID: [UUID: Resource]) -> [UUID: Double] {
         var result: [UUID: Double] = [:]
         for task in tasks {
-            if task.kind == .milestone {
-                result[task.id] = 0
-            } else if let d = task.durationDays, d > 0 {
-                result[task.id] = d
-            } else {
-                result[task.id] = 1
-            }
+            result[task.id] = duration(of: task, resourceByID: resourceByID)
         }
         return result
+    }
+
+    private static func duration(of task: TaskItem, resourceByID: [UUID: Resource]) -> Double {
+        if task.kind == .milestone { return 0 }
+        if let d = task.durationDays, d > 0 { return d }
+        if let effort = task.effortHours, effort > 0 {
+            let capacity = capacity(of: task, resourceByID: resourceByID)
+            if capacity > 0 { return effort / 8 / capacity }
+        }
+        return 1 // 无 duration 的叶子任务默认 1 天
+    }
+
+    /// 分配容量 Σ(units × efficiency)；未命中的资源按效率 1 计。
+    private static func capacity(of task: TaskItem, resourceByID: [UUID: Resource]) -> Double {
+        task.assignments.reduce(0) { sum, a in
+            let efficiency = resourceByID[a.resourceID]?.efficiency ?? 1
+            return sum + a.units * efficiency
+        }
     }
 
     // MARK: - 环检测（F-30-08）

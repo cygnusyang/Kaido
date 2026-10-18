@@ -242,6 +242,128 @@ public final class KairoSession {
         )
     }
 
+    // MARK: - 排期与违例查询（US-E2-02 / US-E2-03 / US-E2-05）
+
+    /// 最近一次排期结果（schedule_compute 缓存；critical_path / violations 复用）。
+    public private(set) var lastSchedule: ScheduleResult?
+
+    /// 计算排期并缓存结果（ADR-007：经 KairoCore 纯函数，命令层不重复实现）。
+    @discardableResult
+    public func computeSchedule(projectStart: Date? = nil, projectEnd: Date? = nil) throws -> ScheduleResult {
+        guard let project else { throw notOpen() }
+        let result = ScheduleEngine.compute(
+            tasks: project.tasks,
+            resources: project.resources,
+            projectStart: projectStart,
+            projectEnd: projectEnd
+        )
+        lastSchedule = result
+        return result
+    }
+
+    /// 未排期时先计算一次（缓存复用）。
+    private func scheduleOrCompute() throws -> ScheduleResult {
+        if let lastSchedule { return lastSchedule }
+        return try computeSchedule()
+    }
+
+    /// 违例列表（US-E2-05）：未排期时先按当前项目计算。
+    public func violations() throws -> [Violation] {
+        guard let project else { throw notOpen() }
+        let result = try scheduleOrCompute()
+        return ViolationEngine.check(result: result, tasks: project.tasks)
+    }
+
+    /// 重要路径与宽延（US-E2-03 / F-21-01）：总宽延 ≤ slackLimit 的任务集。
+    public func criticalPath(slackLimit: Double? = nil) throws -> [CriticalPathEntry] {
+        let result = try scheduleOrCompute()
+        return CriticalPathEngine.compute(result: result, slackLimit: slackLimit)
+    }
+
+    // MARK: - 状态回写（US-E3-01 / US-E3-02）
+
+    /// 单任务状态/进度回写：状态置 done 时记录完成时间并把进度置 1；
+    /// 进度超出 0...1 拒绝并返回参数错误（US-E3-01 验收）。
+    @discardableResult
+    public func statusUpdate(id: UUID, status: TaskStatus? = nil, progress: Double? = nil) throws -> TaskItem {
+        guard let project else { throw notOpen() }
+        guard let index = project.tasks.firstIndex(where: { $0.id == id }) else {
+            throw SessionError(code: .taskNotFound, message: "任务不存在", taskID: id)
+        }
+        if let progress, !(0...1).contains(progress) {
+            throw SessionError(code: .invalidArgument, message: "进度必须介于 0 与 1 之间", taskID: id)
+        }
+        var task = project.tasks[index]
+        if let status {
+            task.status = status
+            if status == .done {
+                task.progress = 1
+                if task.completedAt == nil { task.completedAt = Date() }
+            }
+        }
+        if let progress, task.status != .done {
+            task.progress = progress
+        }
+        project.tasks[index] = task
+        return task
+    }
+
+    /// 群组完成度（US-E3-02 / F-20-03）：按投入加权聚合全部后代叶子任务；
+    /// 群组容器自身不产生投入，无投入的叶子按权重 1 计；非群组（无后代）返回自身进度。
+    public func groupProgress(id: UUID) throws -> Double {
+        guard let project else { throw notOpen() }
+        guard let task = project.tasksByID[id] else {
+            throw SessionError(code: .taskNotFound, message: "任务不存在", taskID: id)
+        }
+        let leaves = leafDescendants(of: id, in: project)
+        guard !leaves.isEmpty else { return task.progress }
+        let total = leaves.reduce(0.0) { $0 + ($1.effortHours ?? 1) }
+        let done = leaves.reduce(0.0) { $0 + ($1.effortHours ?? 1) * $1.progress }
+        guard total > 0 else { return task.progress }
+        return done / total
+    }
+
+    /// 后代叶子任务：仍含子任务的群组容器被展开，只有叶子（无子任务）参与加权。
+    private func leafDescendants(of id: UUID, in project: Project) -> [TaskItem] {
+        var result: [TaskItem] = []
+        for task in project.tasks where task.parentID == id {
+            if project.tasks.contains(where: { $0.parentID == task.id }) {
+                result.append(contentsOf: leafDescendants(of: task.id, in: project))
+            } else {
+                result.append(task)
+            }
+        }
+        return result
+    }
+
+    // MARK: - 资源（F-23-01 / ADR-009）
+
+    /// 新增资源（人员/设备/素材/群组）；单位与效率必须为正。
+    @discardableResult
+    public func resourceAdd(
+        name: String,
+        kind: ResourceKind = .person,
+        units: Double = 1.0,
+        efficiency: Double = 1.0
+    ) throws -> UUID {
+        guard let project else { throw notOpen() }
+        if units <= 0 {
+            throw SessionError(code: .invalidArgument, message: "资源单位必须为正数")
+        }
+        if efficiency <= 0 {
+            throw SessionError(code: .invalidArgument, message: "资源效率必须为正数")
+        }
+        let resource = Resource(name: name, kind: kind, units: units, efficiency: efficiency)
+        project.resources.append(resource)
+        return resource.id
+    }
+
+    /// 列出项目资源。
+    public func resourceList() throws -> [Resource] {
+        guard let project else { throw notOpen() }
+        return project.resources
+    }
+
     // MARK: - 私有
 
     private func notOpen() -> SessionError {
