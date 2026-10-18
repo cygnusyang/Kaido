@@ -173,6 +173,20 @@ kairo version
 
 插件清单与命令由 `claude plugin validate Plugins/claude-code` 校验。
 
+### 3.4 macOS 应用层构成（Sprint 3）
+
+应用层只做呈现与交互，业务判断全部下沉到 KairoCore 纯函数：
+
+| 组件 | 职责 |
+|---|---|
+| `ProjectStore` | 应用门面：包装 `KairoSession`，把项目、排期、违例镜像为 `@Published`；承载选中项、视图模式、面板开关 |
+| `ContentView` | 大纲/甘特切换、检查器、违例面板、查找栏与 ⌘K 面板挂载 |
+| `GanttView` | 绘制甘特并处理拖动标头平移、缩放菜单；几何来自 `GanttLayoutEngine` |
+| `CommandRegistry` / `CommandPalette` | 单一命令注册表（菜单栏与 ⌘K 面板同源，US-E4-05） |
+| 核心纯函数 | `GanttLayoutEngine`（布局几何/刻度/非工作带）、`OutlineEditor`（缩进/出缩进/新建同级）、`KairoDeepLink`（深链解析） |
+
+非工作时段着色当前按周六、周日显示；工作日历模型（F-22-06）落地后改为读取项目/资源日历。
+
 ## 4. 数据模型
 
 ### 4.1 实体关系
