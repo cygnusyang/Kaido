@@ -7,13 +7,13 @@ let macOSAppTargets: [Target] = [
     // macOS SwiftUI 应用（import KairoCore；经 KairoCommands 命令层实现 .kairo 读写）
     .executableTarget(
         name: "KairoMacApp",
-        dependencies: ["KairoCore", "KairoCommands"],
+        dependencies: ["KairoCore", "KairoCommands", "KairoPresentation"],
         path: "Apps/macos/Sources"
     ),
     // 应用层（GUI）测试：视图渲染、门面状态与键盘交互
     .testTarget(
         name: "AppTests",
-        dependencies: ["KairoMacApp", "KairoCore", "KairoCommands"],
+        dependencies: ["KairoMacApp", "KairoCore", "KairoCommands", "KairoPresentation"],
         path: "Tests/AppTests"
     )
 ]
@@ -24,7 +24,14 @@ let macOSAppTargets: [Target] = []
 let package = Package(
     name: "Kairo",
     platforms: [
-        .macOS(.v14)
+        .macOS(.v14),
+        .iOS(.v17)
+    ],
+    products: [
+        // 显式库产品：为 UI / CLI / MCP 之外的复用（如 iPadOS 壳）保留稳定入口。
+        .library(name: "KairoCore", targets: ["KairoCore"]),
+        .library(name: "KairoCommands", targets: ["KairoCommands"]),
+        .library(name: "KairoPresentation", targets: ["KairoPresentation"])
     ],
     targets: [
         // 跨平台核心（纯逻辑，ADR-004：零 AppKit/SwiftUI/Combine import）
@@ -37,6 +44,12 @@ let package = Package(
             name: "KairoCommands",
             dependencies: ["KairoCore"],
             path: "Sources/KairoCommands"
+        ),
+        // 平台中立呈现层（ADR-013）：视图状态 → 快照 + 动作；不得 import SwiftUI/AppKit/Combine
+        .target(
+            name: "KairoPresentation",
+            dependencies: ["KairoCore", "KairoCommands"],
+            path: "Sources/KairoPresentation"
         ),
         // MCP 服务（stdio JSON-RPC，复用 KairoCore + KairoCommands）
         .executableTarget(
@@ -55,6 +68,12 @@ let package = Package(
             name: "KairoCoreTests",
             dependencies: ["KairoCore", "KairoCommands"],
             path: "Tests/KairoCoreTests"
+        ),
+        // 呈现层快照与 Presenter 纯函数测试（ADR-013）
+        .testTarget(
+            name: "KairoPresentationTests",
+            dependencies: ["KairoPresentation", "KairoCore", "KairoCommands"],
+            path: "Tests/KairoPresentationTests"
         ),
         // MCP/CLI 对等性契约测试（US-E5-05）
         .testTarget(
