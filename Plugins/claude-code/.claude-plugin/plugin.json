@@ -1,0 +1,9 @@
+{
+  "name": "kairo",
+  "version": "0.1.0",
+  "description": "Kairo 项目计划：读取需求、建立 WBS、排期、查看重要路径与违例、回写任务状态。",
+  "author": {
+    "name": "Kairo"
+  },
+  "keywords": ["project-management", "wbs", "scheduling", "mcp"]
+}

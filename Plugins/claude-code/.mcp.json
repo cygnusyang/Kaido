@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "kairo": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/kairo-mcp",
+      "args": []
+    }
+  }
+}

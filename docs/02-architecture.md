@@ -159,27 +159,19 @@ kairo version
 
 ### 3.3 Claude Code 插件构成
 
-插件是 MCP/CLI 的便捷封装，不新增能力（保持接口对等）：
+插件是 MCP 的便捷封装，不新增能力（保持接口对等）。当前实装位于 `Plugins/claude-code/`：
 
-1. **斜杠命令**（`plugins/claude-code/slash-commands/`）：
-   - `/kairo init`：初始化或打开项目（调用 `kairo project open/create`）；
-   - `/kairo plan`：引导 AI 读需求 → 建 WBS → 排期（调用 `kairo_wbs_import` + `kairo_schedule_compute`）；
-   - `/kairo status`：当前进度摘要（调用 `kairo_project_summary`）；
-   - `/kairo done <id>`：完成任务并回写（调用 `kairo_status_update`）；
-   - `/kairo report`：生成叙述式周报（调用 `kairo_report`）。
-2. **hooks**：自定义 hook（如 PostToolUse）监听「任务完成类信号」，自动触发 `kairo status set` 回写；hook 失败不阻断主流程，仅告警。
-3. **.mcp.json 集成方式**（由用户或 `/kairo init` 写入项目根目录）：
+1. **斜杠命令**（`commands/`）：
+   - `/kairo plan <需求>`：读需求 → `wbs_import` → `schedule_compute` → `violations_list`；
+   - `/kairo done <任务ID>`：`status_update` 置完成并回报群组完成度；
+   - `/kairo status`：`task_list` + 排期 + 重要路径 + 违例汇总。
+2. **hooks**：尚未配置。Claude Code 任务工具与 Kairo 任务之间没有 ID 映射，
+   自动检测完成信号会误写；完成回写当前由 `/kairo done` 显式触发。
+3. **`.mcp.json`**：插件根目录提供，`command` 指向 `bin/kairo-mcp` 启动脚本；
+   脚本依次尝试 `KAIRO_MCP_BIN`、`.build/release/KairoMCP`、`.build/debug/KairoMCP`。
+   MCP 服务不接收启动参数，项目由会话内 `project_open` 打开。
 
-```json
-{
-  "mcpServers": {
-    "kairo": {
-      "command": "kairo-mcp",
-      "args": ["--project", "path/to/project.kairo"]
-    }
-  }
-}
-```
+插件清单与命令由 `claude plugin validate Plugins/claude-code` 校验。
 
 ## 4. 数据模型
 
