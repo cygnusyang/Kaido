@@ -36,10 +36,10 @@ let package = Package(
             dependencies: ["KairoCore", "KairoCommands"],
             path: "Sources/KairoCLI"
         ),
-        // 核心全量单测（现有 17 项迁入）
+        // 核心全量单测（现有 17 项迁入；状态回写/资源 CRUD 走命令层 KairoSession，故含 KairoCommands）
         .testTarget(
             name: "KairoCoreTests",
-            dependencies: ["KairoCore"],
+            dependencies: ["KairoCore", "KairoCommands"],
             path: "Tests/KairoCoreTests"
         ),
         // MCP/CLI 对等性契约测试（US-E5-05）

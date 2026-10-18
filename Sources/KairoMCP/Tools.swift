@@ -54,6 +54,10 @@ struct ToolRegistry {
             taskUpdate,
             taskDelete,
             wbsImport,
+            scheduleCompute,
+            scheduleCriticalPath,
+            violationsList,
+            statusUpdate,
         ]
     }
 
@@ -98,7 +102,7 @@ struct ToolRegistry {
 
     private static let taskAdd = MCPTool(
         name: "task_add",
-        description: "创建任务（US-E1-02）",
+        description: "创建任务（US-E1-02；constraint 格式 type:ISO8601，如 startNoLaterThan:2026-11-05T00:00:00Z）",
         inputSchema: Schema.object(
             properties: [
                 "title": Schema.string(),
@@ -110,6 +114,8 @@ struct ToolRegistry {
                 "priority": Schema.string(enumValues: ["low", "normal", "high", "critical"]),
                 "status": Schema.string(enumValues: ["pending", "in_progress", "done", "blocked"]),
                 "tags": Schema.arrayOf(Schema.string()),
+                "constraint": Schema.string(),
+                "schedulingPolicy": Schema.string(enumValues: ["asap", "alap"]),
             ],
             required: ["title"]
         )
@@ -124,7 +130,9 @@ struct ToolRegistry {
             notes: a.optionalString("notes") ?? "",
             priority: a.optionalPriority("priority") ?? .normal,
             status: a.optionalStatus("status") ?? .pending,
-            tags: a.stringArray("tags")
+            tags: a.stringArray("tags"),
+            constraint: try a.optionalConstraint("constraint"),
+            schedulingPolicy: try a.optionalSchedulingPolicy("schedulingPolicy") ?? .asap
         )
         return .object(["taskID": .string(id.uuidString)])
     }
@@ -218,6 +226,66 @@ struct ToolRegistry {
             "warnings": .array(result.warnings.map { .string($0) }),
         ])
     }
+
+    // MARK: schedule / violations / status（Sprint 2）
+
+    private static let scheduleCompute = MCPTool(
+        name: "schedule_compute",
+        description: "计算排期（US-E2-02）：相关性传播 + ASAP/ALAP，返回每任务最早/最晚与选定安排",
+        inputSchema: Schema.object(properties: [
+            "projectStart": Schema.string(),
+            "projectEnd": Schema.string(),
+        ])
+    ) { args, session in
+        let a = try ToolArgs(args)
+        let start = try a.optionalISODate("projectStart")
+        let end = try a.optionalISODate("projectEnd")
+        let result = try session.computeSchedule(projectStart: start, projectEnd: end)
+        return try JSONValue.json(result)
+    }
+
+    private static let scheduleCriticalPath = MCPTool(
+        name: "schedule_critical_path",
+        description: "重要路径与宽延（US-E2-03）：总宽延 ≤ slackLimit 的任务集",
+        inputSchema: Schema.object(properties: ["slackLimit": Schema.number()])
+    ) { args, session in
+        let a = try ToolArgs(args)
+        let entries = try session.criticalPath(slackLimit: a.optionalDouble("slackLimit"))
+        return .object(["criticalPath": .array(try entries.map { try JSONValue.json($0) })])
+    }
+
+    private static let violationsList = MCPTool(
+        name: "violations_list",
+        description: "列出排期违例（US-E2-05）：环、时限冲突、超项目范围等",
+        inputSchema: Schema.object(properties: [:])
+    ) { _, session in
+        let vs = try session.violations()
+        return .object(["violations": .array(try vs.map { try JSONValue.json($0) })])
+    }
+
+    private static let statusUpdate = MCPTool(
+        name: "status_update",
+        description: "单任务状态/进度回写（US-E3-01/02）；状态置 done 记录完成时间，返回群组聚合完成度",
+        inputSchema: Schema.object(
+            properties: [
+                "taskID": Schema.string(),
+                "status": Schema.string(enumValues: ["pending", "in_progress", "done", "blocked"]),
+                "progress": Schema.number(),
+            ],
+            required: ["taskID"]
+        )
+    ) { args, session in
+        let a = try ToolArgs(args)
+        let task = try session.statusUpdate(
+            id: a.uuid("taskID"),
+            status: a.optionalStatus("status"),
+            progress: a.optionalDouble("progress")
+        )
+        let group = try session.groupProgress(id: task.id)
+        var result = try JSONValue.json(task).objectValue ?? [:]
+        result["groupProgress"] = .number(group)
+        return .object(result)
+    }
 }
 
 /// 项目工具结果组装。
@@ -301,6 +369,39 @@ private struct ToolArgs {
             throw ToolError.invalidArgument("参数 \(key) 不是合法 UUID：\(raw)")
         }
         return uuid
+    }
+
+    func optionalISODate(_ key: String) throws -> Date? {
+        guard let raw = dict[key]?.stringValue else { return nil }
+        guard let date = ISO8601DateFormatter().date(from: raw) else {
+            throw ToolError.invalidArgument("参数 \(key) 不是合法 ISO8601 日期：\(raw)")
+        }
+        return date
+    }
+
+    /// 时限规格：type:ISO8601（如 startNoLaterThan:2026-11-05T00:00:00Z）。
+    func optionalConstraint(_ key: String) throws -> SchedulingConstraint? {
+        guard let raw = dict[key]?.stringValue else { return nil }
+        let parts = raw.split(separator: ":", maxSplits: 1)
+        guard parts.count == 2, let date = ISO8601DateFormatter().date(from: String(parts[1])) else {
+            throw ToolError.invalidArgument("参数 \(key) 格式应为 type:ISO8601（如 startNoLaterThan:2026-11-05T00:00:00Z）")
+        }
+        switch String(parts[0]) {
+        case "startNoEarlierThan": return .startNoEarlierThan(date)
+        case "startNoLaterThan": return .startNoLaterThan(date)
+        case "endNoEarlierThan": return .endNoEarlierThan(date)
+        case "endNoLaterThan": return .endNoLaterThan(date)
+        default:
+            throw ToolError.invalidArgument("参数 \(key) 非法时限类型：\(parts[0])")
+        }
+    }
+
+    func optionalSchedulingPolicy(_ key: String) throws -> SchedulingPolicy? {
+        guard let raw = dict[key]?.stringValue else { return nil }
+        guard let policy = SchedulingPolicy(rawValue: raw) else {
+            throw ToolError.invalidArgument("参数 \(key) 非法：\(raw)（asap/alap）")
+        }
+        return policy
     }
 
     func optionalKind(_ key: String) throws -> TaskKind? {

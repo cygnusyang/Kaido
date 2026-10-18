@@ -104,7 +104,9 @@ public final class KairoSession {
         priority: TaskPriority = .normal,
         status: TaskStatus = .pending,
         tags: [String] = [],
-        dependencies: [TaskDependency] = []
+        dependencies: [TaskDependency] = [],
+        constraint: SchedulingConstraint? = nil,
+        schedulingPolicy: SchedulingPolicy = .asap
     ) throws -> UUID {
         guard let project else { throw notOpen() }
         if let parentID, project.tasksByID[parentID] == nil {
@@ -120,7 +122,9 @@ public final class KairoSession {
             parentID: parentID,
             effortHours: effortHours,
             durationDays: durationDays,
-            dependencies: dependencies
+            dependencies: dependencies,
+            constraint: constraint,
+            schedulingPolicy: schedulingPolicy
         )
         project.add(task)
         return task.id

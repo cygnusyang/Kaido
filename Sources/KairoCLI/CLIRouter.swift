@@ -28,7 +28,14 @@ struct CLIRouter {
     /// 解析并执行单条命令（测试可直接调用；抛出错误而非退出进程）。
     static func execute(arguments: [String]) throws {
         let (group, rest) = subcommand(arguments, from: "kairo")
-        let (command, args) = subcommand(rest, from: group)
+        // 组级命令直接带选项（如 `kairo violations --file x.kairo`）：下一 token 以 -- 开头即视为无子命令。
+        let (command, args): (String, [String])
+        if let first = rest.first, first.hasPrefix("--") {
+            command = ""
+            args = rest
+        } else {
+            (command, args) = subcommand(rest, from: group)
+        }
         let options = Options(args)
         switch (group, command) {
         case ("project", "create"): try projectCreate(options)
@@ -40,6 +47,12 @@ struct CLIRouter {
         case ("task", "update"): try taskUpdate(options)
         case ("task", "delete"): try taskDelete(options)
         case ("wbs", "import"): try wbsImport(options)
+        case ("schedule", "compute"): try scheduleCompute(options)
+        case ("schedule", "path"): try schedulePath(options)
+        case ("violations", ""): try violations(options)
+        case ("status", "update"): try statusUpdate(options)
+        case ("resource", "add"): try resourceAdd(options)
+        case ("resource", "list"): try resourceList(options)
         default:
             let label = group.isEmpty ? "(空)" : group
             let sub = command.isEmpty ? "(空)" : command
@@ -81,7 +94,7 @@ struct CLIRouter {
 
     // MARK: - task
 
-    /// kairo task add <标题> [--kind/--parent/--effort/--duration/--notes/--priority/--status/--tags/--dep ...]。
+    /// kairo task add <标题> [--kind/--parent/--effort/--duration/--notes/--priority/--status/--tags/--dep/--constraint/--policy ...]。
     private static func taskAdd(_ o: Options) throws {
         // 先解析全部参数（用法错误在 IO 前抛出），再打开文件操作。
         let title = try o.operand(0, name: "标题")
@@ -94,6 +107,8 @@ struct CLIRouter {
         let status = try CLIEnums.status(o.value(for: "--status")) ?? .pending
         let tags = splitTags(o.value(for: "--tags"))
         let deps = try o.values(for: "--dep").map { try CLIEnums.dependency($0) }
+        let constraint = try CLIEnums.constraint(o.value(for: "--constraint"))
+        let policy = try CLIEnums.schedulingPolicy(o.value(for: "--policy")) ?? .asap
 
         let session = KairoSession()
         try openForEdit(session, o)
@@ -107,7 +122,9 @@ struct CLIRouter {
             priority: priority,
             status: status,
             tags: tags,
-            dependencies: deps
+            dependencies: deps,
+            constraint: constraint,
+            schedulingPolicy: policy
         )
         try session.saveProject()
         print("已创建任务：\(shortID(id)) \(title)")
@@ -206,6 +223,101 @@ struct CLIRouter {
         }
     }
 
+    // MARK: - schedule（US-E2-02 / US-E2-03）
+
+    /// kairo schedule compute [--start <ISO>] [--end <ISO>] [--file <路径>]。
+    private static func scheduleCompute(_ o: Options) throws {
+        let start = try optionalISO(o.value(for: "--start"), name: "项目开始")
+        let end = try optionalISO(o.value(for: "--end"), name: "项目结束")
+        let session = KairoSession()
+        _ = try session.openProject(at: fileURL(o.value(for: "--file")))
+        let result = try session.computeSchedule(projectStart: start, projectEnd: end)
+        let byID = session.project?.tasksByID ?? [:]
+        print("已计算排期：\(result.tasks.count) 个任务")
+        for t in result.tasks {
+            let task = byID[t.taskID]
+            let policy = task?.schedulingPolicy ?? .asap
+            print("  \(shortID(t.taskID)) \(task?.title ?? "未知任务")  \(formatDate(t.scheduledStart)) → \(formatDate(t.scheduledFinish))（\(formatNumber(t.durationDays)) 天，\(policy == .asap ? "ASAP" : "ALAP")）")
+        }
+    }
+
+    /// kairo schedule path [--limit <天>] [--file <路径>]：重要路径与宽延。
+    private static func schedulePath(_ o: Options) throws {
+        let limit = o.double(for: "--limit")
+        let session = KairoSession()
+        _ = try session.openProject(at: fileURL(o.value(for: "--file")))
+        let entries = try session.criticalPath(slackLimit: limit)
+        let byID = session.project?.tasksByID ?? [:]
+        let criticalCount = entries.filter(\.isCritical).count
+        print("重要路径：\(criticalCount) 个任务（宽延限制 \(formatNumber(limit ?? 0)) 天）")
+        for e in entries {
+            let mark = e.isCritical ? " *" : ""
+            print("  \(shortID(e.taskID)) \(byID[e.taskID]?.title ?? "未知任务")\(mark)  总宽延 \(formatNumber(e.totalSlackDays)) 天 / 自由宽延 \(formatNumber(e.freeSlackDays)) 天")
+        }
+    }
+
+    // MARK: - violations（US-E2-05）
+
+    /// kairo violations [--file <路径>]。
+    private static func violations(_ o: Options) throws {
+        let session = KairoSession()
+        _ = try session.openProject(at: fileURL(o.value(for: "--file")))
+        let vs = try session.violations()
+        if vs.isEmpty {
+            print("无违例")
+            return
+        }
+        print("违例：\(vs.count) 条")
+        for v in vs {
+            let sev = v.severity == .error ? "错误" : "警告"
+            print("  [\(sev)] \(v.code)：\(v.message)")
+        }
+    }
+
+    // MARK: - status（US-E3-01 / US-E3-02）
+
+    /// kairo status update <ID> [--status] [--progress] [--file <路径>]。
+    private static func statusUpdate(_ o: Options) throws {
+        let id = try requireUUID(o.operand(0, name: "任务 ID"))
+        let status = try CLIEnums.status(o.value(for: "--status"))
+        let progress = o.double(for: "--progress")
+        let session = KairoSession()
+        try openForEdit(session, o)
+        let task = try session.statusUpdate(id: id, status: status, progress: progress)
+        try session.saveProject()
+        print("已回写：\(shortID(task.id)) \(task.title)（\(statusLabel(task.status))，进度 \(Int(task.progress * 100))%）")
+        if let completed = task.completedAt {
+            print("完成于：\(formatDate(completed))")
+        }
+        let group = try session.groupProgress(id: id)
+        print("完成度聚合：\(Int(group * 100))%")
+    }
+
+    // MARK: - resource（F-23-01 / ADR-009）
+
+    /// kairo resource add <名称> [--type person|equipment|material|group] [--units] [--efficiency] [--file <路径>]。
+    private static func resourceAdd(_ o: Options) throws {
+        let name = try o.operand(0, name: "资源名称")
+        let kind = try CLIEnums.resourceKind(o.value(for: "--type")) ?? .person
+        let units = o.double(for: "--units") ?? 1
+        let efficiency = o.double(for: "--efficiency") ?? 1
+        let session = KairoSession()
+        try openForEdit(session, o)
+        let id = try session.resourceAdd(name: name, kind: kind, units: units, efficiency: efficiency)
+        try session.saveProject()
+        print("已添加资源：\(shortID(id)) \(name)（\(resourceKindLabel(kind))，单位 \(formatNumber(units))，效率 \(formatNumber(efficiency))）")
+    }
+
+    /// kairo resource list [--file <路径>]。
+    private static func resourceList(_ o: Options) throws {
+        let session = KairoSession()
+        _ = try session.openProject(at: fileURL(o.value(for: "--file")))
+        let resources = try session.resourceList()
+        for r in resources {
+            print("\(shortID(r.id)) \(r.name)（\(resourceKindLabel(r.kind))，单位 \(formatNumber(r.units))，效率 \(formatNumber(r.efficiency))）")
+        }
+    }
+
     // MARK: - 帮助
 
     /// 打开 --file（默认 ./project.kairo）。task/wbs 写命令统一入口。
@@ -292,6 +404,28 @@ struct CLIRouter {
 
     private static func formatNumber(_ value: Double) -> String {
         value == value.rounded() ? String(Int(value)) : String(value)
+    }
+
+    private static func formatDate(_ date: Date) -> String {
+        ISO8601DateFormatter().string(from: date)
+    }
+
+    /// ISO8601 日期选项解析（--start/--end 等）。
+    private static func optionalISO(_ raw: String?, name: String) throws -> Date? {
+        guard let raw else { return nil }
+        guard let date = ISO8601DateFormatter().date(from: raw) else {
+            throw UsageError(message: "无效的\(name)日期：\(raw)（ISO8601，如 2026-11-02T00:00:00Z）")
+        }
+        return date
+    }
+
+    private static func resourceKindLabel(_ kind: ResourceKind) -> String {
+        switch kind {
+        case .person: return "人员"
+        case .equipment: return "设备"
+        case .material: return "素材"
+        case .group: return "群组"
+        }
     }
 
     private static func errorMessage(_ error: Error) -> String {

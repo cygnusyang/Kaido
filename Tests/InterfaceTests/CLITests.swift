@@ -63,6 +63,21 @@ struct OptionsParsingTests {
             _ = try CLIEnums.dependency("\(UUID().uuidString):xx")
         }
     }
+
+    @Test func schedulingPolicyAndConstraintParse() throws {
+        #expect(try CLIEnums.schedulingPolicy("alap") == .alap)
+        #expect(try CLIEnums.schedulingPolicy(nil) == nil)
+        #expect(throws: UsageError.self) { _ = try CLIEnums.schedulingPolicy("soon") }
+
+        let constraint = try CLIEnums.constraint("startNoLaterThan:2026-11-05T00:00:00Z")
+        guard case .startNoLaterThan(let date) = constraint else {
+            Issue.record("应解析为 startNoLaterThan")
+            return
+        }
+        #expect(ISO8601DateFormatter().string(from: date) == "2026-11-05T00:00:00Z")
+        #expect(try CLIEnums.constraint(nil) == nil)
+        #expect(throws: UsageError.self) { _ = try CLIEnums.constraint("bad-spec") }
+    }
 }
 
 // MARK: - 端到端路由（临时目录内 create → import → list）
@@ -216,5 +231,78 @@ struct RouteErrorTests {
     @Test func updateRejectsDependencyFlag() {
         let code = CLIRouter.run(arguments: ["task", "update", UUID().uuidString, "--dep", "x:fs"])
         #expect(code == 2)
+    }
+}
+
+// MARK: - Sprint 2 命令（schedule / status / resource）
+
+struct Sprint2CommandTests {
+    private func makeScratch() throws -> (dir: URL, kairo: URL) {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-cli2-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return (dir: dir, kairo: dir.appendingPathComponent("demo.kairo"))
+    }
+
+    @Test func scheduleComputeThenStatusUpdatePersistsCompletedAt() throws {
+        let scratch = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: scratch.dir) }
+        let file = scratch.kairo
+
+        try CLIRouter.execute(arguments: ["project", "create", "闭环演示", "--file", file.path])
+        try CLIRouter.execute(arguments: ["task", "add", "任务 A", "--duration", "3", "--file", file.path])
+        let groupID = try addTaskID(title: "群组 G", kind: "group", file: file)
+
+        // 排期计算命令（含项目边界）不抛错。
+        try CLIRouter.execute(arguments: [
+            "schedule", "compute",
+            "--start", "2026-11-02T00:00:00Z",
+            "--end", "2026-11-16T00:00:00Z",
+            "--file", file.path,
+        ])
+        // 重要路径命令。
+        try CLIRouter.execute(arguments: ["schedule", "path", "--file", file.path])
+        // 违例命令（此时应无违例）。
+        try CLIRouter.execute(arguments: ["violations", "--file", file.path])
+
+        // 状态回写：子任务完成 → completedAt 落盘。
+        let childID = try addTaskID(title: "子一", kind: "task", file: file, parentID: groupID, effort: "4")
+        try CLIRouter.execute(arguments: [
+            "status", "update", childID.uuidString, "--status", "done", "--file", file.path,
+        ])
+        let project = try KairoFile.load(from: file)
+        let child = try #require(project.tasks.first { $0.id == childID })
+        #expect(child.status == .done)
+        #expect(child.progress == 1)
+        #expect(child.completedAt != nil)
+    }
+
+    @Test func resourceAddAndListPersist() throws {
+        let scratch = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: scratch.dir) }
+        let file = scratch.kairo
+
+        try CLIRouter.execute(arguments: ["project", "create", "资源演示", "--file", file.path])
+        try CLIRouter.execute(arguments: [
+            "resource", "add", "李工", "--type", "person", "--units", "1", "--efficiency", "0.9", "--file", file.path,
+        ])
+        try CLIRouter.execute(arguments: ["resource", "list", "--file", file.path])
+
+        let project = try KairoFile.load(from: file)
+        #expect(project.resources.count == 1)
+        #expect(project.resources.first?.name == "李工")
+        #expect(project.resources.first?.kind == .person)
+        #expect(project.resources.first?.efficiency == 0.9)
+    }
+
+    private func addTaskID(
+        title: String, kind: String, file: URL, parentID: UUID? = nil, effort: String? = nil
+    ) throws -> UUID {
+        var args = ["task", "add", title, "--kind", kind, "--file", file.path]
+        if let parentID { args += ["--parent", parentID.uuidString] }
+        if let effort { args += ["--effort", effort] }
+        try CLIRouter.execute(arguments: args)
+        let project = try KairoFile.load(from: file)
+        return try #require(project.tasks.first { $0.title == title }).id
     }
 }

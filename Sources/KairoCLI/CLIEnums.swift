@@ -27,6 +27,41 @@ enum CLIEnums {
         return v
     }
 
+    /// 调度策略解析（F-22-04：asap/alap）。
+    static func schedulingPolicy(_ raw: String?) throws -> SchedulingPolicy? {
+        guard let raw else { return nil }
+        guard let v = SchedulingPolicy(rawValue: raw) else {
+            throw UsageError(message: "无效调度策略：\(raw)（可选 asap/alap）")
+        }
+        return v
+    }
+
+    /// 时限规格：type:ISO8601（如 startNoLaterThan:2026-11-05T00:00:00Z）。
+    static func constraint(_ raw: String?) throws -> SchedulingConstraint? {
+        guard let raw else { return nil }
+        let parts = raw.split(separator: ":", maxSplits: 1)
+        guard parts.count == 2, let date = ISO8601DateFormatter().date(from: String(parts[1])) else {
+            throw UsageError(message: "无效时限：\(raw)（格式 type:ISO8601，如 startNoLaterThan:2026-11-05T00:00:00Z）")
+        }
+        switch String(parts[0]) {
+        case "startNoEarlierThan": return .startNoEarlierThan(date)
+        case "startNoLaterThan": return .startNoLaterThan(date)
+        case "endNoEarlierThan": return .endNoEarlierThan(date)
+        case "endNoLaterThan": return .endNoLaterThan(date)
+        default:
+            throw UsageError(message: "无效时限类型：\(parts[0])（可选 startNoEarlierThan/startNoLaterThan/endNoEarlierThan/endNoLaterThan）")
+        }
+    }
+
+    /// 资源种类解析（F-23-01：person/equipment/material/group）。
+    static func resourceKind(_ raw: String?) throws -> ResourceKind? {
+        guard let raw else { return nil }
+        guard let v = ResourceKind(rawValue: raw) else {
+            throw UsageError(message: "无效资源类型：\(raw)（可选 person/equipment/material/group）")
+        }
+        return v
+    }
+
     /// 相关性规格：predecessorID[:type[:lag]]，type ∈ fs/ff/ss/sf。
     static func dependency(_ spec: String) throws -> TaskDependency {
         let parts = spec.split(separator: ":")
