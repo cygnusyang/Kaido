@@ -33,6 +33,12 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     public var dependencies: [TaskDependency]
     /// 0...1 completion fraction.
     public var progress: Double
+    /// 时限（F-22-04 / F-30）：对开始/结束日期的单向约束；nil = 无时限。
+    public var constraint: SchedulingConstraint?
+    /// 调度策略（F-22-04 ASAP/ALAP）：默认尽可能早。
+    public var schedulingPolicy: SchedulingPolicy
+    /// 完成时间（US-E3-01 状态回写：状态置 done 时记录）。
+    public var completedAt: Date?
 
     public init(
         id: UUID = UUID(),
@@ -49,7 +55,10 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         effortHours: Double? = nil,
         durationDays: Double? = nil,
         dependencies: [TaskDependency] = [],
-        progress: Double = 0
+        progress: Double = 0,
+        constraint: SchedulingConstraint? = nil,
+        schedulingPolicy: SchedulingPolicy = .asap,
+        completedAt: Date? = nil
     ) {
         self.id = id
         self.title = title
@@ -66,6 +75,9 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         self.durationDays = durationDays
         self.dependencies = dependencies
         self.progress = min(max(progress, 0), 1)
+        self.constraint = constraint
+        self.schedulingPolicy = schedulingPolicy
+        self.completedAt = completedAt
     }
 
     public var isOverdue: Bool {
@@ -78,6 +90,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id, title, notes, startDate, dueDate, priority, status, tags, assignee
         case kind, parentID, effortHours, durationDays, dependencies, progress
+        case constraint, schedulingPolicy, completedAt
     }
 
     public init(from decoder: Decoder) throws {
@@ -105,6 +118,10 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
             dependencies = []
         }
         progress = min(max(try c.decodeIfPresent(Double.self, forKey: .progress) ?? 0, 0), 1)
+        // 新增字段缺失给默认值（ADR-011 前向兼容 / ADR-012 自定义解码）。
+        constraint = try c.decodeIfPresent(SchedulingConstraint.self, forKey: .constraint)
+        schedulingPolicy = try c.decodeIfPresent(SchedulingPolicy.self, forKey: .schedulingPolicy) ?? .asap
+        completedAt = try c.decodeIfPresent(Date.self, forKey: .completedAt)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -124,5 +141,8 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         try c.encodeIfPresent(durationDays, forKey: .durationDays)
         try c.encode(dependencies, forKey: .dependencies)
         try c.encode(progress, forKey: .progress)
+        try c.encodeIfPresent(constraint, forKey: .constraint)
+        try c.encode(schedulingPolicy, forKey: .schedulingPolicy)
+        try c.encodeIfPresent(completedAt, forKey: .completedAt)
     }
 }
