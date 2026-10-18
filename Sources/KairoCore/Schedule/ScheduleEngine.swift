@@ -20,11 +20,16 @@ public enum ScheduleEngine {
         projectStart: Date? = nil,
         projectEnd: Date? = nil,
         direction: ScheduleDirection = .forward,
-        calendar: Calendar = Calendar(identifier: .gregorian)
+        calendar: Calendar = Calendar(identifier: .gregorian),
+        now: Date = Date()
     ) -> ScheduleResult {
         let byID = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
         let resourceByID = Dictionary(uniqueKeysWithValues: resources.map { ($0.id, $0) })
-        let startAnchor = projectStart.map { calendar.startOfDay(for: $0) }
+        // 未设项目开始日期时按「最早任务 startDate → 今天」推导，禁止 1970 起排（D-003）。
+        let scheduleAnchor = ScheduleAnchor.derive(
+            tasks: tasks, projectStart: projectStart, now: now, calendar: calendar
+        )
+        let startAnchor: Date? = scheduleAnchor.date
         let endAnchor = projectEnd.map { calendar.startOfDay(for: $0) }
         let dayZero = calendar.startOfDay(for: Date(timeIntervalSince1970: 0))
 
@@ -48,12 +53,22 @@ public enum ScheduleEngine {
             earliest: earliest, latest: latest, successorMap: successorMap
         )
 
+        // 无法排期：环上任务与空群组。其余任务均有调度条目。
+        let parentIDs = Set(tasks.compactMap(\.parentID))
+        let unscheduledIDs = tasks.compactMap { task -> UUID? in
+            if cycleSet.contains(task.id) { return task.id }
+            if task.kind == .group && !parentIDs.contains(task.id) { return task.id }
+            return nil
+        }
+
         return ScheduleResult(
             tasks: scheduled,
             projectStart: startAnchor,
             projectEnd: endAnchor,
             direction: direction,
-            cycleTaskIDs: cycleIDs
+            cycleTaskIDs: cycleIDs,
+            projectStartDerived: scheduleAnchor.isDerived,
+            unscheduledTaskIDs: unscheduledIDs
         )
     }
 

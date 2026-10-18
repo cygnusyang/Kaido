@@ -9,6 +9,8 @@ public struct ProjectMetadata: Codable, Hashable, Sendable {
     /// 项目时间线（F-20-02）：排期与违例的默认边界；未设则由显式参数或任务数据推导。
     public var projectStart: Date?
     public var projectEnd: Date?
+    /// 项目排期方向（ADR-011 / ADR-013）：默认向前排；旧文件缺省为 forward。
+    public var direction: ScheduleDirection
 
     public init(
         id: UUID = UUID(),
@@ -16,7 +18,8 @@ public struct ProjectMetadata: Codable, Hashable, Sendable {
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
         projectStart: Date? = nil,
-        projectEnd: Date? = nil
+        projectEnd: Date? = nil,
+        direction: ScheduleDirection = .forward
     ) {
         self.id = id
         self.title = title
@@ -24,6 +27,36 @@ public struct ProjectMetadata: Codable, Hashable, Sendable {
         self.updatedAt = updatedAt
         self.projectStart = projectStart
         self.projectEnd = projectEnd
+        self.direction = direction
+    }
+
+    // MARK: - Codable 兼容（ADR-011）
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, createdAt, updatedAt, projectStart, projectEnd, direction
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+        projectStart = try c.decodeIfPresent(Date.self, forKey: .projectStart)
+        projectEnd = try c.decodeIfPresent(Date.self, forKey: .projectEnd)
+        // 新增字段缺失给默认值（旧数据前向兼容）。
+        direction = try c.decodeIfPresent(ScheduleDirection.self, forKey: .direction) ?? .forward
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(title, forKey: .title)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encode(updatedAt, forKey: .updatedAt)
+        try c.encodeIfPresent(projectStart, forKey: .projectStart)
+        try c.encodeIfPresent(projectEnd, forKey: .projectEnd)
+        try c.encode(direction, forKey: .direction)
     }
 }
 

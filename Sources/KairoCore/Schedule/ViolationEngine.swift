@@ -11,6 +11,29 @@ import Foundation
 ///   endNoLaterThan(x)    ：F-30-04，最早结束 > x。
 /// 双时限模型：任务同时带开始侧与结束侧时限且窗口 < 持续时间 → F-30-03（时限靠得太近）。
 public enum ViolationEngine {
+    /// 规则目录（F-30）：违例页空态与检查器从同一来源读取，界面不复制规则清单。
+    public struct RuleCategory: Codable, Hashable, Sendable {
+        public var code: String
+        public var name: String
+        public var severity: Violation.Severity
+
+        public init(code: String, name: String, severity: Violation.Severity) {
+            self.code = code
+            self.name = name
+            self.severity = severity
+        }
+    }
+
+    public static let ruleCategories: [RuleCategory] = [
+        .init(code: "cycle", name: "相关性环", severity: .error),
+        .init(code: "task_ends_after_project_end", name: "任务结束晚于项目结束", severity: .error),
+        .init(code: "task_starts_before_project_start", name: "任务开始早于项目开始", severity: .error),
+        .init(code: "constraint_window_too_narrow", name: "时限窗口过窄", severity: .error),
+        .init(code: "cannot_schedule_asap_alap", name: "无法安排（负宽延）", severity: .error),
+        .init(code: "constraint_is_dependency", name: "时限与相关性链冲突", severity: .error),
+        .init(code: "constraint_is_prerequisite", name: "先决条件无法满足时限", severity: .error)
+    ]
+
     public static func check(
         result: ScheduleResult,
         tasks: [TaskItem],
@@ -76,7 +99,7 @@ public enum ViolationEngine {
         calendar: Calendar
     ) -> [Violation] {
         result.tasks.compactMap { s in
-            guard let task = byID[s.taskID], let c = task.constraint else { return nil }
+            guard let task = byID[s.taskID], task.constraint != nil else { return nil }
             guard let window = Self.constraintWindow(for: task, calendar: calendar) else { return nil }
             let needed = s.durationDays * 86400
             guard window < needed else { return nil }

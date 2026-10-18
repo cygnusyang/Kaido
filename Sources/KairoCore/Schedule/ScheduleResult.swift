@@ -61,19 +61,62 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
     public var direction: ScheduleDirection
     /// 处于相关性环中的任务 ID（F-30-08）；环上任务不参与拓扑传播。
     public var cycleTaskIDs: [UUID]
+    /// `projectStart` 是否由任务数据推导（ADR-013 / D-003）；显式设置时为 false。
+    public var projectStartDerived: Bool
+    /// 无法排期的任务 ID（依赖环、空群组）；其 `tasks` 条目不代表有效安排。
+    public var unscheduledTaskIDs: [UUID]
 
     public init(
         tasks: [ScheduledTask],
         projectStart: Date? = nil,
         projectEnd: Date? = nil,
         direction: ScheduleDirection = .forward,
-        cycleTaskIDs: [UUID] = []
+        cycleTaskIDs: [UUID] = [],
+        projectStartDerived: Bool = false,
+        unscheduledTaskIDs: [UUID] = []
     ) {
         self.tasks = tasks
         self.projectStart = projectStart
         self.projectEnd = projectEnd
         self.direction = direction
         self.cycleTaskIDs = cycleTaskIDs
+        self.projectStartDerived = projectStartDerived
+        self.unscheduledTaskIDs = unscheduledTaskIDs
+    }
+
+    // MARK: - Codable 兼容（ADR-011）
+
+    private enum CodingKeys: String, CodingKey {
+        case tasks, projectStart, projectEnd, direction, cycleTaskIDs
+        case projectStartDerived, unscheduledTaskIDs
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        tasks = try c.decode([ScheduledTask].self, forKey: .tasks)
+        projectStart = try c.decodeIfPresent(Date.self, forKey: .projectStart)
+        projectEnd = try c.decodeIfPresent(Date.self, forKey: .projectEnd)
+        direction = try c.decodeIfPresent(ScheduleDirection.self, forKey: .direction) ?? .forward
+        cycleTaskIDs = try c.decodeIfPresent([UUID].self, forKey: .cycleTaskIDs) ?? []
+        // 新增字段缺失给默认值（旧数据前向兼容）。
+        projectStartDerived = try c.decodeIfPresent(Bool.self, forKey: .projectStartDerived) ?? false
+        unscheduledTaskIDs = try c.decodeIfPresent([UUID].self, forKey: .unscheduledTaskIDs) ?? []
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(tasks, forKey: .tasks)
+        try c.encodeIfPresent(projectStart, forKey: .projectStart)
+        try c.encodeIfPresent(projectEnd, forKey: .projectEnd)
+        try c.encode(direction, forKey: .direction)
+        try c.encode(cycleTaskIDs, forKey: .cycleTaskIDs)
+        try c.encode(projectStartDerived, forKey: .projectStartDerived)
+        try c.encode(unscheduledTaskIDs, forKey: .unscheduledTaskIDs)
+    }
+
+    /// 任务是否具有有效安排：存在调度条目且不在 `unscheduledTaskIDs` 中。
+    public func hasSchedule(for id: UUID) -> Bool {
+        scheduled(id) != nil && !unscheduledTaskIDs.contains(id)
     }
 
     /// 按任务 ID 取调度结果。
