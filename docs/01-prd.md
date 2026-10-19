@@ -52,6 +52,11 @@ Kairo 的第一公民是程序化接口，人是审阅者。三类用户按操�
   - Given 存在任务 A，When 更新其标题、状态、优先级、进度或截止日期中的任一字段，Then 该字段变为新值，其余字段不变。
   - Given 存在任务 A，When 删除任务 A，Then 任务 A 从列表消失，且指向或源自 A 的相关性一并移除。
 - **对应规格**：[F-12-08](features/01-views-editing.md)、[F-13-01](features/01-views-editing.md)、[F-13-06](features/01-views-editing.md)。**现有 MVP 已具备，本 Story 视为完成**（`Project.add/update/remove`、`TaskItem`）。
+- **验收判据（2026-10-19 补充：负责人字段）**：负责人字段（`TaskItem.assignee: String?`）除 macOS 应用外，也可由 CLI 与 MCP 设置/清空，供 AI 子智能体在工作时把负责人写成自己的名字（如 `dev-coder-core`）。
+  - US-E1-02-A1：`kairo task add "标题" --assignee <名字>` 创建的任务 assignee 等于 <名字>；`task get`/`task list --json` 输出该值。
+  - US-E1-02-A2：`kairo task update <ID> --assignee <名字>` 更新后 assignee 生效；`--assignee ""` 清空（assignee 变 nil）。
+  - US-E1-02-A3：MCP `task_add` 传 `assignee` 创建后生效；`task_update` 传 `assignee` 生效，传 `""` 清空。
+  - US-E1-02-A4：已具备 rejectUnknown 白名单的子命令（task update、task list）现有拒绝行为不回归；task add 未知标志维持现状（静默忽略），登记为顺延项。
 
 #### US-E1-03 层级任务树（群组 / 子任务 / 里程碑）
 - **用户故事**：作为 AI 智能体，我可以建立层级任务树——群组、子任务与里程碑，以便 WBS 有正确的父子结构与标记点。

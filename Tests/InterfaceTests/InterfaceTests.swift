@@ -1,9 +1,15 @@
 import Foundation
+import Darwin
 import Testing
+import KairoCore
+import KairoCommands
 @testable import KairoMCP
+@testable import KairoCLI
 
 // 接口对等性契约测试（US-E5-05）：MCP 侧 JSON-RPC 编解码与工具往返。
 // CLI 侧路由测试见 CLITests.swift。
+// 说明：US-E1-02 负责人字段冻结判据（T1）要求 A1/A2 的 CLI 契约用例与 A3 的 MCP 契约用例
+// 集中在此文件登记，故本文件同时包含这两侧用例；常规 CLI 路由用例仍见 CLITests.swift。
 
 /// 发送一行请求并解析响应为 JSONValue。
 private func send(_ server: MCPServer, _ json: String) throws -> JSONValue {
@@ -287,4 +293,142 @@ private func toolResult(_ value: JSONValue) throws -> JSONValue {
     )
     let gres = try toolResult(gread)
     #expect(gres.objectValue?["groupProgress"]?.doubleValue == 1)
+}
+
+// MARK: - 负责人字段契约（US-E1-02-A1~A3，2026-10-19 冻结，RED）
+// 冻结判据见 docs/01-prd.md「US-E1-02」小节末「验收判据（2026-10-19 补充：负责人字段）」。
+// 命名前缀 usE102A<判据号>_。
+// A4（收紧措辞后）只覆盖 CLI 侧 rejectUnknown 白名单子命令的回归，由现有用例覆盖，不重复：
+// - task list：CLITests.swift 的 taskListRejectsUnknownOptions；
+// - task update：CLITests.swift 的 RouteErrorTests。
+// task add 未知标志静默忽略为顺延项，不在本版测试范围内。
+
+/// 建临时工作目录（CLI 用例用），返回目录与 .kairo 路径；调用方用 defer 清理。
+private func makeScratchDir() throws -> (dir: URL, kairo: URL) {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("kairo-interface-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    return (dir: dir, kairo: dir.appendingPathComponent("demo.kairo"))
+}
+
+/// 捕获闭包内 print 写入 stdout 的文本（断言 CLI 文本输出用）。
+/// 通过 dup2 把 fd 1 重定向到管道，并把 stdout 设为无缓冲，保证 print 立即落管；
+/// 读之前先恢复 fd 1、关闭写端，避免 readToEnd 因残留写引用而阻塞。
+private func captureStdout(_ body: () throws -> Void) throws -> String {
+    let pipe = Pipe()
+    let savedFD = dup(FileHandle.standardOutput.fileDescriptor)
+    dup2(pipe.fileHandleForWriting.fileDescriptor, FileHandle.standardOutput.fileDescriptor)
+    setvbuf(stdout, nil, _IONBF, 0)
+    defer {
+        dup2(savedFD, FileHandle.standardOutput.fileDescriptor)
+        close(savedFD)
+    }
+    do {
+        try body()
+    } catch {
+        pipe.fileHandleForWriting.closeFile()
+        throw error
+    }
+    fflush(stdout)
+    dup2(savedFD, FileHandle.standardOutput.fileDescriptor)
+    pipe.fileHandleForWriting.closeFile()
+    return String(decoding: try pipe.fileHandleForReading.readToEnd() ?? Data(), as: UTF8.self)
+}
+
+// US-E1-02-A1：CLI task add --assignee 创建后 assignee 生效，task list --json 输出该值。
+@Test func usE102A1_cliTaskAddWithAssigneePersists() throws {
+    let scratch = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: scratch.dir) }
+    let file = scratch.kairo
+
+    try CLIRouter.execute(arguments: ["project", "create", "负责人 CLI 添加", "--file", file.path])
+    try CLIRouter.execute(arguments: [
+        "task", "add", "负责人任务", "--assignee", "dev-coder-core", "--file", file.path,
+    ])
+
+    let project = try KairoFile.load(from: file)
+    let task = try #require(project.tasks.first { $0.title == "负责人任务" })
+    #expect(task.assignee == "dev-coder-core")
+    // task list --json 输出该值（US-E1-02-A1 输出要求）。
+    let json = try CLIOutput.taskListJSON([task])
+    #expect(json.contains("\"assignee\":\"dev-coder-core\""))
+    // task get 文本输出含负责人行（US-E1-02-A1 输出要求，HIGH-1）。
+    let detail = try captureStdout {
+        try CLIRouter.execute(arguments: ["task", "get", task.id.uuidString, "--file", file.path])
+    }
+    #expect(detail.contains("负责人：dev-coder-core"))
+}
+
+// US-E1-02-A2：CLI task update --assignee 生效；--assignee "" 清空为 nil。
+@Test func usE102A2_cliTaskUpdateAssigneePersistsAndClears() throws {
+    let scratch = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: scratch.dir) }
+    let file = scratch.kairo
+
+    try CLIRouter.execute(arguments: ["project", "create", "负责人 CLI 更新", "--file", file.path])
+    try CLIRouter.execute(arguments: ["task", "add", "待更新任务", "--file", file.path])
+    let id = try #require(try KairoFile.load(from: file).tasks.first).id
+
+    try CLIRouter.execute(arguments: [
+        "task", "update", id.uuidString, "--assignee", "dev-coder-core", "--file", file.path,
+    ])
+    var task = try #require(try KairoFile.load(from: file).tasks.first)
+    #expect(task.assignee == "dev-coder-core")
+
+    // 空字符串清空 → assignee 变 nil。
+    try CLIRouter.execute(arguments: [
+        "task", "update", id.uuidString, "--assignee", "", "--file", file.path,
+    ])
+    task = try #require(try KairoFile.load(from: file).tasks.first)
+    #expect(task.assignee == nil)
+}
+
+// US-E1-02-A3：MCP task_add 传 assignee 创建后生效。
+@Test func usE102A3_mcpTaskAddWithAssigneePersists() throws {
+    let server = MCPServer()
+    _ = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_create","arguments":{"title":"负责人 MCP 添加"}}}"#
+    )
+    let add = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"task_add","arguments":{"title":"负责人任务","assignee":"dev-coder-core"}}}"#
+    )
+    let taskID = try #require(try toolResult(add).objectValue?["taskID"]?.stringValue)
+
+    let get = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"task_get","arguments":{"taskID":"\#(taskID)"}}}"#
+    )
+    let got = try toolResult(get)
+    #expect(got.objectValue?["assignee"]?.stringValue == "dev-coder-core")
+}
+
+// US-E1-02-A3：MCP task_update 传 assignee 生效；传 "" 清空为 nil。
+@Test func usE102A3_mcpTaskUpdateAssigneePersistsAndClears() throws {
+    let server = MCPServer()
+    _ = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_create","arguments":{"title":"负责人 MCP 更新"}}}"#
+    )
+    let add = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"task_add","arguments":{"title":"待更新任务"}}}"#
+    )
+    let taskID = try #require(try toolResult(add).objectValue?["taskID"]?.stringValue)
+
+    let up = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"task_update","arguments":{"taskID":"\#(taskID)","assignee":"dev-coder-core"}}}"#
+    )
+    let updated = try toolResult(up)
+    #expect(updated.objectValue?["assignee"]?.stringValue == "dev-coder-core")
+
+    // 空字符串清空 → assignee 为 nil，输出不含该键。
+    let clear = try send(
+        server,
+        #"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"task_update","arguments":{"taskID":"\#(taskID)","assignee":""}}}"#
+    )
+    let cleared = try toolResult(clear)
+    #expect(cleared.objectValue?["assignee"] == nil)
 }

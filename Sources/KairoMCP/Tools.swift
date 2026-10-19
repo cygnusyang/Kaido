@@ -113,7 +113,7 @@ struct ToolRegistry {
 
     private static let taskAdd = MCPTool(
         name: "task_add",
-        description: "创建任务（US-E1-02；constraint 格式 type:ISO8601，如 startNoLaterThan:2026-11-05T00:00:00Z；dependencies 元素 {\"predecessorID\":\"UUID\",\"type\":\"fs\",\"lagDays\":0}）",
+        description: "创建任务（US-E1-02；assignee 为负责人；constraint 格式 type:ISO8601，如 startNoLaterThan:2026-11-05T00:00:00Z；dependencies 元素 {\"predecessorID\":\"UUID\",\"type\":\"fs\",\"lagDays\":0}）",
         inputSchema: Schema.object(
             properties: [
                 "title": Schema.string(),
@@ -136,6 +136,7 @@ struct ToolRegistry {
                     "resourceID": Schema.string(),
                     "units": Schema.number(),
                 ], required: ["resourceID"])),
+                "assignee": Schema.string(),
             ],
             required: ["title"]
         )
@@ -154,7 +155,9 @@ struct ToolRegistry {
             dependencies: try a.optionalDependencies("dependencies") ?? [],
             constraint: try a.optionalConstraint("constraint"),
             schedulingPolicy: try a.optionalSchedulingPolicy("schedulingPolicy") ?? .asap,
-            assignments: try a.optionalAssignments("assignments") ?? []
+            assignments: try a.optionalAssignments("assignments") ?? [],
+            // 负责人（US-E1-02）：不传或空串 = nil（默认无负责人）；否则设置。
+            assignee: a.optionalString("assignee").flatMap { $0.isEmpty ? nil : $0 }
         )
         return .object(["taskID": .string(id.uuidString)])
     }
@@ -184,7 +187,7 @@ struct ToolRegistry {
 
     private static let taskUpdate = MCPTool(
         name: "task_update",
-        description: "更新任务字段（US-E1-02）",
+        description: "更新任务字段（US-E1-02；assignee 传空串可清空负责人）",
         inputSchema: Schema.object(
             properties: [
                 "taskID": Schema.string(),
@@ -209,6 +212,7 @@ struct ToolRegistry {
                     "resourceID": Schema.string(),
                     "units": Schema.number(),
                 ], required: ["resourceID"])),
+                "assignee": Schema.string(),
             ],
             required: ["taskID"]
         )
@@ -229,7 +233,9 @@ struct ToolRegistry {
             dependencies: try a.optionalDependencies("dependencies"),
             constraint: try a.optionalConstraint("constraint"),
             schedulingPolicy: try a.optionalSchedulingPolicy("schedulingPolicy"),
-            assignments: try a.optionalAssignments("assignments")
+            assignments: try a.optionalAssignments("assignments"),
+            // 负责人（US-E1-02）：nil = 不改；空串 = 清空（清空在共享层 updateTask 统一处理）。
+            assignee: a.optionalString("assignee")
         )
         return try JSONValue.json(task)
     }

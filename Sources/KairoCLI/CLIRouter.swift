@@ -108,7 +108,7 @@ struct CLIRouter {
 
     // MARK: - task
 
-    /// kairo task add <标题> [--kind/--parent/--effort/--duration/--notes/--priority/--status/--tags/--dep/--constraint/--policy ...]。
+    /// kairo task add <标题> [--kind/--parent/--effort/--duration/--notes/--priority/--status/--tags/--dep/--constraint/--policy/--assignee ...]。
     private static func taskAdd(_ o: Options) throws {
         // 先解析全部参数（用法错误在 IO 前抛出），再打开文件操作。
         let title = try o.operand(0, name: "标题")
@@ -124,6 +124,8 @@ struct CLIRouter {
         let assignSpecs = try o.values(for: "--assign").map { try CLIEnums.assignment($0) }
         let constraint = try CLIEnums.constraint(o.value(for: "--constraint"))
         let policy = try CLIEnums.schedulingPolicy(o.value(for: "--policy")) ?? .asap
+        // 负责人（US-E1-02）：不传或空串 = nil（默认无负责人）；否则设置。
+        let assignee = o.value(for: "--assignee").flatMap { $0.isEmpty ? nil : $0 }
 
         let session = KairoSession()
         try openForEdit(session, o)
@@ -143,7 +145,8 @@ struct CLIRouter {
             dependencies: deps,
             constraint: constraint,
             schedulingPolicy: policy,
-            assignments: assignments
+            assignments: assignments,
+            assignee: assignee
         )
         try session.saveProject()
         print("已创建任务：\(shortID(id)) \(title)")
@@ -176,7 +179,7 @@ struct CLIRouter {
         print(taskDetail(task, project: project))
     }
 
-    /// kairo task update <ID> [--title/--kind/--parent/--effort/--duration/--notes/--priority/--status/--progress/--tags]。
+    /// kairo task update <ID> [--title/--kind/--parent/--effort/--duration/--notes/--priority/--status/--progress/--tags/--assignee]。
     private static func taskUpdate(_ o: Options) throws {
         let depSpecs = try o.values(for: "--dep").map { try CLIEnums.dependency($0) }
         let assignSpecs = try o.values(for: "--assign").map { try CLIEnums.assignment($0) }
@@ -193,10 +196,12 @@ struct CLIRouter {
         let tags = o.value(for: "--tags").map(splitTags)
         let constraint = try CLIEnums.constraint(o.value(for: "--constraint"))
         let policy = try CLIEnums.schedulingPolicy(o.value(for: "--policy"))
+        // 负责人（US-E1-02）：nil = 不改；空串 = 清空（清空在共享层 updateTask 统一处理）。
+        let assignee = o.value(for: "--assignee")
         try o.rejectUnknown([
             "--title", "--kind", "--parent", "--effort", "--duration", "--notes",
             "--priority", "--status", "--progress", "--tags", "--dep",
-            "--constraint", "--policy", "--assign", "--file",
+            "--constraint", "--policy", "--assign", "--assignee", "--file",
         ])
 
         let session = KairoSession()
@@ -220,7 +225,8 @@ struct CLIRouter {
             dependencies: depSpecs.isEmpty ? nil : deps,
             constraint: constraint,
             schedulingPolicy: policy,
-            assignments: assignSpecs.isEmpty ? nil : assignments
+            assignments: assignSpecs.isEmpty ? nil : assignments,
+            assignee: assignee
         )
         try session.saveProject()
         print("已更新任务：\(shortID(task.id)) \(task.title)")
@@ -506,6 +512,7 @@ struct CLIRouter {
         lines.append("ID：\(task.id.uuidString)")
         lines.append("类型：\(kindLabel(task.kind))")
         lines.append("状态：\(statusLabel(task.status))")
+        if let assignee = task.assignee, !assignee.isEmpty { lines.append("负责人：\(assignee)") }
         if task.priority != .normal { lines.append("优先级：\(priorityLabel(task.priority))") }
         if let effort = task.effortHours { lines.append("投入：\(formatNumber(effort)) 小时") }
         if let duration = task.durationDays { lines.append("持续：\(formatNumber(duration)) 天") }

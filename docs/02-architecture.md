@@ -135,10 +135,10 @@ CLI 从同一命令层派生。
 
 ```
 kairo project open|create|save|summary <path> [--title] [--direction] [--precision]
-kairo task add <title> [--kind task|group|milestone] [--parent <id>] [--due <date>] [--priority] [--effort] [--notes]
+kairo task add <title> [--kind task|group|milestone] [--parent <id>] [--due <date>] [--priority] [--effort] [--notes] [--assignee <名字>]
 kairo task list [--filter "<自然语言>"] [--parent <id>] [--json]
 kairo task get <id>
-kairo task update <id> [--title] [--status] [--priority] [--progress] [--due]
+kairo task update <id> [--title] [--status] [--priority] [--progress] [--due] [--assignee <名字>]
 kairo task delete <id>                  # 连同全部子任务一并删除
 kairo wbs import -f <file.json|file.md> [--report]
 kairo dep add <taskID> --predecessor <id> [--type FS|FF|SS|SF] [--lag <expr>]

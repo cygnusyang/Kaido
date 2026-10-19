@@ -297,7 +297,8 @@ public final class KairoSession {
         dependencies: [TaskDependency]? = nil,
         constraint: SchedulingConstraint? = nil,
         schedulingPolicy: SchedulingPolicy? = nil,
-        assignments: [TaskAssignment]? = nil
+        assignments: [TaskAssignment]? = nil,
+        assignee: String? = nil
     ) throws -> TaskItem {
         guard let project else { throw notOpen() }
         guard let index = project.tasks.firstIndex(where: { $0.id == id }) else {
@@ -325,6 +326,9 @@ public final class KairoSession {
         if let constraint { task.constraint = constraint }
         if let schedulingPolicy { task.schedulingPolicy = schedulingPolicy }
         if let assignments { task.assignments = assignments }
+        // 负责人字段（US-E1-02）：nil = 不改；非 nil 空串 = 清空（负责人无空串业务意义，
+        // CLI/MCP 边界统一在此处理，与补丁式 .unchanged/.clear 语义对应）。
+        if let assignee { task.assignee = assignee.isEmpty ? nil : assignee }
         project.tasks[index] = task
         if let parentID { promoteToGroupIfNeeded(parentID, in: project) }
         markChanged()
