@@ -97,6 +97,22 @@ struct WorkspaceView: View {
         } message: {
             Text("打开其他项目会丢失当前项目中未保存的修改。")
         }
+        .confirmationDialog(
+            "当前项目有未保存的修改",
+            isPresented: Binding(
+                get: { store.pendingLoadExample },
+                set: { if !$0 { store.cancelPendingLoadExample() } }
+            )
+        ) {
+            Button("丢弃修改并载入", role: .destructive) {
+                store.confirmPendingLoadExample()
+            }
+            Button("取消", role: .cancel) {
+                store.cancelPendingLoadExample()
+            }
+        } message: {
+            Text("载入示例项目会丢弃当前项目中未保存的修改。")
+        }
         .onAppear {
             findAdapter.onReveal = { store.reveal($0) }
             findAdapter.rows = store.snapshot.outline.rows

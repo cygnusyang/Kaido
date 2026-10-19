@@ -27,7 +27,8 @@ struct GUIRenderTests {
         let suite = "kairo.apptests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
-        return WorkspaceStore(defaults: defaults)
+        // 渲染用例基于示例数据画面（任务行/甘特差异）；默认空启动由 WorkspaceStoreTests 覆盖。
+        return WorkspaceStore(defaults: defaults, seedsDemoData: true)
     }
 
     private func makeWorkspace(_ store: WorkspaceStore) -> WorkspaceView {

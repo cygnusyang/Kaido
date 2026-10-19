@@ -49,7 +49,7 @@ bash tools/install.sh       # 将 Kairo.app 安装到 /Applications（缺产物�
 swift run KairoMacApp
 ```
 
-打开后可用演示数据查看，或 ⌘O 打开已有 `.kairo` 文件、⌘S 保存。常用键：
+启动后为空项目（无示例数据）。想看效果可选「文件 → 载入示例项目」填充一组示例任务；⌘O 打开已有 `.kairo` 文件、⌘S 保存。常用键：
 
 | 操作 | 快捷键 |
 |---|---|

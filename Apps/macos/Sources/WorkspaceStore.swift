@@ -111,6 +111,7 @@ final class WorkspaceStore: ObservableObject {
     init(
         now: Date = Date(),
         defaults: UserDefaults = .standard,
+        seedsDemoData: Bool = false,
         projectLoader: @escaping @Sendable (URL) throws -> Project = {
             try KairoFile.load(from: $0)
         }
@@ -124,12 +125,9 @@ final class WorkspaceStore: ObservableObject {
         let session = KairoSession()
         self.session = session
         _ = try? session.createProject(title: "未命名项目")
-        let seed = SeedData.makeProject()
-        if let project = session.project {
-            project.metadata.projectStart = seed.metadata.projectStart
-            project.metadata.projectEnd = seed.metadata.projectEnd
-            project.metadata.direction = seed.metadata.direction
-            for task in seed.tasks { project.add(task) }
+        // AC-1：默认空启动不灌示例数据；seedsDemoData 供测试与旧行为显式启用。
+        if seedsDemoData {
+            Self.seed(SeedData.makeProject(), into: session)
         }
 
         let stored = Self.loadPreferences(from: defaults)
@@ -991,6 +989,53 @@ final class WorkspaceStore: ObservableObject {
     }
 
     // MARK: - 文件
+
+    /// 有待载入的示例项目，但当前项目存在未保存修改；等待用户选择丢弃并载入 / 取消。
+    /// 与 `pendingOpenURL` 同款确认流程（AC-3），由视图弹确认对话框。
+    @Published private(set) var pendingLoadExample = false
+
+    /// 「文件 → 载入示例项目」（AC-2/AC-3）：无未保存修改时直接用示例数据重建项目内容
+    /// （不写磁盘、不自动保存）；有未保存修改时先确认，避免静默丢弃工作。
+    func loadExampleProject() {
+        guard !session.hasUnsavedChanges else {
+            pendingLoadExample = true
+            return
+        }
+        loadExampleNow()
+    }
+
+    func cancelPendingLoadExample() {
+        pendingLoadExample = false
+    }
+
+    func confirmPendingLoadExample() {
+        guard pendingLoadExample else { return }
+        pendingLoadExample = false
+        loadExampleNow()
+    }
+
+    /// 载入示例等同「新建示例」：重置为空项目（projectURL 置 nil）再填入示例内容。
+    private func loadExampleNow() {
+        _ = try? session.createProject(title: "未命名项目")
+        Self.seed(SeedData.makeProject(), into: session)
+        resetViewStateForLoadedProject()
+        undoStack.removeAll()
+        redoStack.removeAll()
+        pendingDeletion = nil
+        saveState = .saved
+        notice = "已载入示例项目"
+        refresh()
+    }
+
+    /// 把示例项目内容灌入当前会话项目（不写磁盘；供 init 种子与载入示例共用）。
+    /// 静态：init 属性初始化前即可调用。
+    private static func seed(_ seed: Project, into session: KairoSession) {
+        guard let project = session.project else { return }
+        project.metadata.projectStart = seed.metadata.projectStart
+        project.metadata.projectEnd = seed.metadata.projectEnd
+        project.metadata.direction = seed.metadata.direction
+        for task in seed.tasks { project.add(task) }
+    }
 
     @discardableResult
     func open(url: URL) -> Bool {

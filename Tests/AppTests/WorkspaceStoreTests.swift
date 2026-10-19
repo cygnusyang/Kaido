@@ -11,17 +11,23 @@ import KairoPresentation
 @Suite("WorkspaceStore 交互")
 struct WorkspaceStoreTests {
     /// 每个测试使用独立偏好域，避免写入开发者真实配置。
+    /// 既有用例沿用种子数据（seedsDemoData: true）；空启动相关用例显式传 false。
     private func makeStore() -> WorkspaceStore {
         makeStore(projectLoader: { try KairoFile.load(from: $0) })
     }
 
+    private func makeStore(seedsDemoData: Bool) -> WorkspaceStore {
+        makeStore(projectLoader: { try KairoFile.load(from: $0) }, seedsDemoData: seedsDemoData)
+    }
+
     private func makeStore(
-        projectLoader: @escaping @Sendable (URL) throws -> Project
+        projectLoader: @escaping @Sendable (URL) throws -> Project,
+        seedsDemoData: Bool = true
     ) -> WorkspaceStore {
         let suite = "kairo.apptests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
-        return WorkspaceStore(defaults: defaults, projectLoader: projectLoader)
+        return WorkspaceStore(defaults: defaults, seedsDemoData: seedsDemoData, projectLoader: projectLoader)
     }
 
     private func makeCatalog(_ store: WorkspaceStore) -> [KairoCommand] {
@@ -50,16 +56,51 @@ struct WorkspaceStoreTests {
 
     // MARK: - 初始状态
 
-    @Test func storeSeedsDemoProjectAndSchedule() throws {
-        let store = makeStore()
-        #expect(rows(store).count == 10)
+    // 默认启动 = 空项目（AC-1）：不灌示例数据。
+    @Test func storeSeedsNoTasksByDefault() throws {
+        let store = makeStore(seedsDemoData: false)
+        #expect(rows(store).count == 0)
         #expect(store.viewState.mode == .plan)
         #expect(store.selection == nil)
-        #expect(rows(store).contains { $0.hasSchedule })
+        #expect(!rows(store).contains { $0.hasSchedule })
 
         let gantt = store.snapshot.gantt
-        #expect(gantt.bars.count > 0)
-        #expect(gantt.bars.count <= rows(store).count)
+        #expect(gantt.bars.isEmpty)
+    }
+
+    // 主动载入示例（AC-2）：文件 → 载入示例项目 后任务数为 10，且有排期。
+    @Test func loadExampleFillsSeedData() throws {
+        let store = makeStore(seedsDemoData: false)
+        #expect(rows(store).count == 0)
+
+        store.loadExampleProject()
+        #expect(rows(store).count == 10)
+        #expect(rows(store).contains { $0.hasSchedule })
+        #expect(store.snapshot.gantt.bars.count > 0)
+        #expect(!store.hasUnsavedChanges)
+    }
+
+    // 有未保存修改时载入示例需确认（AC-3）：先挂起等待选择；取消则数据不变。
+    @Test func loadExampleConfirmsWhenDirty() throws {
+        let store = makeStore(seedsDemoData: false)
+        store.dispatch(.setProjectTitle("未保存标题"))
+        #expect(store.hasUnsavedChanges)
+
+        store.loadExampleProject()
+        #expect(store.pendingLoadExample)
+        #expect(rows(store).count == 0)
+        #expect(store.exportProject.metadata.title == "未保存标题")
+
+        store.cancelPendingLoadExample()
+        #expect(!store.pendingLoadExample)
+        #expect(rows(store).count == 0)
+        #expect(store.exportProject.metadata.title == "未保存标题")
+
+        store.loadExampleProject()
+        #expect(store.pendingLoadExample)
+        store.confirmPendingLoadExample()
+        #expect(!store.pendingLoadExample)
+        #expect(rows(store).count == 10)
     }
 
     @Test func schedulePlacesDependentTaskAfterPredecessor() throws {
@@ -75,7 +116,7 @@ struct WorkspaceStoreTests {
 
     @Test func catalogIsSingleSourceForMenuAndPalette() {
         let commands = makeCatalog(makeStore())
-        #expect(commands.count == 22)
+        #expect(commands.count == 23)
         #expect(Set(commands.map(\.id)).count == commands.count)
         #expect(Set(commands.map(\.group)) == Set(["文件", "编辑", "大纲", "任务", "视图", "查找"]))
         #expect(commands.allSatisfy { !$0.title.isEmpty })

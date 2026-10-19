@@ -3,6 +3,17 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## Unreleased
+
+### 新增
+
+- CLI `task add/update` 增加 `--assignee`，MCP `task_add/task_update` 增加 `assignee` 属性：设置任务负责人，空串清空；与 Claude Code 协作时可填子智能体名（US-E1-02-A1…A4）。
+- `task get` 文本输出渲染负责人行。
+
+### 变更
+
+- 应用启动不再默认加载示例数据：默认打开为空项目；「文件 → 载入示例项目」按需填充示例（有未保存修改时先确认）。
+
 ## v0.1.0 — 2026-10-18
 
 第一个可安装版本。围绕「计划工作台」重设计完成 macOS 客户端重构。

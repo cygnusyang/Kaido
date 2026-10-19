@@ -101,6 +101,13 @@ enum KairoCommandCatalog {
                 action: requestSave
             ),
             KairoCommand(
+                id: "file.loadExample",
+                title: "载入示例项目",
+                group: "文件",
+                aliases: ["载入演示数据", "示例项目"],
+                action: { store.loadExampleProject() }
+            ),
+            KairoCommand(
                 id: "edit.undo",
                 title: "撤销",
                 group: "编辑",
