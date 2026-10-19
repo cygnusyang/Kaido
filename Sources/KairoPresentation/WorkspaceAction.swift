@@ -42,6 +42,8 @@ public enum WorkspaceAction: Equatable, Sendable {
     case setDueDate(UUID, Date?)
     case setAssignee(UUID, String?)
     case setDuration(UUID, Double?)
+    /// 大纲「前置」列的人工输入：`任务ID[:fs|ff|ss|sf[:延隔]]`，逗号/空格分隔多项。
+    case setPredecessors(UUID, String)
     case move(UUID, parentID: UUID?, index: Int)
     case indent(UUID)
     case outdent(UUID)

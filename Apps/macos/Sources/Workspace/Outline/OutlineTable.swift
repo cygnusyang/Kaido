@@ -81,6 +81,7 @@ struct OutlineHeaderView: View {
         case .violation: return "!"
         case .number: return "#"
         case .title: return "任务"
+        case .predecessors: return "前置"
         case .start: return "开始"
         case .finish: return "结束"
         case .duration: return "持续"
@@ -156,6 +157,13 @@ private struct OutlineRowView: View {
                 .padding(.horizontal, 4)
         case .title:
             titleCell
+        case .predecessors:
+            EditableTextCell(
+                text: row.predecessorsText.isEmpty ? "—" : row.predecessorsText,
+                value: row.predecessorsText,
+                enabled: !row.isAggregate,
+                onCommit: { store.dispatch(.setPredecessors(row.id, $0)) }
+            )
         case .start:
             dateCell(row.scheduledStart)
         case .finish:

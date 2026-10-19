@@ -10,6 +10,7 @@ public enum OutlineColumn: String, Codable, Hashable, CaseIterable, Sendable {
     case violation
     case number
     case title
+    case predecessors
     case start
     case finish
     case duration
@@ -23,6 +24,7 @@ public enum OutlineColumn: String, Codable, Hashable, CaseIterable, Sendable {
         case .status, .violation: return 18
         case .number: return 30
         case .title: return 160 * scale
+        case .predecessors: return 96 * scale
         case .start, .finish: return 78 * scale
         case .duration: return 56 * scale
         case .assignee: return 76 * scale
@@ -38,6 +40,7 @@ public enum OutlineColumn: String, Codable, Hashable, CaseIterable, Sendable {
         let scale = max(bodyFontSize, 13) / 13
         let width = outlineWidth / scale
         var columns: [OutlineColumn] = [.status, .violation, .number, .title]
+        if width >= 510 { columns.append(.predecessors) }
         if width >= 376 { columns.append(.start) }
         if width >= 454 { columns.append(.finish) }
         if width >= 510 { columns.append(.duration) }
@@ -67,6 +70,8 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
     public var scheduledFinish: Date?
     public var durationDays: Double?
     public var assignee: String?
+    /// 前置任务摘要（`A8FC:fs` / `A8FC:fs+1.5`，逗号分隔）；空串表示无前置。
+    public var predecessorsText: String
     public var progress: Double
     public var isAggregate: Bool
     public var hasChildren: Bool
@@ -92,6 +97,7 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
         scheduledFinish: Date? = nil,
         durationDays: Double? = nil,
         assignee: String? = nil,
+        predecessorsText: String = "",
         progress: Double = 0,
         isAggregate: Bool = false,
         hasChildren: Bool = false,
@@ -116,6 +122,7 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
         self.scheduledFinish = scheduledFinish
         self.durationDays = durationDays
         self.assignee = assignee
+        self.predecessorsText = predecessorsText
         self.progress = progress
         self.isAggregate = isAggregate
         self.hasChildren = hasChildren

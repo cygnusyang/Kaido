@@ -492,6 +492,9 @@ final class WorkspaceStore: ObservableObject {
                 try self.session.removeDependency(from: taskID, predecessorID: predecessorID)
             }
 
+        case .setPredecessors(let taskID, let raw):
+            setPredecessors(taskID: taskID, raw: raw)
+
         case .setProjectTitle(let title):
             mutateProject(mergeKey: "project-title") {
                 try self.session.updateProjectMetadata(title: title)
@@ -576,6 +579,133 @@ final class WorkspaceStore: ObservableObject {
             report(error)
         }
         refresh()
+    }
+
+    /// 「前置」列输入 → 依赖集合整体替换（对齐 OmniPlan 的前置任务编辑）。
+    ///
+    /// 流程：解析 `ID[:类型[:延隔]]` → 前缀解析为 UUID → 值副本上预校验（自依赖、
+    /// 成环、重复）→ 求与现有依赖的差集 → 经会话应用；任何一步失败只提示不改数据。
+    private func setPredecessors(taskID: UUID, raw: String) {
+        let specs = raw
+            .split(whereSeparator: { $0 == "," || $0 == " " || $0 == "、" })
+            .filter { !$0.isEmpty }
+        guard !specs.isEmpty else {
+            clearPredecessors(taskID: taskID)
+            return
+        }
+
+        var targets: [UUID: TaskDependency] = [:]
+        for spec in specs {
+            let parts = spec.split(separator: ":", omittingEmptySubsequences: false)
+            guard let idPart = parts.first, !idPart.isEmpty else {
+                alertMessage = "无法识别的前置任务：\(spec)"
+                return
+            }
+            let type = parts.count > 1 && !parts[1].isEmpty
+                ? parts[1].lowercased() : "fs"
+            guard let depType = TaskDependency.DependencyType(rawValue: type) else {
+                alertMessage = "无法识别的依赖类型：\(spec)（应为 fs/ff/ss/sf）"
+                return
+            }
+            let lag = parts.count > 2 && !parts[2].isEmpty ? (Double(parts[2]) ?? 0) : 0
+            if parts.count > 2, Double(parts[2]) == nil {
+                alertMessage = "无法识别的延隔：\(spec)"
+                return
+            }
+
+            let tasks = session.project?.tasks ?? []
+            let resolved: UUID
+            if let id = UUID(uuidString: String(idPart)) {
+                resolved = id
+            } else {
+                let matches = tasks.filter {
+                    $0.id.uuidString.lowercased().hasPrefix(idPart.lowercased())
+                }
+                guard matches.count == 1 else {
+                    alertMessage = matches.count > 1
+                        ? "前置任务 ID 不唯一：\(idPart)"
+                        : "找不到前置任务：\(idPart)"
+                    return
+                }
+                resolved = matches[0].id
+            }
+            if resolved == taskID {
+                alertMessage = "任务不能依赖自身"
+                return
+            }
+            let dep = TaskDependency(predecessorID: resolved, type: depType, lagDays: lag)
+            if targets[resolved] != nil {
+                alertMessage = "前置任务重复：\(idPart)"
+                return
+            }
+            targets[resolved] = dep
+        }
+
+        // 值副本上预校验最终集合，避免会话出现「删了一半」的中间态。
+        var draft = session.project?.tasks ?? []
+        guard let index = draft.firstIndex(where: { $0.id == taskID }) else { return }
+        let current = draft[index].dependencies
+        var removals: [UUID] = []
+        var additions: [TaskDependency] = []
+        for dep in current where targets[dep.predecessorID] == nil {
+            removals.append(dep.predecessorID)
+        }
+        for (predecessorID, dep) in targets {
+            if let existing = current.first(where: { $0.predecessorID == predecessorID }) {
+                if existing.type != dep.type || existing.lagDays != dep.lagDays {
+                    removals.append(predecessorID)
+                    additions.append(dep)
+                }
+            } else {
+                additions.append(dep)
+            }
+        }
+        for id in removals {
+            guard case .success(let updated) = DependencyEditing.remove(
+                predecessorID: id, from: taskID, in: draft
+            ) else { continue }
+            draft = updated
+        }
+        for dep in additions {
+            switch DependencyEditing.add(dep, to: taskID, in: draft) {
+            case .success(let updated):
+                draft = updated
+            case .failure(let error):
+                alertMessage = Self.dependencyError(error, id: dep.predecessorID)
+                return
+            }
+        }
+
+        update(id: taskID, mergeKey: nil) {
+            for id in removals {
+                try self.session.removeDependency(from: taskID, predecessorID: id)
+            }
+            for dep in additions {
+                try self.session.addDependency(
+                    to: taskID, predecessorID: dep.predecessorID,
+                    type: dep.type, lagDays: dep.lagDays
+                )
+            }
+        }
+    }
+
+    /// 清空前置依赖（输入为空时）。
+    private func clearPredecessors(taskID: UUID) {
+        let current = session.project?.tasks.first { $0.id == taskID }?.dependencies ?? []
+        guard !current.isEmpty else { return }
+        update(id: taskID, mergeKey: nil) {
+            for dep in current {
+                try self.session.removeDependency(from: taskID, predecessorID: dep.predecessorID)
+            }
+        }
+    }
+
+    private static func dependencyError(_ error: DependencyEditing.EditError, id: UUID) -> String {
+        switch error {
+        case .cycle: return "添加依赖会形成相关性环：\(id.uuidString.prefix(4))"
+        case .selfDependency: return "任务不能依赖自身"
+        case .predecessorNotFound, .taskNotFound: return "找不到任务：\(id.uuidString.prefix(4))"
+        }
     }
 
     private func mutateProject(mergeKey: String?, _ body: () throws -> Void) {

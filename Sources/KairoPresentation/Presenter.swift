@@ -219,6 +219,7 @@ public enum WorkspacePresenter {
                 scheduledFinish: finish,
                 durationDays: duration,
                 assignee: task.assignee,
+                predecessorsText: Self.predecessorsText(task.dependencies),
                 progress: row.aggregateProgress,
                 isAggregate: isGroup,
                 hasChildren: row.hasChildren,
@@ -717,5 +718,17 @@ public enum WorkspacePresenter {
         case .week: return "周"
         case .month: return "月"
         }
+    }
+
+    /// 前置任务摘要：`A8FC:fs`，带延隔时 `A8FC:fs+1.5`，多项逗号分隔（对齐 PM 软件的前置列）。
+    static func predecessorsText(_ dependencies: [TaskDependency]) -> String {
+        dependencies.map { dep in
+            var text = "\(dep.predecessorID.uuidString.prefix(4).uppercased()):\(dep.type.rawValue)"
+            if dep.lagDays != 0 {
+                text += "+\(dep.lagDays.formatted())"
+            }
+            return text
+        }
+        .joined(separator: ", ")
     }
 }

@@ -793,6 +793,82 @@ struct WorkspaceStoreTests {
         #expect(focused.width(of: .status) == 18)
     }
 
+    // MARK: - 前置列
+
+    @Test func predecessorColumnSetsDependencyByIDPrefix() throws {
+        let store = makeStore()
+        let backend = try task(store, "搭建 CI 流水线")
+        let frontend = try task(store, "实现搜索后端")
+
+        store.dispatch(.setPredecessors(frontend.id, "\(String(backend.id.uuidString.prefix(4))):ss:1"))
+
+        let dependencies = try #require(
+            store.exportProject.tasks.first { $0.id == frontend.id }
+        ).dependencies
+        #expect(dependencies.count == 1)
+        #expect(dependencies[0].predecessorID == backend.id)
+        #expect(dependencies[0].type == .ss)
+        #expect(dependencies[0].lagDays == 1)
+        let row = try row(store, "实现搜索后端")
+        #expect(row.predecessorsText.hasPrefix(backend.id.uuidString.prefix(4).uppercased()))
+    }
+
+    @Test func predecessorColumnReplacesWholeSet() throws {
+        let store = makeStore()
+        let first = try task(store, "搭建 CI 流水线")
+        let second = try task(store, "设计首页原型")
+        let target = try task(store, "实现搜索后端")
+
+        store.dispatch(.setPredecessors(target.id, String(first.id.uuidString.prefix(4))))
+        store.dispatch(.setPredecessors(target.id, "\(String(second.id.uuidString.prefix(4))):ff"))
+
+        let dependencies = try #require(
+            store.exportProject.tasks.first { $0.id == target.id }
+        ).dependencies
+        #expect(dependencies.count == 1)
+        #expect(dependencies[0].predecessorID == second.id)
+        #expect(dependencies[0].type == .ff)
+    }
+
+    @Test func predecessorColumnClearsWhenEmpty() throws {
+        let store = makeStore()
+        let backend = try task(store, "搭建 CI 流水线")
+        let frontend = try task(store, "实现搜索后端")
+
+        store.dispatch(.setPredecessors(frontend.id, String(backend.id.uuidString.prefix(4))))
+        store.dispatch(.setPredecessors(frontend.id, "  "))
+
+        let dependencies = try #require(
+            store.exportProject.tasks.first { $0.id == frontend.id }
+        ).dependencies
+        #expect(dependencies.isEmpty)
+    }
+
+    @Test func predecessorColumnRejectsCycleAndUnknownID() throws {
+        let store = makeStore()
+        let backend = try task(store, "搭建 CI 流水线")
+        let frontend = try task(store, "实现搜索后端")
+
+        store.dispatch(.setPredecessors(frontend.id, String(backend.id.uuidString.prefix(4))))
+        #expect(store.alertMessage == nil)
+
+        // 成环：后继反过来指向前驱。
+        store.dispatch(.setPredecessors(backend.id, String(frontend.id.uuidString.prefix(4))))
+        #expect(store.alertMessage?.contains("环") == true)
+        store.alertMessage = nil
+        let unchanged = try #require(
+            store.exportProject.tasks.first { $0.id == backend.id }
+        ).dependencies
+        #expect(unchanged.isEmpty)
+
+        // 未知 ID 与自依赖。
+        store.dispatch(.setPredecessors(frontend.id, "ZZZZ"))
+        #expect(store.alertMessage?.contains("找不到") == true)
+        store.alertMessage = nil
+        store.dispatch(.setPredecessors(frontend.id, String(frontend.id.uuidString.prefix(4))))
+        #expect(store.alertMessage?.contains("自身") == true)
+    }
+
     // MARK: - 外部更新
 
     @Test func externalChangeWithUnsavedEditsShowsBanner() throws {
