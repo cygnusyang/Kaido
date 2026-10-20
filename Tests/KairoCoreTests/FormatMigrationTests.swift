@@ -47,6 +47,30 @@ private struct ThrowingMigration: FormatMigration {
     }
 }
 
+/// 字段迁移：改写 project.title，用于证明解码的是迁移后的内容。
+private struct FieldMigratingMigration: FormatMigration {
+    let toVersion: Int
+    let recorder: MigrationRecorder
+
+    func migrate(_ document: inout FormatDocument) throws {
+        recorder.record(toVersion)
+        var project = document.root["project"] as? [String: Any] ?? [:]
+        project["title"] = "\(project["title"] as? String ?? "") v\(toVersion)"
+        document.root["project"] = project
+        document.formatVersion = toVersion
+    }
+}
+
+/// 破坏迁移：版本推进成功，但产出无法通过强类型解码。
+private struct CorruptingMigration: FormatMigration {
+    let toVersion: Int
+
+    func migrate(_ document: inout FormatDocument) throws {
+        document.root["project"] = "not-an-object"
+        document.formatVersion = toVersion
+    }
+}
+
 // MARK: - 夹具
 
 private enum SyntheticFixtureError: Error {
@@ -60,14 +84,29 @@ private func makeProject(title: String = "迁移测试项目") -> Project {
     return project
 }
 
-/// 由当前格式编码数据构造文档，并把版本改写为任意值（合成旧格式）。
-private func makeDocument(from data: Data? = nil, formatVersion: Int) throws -> FormatDocument {
-    let encoded = try data ?? KairoFile.encode(project: makeProject())
+/// 构造指定 formatVersion 的合法 JSON 数据（合成旧格式）。
+private func makeData(formatVersion: Int) throws -> Data {
+    let encoded = try KairoFile.encode(project: makeProject(title: "端到端"))
     guard var root = try JSONSerialization.jsonObject(with: encoded) as? [String: Any] else {
         throw SyntheticFixtureError.invalidRoot
     }
     root["formatVersion"] = formatVersion
+    return try JSONSerialization.data(withJSONObject: root)
+}
+
+/// 由指定版本的合法数据构造文档（合成旧格式）。
+private func makeDocument(formatVersion: Int) throws -> FormatDocument {
+    let encoded = try makeData(formatVersion: formatVersion)
+    guard let root = try JSONSerialization.jsonObject(with: encoded) as? [String: Any] else {
+        throw SyntheticFixtureError.invalidRoot
+    }
     return FormatDocument(root: root)
+}
+
+/// 文件修改时间；用于断言打开/迁移失败不改动磁盘。
+private func modificationDate(of url: URL) throws -> Date {
+    let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+    return try #require(attributes[.modificationDate] as? Date)
 }
 
 private func temporaryDirectory() throws -> URL {
@@ -117,6 +156,34 @@ private func capturedError<T>(_ body: () throws -> T) -> Error? {
     #expect(document.formatVersion == 2)
     #expect(document.root["migratedThrough1"] as? Bool == true)
     #expect(document.root["migratedThrough2"] as? Bool == true)
+}
+
+@Test func fr_kairo_fmt_2_read_migrates_end_to_end() throws {
+    let recorder = MigrationRecorder()
+    // 乱序传入两步迁移；read 必须升序执行并解码迁移后的内容。
+    let plan = FormatMigrationPlan([
+        FieldMigratingMigration(toVersion: 3, recorder: recorder),
+        FieldMigratingMigration(toVersion: 2, recorder: recorder),
+    ])
+    let data = try makeData(formatVersion: 1)
+
+    let decoded = try KairoFile.read(from: data, targetVersion: 3, plan: plan)
+
+    #expect(decoded.sourceFormatVersion == 1)
+    #expect(recorder.appliedVersions == [2, 3])
+    #expect(decoded.project.metadata.title == "端到端 v2 v3")
+    #expect(decoded.project.tasks.count == 1)
+}
+
+@Test func fr_kairo_fmt_2_rejects_backwards_range() throws {
+    let plan = FormatMigrationPlan([RecordingMigration(toVersion: 2, recorder: MigrationRecorder())])
+    var document = try makeDocument(formatVersion: 2)
+
+    let error = capturedError {
+        try plan.migrate(from: 2, to: 1, document: &document)
+    }
+
+    #expect((error as? KairoFileError) == .noMigrationPath(from: 2, to: 1))
 }
 
 @Test func fr_kairo_fmt_2_rejects_missing_step() throws {
@@ -197,6 +264,7 @@ private func capturedError<T>(_ body: () throws -> T) -> Error? {
     root["formatVersion"] = 999
     let bytes = try JSONSerialization.data(withJSONObject: root)
     try bytes.write(to: url)
+    let mtimeBefore = try modificationDate(of: url)
 
     let error = capturedError { try KairoFile.read(from: url) }
 
@@ -206,6 +274,7 @@ private func capturedError<T>(_ body: () throws -> T) -> Error? {
     #expect(description.contains("\(KairoFile.currentFormatVersion)"))
     // 打开失败不得改动磁盘文件。
     #expect(try Data(contentsOf: url) == bytes)
+    #expect(try modificationDate(of: url) == mtimeBefore)
 }
 
 // MARK: - FR-KAIRO-FMT-4：迁移失败
@@ -229,20 +298,60 @@ private func capturedError<T>(_ body: () throws -> T) -> Error? {
 }
 
 @Test func fr_kairo_fmt_4_failed_migration_writes_nothing() throws {
-    // currentFormatVersion == 1，磁盘上不存在 1 ≤ v < current 的合法旧版本；
-    // 这里用合成起点 0 直接驱动迁移管线，验证失败路径无落盘副作用。
+    // 经 read 端到端触发步骤抛错；源文件字节与 mtime 均不得变化。
     let directory = try temporaryDirectory()
     defer { try? FileManager.default.removeItem(at: directory) }
     let sourceURL = directory.appendingPathComponent("source.kairo")
-    let sourceBytes = try KairoFile.encode(project: makeProject())
+    let sourceBytes = try makeData(formatVersion: 1)
     try sourceBytes.write(to: sourceURL)
-    var document = try makeDocument(from: sourceBytes, formatVersion: 0)
+    let mtimeBefore = try modificationDate(of: sourceURL)
 
-    let plan = FormatMigrationPlan([ThrowingMigration(toVersion: 1)])
-    _ = capturedError { try plan.migrate(from: 0, to: 1, document: &document) }
+    let plan = FormatMigrationPlan([ThrowingMigration(toVersion: 2)])
+    let error = capturedError {
+        try KairoFile.read(from: sourceBytes, targetVersion: 2, plan: plan)
+    }
 
+    guard let kairoError = error as? KairoFileError,
+          case .migrationFailed(let from, let to, let reason) = kairoError else {
+        Issue.record("应为 migrationFailed，实际 \(String(describing: error))")
+        return
+    }
+    #expect(from == 1)
+    #expect(to == 2)
+    #expect(reason.contains("合成迁移拒绝继续"))
     #expect(try Data(contentsOf: sourceURL) == sourceBytes)
+    #expect(try modificationDate(of: sourceURL) == mtimeBefore)
     #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path) == ["source.kairo"])
+}
+
+@Test func fr_kairo_fmt_4_decode_failure_after_migration_is_wrapped() throws {
+    // 迁移推进了版本但产出无法强类型解码：应包装为 migrationFailed(from:to:)。
+    let data = try makeData(formatVersion: 1)
+    let plan = FormatMigrationPlan([CorruptingMigration(toVersion: 2)])
+
+    let error = capturedError {
+        try KairoFile.read(from: data, targetVersion: 2, plan: plan)
+    }
+
+    guard let kairoError = error as? KairoFileError,
+          case .migrationFailed(let from, let to, let reason) = kairoError else {
+        Issue.record("应为 migrationFailed，实际 \(String(describing: error))")
+        return
+    }
+    #expect(from == 1)
+    #expect(to == 2)
+    #expect(reason.contains("解码"))
+}
+
+@Test func fr_kairo_fmt_decode_error_without_migration_is_preserved() throws {
+    // 不迁移路径保持原有行为：强类型解码失败仍抛 DecodingError，不做包装。
+    let json = #"{"formatVersion":\#(KairoFile.currentFormatVersion)}"#
+    let error = capturedError {
+        try KairoFile.read(from: Data(json.utf8))
+    }
+
+    #expect((error as? DecodingError) != nil)
+    #expect((error as? KairoFileError) == nil)
 }
 
 // MARK: - 无效 formatVersion：缺失 / 非整数 / ≤0
@@ -300,4 +409,25 @@ func fr_kairo_fmt_malformed_non_positive_version_is_rejected(json: String) throw
         return
     }
     #expect(recorder.appliedVersions.isEmpty)
+}
+
+@Test(arguments: [
+    "{ not json",
+    "[]",
+    #""scalar""#,
+    "42",
+    "null",
+])
+func fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload: String) throws {
+    // 非法 JSON 与数组/标量根节点都归一为 malformedFormatVersion，不抛裸 NSError。
+    let error = capturedError {
+        try KairoFile.read(from: Data(payload.utf8))
+    }
+
+    guard let kairoError = error as? KairoFileError,
+          case .malformedFormatVersion(let reason) = kairoError else {
+        Issue.record("应为 malformedFormatVersion，实际 \(String(describing: error))")
+        return
+    }
+    #expect(!reason.isEmpty)
 }

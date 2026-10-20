@@ -25,7 +25,7 @@ public enum KairoFile {
         return try encoder.encode(envelope)
     }
 
-    /// 从 .kairo JSON 数据解码项目；校验 formatVersion 并按需迁移。
+    /// 从 .kairo JSON 数据解码项目；校验 formatVersion 并按需迁移到当前版本。
     ///
     /// 先探测原始 JSON 的 `formatVersion`（不做强类型解码）：
     /// - 缺失、非整数或 ≤0：`KairoFileError.malformedFormatVersion`；
@@ -36,7 +36,24 @@ public enum KairoFile {
         from data: Data,
         plan: FormatMigrationPlan = .standard
     ) throws -> DecodedProject {
-        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        try read(from: data, targetVersion: currentFormatVersion, plan: plan)
+    }
+
+    /// 读取并迁移到指定目标版本（internal 测试接缝；生产路径目标恒为当前版本）。
+    ///
+    /// 供测试构造合成升级链，验证 `read` 的端到端迁移行为，不对外暴露。
+    static func read(
+        from data: Data,
+        targetVersion: Int,
+        plan: FormatMigrationPlan
+    ) throws -> DecodedProject {
+        let object: Any
+        do {
+            object = try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+        } catch {
+            throw KairoFileError.malformedFormatVersion("无法解析 JSON：\(error.localizedDescription)")
+        }
+        guard let root = object as? [String: Any] else {
             throw KairoFileError.malformedFormatVersion("根节点不是 JSON 对象")
         }
         guard let version = FormatDocument.parseVersion(root["formatVersion"]) else {
@@ -45,23 +62,23 @@ public enum KairoFile {
         guard version > 0 else {
             throw KairoFileError.malformedFormatVersion("formatVersion 必须为正整数（实际 \(version)）")
         }
-        guard version <= currentFormatVersion else {
+        guard version <= targetVersion else {
             throw KairoFileError.unsupportedFormatVersion(version)
         }
 
         var document = FormatDocument(root: root)
-        if version < currentFormatVersion {
-            try plan.migrate(from: version, to: currentFormatVersion, document: &document)
+        if version < targetVersion {
+            try plan.migrate(from: version, to: targetVersion, document: &document)
         }
 
         let decodedData: Data
         do {
             decodedData = try JSONSerialization.data(withJSONObject: document.root)
         } catch {
-            if version < currentFormatVersion {
+            if version < targetVersion {
                 throw KairoFileError.migrationFailed(
                     from: version,
-                    to: currentFormatVersion,
+                    to: targetVersion,
                     reason: "迁移结果无法序列化：\(error.localizedDescription)"
                 )
             }
@@ -70,8 +87,19 @@ public enum KairoFile {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let envelope = try decoder.decode(Envelope.self, from: decodedData)
-        guard envelope.formatVersion == currentFormatVersion else {
+        let envelope: Envelope
+        do {
+            envelope = try decoder.decode(Envelope.self, from: decodedData)
+        } catch let error as DecodingError {
+            // 迁移后内容无法解码属于迁移失败；不迁移路径保持原有 DecodingError。
+            guard version < targetVersion else { throw error }
+            throw KairoFileError.migrationFailed(
+                from: version,
+                to: targetVersion,
+                reason: "迁移结果无法解码：\(error)"
+            )
+        }
+        guard envelope.formatVersion == targetVersion else {
             throw KairoFileError.unsupportedFormatVersion(envelope.formatVersion)
         }
         let project = Project()

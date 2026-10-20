@@ -64,8 +64,14 @@ public protocol FormatMigration {
 public struct FormatMigrationPlan {
     private let steps: [any FormatMigration]
 
-    /// 创建计划。`steps` 必须各自拥有唯一的 `toVersion`；执行时忽略传入顺序。
+    /// 创建计划。`steps` 必须各自拥有唯一的 `toVersion`（重复即编程错误，
+    /// 触发 precondition）；执行时忽略传入顺序。
     public init(_ steps: [any FormatMigration] = []) {
+        let versions = steps.map { $0.toVersion }
+        precondition(
+            Set(versions).count == versions.count,
+            ".kairo 迁移计划存在重复的 toVersion：\(versions)"
+        )
         self.steps = steps
     }
 
