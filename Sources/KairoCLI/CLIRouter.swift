@@ -96,9 +96,9 @@ struct CLIRouter {
         print("项目：\(meta.title)")
         print("项目ID：\(meta.id.uuidString)")
         print("任务数：\(session.project?.tasks.count ?? 0)")
-        print(formatVersionLine(
-            written: session.sourceFormatVersion ?? KairoFile.currentFormatVersion,
-            upgradedFrom: nil
+        print(sourceVersionLine(
+            source: session.sourceFormatVersion ?? KairoFile.currentFormatVersion,
+            current: KairoFile.currentFormatVersion
         ))
     }
 
@@ -114,12 +114,20 @@ struct CLIRouter {
         print(formatVersionLine(written: KairoFile.currentFormatVersion, upgradedFrom: upgradedFrom))
     }
 
-    /// 格式版本输出行（FR-KAIRO-FMT-6）：「格式版本：vN（已从 vM 升级）」/「格式版本：vN」。
+    /// 保存/新建的格式版本输出行（FR-KAIRO-FMT-6）：
+    /// 「格式版本：vN（已从 vM 升级）」/「格式版本：vN」。
     static func formatVersionLine(written: Int, upgradedFrom: Int?) -> String {
         if let upgradedFrom, upgradedFrom < written {
             return "格式版本：v\(written)（已从 v\(upgradedFrom) 升级）"
         }
         return "格式版本：v\(written)"
+    }
+
+    /// 打开时的来源版本输出行：「源格式版本：vM（当前 vN）」；
+    /// 来源早于当前版本时追加「，保存后升级」。
+    static func sourceVersionLine(source: Int, current: Int) -> String {
+        let line = "源格式版本：v\(source)（当前 v\(current)）"
+        return source < current ? line + "，保存后升级" : line
     }
 
     // MARK: - task

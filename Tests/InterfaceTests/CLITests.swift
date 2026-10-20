@@ -551,7 +551,21 @@ struct Sprint2CommandTests {
         let openOutput = try captureStdout {
             try CLIRouter.execute(arguments: ["project", "open", file.path])
         }
-        #expect(openOutput.contains(line))
+        // project open：报告磁盘文件版本与当前目标版本，不报告升级来源。
+        #expect(openOutput.contains("源格式版本：v\(KairoFile.currentFormatVersion)（当前 v\(KairoFile.currentFormatVersion)）"))
+        #expect(!openOutput.contains("保存后升级"))
+    }
+
+    @Test func fr_kairo_fmt_6_cliSourceVersionLineRendersUpgradeHint() throws {
+        let current = KairoFile.currentFormatVersion
+        #expect(
+            CLIRouter.sourceVersionLine(source: current, current: current)
+                == "源格式版本：v\(current)（当前 v\(current)）"
+        )
+        #expect(
+            CLIRouter.sourceVersionLine(source: current - 1, current: current)
+                == "源格式版本：v\(current - 1)（当前 v\(current)），保存后升级"
+        )
     }
 
     @Test func fr_kairo_fmt_6_cliFormatVersionLineRendersUpgradeSource() throws {

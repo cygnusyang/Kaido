@@ -102,9 +102,9 @@ Sprint 4 起，UI 与命令层之间加入 `KairoPresentation`（Foundation-only
 
 | 工具名 | 输入（要点） | 输出 | 覆盖 US |
 |---|---|---|---|
-| `project_create` | `title`, `projectStart?`, `projectEnd?` | 项目元数据 | US-E1-01 |
-| `project_open` | `path` | 项目元数据 | US-E6-01 |
-| `project_save` | `path?` | `savedAt`, `path` | US-E6-01 |
+| `project_create` | `title`, `projectStart?`, `projectEnd?` | 项目元数据 + `formatVersion`（恒为当前版本） | US-E1-01 |
+| `project_open` | `path` | 项目元数据 + `formatVersion`（磁盘文件版本）、`currentFormatVersion`、`needsUpgrade` | US-E6-01 |
+| `project_save` | `path?` | `savedAt`, `path`, `formatVersion`（写出文件版本）、`upgradedFrom?`（来源早于当前版本时） | US-E6-01 |
 | `task_add` | `title`, `kind?`, `parentID?`, `effortHours?`, `durationDays?`, `notes?`, `priority?`, `status?`, `tags?`, `dependencies?`, `constraint?`, `schedulingPolicy?`, `assignments?` | `taskID` | US-E1-02/03/05、US-E2-01 |
 | `task_list` | `parentID?`, `filter?` | `[TaskItem]` | US-E4-01 |
 | `task_get` | `taskID` | `TaskItem` | US-E4-01 |

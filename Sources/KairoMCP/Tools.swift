@@ -81,22 +81,22 @@ struct ToolRegistry {
             projectStart: try a.optionalISODate("projectStart"),
             projectEnd: try a.optionalISODate("projectEnd")
         )
-        return try ProjectResults.metadata(meta)
+        return ProjectResults.created(meta)
     }
 
     private static let projectOpen = MCPTool(
         name: "project_open",
-        description: "打开 .kairo 项目文件（US-E6-01）",
+        description: "打开 .kairo 项目文件（US-E6-01）；formatVersion 为磁盘文件版本，needsUpgrade 表示保存后会升级",
         inputSchema: Schema.object(properties: ["path": Schema.string()], required: ["path"])
     ) { args, session in
         let a = try ToolArgs(args)
         let meta = try session.openProject(at: URL(fileURLWithPath: a.string("path")))
-        return try ProjectResults.metadata(meta, sourceFormatVersion: session.sourceFormatVersion)
+        return ProjectResults.opened(meta, sourceFormatVersion: session.sourceFormatVersion)
     }
 
     private static let projectSave = MCPTool(
         name: "project_save",
-        description: "保存当前项目为 .kairo（未指定路径时保存到已打开文件）",
+        description: "保存当前项目为 .kairo（未指定路径时保存到已打开文件）；formatVersion 为写出文件的版本",
         inputSchema: Schema.object(properties: ["path": Schema.string()])
     ) { args, session in
         let a = try ToolArgs(args)
@@ -104,11 +104,11 @@ struct ToolRegistry {
         // 保存会把来源版本置为 current，必须先捕获；否则 upgradedFrom 永远丢失。
         let upgradedFrom = session.sourceFormatVersion
         let meta = try session.saveProject(to: target)
-        let path = session.projectURL?.path ?? ""
-        var result = ProjectResults.formatFields(upgradedFrom: upgradedFrom)
-        result["savedAt"] = .string(ISO8601DateFormatter().string(from: meta.updatedAt))
-        result["path"] = .string(path)
-        return .object(result)
+        return ProjectResults.saved(
+            updatedAt: meta.updatedAt,
+            path: session.projectURL?.path ?? "",
+            upgradedFrom: upgradedFrom
+        )
     }
 
     // MARK: task
@@ -386,27 +386,51 @@ struct ToolRegistry {
     }
 }
 
-/// 项目工具结果组装。
-private enum ProjectResults {
-    /// 目标格式版本；来源版本早于目标时附 `upgradedFrom`（FR-KAIRO-FMT-6）。
-    static func formatFields(upgradedFrom: Int?) -> [String: JSONValue] {
-        var fields: [String: JSONValue] = [
-            "formatVersion": .number(Double(KairoFile.currentFormatVersion)),
-        ]
-        if let upgradedFrom, upgradedFrom < KairoFile.currentFormatVersion {
-            fields["upgradedFrom"] = .number(Double(upgradedFrom))
-        }
-        return fields
+/// 项目工具结果组装（FR-KAIRO-FMT-6）。
+enum ProjectResults {
+    /// `project_create`：新建项目恒以当前版本落盘，无来源版本。
+    static func created(_ meta: ProjectMetadata) -> JSONValue {
+        var result = metadataFields(meta)
+        result["formatVersion"] = .number(Double(KairoFile.currentFormatVersion))
+        return .object(result)
     }
 
-    static func metadata(_ meta: ProjectMetadata, sourceFormatVersion: Int? = nil) throws -> JSONValue {
-        var result = formatFields(upgradedFrom: sourceFormatVersion)
-        result["projectID"] = .string(meta.id.uuidString)
-        result["title"] = .string(meta.title)
+    /// `project_open`：`formatVersion` 为磁盘文件版本；
+    /// `currentFormatVersion` / `needsUpgrade` 说明当前目标版本与保存后是否升级。
+    /// 打开不改写磁盘，故不报告 `upgradedFrom`。
+    static func opened(_ meta: ProjectMetadata, sourceFormatVersion: Int?) -> JSONValue {
+        let source = sourceFormatVersion ?? KairoFile.currentFormatVersion
+        var result = metadataFields(meta)
+        result["formatVersion"] = .number(Double(source))
+        result["currentFormatVersion"] = .number(Double(KairoFile.currentFormatVersion))
+        result["needsUpgrade"] = .bool(source < KairoFile.currentFormatVersion)
+        return .object(result)
+    }
+
+    /// `project_save`：`formatVersion` 为写出文件的版本（恒为当前版本）。
+    /// `upgradedFrom` 描述写出文件的来源版本，仅当来源早于当前版本时出现；
+    /// 目标路径与原路径不同时不改动原文件。
+    static func saved(updatedAt: Date, path: String, upgradedFrom: Int?) -> JSONValue {
+        var result: [String: JSONValue] = [
+            "formatVersion": .number(Double(KairoFile.currentFormatVersion)),
+            "savedAt": .string(ISO8601DateFormatter().string(from: updatedAt)),
+            "path": .string(path),
+        ]
+        if let upgradedFrom, upgradedFrom < KairoFile.currentFormatVersion {
+            result["upgradedFrom"] = .number(Double(upgradedFrom))
+        }
+        return .object(result)
+    }
+
+    private static func metadataFields(_ meta: ProjectMetadata) -> [String: JSONValue] {
+        var result: [String: JSONValue] = [
+            "projectID": .string(meta.id.uuidString),
+            "title": .string(meta.title),
+        ]
         let formatter = ISO8601DateFormatter()
         if let start = meta.projectStart { result["projectStart"] = .string(formatter.string(from: start)) }
         if let end = meta.projectEnd { result["projectEnd"] = .string(formatter.string(from: end)) }
-        return .object(result)
+        return result
     }
 }
 

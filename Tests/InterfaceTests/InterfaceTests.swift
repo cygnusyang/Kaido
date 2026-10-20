@@ -468,24 +468,55 @@ func captureStdout(_ body: () throws -> Void) throws -> String {
         server,
         #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"project_open","arguments":{"path":"\#(scratch.kairo.path)"}}}"#
     ))
+    // project_open：formatVersion 描述磁盘文件版本；另报当前版本与是否需要升级。
     #expect(open.objectValue?["formatVersion"]?.doubleValue == current)
+    #expect(open.objectValue?["currentFormatVersion"]?.doubleValue == current)
+    #expect(open.objectValue?["needsUpgrade"]?.boolValue == false)
     #expect(open.objectValue?["upgradedFrom"] == nil)
 }
 
-@Test func fr_kairo_fmt_6_mcpSaveReportsUpgradedFromBeforeOverwrite() throws {
+@Test func fr_kairo_fmt_6_mcpOpenReportsDiskVersionAndUpgradeNeed() throws {
+    // current == 1 时磁盘上不存在合法旧文件；经会话接缝构造来源版本 0，校验 open 结果组装。
+    let session = KairoSession()
+    let project = Project()
+    project.metadata.title = "旧格式会话"
+    session.adoptProject(
+        project,
+        from: URL(fileURLWithPath: "/tmp/kairo-old-source.kairo"),
+        formatVersion: 0
+    )
+    let opened = try #require(
+        ProjectResults.opened(project.metadata, sourceFormatVersion: session.sourceFormatVersion)
+            .objectValue
+    )
+    #expect(opened["formatVersion"]?.doubleValue == 0)
+    #expect(opened["currentFormatVersion"]?.doubleValue == Double(KairoFile.currentFormatVersion))
+    #expect(opened["needsUpgrade"]?.boolValue == true)
+    #expect(opened["upgradedFrom"] == nil)
+}
+
+@Test func fr_kairo_fmt_6_mcpSaveReportsUpgradedFromWithoutTouchingOriginal() throws {
     let scratch = try makeScratchDir()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
+    let original = scratch.kairo
+    let target = scratch.dir.appendingPathComponent("upgraded.kairo")
+    // 原文件先以当前版本落盘，用于校验「保存到其他路径不改动原文件」。
+    try KairoFile.save(Project(), to: original)
+    let originalBytes = try Data(contentsOf: original)
+
     // 合成旧来源版本（current == 1 时磁盘上不存在合法旧文件，故经会话接缝构造）。
     let session = KairoSession()
     let project = Project()
     project.metadata.title = "旧格式会话"
-    session.adoptProject(project, from: scratch.kairo, formatVersion: 0)
+    session.adoptProject(project, from: original, formatVersion: 0)
     let server = MCPServer(session: session)
 
     let save = try toolResult(try send(
         server,
-        #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_save","arguments":{"path":"\#(scratch.kairo.path)"}}}"#
+        #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_save","arguments":{"path":"\#(target.path)"}}}"#
     ))
     #expect(save.objectValue?["formatVersion"]?.doubleValue == Double(KairoFile.currentFormatVersion))
     #expect(save.objectValue?["upgradedFrom"]?.doubleValue == 0)
+    #expect(save.objectValue?["path"]?.stringValue == target.path)
+    #expect(try Data(contentsOf: original) == originalBytes)
 }
