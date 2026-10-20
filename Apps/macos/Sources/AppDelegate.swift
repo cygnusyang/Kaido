@@ -36,7 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.kairo]
-        panel.nameFieldStringValue = "project.kairo"
+        panel.nameFieldStringValue = store.suggestedSaveFilename
         guard panel.runModal() == .OK, let url = panel.url else { return .terminateCancel }
         store.save(to: url)
         guard store.saveState != .failed else {

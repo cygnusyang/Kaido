@@ -1179,9 +1179,22 @@ final class WorkspaceStore: ObservableObject {
         notice = "已复制任务链接"
     }
 
+    /// 另存为面板的默认文件名（FR-FILE-SAVEAS-2）：有路径沿用文件名，否则按项目标题生成。
+    var suggestedSaveFilename: String {
+        SaveFilenameSuggestion.suggest(
+            currentURL: projectURL,
+            title: session.project?.metadata.title ?? ""
+        )
+    }
+
     /// 打开另存为面板前记录版本，导出完成时据此判断快照是否仍然最新。
     func beginExport() {
         exportRevision = session.revision
+    }
+
+    /// 取消另存为面板：清理导出快照版本，之后的完成回调不再误判快照最新。
+    func cancelExport() {
+        exportRevision = nil
     }
 
     /// 另存为完成：文件导出器已写入快照，这里只回填路径并清除脏标记，不重复写文件。

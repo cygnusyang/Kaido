@@ -31,7 +31,9 @@ struct WorkspaceStoreTests {
     }
 
     private func makeCatalog(_ store: WorkspaceStore) -> [KairoCommand] {
-        KairoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {})
+        KairoCommandCatalog.make(
+            store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {}
+        )
     }
 
     private func command(_ commands: [KairoCommand], _ id: String) throws -> KairoCommand {
@@ -116,7 +118,7 @@ struct WorkspaceStoreTests {
 
     @Test func catalogIsSingleSourceForMenuAndPalette() {
         let commands = makeCatalog(makeStore())
-        #expect(commands.count == 23)
+        #expect(commands.count == 24)
         #expect(Set(commands.map(\.id)).count == commands.count)
         #expect(Set(commands.map(\.group)) == Set(["文件", "编辑", "大纲", "任务", "视图", "查找"]))
         #expect(commands.allSatisfy { !$0.title.isEmpty })

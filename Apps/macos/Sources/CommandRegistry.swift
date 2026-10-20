@@ -83,7 +83,8 @@ enum KairoCommandCatalog {
     static func make(
         store: WorkspaceStore,
         requestOpen: @escaping @MainActor () -> Void,
-        requestSave: @escaping @MainActor () -> Void
+        requestSave: @escaping @MainActor () -> Void,
+        requestSaveAs: @escaping @MainActor () -> Void
     ) -> [KairoCommand] {
         [
             KairoCommand(
@@ -99,6 +100,14 @@ enum KairoCommandCatalog {
                 group: "文件",
                 shortcut: KairoShortcut(key: "s", modifiers: .command),
                 action: requestSave
+            ),
+            KairoCommand(
+                id: "file.saveAs",
+                title: "另存为…",
+                group: "文件",
+                shortcut: KairoShortcut(key: "s", modifiers: [.command, .shift]),
+                aliases: ["保存副本"],
+                action: requestSaveAs
             ),
             KairoCommand(
                 id: "file.loadExample",

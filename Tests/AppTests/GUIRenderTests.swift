@@ -37,7 +37,8 @@ struct GUIRenderTests {
             commands: KairoCommandCatalog.make(
                 store: store,
                 requestOpen: {},
-                requestSave: {}
+                requestSave: {},
+                requestSaveAs: {}
             )
         )
     }
@@ -125,7 +126,8 @@ struct GUIRenderTests {
         let commands = KairoCommandCatalog.make(
             store: store,
             requestOpen: {},
-            requestSave: {}
+            requestSave: {},
+            requestSaveAs: {}
         )
         let populated = try snapshot(CommandPalette(commands: commands, onDismiss: {}))
         let empty = try snapshot(CommandPalette(commands: [], onDismiss: {}))

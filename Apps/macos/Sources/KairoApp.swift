@@ -31,10 +31,13 @@ struct KairoApp: App {
                     isPresented: $showSavePanel,
                     document: KairoDocument(state: store.exportState),
                     contentType: .kairo,
-                    defaultFilename: "project.kairo"
+                    defaultFilename: store.suggestedSaveFilename
                 ) { result in
-                    if case .success(let url) = result {
+                    switch result {
+                    case .success(let url):
                         finishExport(to: url)
+                    case .failure:
+                        store.cancelExport()
                     }
                 }
                 .alert(
@@ -63,7 +66,8 @@ struct KairoApp: App {
         KairoCommandCatalog.make(
             store: store,
             requestOpen: { showOpenPanel = true },
-            requestSave: { saveDocument() }
+            requestSave: { saveDocument() },
+            requestSaveAs: { saveDocumentAs() }
         )
     }
 
@@ -117,6 +121,12 @@ struct KairoApp: App {
             store.beginExport()
             showSavePanel = true
         }
+    }
+
+    /// 另存为：始终打开位置选择面板，默认文件名由存储层按当前状态生成。
+    private func saveDocumentAs() {
+        store.beginExport()
+        showSavePanel = true
     }
 
     private func finishExport(to url: URL) {
