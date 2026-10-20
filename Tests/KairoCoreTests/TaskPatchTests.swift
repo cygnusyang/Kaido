@@ -84,6 +84,39 @@ struct TaskPatchTests {
         #expect(task.effortHours == 8)
     }
 
+    // D-004：assignee 输入 trim；纯空白按清空（nil）处理（会话层集中归一）。
+    @Test func patchAssigneeTrimsWhitespaceAndClearsWhenBlank() throws {
+        let (session, id) = try makeSession()
+
+        var patch = TaskPatch()
+        patch.assignee = .set("  Bob  ")
+        let task = try session.updateTask(id: id, patch: patch)
+        #expect(task.assignee == "Bob")
+
+        patch = TaskPatch()
+        patch.assignee = .set("   ")
+        let cleared = try session.updateTask(id: id, patch: patch)
+        #expect(cleared.assignee == nil)
+    }
+
+    @Test func addTaskAssigneeTrimsWhitespaceToNil() throws {
+        let session = KairoSession()
+        try session.createProject(title: "trim")
+        let id = try session.addTask(title: "任务", assignee: "   ")
+        #expect(try session.getTask(id: id).assignee == nil)
+    }
+
+    @Test func legacyUpdateTaskAssigneeTrimsWhitespace() throws {
+        let (session, id) = try makeSession()
+        let task = try session.updateTask(id: id, assignee: "  Mei  ")
+        #expect(task.assignee == "Mei")
+        let cleared = try session.updateTask(id: id, assignee: "  ")
+        #expect(cleared.assignee == nil)
+        // 不传（nil）= 不改。
+        let untouched = try session.updateTask(id: id)
+        #expect(untouched.assignee == nil)
+    }
+
     @Test func statusDoneSetsProgressAndCompletedAt() throws {
         let (session, id) = try makeSession()
         var patch = TaskPatch()

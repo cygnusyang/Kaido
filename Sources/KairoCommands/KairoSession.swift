@@ -246,7 +246,7 @@ public final class KairoSession {
             priority: priority,
             status: status,
             tags: tags,
-            assignee: assignee,
+            assignee: Self.normalizedAssignee(assignee),
             kind: kind,
             parentID: parentID,
             effortHours: effortHours,
@@ -326,9 +326,8 @@ public final class KairoSession {
         if let constraint { task.constraint = constraint }
         if let schedulingPolicy { task.schedulingPolicy = schedulingPolicy }
         if let assignments { task.assignments = assignments }
-        // 负责人字段（US-E1-02）：nil = 不改；非 nil 空串 = 清空（负责人无空串业务意义，
-        // CLI/MCP 边界统一在此处理，与补丁式 .unchanged/.clear 语义对应）。
-        if let assignee { task.assignee = assignee.isEmpty ? nil : assignee }
+        // 负责人字段（US-E1-02）：nil = 不改；非 nil 空串/纯空白 = 清空（D-004 trim）。
+        if let assignee { task.assignee = Self.normalizedAssignee(assignee) }
         project.tasks[index] = task
         if let parentID { promoteToGroupIfNeeded(parentID, in: project) }
         markChanged()
@@ -360,7 +359,11 @@ public final class KairoSession {
         if let assignments = patch.assignments { task.assignments = assignments }
         Self.apply(patch.startDate, to: &task.startDate)
         Self.apply(patch.dueDate, to: &task.dueDate)
-        Self.apply(patch.assignee, to: &task.assignee)
+        switch patch.assignee {
+        case .unchanged: break
+        case .set(let name): task.assignee = Self.normalizedAssignee(name)
+        case .clear: task.assignee = nil
+        }
         Self.apply(patch.parentID, to: &task.parentID)
         Self.apply(patch.effortHours, to: &task.effortHours)
         Self.apply(patch.durationDays, to: &task.durationDays)
@@ -417,6 +420,14 @@ public final class KairoSession {
         case .set(let newValue): value = newValue
         case .clear: value = nil
         }
+    }
+
+    /// D-004：负责人输入集中归一——trim 首尾空白；纯空白视为清空（nil）。
+    /// addTask / 旧式 updateTask / 补丁 updateTask 三个写路径共用。
+    private static func normalizedAssignee(_ name: String?) -> String? {
+        guard let name else { return nil }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     /// 校验分配引用的资源存在（US-E1-05）；悬空引用在写入前拒绝。
