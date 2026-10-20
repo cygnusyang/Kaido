@@ -104,8 +104,9 @@ jobs:
             git checkout -B artifacts origin/artifacts
           else
             git checkout --orphan artifacts
+            # 只清索引不清工作区——后续步骤的产物文件（zip/dmg/manifest）还在
+            # 磁盘上；orphan 提交只包含下方显式 git add 的内容。
             git rm -rf --cached . >/dev/null 2>&1 || true
-            git clean -fdx >/dev/null 2>&1 || true
           fi
           mkdir -p "$TAG" latest
           cp "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" update-manifest.json "$TAG"/
