@@ -235,60 +235,83 @@ public enum GanttLayoutEngine {
         }
 
         var cursor = windowStart
-        while cursor < windowEnd {
-            let weekday = calendar.component(.weekday, from: cursor)
-            let day = calendar.component(.day, from: cursor)
-            let month = calendar.component(.month, from: cursor)
-            let year = calendar.component(.year, from: cursor)
-            let offset = cursor.timeIntervalSince(windowStart) / 86_400
-            let x = offset * dayWidth
-
-            // 月缩放隐藏非工作带，避免条纹噪声（设计规格 §5.1）。
-            if zoom != .month, nonWorkingWeekdays.contains(weekday) {
-                bands.append(GanttLayout.Band(x: x, width: dayWidth))
+        if zoom == .month {
+            // 快路径（D-017）：month 档仅在每月 1 日产生刻度/上层标签，非工作带
+            // 已隐藏（上方 zoom != .month 守卫）——按月首迭代输出与逐日循环
+            // 完全一致，长项目不再逐日扫描（fit 路径窗口可达数千天）。
+            var monthCursor = windowStart
+            if calendar.component(.day, from: monthCursor) != 1 {
+                let daysInMonth = calendar.range(of: .day, in: .month, for: monthCursor)?.count ?? 30
+                monthCursor = calendar.date(
+                    byAdding: .day,
+                    value: daysInMonth - calendar.component(.day, from: monthCursor) + 1,
+                    to: monthCursor
+                ) ?? monthCursor
             }
-
-            switch zoom {
-            case .day:
+            while monthCursor < windowEnd {
+                let month = calendar.component(.month, from: monthCursor)
+                let year = calendar.component(.year, from: monthCursor)
+                let offset = monthCursor.timeIntervalSince(windowStart) / 86_400
+                let x = offset * dayWidth
                 lowerTicks.append(GanttLayout.Tick(
-                    date: cursor, x: x, label: "\(day)", isMajor: false, tier: .lower
+                    date: monthCursor,
+                    x: x,
+                    label: month == 1 ? "\(year)" : "\(month)月",
+                    isMajor: month == 1,
+                    tier: .lower
                 ))
-                if day == 1 {
-                    appendUpper(
-                        cursor,
-                        x: x,
-                        label: month == 1 ? "\(year)年1月" : "\(month)月"
-                    )
+                if month == 1 {
+                    appendUpper(monthCursor, x: x, label: "\(year)年")
                 }
-            case .week:
-                if weekday == calendar.firstWeekday {
-                    lowerTicks.append(GanttLayout.Tick(
-                        date: cursor, x: x, label: "\(month)/\(day)", isMajor: false, tier: .lower
-                    ))
-                }
-                if day == 1 {
-                    appendUpper(
-                        cursor,
-                        x: x,
-                        label: month == 1 ? "\(year)年1月" : "\(month)月"
-                    )
-                }
-            case .month:
-                if day == 1 {
-                    lowerTicks.append(GanttLayout.Tick(
-                        date: cursor,
-                        x: x,
-                        label: month == 1 ? "\(year)" : "\(month)月",
-                        isMajor: month == 1,
-                        tier: .lower
-                    ))
-                    if month == 1 {
-                        appendUpper(cursor, x: x, label: "\(year)年")
-                    }
-                }
+                guard let next = calendar.date(byAdding: .month, value: 1, to: monthCursor) else { break }
+                // 归一化回月初零点（跨 DST 边界时与逐日循环的 startOfDay 序列对齐）。
+                monthCursor = calendar.startOfDay(for: next)
             }
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
-            cursor = next
+        } else {
+            while cursor < windowEnd {
+                let weekday = calendar.component(.weekday, from: cursor)
+                let day = calendar.component(.day, from: cursor)
+                let month = calendar.component(.month, from: cursor)
+                let year = calendar.component(.year, from: cursor)
+                let offset = cursor.timeIntervalSince(windowStart) / 86_400
+                let x = offset * dayWidth
+
+                // 非工作带：month 档已走快路径，本循环仅服务 day / week 档。
+                if nonWorkingWeekdays.contains(weekday) {
+                    bands.append(GanttLayout.Band(x: x, width: dayWidth))
+                }
+
+                switch zoom {
+                case .day:
+                    lowerTicks.append(GanttLayout.Tick(
+                        date: cursor, x: x, label: "\(day)", isMajor: false, tier: .lower
+                    ))
+                    if day == 1 {
+                        appendUpper(
+                            cursor,
+                            x: x,
+                            label: month == 1 ? "\(year)年1月" : "\(month)月"
+                        )
+                    }
+                case .week:
+                    if weekday == calendar.firstWeekday {
+                        lowerTicks.append(GanttLayout.Tick(
+                            date: cursor, x: x, label: "\(month)/\(day)", isMajor: false, tier: .lower
+                        ))
+                    }
+                    if day == 1 {
+                        appendUpper(
+                            cursor,
+                            x: x,
+                            label: month == 1 ? "\(year)年1月" : "\(month)月"
+                        )
+                    }
+                case .month:
+                    break // 不可达：month 档已走快路径
+                }
+                guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+                cursor = next
+            }
         }
 
         let todayX: Double? = {
