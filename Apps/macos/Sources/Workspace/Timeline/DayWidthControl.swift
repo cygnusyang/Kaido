@@ -2,6 +2,69 @@ import SwiftUI
 import KairoCore
 import KairoPresentation
 
+/// 日宽拖动提交节流状态机（引用语义）。
+///
+/// 独立于 View 存在：`@State` 在未安装视图上按值拷贝、方法调用间状态不延续，
+/// 单元测试无法真实驱动「拖动 → 节流 → 松手/关闭」的生命线（连续调用每次都像首拖，
+/// 节流分支形同虚设）。引用语义保证真实面板与自动化测试走同一条状态生命线
+/// （D-015 自动化验收的基础，也是 D-010 修复的可回归载体）。
+@MainActor
+final class DayWidthThrottle {
+    /// 提交节流间隔（秒）：拖动中最多每 100ms 提交一次。
+    static let commitInterval: TimeInterval = 0.1
+
+    /// 拖动中的本地草稿；nil 时面板跟随外部生效值。
+    private(set) var draft: Double?
+    /// 节流窗口内待提交的收尾任务。
+    private(set) var pendingCommit: Task<Void, Never>?
+    /// 上次提交时刻（节流基准）。
+    private var lastCommitAt = Date.distantPast
+
+    private let commit: @MainActor (Double) -> Void
+
+    init(commit: @escaping @MainActor (Double) -> Void) {
+        self.commit = commit
+    }
+
+    /// 外部生效值更新（如面板打开时按 ⌘+）：丢弃本地草稿，读数与滑杆回到生效值。
+    func discardDraft() {
+        draft = nil
+    }
+
+    /// 拖动中按节流提交；节流窗口内的最后一次变更由待提交任务补上。
+    func slide(_ width: Double) {
+        draft = width
+        let elapsed = Date().timeIntervalSince(lastCommitAt)
+        if elapsed >= Self.commitInterval {
+            commitNow(width)
+        } else {
+            pendingCommit?.cancel()
+            let delay = Self.commitInterval - elapsed
+            pendingCommit = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                self.commitNow(width)
+            }
+        }
+    }
+
+    /// 收尾（松手 / 面板消失共用）：提交最终草稿值并取消待提交任务——
+    /// 节流窗口内的末值不能丢（设计稿 R-02、D-010）。
+    func finish() {
+        pendingCommit?.cancel()
+        pendingCommit = nil
+        if let draft {
+            commitNow(draft)
+            self.draft = nil
+        }
+    }
+
+    private func commitNow(_ width: Double) {
+        lastCommitAt = Date()
+        commit(width)
+    }
+}
+
 /// 日宽调节面板（工具栏 popover 内容）。
 ///
 /// 构成：连续滑杆（对数映射）+ 读数 + ± 步进 + 档位芯片 + 重置。
@@ -12,17 +75,19 @@ struct DayWidthControl: View {
     /// 生效日宽（点/天）：自定义取用户值，fit 取 fit 宽度，预设取档位默认。
     let dayWidth: Double
 
-    /// 拖动中的本地值；nil 时跟随外部生效值。
-    @State private var draft: Double?
+    /// 拖动提交节流状态机（引用语义，跨重渲染持久）。
+    /// 模块内可见：UX 自动化测试经 `@testable import` 直接驱动同一实例。
+    @State var throttle: DayWidthThrottle
     /// 拖动中：本地草稿权威，外部生效值的变化不打断手势。
     @State private var isDragging = false
-    /// 上次提交时刻（节流基准）。
-    @State private var lastCommitAt = Date.distantPast
-    /// 拖动中待提交的节流任务。
-    @State private var pendingCommit: Task<Void, Never>?
 
-    /// 提交节流间隔（秒）：拖动中最多每 100ms 提交一次。
-    static let commitInterval: TimeInterval = 0.1
+    init(store: WorkspaceStore, dayWidth: Double) {
+        self.store = store
+        self.dayWidth = dayWidth
+        _throttle = State(initialValue: DayWidthThrottle { width in
+            store.dispatch(.setCustomDayWidth(width))
+        })
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -42,16 +107,10 @@ struct DayWidthControl: View {
             // 外部生效值变了（如面板打开时按 ⌘+）：丢弃本地草稿，读数与滑杆回到生效值。
             // 拖动中不丢弃：节流提交的回声会与手势互相打断，滑杆会往回跳。
             guard !isDragging else { return }
-            draft = nil
+            throttle.discardDraft()
         }
         .onDisappear {
-            // 关闭面板时提交最后一次拖动值：节流窗口内的末值不能丢。
-            if let draft {
-                commit(draft)
-                self.draft = nil
-            }
-            pendingCommit?.cancel()
-            pendingCommit = nil
+            throttle.finish()
         }
     }
 
@@ -77,7 +136,7 @@ struct DayWidthControl: View {
             in: 0...1,
             onEditingChanged: { editing in
                 isDragging = editing
-                if !editing { finishDragging() }
+                if !editing { throttle.finish() }
             }
         )
         .accessibilityLabel("每日宽度")
@@ -119,7 +178,7 @@ struct DayWidthControl: View {
 
     /// 当前面板显示的日宽：拖动中用本地值，否则跟随生效值。
     private var currentWidth: Double {
-        draft ?? dayWidth
+        throttle.draft ?? dayWidth
     }
 
     private var readout: String {
@@ -146,7 +205,7 @@ struct DayWidthControl: View {
     private var sliderPosition: Binding<Double> {
         Binding(
             get: { Self.position(forDayWidth: currentWidth) },
-            set: { handleSlide($0) }
+            set: { throttle.slide(Self.dayWidth(forPosition: $0)) }
         )
     }
 
@@ -173,51 +232,17 @@ struct DayWidthControl: View {
 
     /// 设定宽度：先夹取再提交；提交后本地草稿失效，跟随生效值。
     private func apply(width: Double) {
-        draft = nil
+        throttle.discardDraft()
         store.dispatch(.setCustomDayWidth(width))
     }
 
     private func applyPreset(_ zoom: GanttZoom) {
-        draft = nil
+        throttle.discardDraft()
         store.dispatch(.setZoom(zoom))
     }
 
     private func applyReset() {
-        draft = nil
+        throttle.discardDraft()
         store.dispatch(.clearCustomDayWidth)
-    }
-
-    /// 拖动中按节流提交；节流窗口内的最后一次变更由待提交任务补上。
-    private func handleSlide(_ position: Double) {
-        let width = Self.dayWidth(forPosition: position)
-        draft = width
-        let now = Date()
-        let elapsed = now.timeIntervalSince(lastCommitAt)
-        if elapsed >= Self.commitInterval {
-            commit(width)
-        } else {
-            pendingCommit?.cancel()
-            let delay = Self.commitInterval - elapsed
-            pendingCommit = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                guard !Task.isCancelled else { return }
-                self.commit(width)
-            }
-        }
-    }
-
-    /// 松手：取消待提交任务并提交最终值。
-    private func finishDragging() {
-        pendingCommit?.cancel()
-        pendingCommit = nil
-        if let draft {
-            commit(draft)
-            self.draft = nil
-        }
-    }
-
-    private func commit(_ width: Double) {
-        lastCommitAt = Date()
-        store.dispatch(.setCustomDayWidth(width))
     }
 }
