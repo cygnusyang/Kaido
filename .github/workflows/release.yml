@@ -29,6 +29,38 @@ jobs:
       - name: 编译打包
         run: bash tools/build.sh
 
+      - name: 打包 OTA 载体 zip（ditto 保留签名与元数据）
+        run: |
+          ditto -c -k --keepParent dist/Kairo.app "Kairo-${GITHUB_REF_NAME}.zip"
+          echo "ZIP_SHA256=$(shasum -a 256 "Kairo-${GITHUB_REF_NAME}.zip" | awk '{print $1}')" >> "$GITHUB_ENV"
+
+      - name: 签名更新清单（update-manifest.json）
+        env:
+          UPDATE_SIGNING_KEY_BASE64: ${{ secrets.UPDATE_SIGNING_KEY_BASE64 }}
+          OTA_MINIMUM_VERSION: "0.2.0"   # 防降级地板，只增不减（人工复核）
+        run: |
+          # 私钥 secret 存在校验（缺失即 fail，禁止未签名清单上架）
+          if [ -z "$UPDATE_SIGNING_KEY_BASE64" ]; then
+            echo "ERROR: 缺少 secret UPDATE_SIGNING_KEY_BASE64（Ed25519 私钥）" >&2
+            exit 1
+          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          CDHASH="$(tools/extract_cdhash.sh)"
+          UPDATE_SIGNING_KEY_BASE64="$UPDATE_SIGNING_KEY_BASE64" \
+            MF_VERSION="$VERSION" \
+            MF_MINIMUM_VERSION="$OTA_MINIMUM_VERSION" \
+            MF_BUILD_TIME="$BUILD_TIME" \
+            MF_DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/Kairo-${GITHUB_REF_NAME}.zip" \
+            MF_CDHASH="$CDHASH" \
+            MF_SHA256="$ZIP_SHA256" \
+            tools/sign_update_manifest.sh > update-manifest.json
+          # 公钥门禁：从 App 源码常量提取公钥（单一事实源）复验签名——
+          # 私钥与硬编码公钥不配对 / 清单被篡改都会在此拦截。
+          PUBLIC_KEY="$(grep -o 'updatePublicKeyBase64 = "[^"]*"' \
+            Apps/macos/Sources/Updater/UpdaterConfiguration.swift | sed 's/.*"\(.*\)"/\1/')"
+          swift tools/verify_update_manifest.swift update-manifest.json "$PUBLIC_KEY"
+
       - name: 打包 DMG（打开拖入 Applications，替代 zip）
         run: |
           # GitHub Release 附件只能是单文件，.app 是目录传不了；
@@ -63,13 +95,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # 附件：DMG（人装）+ zip（OTA 载体）+ update-manifest.json（OTA feed，
+          # /releases/latest/download/ 永久链接随每个 release 重传即更新）
           if [ "${{ steps.changelog.outputs.has_autonotes }}" = "true" ]; then
-            gh release create "$GITHUB_REF_NAME" "Kairo-${GITHUB_REF_NAME}.dmg" \
+            gh release create "$GITHUB_REF_NAME" \
+              "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" update-manifest.json \
               --title "Kairo ${GITHUB_REF_NAME}" \
               --notes-file release-notes.md \
               --generate-notes
           else
-            gh release create "$GITHUB_REF_NAME" "Kairo-${GITHUB_REF_NAME}.dmg" \
+            gh release create "$GITHUB_REF_NAME" \
+              "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" update-manifest.json \
               --title "Kairo ${GITHUB_REF_NAME}" \
               --notes-file release-notes.md
           fi

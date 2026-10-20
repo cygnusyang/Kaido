@@ -6,8 +6,10 @@ import KairoCore
 struct KairoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var store = WorkspaceStore()
+    @StateObject private var updater = UpdaterConfiguration.makeUpdater()
     @State private var showOpenPanel = false
     @State private var showSavePanel = false
+    @State private var showUpdateSheet = false
     @State private var errorMessage: String?
 
     var body: some Scene {
@@ -17,8 +19,18 @@ struct KairoApp: App {
                     minWidth: DesignTokens.minimumWindowWidth,
                     minHeight: DesignTokens.minimumWindowHeight
                 )
-                .onAppear { appDelegate.store = store }
+                .onAppear {
+                    appDelegate.store = store
+                    // 首启消费上次 OTA 安装结果（幂等；无 pending 则 no-op）。
+                    updater.consumePendingInstallResult()
+                }
                 .onOpenURL { handleDeepLink($0) }
+                .sheet(isPresented: $showUpdateSheet) {
+                    UpdateSheet(
+                        updater: updater,
+                        onRequestClose: { showUpdateSheet = false }
+                    )
+                }
                 .fileImporter(
                     isPresented: $showOpenPanel,
                     allowedContentTypes: [.kairo],
@@ -61,7 +73,13 @@ struct KairoApp: App {
             height: DesignTokens.defaultWindowHeight
         )
         .commands {
-            KairoMenuCommands(commands: commandCatalog)
+            KairoMenuCommands(
+                commands: commandCatalog,
+                checkForUpdates: {
+                    showUpdateSheet = true
+                    Task { await updater.check() }
+                }
+            )
         }
     }
 

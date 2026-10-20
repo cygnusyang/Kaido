@@ -4,19 +4,37 @@ import PackageDescription
 // macOS 应用与 GUI 测试仅在 macOS 主机参与构建；Linux CI 只验证核心与接口层（ADR-004）。
 #if os(macOS)
 let macOSAppTargets: [Target] = [
+    // OTA 通用更新模块（Security/CryptoKit 依赖 → 仅 Apple 平台）
+    .target(
+        name: "KairoUpdater",
+        path: "Sources/KairoUpdater"
+    ),
     // macOS SwiftUI 应用（import KairoCore；经 KairoCommands 命令层实现 .kairo 读写）
     .executableTarget(
         name: "KairoMacApp",
-        dependencies: ["KairoCore", "KairoCommands", "KairoPresentation"],
+        dependencies: ["KairoCore", "KairoCommands", "KairoPresentation", "KairoUpdater"],
         path: "Apps/macos/Sources"
     ),
     // 应用层（GUI）测试：视图渲染、门面状态与键盘交互
     .testTarget(
         name: "AppTests",
-        dependencies: ["KairoMacApp", "KairoCore", "KairoCommands", "KairoPresentation"],
+        dependencies: ["KairoMacApp", "KairoCore", "KairoCommands", "KairoPresentation", "KairoUpdater"],
         path: "Tests/AppTests"
+    ),
+    // OTA 更新模块测试（验签/版本比较/状态机/白名单/安装脚本）
+    .testTarget(
+        name: "KairoUpdaterTests",
+        dependencies: ["KairoUpdater"],
+        path: "Tests/KairoUpdaterTests"
     )
 ]
+
+// KairoUpdater 产品仅在 Apple 平台导出（Security 框架依赖，Linux CI 不参与）。
+#if os(macOS)
+let updaterProduct: [Product] = [.library(name: "KairoUpdater", targets: ["KairoUpdater"])]
+#else
+let updaterProduct: [Product] = []
+#endif
 #else
 let macOSAppTargets: [Target] = []
 #endif
@@ -32,7 +50,7 @@ let package = Package(
         .library(name: "KairoCore", targets: ["KairoCore"]),
         .library(name: "KairoCommands", targets: ["KairoCommands"]),
         .library(name: "KairoPresentation", targets: ["KairoPresentation"])
-    ],
+    ] + updaterProduct,
     targets: [
         // 跨平台核心（纯逻辑，ADR-004：零 AppKit/SwiftUI/Combine import）
         .target(

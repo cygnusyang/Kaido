@@ -315,10 +315,15 @@ enum KairoCommandCatalog {
 /// 由注册表生成菜单栏（US-E4-05 验收 3：菜单命令与面板同源）。
 struct KairoMenuCommands: Commands {
     let commands: [KairoCommand]
+    /// 「检查更新…」入口（OTA；nil = 不挂菜单，供测试省略）。
+    var checkForUpdates: (() -> Void)? = nil
 
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
             Button("关于 Kairo") { Self.showAboutPanel() }
+            if let checkForUpdates {
+                Button("检查更新…") { checkForUpdates() }
+            }
         }
         CommandGroup(replacing: .saveItem) {
             Divider()
@@ -363,7 +368,7 @@ struct KairoMenuCommands: Commands {
     // MARK: - 关于面板
 
     /// 应用版本号：发版前更新。
-    static let appVersion = "0.2.0"
+    static let appVersion = "0.3.0"
 
     /// 「关于 Kairo」面板：版本号 + 编译时间。
     /// 打包应用读 Info.plist 的 CFBundleVersion（构建时写入的时间戳）；
