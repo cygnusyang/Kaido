@@ -310,7 +310,7 @@ struct WorkspaceStoreTests {
         store.scheduleDropExpand(on: group, delayNanoseconds: 1_000_000)
         // 另一行的 dropExited 不得取消本行计时。
         store.cancelDropExpand(on: other)
-        let deadline = Date().addingTimeInterval(5)
+        let deadline = Date().addingTimeInterval(30)
         while !store.viewState.expandedTaskIDs.contains(group) && Date() < deadline {
             try await Task.sleep(nanoseconds: 50_000_000)
         }
@@ -583,7 +583,8 @@ struct WorkspaceStoreTests {
 
         store.openAsync(url: second)
         store.discardChangesAndOpenPending()
-        for _ in 0..<200 where store.isLoading {
+        // 30s：CI 慢机 + 并行负载下打开完成回调可能被顺延，2s 会误报。
+        for _ in 0..<3000 where store.isLoading {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
 
@@ -613,7 +614,7 @@ struct WorkspaceStoreTests {
         store.dispatch(.setProjectTitle("载入期间编辑"))
         gate.signal()
 
-        let deadline = Date().addingTimeInterval(5)
+        let deadline = Date().addingTimeInterval(30)
         while store.isLoading && Date() < deadline {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
@@ -650,7 +651,7 @@ struct WorkspaceStoreTests {
         #expect(store.pendingOpenURL == nil)
 
         gate.signal()
-        let deadline = Date().addingTimeInterval(5)
+        let deadline = Date().addingTimeInterval(30)
         while store.isLoading && Date() < deadline {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
@@ -759,7 +760,7 @@ struct WorkspaceStoreTests {
         reopened.openAsync(url: url)
         #expect(reopened.isLoading)
 
-        for _ in 0..<200 where reopened.isLoading {
+        for _ in 0..<3000 where reopened.isLoading {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
 
