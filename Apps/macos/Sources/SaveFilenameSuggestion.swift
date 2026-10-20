@@ -9,13 +9,16 @@ enum SaveFilenameSuggestion {
     static let fallback = "project.kairo"
 
     private static let kairoExtension = ".kairo"
+    /// 默认文件名的 UTF-8 字节上限；超出时按字符截断基名并保留后缀。
+    private static let maxFilenameBytes = 200
     private static let trimCharacters = CharacterSet.whitespacesAndNewlines
         .union(CharacterSet(charactersIn: "."))
 
     static func suggest(currentURL: URL?, title: String) -> String {
         if let currentURL {
             let filename = currentURL.lastPathComponent
-            if !filename.isEmpty {
+            // 隐藏文件（以 `.` 开头）不适合作为默认名，交给标题生成。
+            if !filename.isEmpty, !filename.hasPrefix(".") {
                 return withKairoExtension(filename)
             }
         }
@@ -28,9 +31,14 @@ enum SaveFilenameSuggestion {
     }
 
     private static func sanitize(_ title: String) -> String {
-        String(title.map { character in
+        var cleaned = String(title.map { character in
             isIllegal(character) ? "-" : character
         }).trimmingCharacters(in: trimCharacters)
+        // 替换产生的尾部 `-` 及随后露出的空白不进入文件名。
+        while let last = cleaned.last, last == "-" || last.isWhitespace || last == "." {
+            cleaned.removeLast()
+        }
+        return cleaned
     }
 
     private static func isIllegal(_ character: Character) -> Bool {
@@ -38,7 +46,16 @@ enum SaveFilenameSuggestion {
         return character.unicodeScalars.contains { CharacterSet.controlCharacters.contains($0) }
     }
 
+    /// 补 `.kairo` 后缀；超过文件名字节上限时按字符截断基名，保证 UTF-8 完整。
     private static func withKairoExtension(_ filename: String) -> String {
-        filename.lowercased().hasSuffix(kairoExtension) ? filename : filename + kairoExtension
+        let name = filename.lowercased().hasSuffix(kairoExtension)
+            ? filename : filename + kairoExtension
+        guard name.utf8.count > maxFilenameBytes else { return name }
+        let suffix = String(name.suffix(kairoExtension.count))
+        var base = String(name.dropLast(kairoExtension.count))
+        while !base.isEmpty, base.utf8.count + suffix.utf8.count > maxFilenameBytes {
+            base.removeLast()
+        }
+        return base + suffix
     }
 }

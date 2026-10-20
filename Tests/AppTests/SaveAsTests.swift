@@ -40,6 +40,15 @@ struct SaveAsTests {
         return try #require(attributes[.modificationDate] as? Date)
     }
 
+    /// 用独立会话重写磁盘文件，模拟其他进程的保存（与 WorkspaceStoreTests 同款写法）。
+    private func rewriteExternally(_ url: URL, title: String) throws {
+        Thread.sleep(forTimeInterval: 0.05)
+        let writer = makeStore()
+        writer.dispatch(.setProjectTitle(title))
+        writer.save(to: url)
+        #expect(writer.alertMessage == nil)
+    }
+
     /// 模拟 `fileExporter` 在用户确认时把当前快照写入目标路径。
     private func writeExportedSnapshot(_ store: WorkspaceStore, to url: URL) throws {
         let project = Project()
@@ -91,8 +100,44 @@ struct SaveAsTests {
     @Test func fr_file_saveas_2_replaces_illegal_characters() {
         #expect(
             SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度/计划:第一阶段\u{0007}")
-                == "季度-计划-第一阶段-.kairo"
+                == "季度-计划-第一阶段.kairo"
         )
+    }
+
+    @Test func fr_file_saveas_2_trims_trailing_replacement_hyphen() {
+        #expect(SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度/") == "季度.kairo")
+        #expect(SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度 - ") == "季度.kairo")
+    }
+
+    @Test func fr_file_saveas_2_hidden_current_filename_falls_back_to_title() {
+        for path in ["/tmp/.kairo", "/tmp/.hidden.kairo", "/tmp/.隐藏.kairo"] {
+            let url = URL(fileURLWithPath: path)
+            #expect(
+                SaveFilenameSuggestion.suggest(currentURL: url, title: "项目甲")
+                    == "项目甲.kairo"
+            )
+            #expect(
+                SaveFilenameSuggestion.suggest(currentURL: url, title: "")
+                    == SaveFilenameSuggestion.fallback
+            )
+        }
+    }
+
+    @Test func fr_file_saveas_2_caps_filename_at_200_utf8_bytes() {
+        // 中文 3 字节 + emoji 4 字节：截断必须落在字符边界，保留 .kairo 后缀。
+        let longTitle = String(repeating: "计", count: 80)
+            + String(repeating: "🚀", count: 20)
+        let fromTitle = SaveFilenameSuggestion.suggest(currentURL: nil, title: longTitle)
+        #expect(fromTitle.utf8.count <= 200)
+        #expect(fromTitle.hasSuffix(".kairo"))
+        #expect(fromTitle == String(repeating: "计", count: 64) + ".kairo")
+        #expect(!fromTitle.contains("\u{FFFD}"))
+
+        let longURL = URL(fileURLWithPath: "/tmp/\(longTitle).kairo")
+        let fromURL = SaveFilenameSuggestion.suggest(currentURL: longURL, title: "")
+        #expect(fromURL.utf8.count <= 200)
+        #expect(fromURL.hasSuffix(".kairo"))
+        #expect(fromURL == String(repeating: "计", count: 64) + ".kairo")
     }
 
     @Test func fr_file_saveas_2_trims_spaces_and_dots() {
@@ -227,6 +272,31 @@ struct SaveAsTests {
         #expect(try modificationDate(of: originalURL) == originalMtime)
     }
 
+    @Test func fr_file_saveas_4_external_change_to_old_path_is_ignored() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let originalURL = directory.appendingPathComponent("原始计划.kairo")
+        let newURL = directory.appendingPathComponent("副本计划.kairo")
+
+        let store = makeStore()
+        store.save(to: originalURL)
+        store.beginExport()
+        try writeExportedSnapshot(store, to: newURL)
+        store.rememberSaveURL(newURL)
+        store.clearNotice()
+        let titleAfterSaveAs = store.exportProject.metadata.title
+
+        // 模拟其他进程改写旧路径；监视目标已是新路径，不应触发横幅或重载。
+        try rewriteExternally(originalURL, title: "旧文件被外部改写")
+        store.checkExternalUpdate()
+
+        #expect(!store.externalUpdatePending)
+        #expect(store.notice?.hasPrefix("已载入外部更新") != true)
+        #expect(store.projectURL?.standardizedFileURL == newURL.standardizedFileURL)
+        #expect(store.exportProject.metadata.title == titleAfterSaveAs)
+        #expect(try KairoFile.load(from: originalURL).metadata.title == "旧文件被外部改写")
+    }
+
     // MARK: - FR-FILE-SAVEAS-5：面板期间的编辑进入新文件
 
     @Test func fr_file_saveas_5_confirms_latest_edits() throws {
@@ -278,6 +348,34 @@ struct SaveAsTests {
         store.dispatch(.undo)
         #expect(store.exportProject.metadata.title == originalTitle)
         #expect(store.exportProject.tasks.count == taskCount)
+    }
+
+    @Test func fr_file_saveas_6_export_failure_classification() {
+        // 用户取消是正常路径，不弹错误；真实写入错误必须上报消息。
+        #expect(ExportFailure.message(for: CocoaError(.userCancelled)) == nil)
+        #expect(ExportFailure.message(for: CocoaError(.fileWriteNoPermission)) != nil)
+    }
+
+    @Test func fr_file_saveas_6_export_failure_keeps_url_and_reports() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let originalURL = directory.appendingPathComponent("原始计划.kairo")
+        let unwritableURL = directory
+            .appendingPathComponent("不存在的目录", isDirectory: true)
+            .appendingPathComponent("副本计划.kairo")
+
+        let store = makeStore()
+        store.save(to: originalURL)
+        store.dispatch(.setProjectTitle("写入会失败"))
+        store.beginExport()
+        store.cancelExport()
+
+        store.rememberSaveURL(unwritableURL)
+
+        #expect(store.saveState == .failed)
+        #expect(store.alertMessage != nil)
+        #expect(store.projectURL?.standardizedFileURL == originalURL.standardizedFileURL)
+        #expect(store.hasUnsavedChanges)
     }
 
     @Test func fr_file_saveas_6_cancel_forces_direct_write_branch() throws {

@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import KairoCore
 
@@ -36,8 +37,11 @@ struct KairoApp: App {
                     switch result {
                     case .success(let url):
                         finishExport(to: url)
-                    case .failure:
+                    case .failure(let error):
                         store.cancelExport()
+                        if let message = ExportFailure.message(for: error) {
+                            errorMessage = message
+                        }
                     }
                 }
                 .alert(
@@ -138,5 +142,18 @@ struct KairoApp: App {
             errorMessage = message
             store.alertMessage = nil
         }
+    }
+}
+
+/// `fileExporter` 失败回调分类：用户取消是正常路径，不弹错误。
+enum ExportFailure {
+    /// 用户取消返回 nil；其他错误返回可展示的消息。
+    static func message(for error: Error) -> String? {
+        let nsError = error as NSError
+        guard nsError.domain == NSCocoaErrorDomain,
+              nsError.code == NSUserCancelledError else {
+            return error.localizedDescription
+        }
+        return nil
     }
 }
