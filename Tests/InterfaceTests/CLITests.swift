@@ -528,4 +528,42 @@ struct Sprint2CommandTests {
         let project = try KairoFile.load(from: file)
         return try #require(project.tasks.first { $0.title == title }).id
     }
+
+    // MARK: - FR-KAIRO-FMT-6：保存输出格式版本
+
+    @Test func fr_kairo_fmt_6_cliProjectCommandsPrintFormatVersion() throws {
+        let scratch = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: scratch.dir) }
+        let file = scratch.kairo
+        let line = "格式版本：v\(KairoFile.currentFormatVersion)"
+
+        let createOutput = try captureStdout {
+            try CLIRouter.execute(arguments: ["project", "create", "版本输出", "--file", file.path])
+        }
+        #expect(createOutput.contains(line))
+
+        let saveOutput = try captureStdout {
+            try CLIRouter.execute(arguments: ["project", "save", "--file", file.path])
+        }
+        #expect(saveOutput.contains(line))
+        #expect(!saveOutput.contains("已从 v"))
+
+        let openOutput = try captureStdout {
+            try CLIRouter.execute(arguments: ["project", "open", file.path])
+        }
+        #expect(openOutput.contains(line))
+    }
+
+    @Test func fr_kairo_fmt_6_cliFormatVersionLineRendersUpgradeSource() throws {
+        let current = KairoFile.currentFormatVersion
+        #expect(CLIRouter.formatVersionLine(written: current, upgradedFrom: nil) == "格式版本：v\(current)")
+        #expect(
+            CLIRouter.formatVersionLine(written: current, upgradedFrom: current)
+                == "格式版本：v\(current)"
+        )
+        #expect(
+            CLIRouter.formatVersionLine(written: current, upgradedFrom: current - 1)
+                == "格式版本：v\(current)（已从 v\(current - 1) 升级）"
+        )
+    }
 }

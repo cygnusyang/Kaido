@@ -85,6 +85,7 @@ struct CLIRouter {
         _ = try session.saveProject(to: url)
         print("已创建项目：\(shortID(meta.id))「\(meta.title)」")
         print("已保存：\(url.path)")
+        print(formatVersionLine(written: KairoFile.currentFormatVersion, upgradedFrom: nil))
     }
 
     /// kairo project open <路径>：打开并打印项目元数据。
@@ -95,15 +96,30 @@ struct CLIRouter {
         print("项目：\(meta.title)")
         print("项目ID：\(meta.id.uuidString)")
         print("任务数：\(session.project?.tasks.count ?? 0)")
+        print(formatVersionLine(
+            written: session.sourceFormatVersion ?? KairoFile.currentFormatVersion,
+            upgradedFrom: nil
+        ))
     }
 
     /// kairo project save [--file <路径>]：重新保存（默认 ./project.kairo），验证往返。
     private static func projectSave(_ o: Options) throws {
         let session = KairoSession()
         _ = try session.openProject(at: fileURL(o.value(for: "--file")))
+        // 保存会把来源版本置为 current，必须先捕获（FR-KAIRO-FMT-6）。
+        let upgradedFrom = session.sourceFormatVersion
         let meta = try session.saveProject()
         print("已保存：\(session.projectURL?.path ?? "")")
         print("更新于：\(ISO8601DateFormatter().string(from: meta.updatedAt))")
+        print(formatVersionLine(written: KairoFile.currentFormatVersion, upgradedFrom: upgradedFrom))
+    }
+
+    /// 格式版本输出行（FR-KAIRO-FMT-6）：「格式版本：vN（已从 vM 升级）」/「格式版本：vN」。
+    static func formatVersionLine(written: Int, upgradedFrom: Int?) -> String {
+        if let upgradedFrom, upgradedFrom < written {
+            return "格式版本：v\(written)（已从 v\(upgradedFrom) 升级）"
+        }
+        return "格式版本：v\(written)"
     }
 
     // MARK: - task

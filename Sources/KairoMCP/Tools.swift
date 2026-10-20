@@ -91,7 +91,7 @@ struct ToolRegistry {
     ) { args, session in
         let a = try ToolArgs(args)
         let meta = try session.openProject(at: URL(fileURLWithPath: a.string("path")))
-        return try ProjectResults.metadata(meta)
+        return try ProjectResults.metadata(meta, sourceFormatVersion: session.sourceFormatVersion)
     }
 
     private static let projectSave = MCPTool(
@@ -101,12 +101,14 @@ struct ToolRegistry {
     ) { args, session in
         let a = try ToolArgs(args)
         let target = a.optionalString("path").map { URL(fileURLWithPath: $0) }
+        // 保存会把来源版本置为 current，必须先捕获；否则 upgradedFrom 永远丢失。
+        let upgradedFrom = session.sourceFormatVersion
         let meta = try session.saveProject(to: target)
         let path = session.projectURL?.path ?? ""
-        return .object([
-            "savedAt": .string(ISO8601DateFormatter().string(from: meta.updatedAt)),
-            "path": .string(path),
-        ])
+        var result = ProjectResults.formatFields(upgradedFrom: upgradedFrom)
+        result["savedAt"] = .string(ISO8601DateFormatter().string(from: meta.updatedAt))
+        result["path"] = .string(path)
+        return .object(result)
     }
 
     // MARK: task
@@ -386,11 +388,21 @@ struct ToolRegistry {
 
 /// 项目工具结果组装。
 private enum ProjectResults {
-    static func metadata(_ meta: ProjectMetadata) throws -> JSONValue {
-        var result: [String: JSONValue] = [
-            "projectID": .string(meta.id.uuidString),
-            "title": .string(meta.title),
+    /// 目标格式版本；来源版本早于目标时附 `upgradedFrom`（FR-KAIRO-FMT-6）。
+    static func formatFields(upgradedFrom: Int?) -> [String: JSONValue] {
+        var fields: [String: JSONValue] = [
+            "formatVersion": .number(Double(KairoFile.currentFormatVersion)),
         ]
+        if let upgradedFrom, upgradedFrom < KairoFile.currentFormatVersion {
+            fields["upgradedFrom"] = .number(Double(upgradedFrom))
+        }
+        return fields
+    }
+
+    static func metadata(_ meta: ProjectMetadata, sourceFormatVersion: Int? = nil) throws -> JSONValue {
+        var result = formatFields(upgradedFrom: sourceFormatVersion)
+        result["projectID"] = .string(meta.id.uuidString)
+        result["title"] = .string(meta.title)
         let formatter = ISO8601DateFormatter()
         if let start = meta.projectStart { result["projectStart"] = .string(formatter.string(from: start)) }
         if let end = meta.projectEnd { result["projectEnd"] = .string(formatter.string(from: end)) }

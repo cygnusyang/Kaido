@@ -314,7 +314,7 @@ private func makeScratchDir() throws -> (dir: URL, kairo: URL) {
 /// 捕获闭包内 print 写入 stdout 的文本（断言 CLI 文本输出用）。
 /// 通过 dup2 把 fd 1 重定向到管道，并把 stdout 设为无缓冲，保证 print 立即落管；
 /// 读之前先恢复 fd 1、关闭写端，避免 readToEnd 因残留写引用而阻塞。
-private func captureStdout(_ body: () throws -> Void) throws -> String {
+func captureStdout(_ body: () throws -> Void) throws -> String {
     let pipe = Pipe()
     let savedFD = dup(FileHandle.standardOutput.fileDescriptor)
     dup2(pipe.fileHandleForWriting.fileDescriptor, FileHandle.standardOutput.fileDescriptor)
@@ -431,4 +431,51 @@ private func captureStdout(_ body: () throws -> Void) throws -> String {
     )
     let cleared = try toolResult(clear)
     #expect(cleared.objectValue?["assignee"] == nil)
+}
+
+// MARK: - FR-KAIRO-FMT-6：MCP 报告写入版本与升级来源
+
+@Test func fr_kairo_fmt_6_mcpProjectToolsReportFormatVersion() throws {
+    let scratch = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: scratch.dir) }
+    let server = MCPServer()
+    let current = Double(KairoFile.currentFormatVersion)
+
+    let create = try toolResult(try send(
+        server,
+        #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_create","arguments":{"title":"版本报告"}}}"#
+    ))
+    #expect(create.objectValue?["formatVersion"]?.doubleValue == current)
+
+    let save = try toolResult(try send(
+        server,
+        #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"project_save","arguments":{"path":"\#(scratch.kairo.path)"}}}"#
+    ))
+    #expect(save.objectValue?["formatVersion"]?.doubleValue == current)
+    #expect(save.objectValue?["upgradedFrom"] == nil)
+
+    let open = try toolResult(try send(
+        server,
+        #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"project_open","arguments":{"path":"\#(scratch.kairo.path)"}}}"#
+    ))
+    #expect(open.objectValue?["formatVersion"]?.doubleValue == current)
+    #expect(open.objectValue?["upgradedFrom"] == nil)
+}
+
+@Test func fr_kairo_fmt_6_mcpSaveReportsUpgradedFromBeforeOverwrite() throws {
+    let scratch = try makeScratchDir()
+    defer { try? FileManager.default.removeItem(at: scratch.dir) }
+    // 合成旧来源版本（current == 1 时磁盘上不存在合法旧文件，故经会话接缝构造）。
+    let session = KairoSession()
+    let project = Project()
+    project.metadata.title = "旧格式会话"
+    session.adoptProject(project, from: scratch.kairo, formatVersion: 0)
+    let server = MCPServer(session: session)
+
+    let save = try toolResult(try send(
+        server,
+        #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_save","arguments":{"path":"\#(scratch.kairo.path)"}}}"#
+    ))
+    #expect(save.objectValue?["formatVersion"]?.doubleValue == Double(KairoFile.currentFormatVersion))
+    #expect(save.objectValue?["upgradedFrom"]?.doubleValue == 0)
 }
