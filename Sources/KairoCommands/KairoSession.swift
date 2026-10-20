@@ -141,9 +141,10 @@ public final class KairoSession {
 
     /// 接管已在后台解码的项目（应用层异步打开，避免主线程阻塞）。
     ///
-    /// - Parameter formatVersion: 来源文件的格式版本。默认值仅用于接管当前版本
-    ///   （例如测试中直接构造的项目）；打开旧版文件时必须显式传入
-    ///   `DecodedProject.sourceFormatVersion`，否则升级状态会丢失。
+    /// - Parameter formatVersion: 来源文件的格式版本。生产路径的取值为
+    ///   `1...KairoFile.currentFormatVersion`（读取时已校验）；测试接缝可传 0
+    ///   模拟早于首个可迁移版本的来源。默认值仅用于接管已是当前版本的项目；
+    ///   打开旧版文件时必须显式传入 `DecodedProject.sourceFormatVersion`。
     public func adoptProject(
         _ project: Project,
         from url: URL,

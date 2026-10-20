@@ -1078,6 +1078,8 @@ final class WorkspaceStore: ObservableObject {
     /// 文件选择器入口：有未保存修改时先询问，避免静默丢弃工作。
     func openAsync(url: URL) {
         guard !isLoading else {
+            // 早退不进入 finishOpen；清理待恢复的升级提示，避免残留到下一次打开。
+            pendingUpgradeNoticeAfterOpen = nil
             notice = "正在载入项目，请稍后重试打开"
             return
         }
@@ -1169,8 +1171,14 @@ final class WorkspaceStore: ObservableObject {
         saveState = .saved
         needsFormatUpgrade = session.needsFormatUpgrade
         recordDiskVersion(at: session.projectURL)
-        notice = pendingUpgradeNoticeAfterOpen ?? loadWarnings.first
+        // 升级提示与载入警告同时存在时合并展示，避免丢弃唯一的警告消费点。
+        let upgradeNotice = pendingUpgradeNoticeAfterOpen
         pendingUpgradeNoticeAfterOpen = nil
+        if let upgradeNotice, let warning = loadWarnings.first {
+            notice = "\(upgradeNotice)；\(warning)"
+        } else {
+            notice = upgradeNotice ?? loadWarnings.first
+        }
         refresh()
     }
 

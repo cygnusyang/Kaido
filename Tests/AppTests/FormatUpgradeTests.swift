@@ -278,4 +278,109 @@ struct FormatUpgradeTests {
         #expect(store.projectURL?.standardizedFileURL == secondURL.standardizedFileURL)
         #expect(!store.needsFormatUpgrade)
     }
+
+    @Test func fr_kairo_fmt_5_save_and_open_load_failure_clears_pending_notice() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let originalURL = directory.appendingPathComponent("old.kairo")
+        let failedURL = directory.appendingPathComponent("missing.kairo")
+        let thirdURL = directory.appendingPathComponent("third.kairo")
+        try writeProject(at: originalURL, title: "旧版项目")
+        try writeProject(at: thirdURL, title: "第三个项目")
+
+        let store = makeStore(projectLoader: { url in
+            if url.standardizedFileURL == failedURL.standardizedFileURL {
+                throw CocoaError(.fileReadNoSuchFile)
+            }
+            let decoded = try KairoFile.read(from: url)
+            guard url.standardizedFileURL == originalURL.standardizedFileURL else {
+                return decoded
+            }
+            return DecodedProject(
+                project: decoded.project,
+                sourceFormatVersion: KairoFile.currentFormatVersion - 1
+            )
+        })
+        store.openAsync(url: originalURL)
+        try await waitUntilLoaded(store)
+        #expect(store.needsFormatUpgrade)
+
+        store.dispatch(.setProjectTitle("未保存修改"))
+        store.openAsync(url: failedURL)
+        #expect(store.pendingOpenURL?.standardizedFileURL == failedURL.standardizedFileURL)
+        store.saveAndOpenPending()
+        try await waitUntilLoaded(store)
+
+        #expect(store.alertMessage != nil)
+        #expect(store.projectURL?.standardizedFileURL == originalURL.standardizedFileURL)
+        #expect(!store.needsFormatUpgrade)
+
+        // 待恢复提示已随失败清理：下一次成功打开不显示上次的升级提示。
+        store.alertMessage = nil
+        store.openAsync(url: thirdURL)
+        try await waitUntilLoaded(store)
+        #expect(store.notice?.contains("已升级") != true)
+        #expect(store.exportProject.metadata.title == "第三个项目")
+    }
+
+    @Test func fr_kairo_fmt_5_save_and_open_without_upgrade_has_no_upgrade_notice() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let firstURL = directory.appendingPathComponent("first.kairo")
+        let secondURL = directory.appendingPathComponent("second.kairo")
+        try writeProject(at: firstURL, title: "第一个项目")
+        try writeProject(at: secondURL, title: "第二个项目")
+
+        let store = makeStore()
+        #expect(store.open(url: firstURL))
+        store.dispatch(.setProjectTitle("未保存修改"))
+        store.openAsync(url: secondURL)
+        #expect(store.pendingOpenURL?.standardizedFileURL == secondURL.standardizedFileURL)
+
+        store.saveAndOpenPending()
+        try await waitUntilLoaded(store)
+
+        #expect(store.notice?.contains("已升级") != true)
+        #expect(store.projectURL?.standardizedFileURL == secondURL.standardizedFileURL)
+        #expect(!store.needsFormatUpgrade)
+    }
+
+    @Test func fr_kairo_fmt_5_save_and_open_merges_upgrade_notice_and_warning() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let originalURL = directory.appendingPathComponent("old.kairo")
+        let warningURL = directory.appendingPathComponent("warning.kairo")
+        try writeProject(at: originalURL, title: "旧版项目")
+
+        // 有子项但类型不是群组：载入时规范化并产生唯一一条 loadWarning。
+        let warningProject = Project()
+        warningProject.metadata.title = "带警告项目"
+        let parent = TaskItem(title: "父任务", kind: .task)
+        let child = TaskItem(title: "子任务", kind: .task, parentID: parent.id)
+        warningProject.tasks = [parent, child]
+        try KairoFile.save(warningProject, to: warningURL)
+
+        let store = makeStore(projectLoader: { url in
+            let decoded = try KairoFile.read(from: url)
+            guard url.standardizedFileURL == originalURL.standardizedFileURL else {
+                return decoded
+            }
+            return DecodedProject(
+                project: decoded.project,
+                sourceFormatVersion: KairoFile.currentFormatVersion - 1
+            )
+        })
+        store.openAsync(url: originalURL)
+        try await waitUntilLoaded(store)
+        store.dispatch(.setProjectTitle("未保存修改"))
+        store.openAsync(url: warningURL)
+
+        store.saveAndOpenPending()
+        try await waitUntilLoaded(store)
+
+        let notice = try #require(store.notice)
+        #expect(notice.contains("已升级到 v\(KairoFile.currentFormatVersion)"))
+        #expect(notice.contains("已按群组处理"))
+        #expect(!store.needsFormatUpgrade)
+    }
 }
