@@ -313,7 +313,7 @@ Kairo/
 | ADR-009 | 现有 `assignee: String?` 迁移为资源分配（`TaskAssignment`），保留便捷显示 | 已接受 | 04-glossary「分配」；F-22-08/F-23-01；迁移兼容 |
 | ADR-010 | MVP 期自实现最小 stdio JSON-RPC（零第三方依赖，仅 initialize/tools 列表/工具调用 三组方法），Phase 2 复核官方 Swift MCP SDK | 已接受 | 2026-10-17 lead 裁定；协议面小可全量测试，消除 SDK 演进风险；接口契约（ADR-005）不受影响 |
 | ADR-012 | 嵌套可选结构（如 WBSNode.children）一律自定义 `init(from:)`，禁用合成 Codable 的必填语义 | 已接受 | Sprint 1 回顾 P3；叶子节点解码失败教训 |
-| ADR-011 | `.kairo` 读写兼容规则：文件携带 `formatVersion`；读取忽略未知字段（前向兼容）；字段只增不改语义 | 已接受 | 2026-10-17 lead 裁定；JSON 人工可读、AI 可写、git 友好（ADR-003 补充） |
+| ADR-011 | `.kairo` 读写兼容规则：文件携带 `formatVersion`；读取忽略未知字段（前向兼容）；字段只增不改语义；读取 1…current 并按序迁移，拒绝更高版本；保存恒写 current | 已接受 | 2026-10-17 lead 裁定，2026-10-20 补充迁移策略；JSON 人工可读、AI 可写、git 友好（ADR-003 补充） |
 | ADR-013 | 引入 Foundation-only 呈现层 `KairoPresentation`：视图只消费 `WorkspaceSnapshot` 并发出 `WorkspaceAction`；所有写入经 `KairoSession` 唯一写路径；排期缓存按写置脏、按读重算 | 已接受 | 2026-10-18 lead 裁定；UI 与 MCP/CLI 语义同源；快照边界支撑多平台与可测试性。详见 §6.1 |
 
 ### ADR-013 呈现层与唯一写路径（Sprint 4）
@@ -375,5 +375,5 @@ KairoMCP / KairoCLI → KairoCommands → KairoCore
 
 1. **Swift MCP SDK**：选择官方还是社区维护的 SDK，需在 Sprint 1 复核活跃度；若不足，可自实现最小 MCP JSON-RPC 传输（工具面小、成本可控）。
 2. **Linux CI**：Swift Linux 工具链版本与镜像需在 Sprint 0 确认（见 [03-roadmap.md](03-roadmap.md) 风险 R1）。
-3. **`.kairo` 向后兼容策略**：`fileVersion` 的升级策略（严格拒绝 vs 迁移）需在首个破坏性版本出现前定稿。
+3. **`.kairo` 向后兼容策略**：已于 2026-10-20 定稿——读取 1…current 并顺序迁移，拒绝更高版本；保存恒写 current（ADR-011）。
 4. **monorepo 与现有仓库关系**：重构 `Sources/Kairo/` → `KairoCore` 的动作是否独立提交、是否保留旧 tag，需在 Sprint 0 计划会确认。

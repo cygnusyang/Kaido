@@ -100,3 +100,45 @@ import Testing
     #expect(loaded.metadata.title == "磁盘往返")
     #expect(loaded.tasks.count == 1)
 }
+
+// MARK: - 格式版本与迁移（FR-KAIRO-FMT）
+
+@Test func fr_kairo_fmt_1_read_current_file_reports_current_source_version() throws {
+    let project = Project()
+    project.metadata.title = "当前版本"
+    project.add(TaskItem(title: "任务"))
+    let data = try KairoFile.encode(project: project)
+
+    let decoded = try KairoFile.read(from: data)
+
+    #expect(decoded.sourceFormatVersion == KairoFile.currentFormatVersion)
+    #expect(decoded.project.metadata.title == "当前版本")
+    #expect(decoded.project.tasks.count == 1)
+}
+
+@Test func fr_kairo_fmt_5_encode_always_writes_current_version() throws {
+    let project = Project()
+    project.metadata.title = "编码版本"
+    let data = try KairoFile.encode(project: project)
+
+    let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+    let root = try #require(object)
+    #expect(root["formatVersion"] as? Int == KairoFile.currentFormatVersion)
+}
+
+@Test func fr_kairo_fmt_5_legacy_file_resaves_as_current_version_and_reopens() throws {
+    // 缺少 resources 的旧信封：读取时回填默认值，另存后固定写当前版本。
+    let legacy = #"{"formatVersion":1,"project":{"id":"\#(UUID().uuidString)","title":"旧项目","createdAt":"2026-10-17T00:00:00Z","updatedAt":"2026-10-17T00:00:00Z"},"tasks":[]}"#
+    let decoded = try KairoFile.read(from: Data(legacy.utf8))
+    #expect(decoded.sourceFormatVersion == KairoFile.currentFormatVersion)
+    #expect(decoded.project.resources.isEmpty)
+
+    let resaved = try KairoFile.encode(project: decoded.project)
+    let resavedObject = try JSONSerialization.jsonObject(with: resaved) as? [String: Any]
+    let root = try #require(resavedObject)
+    #expect(root["formatVersion"] as? Int == KairoFile.currentFormatVersion)
+
+    let reopened = try KairoFile.read(from: resaved)
+    #expect(reopened.project.metadata.title == "旧项目")
+    #expect(reopened.sourceFormatVersion == KairoFile.currentFormatVersion)
+}
