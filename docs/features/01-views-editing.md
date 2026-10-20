@@ -338,8 +338,8 @@
 - **手册依据**：第14章「在甘特图中编辑」→ 绘制/删除相关性线、绘制任务的时限、手动安排任务、改变任务持续时间、调整任务完成情况
 - **OmniPlan 行为**：从任务条首/尾拖箭头建相关性线、点选按 Delete 删线；Shift-拖拽任务首/尾创建设定时限（再 Shift-连按移除）；水平拖动任务条 = 手动安排（安排类型置为手动）；拖任务条右端牵引条改持续时间（Shift 取整）；拖任务条内房子形白点更新完成度。
 - **核心数据/逻辑**：拖拽手势 → 写回 `startDate/dueDate/duration/progress/constraints/dependencies`；手动安排标记 `schedulingType = .manual`。
-- **Kairo 实现方案**：Sprint 4 不实现画布拖拽。画布不得注册条体拖拽或依赖连线拖拽手势，避免出现「可拖但不可提交」的半成品。本期依赖创建只从检查器进入；拖条改期与拖端点改持续需要 `scheduleMode` 与命令层支持，保留 P1。
-- **优先级**：P1（延后至 Sprint 4 之后）
+- **Kairo 实现方案**：Sprint 7 已实现画布拖拽（v0.4.0，设计稿 docs/archive/Sprint7-gantt-direct-edit/design.md）：拖条体 = 显式 startDate 锚定（等价手动安排语义）；拖右端 = durationDays（start 不变）；拖左端 = startDate + duration 同变（end 不变）；条端点外环带拖出建 FS 依赖线（方向决定前后驱，环检测复用 DependencyEditing）；点选依赖线 + Delete 删线。手势经 `CanvasDragSession` 状态机（100ms 节流 + finish 必提交末值）与 `GanttHitTesting` 纯函数命中测试；命令层复用 `updateTask(id:patch:)` / `addDependency` / `removeDependency`，零改动。里程碑仅拖改期；群组聚合条不可拖。时限绘制、进度白点拖拽留后续。
+- **优先级**：P1（已于 Sprint 7 完成）
 
 ### F-14-10 更新任务完成情况
 - **手册依据**：第14章「更新任务完成情况」

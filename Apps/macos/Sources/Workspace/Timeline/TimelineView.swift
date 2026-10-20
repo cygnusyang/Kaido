@@ -109,9 +109,33 @@ struct TimelineBody: View {
     let viewportHeight: CGFloat
 
     @State private var hoveredTaskID: UUID?
+    /// 画布拖拽状态机（F-14-09）：引用语义跨重渲染持久，手势只驱动不内联逻辑。
+    @State private var dragSession: CanvasDragSession?
+    /// 点选中的依赖线（视图交互态，不进持久化 view state）。
+    @State private var selectedDependencyIndex: Int?
 
     private var contentHeight: CGFloat {
         CGFloat(rows.count) * DesignTokens.rowHeight
+    }
+
+    /// 拖拽状态机懒创建：提交闭包把状态机请求映射为 WorkspaceAction。
+    private var drag: CanvasDragSession {
+        if let dragSession { return dragSession }
+        let session = CanvasDragSession { commit in
+            switch commit {
+            case .move(let id, let startDate):
+                store.dispatch(.canvasEditSchedule(id, startDate: startDate, durationDays: nil))
+            case .resize(let id, let startDate, let durationDays):
+                store.dispatch(.canvasEditSchedule(id, startDate: startDate, durationDays: durationDays))
+            case .link(let taskID, let predecessorID):
+                store.dispatch(.addDependency(
+                    taskID: taskID, predecessorID: predecessorID,
+                    type: .fs, lagDays: 0
+                ))
+            }
+        }
+        dragSession = session
+        return session
     }
 
     var body: some View {
@@ -137,12 +161,104 @@ struct TimelineBody: View {
                     }
                 }
                 .gesture(SpatialTapGesture().onEnded { value in
-                    guard let id = taskID(at: value.location, offset: offset) else { return }
-                    store.dispatch(.select(id))
+                    handleTap(value.location, offset: offset)
                 })
+                // F-14-09：拖条改期 / 拖端点改持续 / 拖出建依赖（经 CanvasDragSession 节流提交）。
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 2)
+                        .onChanged { value in
+                            handleDragChanged(value, offset: offset)
+                        }
+                        .onEnded { _ in
+                            drag.finish()
+                        }
+                )
             }
         }
+        .focusable()
+        // 依赖线点选后按 Delete/Backspace 删除（仅画布持有焦点时触发，不劫持文本框）。
+        .onKeyPress(.delete, phases: .down) { _ in
+            deleteSelectedDependency()
+        }
+        // Escape 取消进行中的拖拽（丢弃预览，不产生提交）。
+        .onExitCommand {
+            drag.cancel()
+        }
+        .onChange(of: gantt.dependencies) { _, _ in
+            // 快照刷新后索引语义失效，清空点选（内容未变时 Equatable 不触发）。
+            selectedDependencyIndex = nil
+        }
         .frame(width: width, alignment: .topLeading)
+    }
+
+    private func handleTap(_ point: CGPoint, offset: CGFloat) {
+        let hit = GanttHitTesting.hitTest(
+            pointX: point.x, pointY: point.y, canvasOffset: offset,
+            bars: gantt.bars, dependencies: gantt.dependencies,
+            rowHeight: DesignTokens.rowHeight, dayWidth: gantt.dayWidth
+        )
+        if case .dependencyLine(let index) = hit {
+            selectedDependencyIndex = index
+            return
+        }
+        selectedDependencyIndex = nil
+        guard let id = taskID(at: point, offset: offset) else { return }
+        store.dispatch(.select(id))
+    }
+
+    private func deleteSelectedDependency() -> KeyPress.Result {
+        guard let index = selectedDependencyIndex,
+              gantt.dependencies.indices.contains(index) else { return .ignored }
+        let dependency = gantt.dependencies[index]
+        store.dispatch(.removeDependency(
+            taskID: dependency.successorID, predecessorID: dependency.predecessorID
+        ))
+        selectedDependencyIndex = nil
+        return .handled
+    }
+
+    private func handleDragChanged(_ value: DragGesture.Value, offset: CGFloat) {
+        // 首次回调按起点命中进入对应模式；起点命中空白/依赖线则整段手势不进入。
+        if drag.preview == nil {
+            let target = GanttHitTesting.hitTest(
+                pointX: value.startLocation.x, pointY: value.startLocation.y,
+                canvasOffset: offset, bars: gantt.bars, dependencies: gantt.dependencies,
+                rowHeight: DesignTokens.rowHeight, dayWidth: gantt.dayWidth
+            )
+            guard let bar = draggableBar(for: target) else { return }
+            drag.begin(target: target, anchor: anchor(for: bar))
+        }
+        // 连线目标：光标所在行有任务条即为目标（含群组/里程碑）。
+        let targetID = taskID(at: value.location, offset: offset)
+        drag.update(
+            translationX: value.translation.width,
+            pointX: value.location.x,
+            pointY: value.location.y,
+            canvasOffset: offset,
+            targetID: targetID
+        )
+    }
+
+    /// 可拖拽命中的条（依赖线与空白不可拖）。
+    private func draggableBar(for target: GanttDragTarget) -> GanttBar? {
+        let id: UUID
+        switch target {
+        case .body(let value), .startHandle(let value), .endHandle(let value),
+             .dependencyStart(let value), .dependencyEnd(let value):
+            id = value
+        case .dependencyLine, .none:
+            return nil
+        }
+        return gantt.bars.first { $0.taskID == id }
+    }
+
+    private func anchor(for bar: GanttBar) -> CanvasDragSession.Anchor {
+        CanvasDragSession.Anchor(
+            bar: bar,
+            durationDays: max(bar.width / max(gantt.dayWidth, 0.5), 0),
+            windowStart: gantt.windowStart,
+            dayWidth: gantt.dayWidth
+        )
     }
 
     private func taskID(at point: CGPoint, offset: CGFloat) -> UUID? {
@@ -201,6 +317,137 @@ struct TimelineBody: View {
 
         drawDependencies(context: &context, size: size, offset: offset)
         drawBars(context: &context, size: size, offset: offset, firstRow: firstRow, lastRow: lastRow)
+        drawDragPreview(context: &context, size: size, offset: offset)
+    }
+
+    /// 拖拽预览（F-14-09）：拖拽中叠加虚线框 / 连线；无拖拽时零绘制（A7 基线不变）。
+    private func drawDragPreview(
+        context: inout GraphicsContext,
+        size: CGSize,
+        offset: CGFloat
+    ) {
+        guard let session = dragSession, let preview = session.preview else { return }
+        switch preview {
+        case .bar(let barPreview):
+            drawBarPreview(context: &context, size: size, offset: offset, preview: barPreview)
+        case .link(let linkPreview):
+            drawLinkPreview(context: &context, size: size, offset: offset, preview: linkPreview)
+        }
+    }
+
+    private func drawBarPreview(
+        context: inout GraphicsContext,
+        size: CGSize,
+        offset: CGFloat,
+        preview: CanvasDragSession.BarPreview
+    ) {
+        let bar = preview.bar
+        let top = CGFloat(bar.rowIndex) * DesignTokens.rowHeight - offset
+        guard top > -DesignTokens.rowHeight, top < size.height else { return }
+        let x = CGFloat(preview.startDay) * gantt.dayWidth
+        let previewWidth = CGFloat(preview.durationDays) * gantt.dayWidth
+
+        if bar.kind == .milestone {
+            // 里程碑：预览菱形。
+            let center = CGPoint(x: x + 5, y: top + 14)
+            var diamond = Path()
+            diamond.move(to: CGPoint(x: center.x, y: center.y - 5))
+            diamond.addLine(to: CGPoint(x: center.x + 5, y: center.y))
+            diamond.addLine(to: CGPoint(x: center.x, y: center.y + 5))
+            diamond.addLine(to: CGPoint(x: center.x - 5, y: center.y))
+            diamond.closeSubpath()
+            context.stroke(
+                diamond,
+                with: .color(DesignTokens.accentStrong.opacity(0.8)),
+                style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])
+            )
+            drawPreviewLabel(
+                context: &context, size: size,
+                text: Self.previewDateText(startDay: preview.startDay, windowStart: gantt.windowStart),
+                x: center.x + 9, y: center.y
+            )
+            return
+        }
+
+        let height: CGFloat = bar.kind == .group ? 10 : 14
+        let y = top + (DesignTokens.rowHeight - height) / 2
+        let rect = CGRect(x: x, y: y, width: max(previewWidth, 1), height: height)
+        guard rect.minY < size.height, rect.maxY > 0 else { return }
+        context.stroke(
+            Path(roundedRect: rect, cornerRadius: bar.kind == .group ? 2 : 3),
+            with: .color(DesignTokens.accentStrong.opacity(0.8)),
+            style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])
+        )
+        var label = Self.previewDateText(startDay: preview.startDay, windowStart: gantt.windowStart)
+        if preview.durationDays > 0 {
+            let days = Int(preview.durationDays.rounded())
+            label += " · \(days) 天"
+        }
+        drawPreviewLabel(context: &context, size: size, text: label, x: rect.maxX + 6, y: rect.midY)
+    }
+
+    private func drawLinkPreview(
+        context: inout GraphicsContext,
+        size: CGSize,
+        offset: CGFloat,
+        preview: CanvasDragSession.LinkPreview
+    ) {
+        // 目标条高亮。
+        if let targetID = preview.targetID, let bar = gantt.bars.first(where: { $0.taskID == targetID }) {
+            let top = CGFloat(bar.rowIndex) * DesignTokens.rowHeight - offset
+            let height: CGFloat = bar.kind == .group ? 10 : 14
+            let rect = CGRect(
+                x: CGFloat(bar.x), y: top + (DesignTokens.rowHeight - height) / 2,
+                width: max(CGFloat(bar.width), 1), height: height
+            )
+            context.stroke(
+                Path(roundedRect: rect.insetBy(dx: -2, dy: -2), cornerRadius: 4),
+                with: .color(DesignTokens.accentStrong.opacity(0.9)),
+                lineWidth: 2
+            )
+        }
+        let source = preview.sourceBar
+        let startX = preview.isFromEnd
+            ? CGFloat(source.x + max(source.width, 1))
+            : CGFloat(source.x)
+        let startY = CGFloat(source.rowIndex) * DesignTokens.rowHeight + 14 - offset
+        let end = CGPoint(x: preview.pointX, y: preview.pointY - offset)
+        var line = Path()
+        line.move(to: CGPoint(x: startX, y: startY))
+        line.addLine(to: end)
+        context.stroke(
+            line,
+            with: .color(DesignTokens.accentStrong.opacity(0.9)),
+            style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])
+        )
+        drawArrow(context: &context, from: CGPoint(x: startX, y: startY), to: end, color: DesignTokens.accentStrong.opacity(0.9))
+    }
+
+    private static let previewDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M月d日"
+        return formatter
+    }()
+
+    private static func previewDateText(startDay: Int, windowStart: Date) -> String {
+        previewDateFormatter.string(from: windowStart.addingTimeInterval(Double(startDay) * 86_400))
+    }
+
+    private func drawPreviewLabel(
+        context: inout GraphicsContext,
+        size: CGSize,
+        text: String,
+        x: CGFloat,
+        y: CGFloat
+    ) {
+        guard x < size.width else { return }
+        context.draw(
+            Text(text)
+                .font(.system(size: DesignTokens.captionFontSize, weight: .semibold))
+                .foregroundStyle(DesignTokens.accentStrong),
+            at: CGPoint(x: x, y: y),
+            anchor: .leading
+        )
     }
 
     private func drawBands(context: inout GraphicsContext, size: CGSize) {
@@ -237,19 +484,22 @@ struct TimelineBody: View {
         size: CGSize,
         offset: CGFloat
     ) {
-        for dependency in gantt.dependencies {
+        for (index, dependency) in gantt.dependencies.enumerated() {
             let related = activeTaskID.map {
                 dependency.predecessorID == $0 || dependency.successorID == $0
             } ?? false
+            let isSelected = index == selectedDependencyIndex
             let color: Color
-            if dependency.isCritical && gantt.showsCriticalPath {
+            if isSelected {
+                color = DesignTokens.accentStrong
+            } else if dependency.isCritical && gantt.showsCriticalPath {
                 color = DesignTokens.criticalGraphic
             } else {
                 color = DesignTokens.dependency
             }
-            let opacity: Double = activeTaskID == nil || related ? 1 : 0.2
+            let opacity: Double = activeTaskID == nil || related || isSelected ? 1 : 0.2
             let baseWidth: CGFloat = dependency.isCritical && gantt.showsCriticalPath ? 1.5 : 1
-            let lineWidth: CGFloat = related ? max(baseWidth, 1.5) : baseWidth
+            let lineWidth: CGFloat = isSelected ? 2.5 : (related ? max(baseWidth, 1.5) : baseWidth)
 
             var path = Path()
             for segment in dependency.segments {

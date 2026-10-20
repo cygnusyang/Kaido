@@ -542,6 +542,17 @@ final class WorkspaceStore: ObservableObject {
                 try self.session.updateTask(id: id, patch: patch)
             }
 
+        case .canvasEditSchedule(let id, let startDate, let durationDays):
+            // F-14-09 画布拖拽：同一 mergeKey 在连续节流提交间合并为一步撤销。
+            // move 只带 startDate；resize 右端只带 durationDays；resize 左端两者都带。
+            let mergeKey = durationDays == nil ? "canvas-move-\(id)" : "canvas-resize-\(id)"
+            update(id: id, mergeKey: mergeKey) {
+                var patch = TaskPatch()
+                if let startDate { patch.startDate = .set(startDate) }
+                if let durationDays { patch.durationDays = .set(durationDays) }
+                try self.session.updateTask(id: id, patch: patch)
+            }
+
         case .move(let id, let parentID, let index):
             update(id: id, mergeKey: nil) {
                 try self.session.moveTask(id: id, toParent: parentID, at: index)

@@ -5,7 +5,12 @@
 
 ## Unreleased
 
-（暂无）
+### 新增
+
+- **甘特图直接编辑（F-14-09）**：画布支持拖条改期（日粒度吸附，显式锚定开始日期）、拖右端点改持续、拖左端点改开始（结束不变）；从条端点外环带拖出绘制依赖线（FS / lag 0，拖出方向决定前后驱，成环自动拒绝）；点选依赖线后按 Delete/Backspace 删除。拖拽中显示虚线预览与目标日期标签，松手生效，Escape 取消。
+- 交互架构：`GanttHitTesting` 纯函数命中测试（KairoPresentation，区域表全分支单测）+ `CanvasDragSession` 引用语义节流状态机（100ms 节流、松手必提交末值、同值去重）；长拖拽多笔提交经撤销合并键（`canvas-move-*` / `canvas-resize-*`）并为一步撤销。命令层复用 `updateTask(id:patch:)` 与依赖动作，零改动。
+- 对象适配：里程碑仅拖改期（菱形端点退化为条体）；群组聚合条不可拖（由子任务推导）；群组/里程碑仍可作依赖端点。
+- 设计稿：docs/archive/Sprint7-gantt-direct-edit/design.md；ui-redesign §10「画布禁拖」约束随本特性解除。
 
 ## v0.3.1 — 2026-10-20
 
