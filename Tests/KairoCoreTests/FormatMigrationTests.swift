@@ -298,7 +298,7 @@ private func capturedError<T>(_ body: () throws -> T) -> Error? {
 }
 
 @Test func fr_kairo_fmt_4_failed_migration_writes_nothing() throws {
-    // 经 read 端到端触发步骤抛错；源文件字节与 mtime 均不得变化。
+    // 经 URL read 端到端触发步骤抛错；源文件字节、mtime 与目录清单均不得变化。
     let directory = try temporaryDirectory()
     defer { try? FileManager.default.removeItem(at: directory) }
     let sourceURL = directory.appendingPathComponent("source.kairo")
@@ -308,7 +308,7 @@ private func capturedError<T>(_ body: () throws -> T) -> Error? {
 
     let plan = FormatMigrationPlan([ThrowingMigration(toVersion: 2)])
     let error = capturedError {
-        try KairoFile.read(from: sourceBytes, targetVersion: 2, plan: plan)
+        try KairoFile.read(from: sourceURL, targetVersion: 2, plan: plan)
     }
 
     guard let kairoError = error as? KairoFileError,

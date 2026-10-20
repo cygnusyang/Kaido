@@ -125,8 +125,17 @@ public enum KairoFile {
         from url: URL,
         plan: FormatMigrationPlan = .standard
     ) throws -> DecodedProject {
+        try read(from: url, targetVersion: currentFormatVersion, plan: plan)
+    }
+
+    /// 从指定 URL 读取并迁移到指定目标版本（internal 测试接缝；生产路径目标恒为当前版本）。
+    static func read(
+        from url: URL,
+        targetVersion: Int,
+        plan: FormatMigrationPlan
+    ) throws -> DecodedProject {
         let data = try Data(contentsOf: url)
-        return try read(from: data, plan: plan)
+        return try read(from: data, targetVersion: targetVersion, plan: plan)
     }
 
     /// 从指定 URL 加载项目；按需迁移到当前格式。
