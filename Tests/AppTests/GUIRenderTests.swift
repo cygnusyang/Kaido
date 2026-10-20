@@ -98,6 +98,18 @@ struct GUIRenderTests {
         #expect(day.differenceRatio(from: month) > Threshold.contentChange)
     }
 
+    /// 自定义日宽确实改变画面（刻度密度与条体宽度随单一标量日宽变化）。
+    @Test func customDayWidthChangesRender() throws {
+        let store = makeStore()
+        let baseline = try snapshot(makeWorkspace(store))
+
+        store.dispatch(.setCustomDayWidth(24))
+        let custom = try snapshot(makeWorkspace(store))
+
+        #expect(store.snapshot.gantt.dayWidth == 24)
+        #expect(custom.differenceRatio(from: baseline) > Threshold.contentChange)
+    }
+
     @Test func findBarChangesRenderWhenOpened() throws {
         let store = makeStore()
         let withoutBar = try snapshot(makeWorkspace(store))

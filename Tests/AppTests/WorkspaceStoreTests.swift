@@ -118,7 +118,8 @@ struct WorkspaceStoreTests {
 
     @Test func catalogIsSingleSourceForMenuAndPalette() {
         let commands = makeCatalog(makeStore())
-        #expect(commands.count == 24)
+        // 24 条基线 + 日宽调节 3 条（加宽 / 收窄 / 重置，Sprint 6 / T3）。
+        #expect(commands.count == 27)
         #expect(Set(commands.map(\.id)).count == commands.count)
         #expect(Set(commands.map(\.group)) == Set(["文件", "编辑", "大纲", "任务", "视图", "查找"]))
         #expect(commands.allSatisfy { !$0.title.isEmpty })
