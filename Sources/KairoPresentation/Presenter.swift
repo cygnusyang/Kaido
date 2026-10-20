@@ -183,7 +183,19 @@ public enum WorkspacePresenter {
 
         // 大纲编号按可见树计算；筛选时编号反映当前可见层级。
         // `counters[d]` 记录层级 d 的当前序号；进入更深层级时补位，返回上层时保留上层计数。
+        // 先整体算出 任务 ID → 大纲编号 映射（US-E4-01-C4：前置列展示前置任务编号需全量可见行）。
         var counters: [Int] = []
+        var outlineNumberByID: [UUID: String] = [:]
+        outlineNumberByID.reserveCapacity(tree.rows.count)
+        for row in tree.rows {
+            let level = row.depth + 1
+            if counters.count > level { counters.removeLast(counters.count - level) }
+            while counters.count < level { counters.append(0) }
+            counters[row.depth] += 1
+            outlineNumberByID[row.task.id] = counters.map(String.init).joined(separator: ".")
+        }
+
+        counters = []
         var planRows: [PlanRow] = []
         planRows.reserveCapacity(tree.rows.count)
         for row in tree.rows {
@@ -219,7 +231,9 @@ public enum WorkspacePresenter {
                 scheduledFinish: finish,
                 durationDays: duration,
                 assignee: task.assignee,
-                predecessorsText: Self.predecessorsText(task.dependencies),
+                predecessorsText: Self.predecessorsText(
+                    task.dependencies, outlineNumberByID: outlineNumberByID
+                ),
                 progress: row.aggregateProgress,
                 isAggregate: isGroup,
                 hasChildren: row.hasChildren,
@@ -720,10 +734,16 @@ public enum WorkspacePresenter {
         }
     }
 
-    /// 前置任务摘要：`A8FC:fs`，带延隔时 `A8FC:fs+1.5`，多项逗号分隔（对齐 PM 软件的前置列）。
-    static func predecessorsText(_ dependencies: [TaskDependency]) -> String {
+    /// 前置任务摘要：`1:fs`，带延隔时 `1:fs+1.5`，多项逗号分隔（US-E4-01-C4 以大纲编号展示）。
+    /// 前置任务不在当前可见行（折叠/筛选隐藏）时回退到 ID 前缀。
+    static func predecessorsText(
+        _ dependencies: [TaskDependency],
+        outlineNumberByID: [UUID: String]
+    ) -> String {
         dependencies.map { dep in
-            var text = "\(dep.predecessorID.uuidString.prefix(4).uppercased()):\(dep.type.rawValue)"
+            let number = outlineNumberByID[dep.predecessorID]
+                ?? String(dep.predecessorID.uuidString.prefix(4).uppercased())
+            var text = "\(number):\(dep.type.rawValue)"
             if dep.lagDays != 0 {
                 text += "+\(dep.lagDays.formatted())"
             }

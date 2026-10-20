@@ -850,8 +850,84 @@ struct WorkspaceStoreTests {
         #expect(dependencies[0].predecessorID == backend.id)
         #expect(dependencies[0].type == .ss)
         #expect(dependencies[0].lagDays == 1)
+        // US-E4-01-C4：前置列以大纲编号形式展示（搭建 CI 流水线 = 编号 8）。
         let row = try row(store, "实现搜索后端")
-        #expect(row.predecessorsText.hasPrefix(backend.id.uuidString.prefix(4).uppercased()))
+        #expect(row.predecessorsText.hasPrefix("8:"))
+    }
+
+    @Test func predecessorColumnAcceptsOutlineNumber() throws {
+        let store = makeStore()
+        let backend = try task(store, "搭建 CI 流水线") // 编号 8
+        let frontend = try task(store, "实现搜索后端") // 编号 1
+
+        // US-E4-01-C1：纯数字大纲编号。
+        store.dispatch(.setPredecessors(frontend.id, "8"))
+        var dependencies = try #require(
+            store.exportProject.tasks.first { $0.id == frontend.id }
+        ).dependencies
+        #expect(dependencies.map(\.predecessorID) == [backend.id])
+
+        // US-E4-01-C2：编号 + 依赖规格后缀。
+        store.dispatch(.setPredecessors(frontend.id, "8:ss:1"))
+        dependencies = try #require(
+            store.exportProject.tasks.first { $0.id == frontend.id }
+        ).dependencies
+        #expect(dependencies.count == 1)
+        #expect(dependencies[0].predecessorID == backend.id)
+        #expect(dependencies[0].type == .ss)
+        #expect(dependencies[0].lagDays == 1)
+    }
+
+    @Test func predecessorColumnAcceptsNestedOutlineNumber() throws {
+        let store = makeStore()
+        let review = try task(store, "Code Review 搜索模块")
+        let backend = try task(store, "实现搜索后端")
+        let spec = try task(store, "撰写技术方案文档") // 编号 10
+
+        // 把 review 缩进为 backend 子项 → 大纲编号 1.1。
+        store.dispatch(.select(review.id))
+        store.dispatch(.indent(review.id))
+
+        store.dispatch(.setPredecessors(spec.id, "1.1"))
+        let dependencies = try #require(
+            store.exportProject.tasks.first { $0.id == spec.id }
+        ).dependencies
+        #expect(dependencies.map(\.predecessorID) == [review.id])
+    }
+
+    @Test func predecessorColumnMixesOutlineNumberAndIDPrefix() throws {
+        let store = makeStore()
+        let backend = try task(store, "搭建 CI 流水线") // 编号 8
+        let design = try task(store, "设计首页原型") // 编号 4
+        let frontend = try task(store, "实现搜索后端")
+
+        // US-E4-01-C3：同一输入中编号与 ID 前缀混用（顿号分隔）。
+        store.dispatch(.setPredecessors(
+            frontend.id, "8、\(String(design.id.uuidString.prefix(4)))"
+        ))
+        let dependencies = try #require(
+            store.exportProject.tasks.first { $0.id == frontend.id }
+        ).dependencies
+        #expect(Set(dependencies.map(\.predecessorID)) == [backend.id, design.id])
+    }
+
+    @Test func predecessorColumnReportsHiddenOrUnknownNumber() throws {
+        let store = makeStore()
+        let frontend = try task(store, "实现搜索后端")
+        let review = try task(store, "Code Review 搜索模块")
+        let backend = try task(store, "实现搜索后端")
+
+        // 不存在的编号 → 提示可能被折叠或筛选隐藏。
+        store.dispatch(.setPredecessors(frontend.id, "99"))
+        #expect(store.alertMessage?.contains("可能被折叠或筛选隐藏") == true)
+        store.alertMessage = nil
+
+        // 折叠群组后其子任务编号不可见 → 同样提示。
+        store.dispatch(.select(review.id))
+        store.dispatch(.indent(review.id))
+        store.dispatch(.toggleExpanded(backend.id))
+        store.dispatch(.setPredecessors(backend.id, "1.1"))
+        #expect(store.alertMessage?.contains("可能被折叠或筛选隐藏") == true)
     }
 
     @Test func predecessorColumnReplacesWholeSet() throws {

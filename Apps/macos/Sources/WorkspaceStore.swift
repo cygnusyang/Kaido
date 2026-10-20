@@ -592,6 +592,11 @@ final class WorkspaceStore: ObservableObject {
             return
         }
 
+        // 当前可见行的大纲编号 → 任务 ID（US-E4-01-C1）；折叠/筛选隐藏的行不在其中。
+        let outlineNumberByID = Dictionary(
+            uniqueKeysWithValues: snapshot.outline.rows.map { ($0.outlineNumber, $0.id) }
+        )
+
         var targets: [UUID: TaskDependency] = [:]
         for spec in specs {
             let parts = spec.split(separator: ":", omittingEmptySubsequences: false)
@@ -613,19 +618,35 @@ final class WorkspaceStore: ObservableObject {
 
             let tasks = session.project?.tasks ?? []
             let resolved: UUID
-            if let id = UUID(uuidString: String(idPart)) {
+            if idPart.contains(".") || (idPart.allSatisfy(\.isNumber) && idPart.count < 4) {
+                // 大纲编号引用（US-E4-01-C1）：含点或 <4 位纯数字按当前可见编号精确匹配；
+                // 被折叠/筛选隐藏的任务报 C3 提示，数据不变。
+                guard let id = outlineNumberByID[String(idPart)] else {
+                    alertMessage = "找不到前置任务：\(idPart)（任务可能被折叠或筛选隐藏）"
+                    return
+                }
+                resolved = id
+            } else if let id = UUID(uuidString: String(idPart)) {
                 resolved = id
             } else {
+                // ID 前缀匹配（US-E4-01-C2 混用路径）：≥4 位纯数字先按前缀，失败再回退大纲编号。
                 let matches = tasks.filter {
                     $0.id.uuidString.lowercased().hasPrefix(idPart.lowercased())
                 }
-                guard matches.count == 1 else {
+                if matches.count == 1 {
+                    resolved = matches[0].id
+                } else if idPart.allSatisfy(\.isNumber) {
+                    guard let id = outlineNumberByID[String(idPart)] else {
+                        alertMessage = "找不到前置任务：\(idPart)（任务可能被折叠或筛选隐藏）"
+                        return
+                    }
+                    resolved = id
+                } else {
                     alertMessage = matches.count > 1
                         ? "前置任务 ID 不唯一：\(idPart)"
                         : "找不到前置任务：\(idPart)"
                     return
                 }
-                resolved = matches[0].id
             }
             if resolved == taskID {
                 alertMessage = "任务不能依赖自身"

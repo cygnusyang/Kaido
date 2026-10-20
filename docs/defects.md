@@ -14,4 +14,5 @@ Sprint 2 回顾行动项 A6：自 Sprint 3 起登记缺陷，供回顾计算缺�
 |---|---|---|---|---|---|
 | D-001 | 2026-10-18 | 3 | 开发自检 | ⌘F 在查找栏已打开时不再聚焦输入框（只处理了「打开」状态变化） | 已修复：加 `findFocusToken`，每次 ⌘F 递增触发聚焦 |
 | D-002 | 2026-10-18 | 3 | 测试 | 首页演示数据未设项目时间线，排期从 1970 纪元起算：甘特显示 1970 年日期，验收 Demo §4 用「昨天」设置时限无法触发违例 | 已修复：`SeedData` 设 `projectStart`/`projectEnd`，`ProjectStore` 载入时应用；新增 `SeedDataTests` 与 `AppTests` 覆盖 |
-| D-003 | 2026-10-18 | 3 | 开发自检 | 除演示项目外，未设项目时间线的项目（如新建空项目）仍从 1970 纪元起算排期，甘特显示 1970 年日期 | 待修复：需定义无时间线项目的默认起点（建议取今天或首个任务意图日期）；Sprint 4 排期模型 |
+| D-003 | 2026-10-18 | 3 | 开发自检 | 除演示项目外，未设项目时间线的项目（如新建空项目）仍从 1970 纪元起算排期，甘特显示 1970 年日期 | 已修复（2026-10-19 核销）：`ScheduleAnchor.derive` 按最早任务推导起点并标记 `projectStartDerived`；`ScheduleAnchorEngineTests` / `ScheduleAnchorTests` / `storeSeedsNoTasksByDefault` 覆盖；随 ADR-013 重设计交付 |
+| D-004 | 2026-10-19 | 4 | 测试 | assignee 传纯空白（如 " "）会存为空格值而非清空；应 trim 后空则置 nil（上版 dev-reviewer LOW-3 顺延项） | 已修复（2026-10-20 核销）：`KairoSession.normalizedAssignee` 统一处理 addTask / 兼容 updateTask / patch `.set` 三条写路径；`TaskPatchTests` 三个用例覆盖；全量 `swift test` 354 个用例通过 |
