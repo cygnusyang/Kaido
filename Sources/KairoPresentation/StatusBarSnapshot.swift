@@ -17,6 +17,8 @@ public struct StatusBarSnapshot: Hashable, Sendable {
     public var hiddenTaskCount: Int
     public var selectionSummary: String?
     public var zoomLabel: String
+    /// 实际日宽读数（点/天），如 "12 点/天" / "12.5 点/天"；与 `zoomLabel` 配合展示。
+    public var zoomDetail: String?
 
     public init(
         health: ProjectSummary.Health,
@@ -32,7 +34,8 @@ public struct StatusBarSnapshot: Hashable, Sendable {
         todayVisible: Bool = false,
         hiddenTaskCount: Int = 0,
         selectionSummary: String? = nil,
-        zoomLabel: String
+        zoomLabel: String,
+        zoomDetail: String? = nil
     ) {
         self.health = health
         self.weightedProgress = weightedProgress
@@ -48,6 +51,7 @@ public struct StatusBarSnapshot: Hashable, Sendable {
         self.hiddenTaskCount = hiddenTaskCount
         self.selectionSummary = selectionSummary
         self.zoomLabel = zoomLabel
+        self.zoomDetail = zoomDetail
     }
 }
 

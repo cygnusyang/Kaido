@@ -79,7 +79,8 @@ final class WorkspaceStore: ObservableObject {
         metadata: ProjectMetadata(), tasks: [], resources: []
     )
 
-    private static let preferencesKey = "kairo.workspace.preferences.v1"
+    /// 视图偏好在 `UserDefaults` 中的键名；测试按此键读写偏好 JSON。
+    static let preferencesKey = "kairo.workspace.preferences.v1"
     private static let clockFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
@@ -94,6 +95,8 @@ final class WorkspaceStore: ObservableObject {
         var expandedTaskIDs: [UUID]
         var zoom: GanttZoom
         var usesFitZoom: Bool
+        /// 自定义日宽（点/天）；旧数据缺省时为 nil，回落档位默认宽度。
+        var customDayWidth: Double?
         var windowStart: Date?
         var inspectorWidth: Double
         var inspectorTab: InspectorTab
@@ -148,6 +151,11 @@ final class WorkspaceStore: ObservableObject {
             state.windowStart = stored.windowStart
             state.inspectorWidth = stored.inspectorWidth
             state.inspectorTab = stored.inspectorTab
+        }
+        // 自定义日宽：载入时归一化（夹取到合法区间），并与「适合项目」互斥（自定义优先）。
+        if let custom = stored?.customDayWidth.map(GanttScale.clampDayWidth) {
+            state.customDayWidth = custom
+            state.usesFitZoom = false
         }
         self.viewState = state
         let viewport = WorkspaceViewport(canvasWidth: 760, canvasHeight: 640)
@@ -326,15 +334,42 @@ final class WorkspaceStore: ObservableObject {
             }
 
         case .setZoom(let zoom):
+            // 预设档位与自定义日宽互斥：选预设即回落默认宽度。
             mutateView {
                 $0.zoom = zoom
                 $0.usesFitZoom = false
+                $0.customDayWidth = nil
             }
 
         case .setFitZoom(let enabled):
+            // fit 与自定义互斥（最后写入者胜）：开启 fit 即清空自定义。
             mutateView {
                 $0.usesFitZoom = enabled
-                if enabled { $0.windowStart = nil }
+                if enabled {
+                    $0.windowStart = nil
+                    $0.customDayWidth = nil
+                }
+            }
+
+        case .setCustomDayWidth(let width):
+            // 手动调宽度自动退出「适合项目」；越界值在此夹取，提交值取整到 0.1。
+            mutateView {
+                $0.customDayWidth = Self.committedDayWidth(width)
+                $0.usesFitZoom = false
+            }
+
+        case .nudgeCustomDayWidth(let delta):
+            // 基准 = 当前生效日宽（fit 模式下取 fit 宽度），结果再夹取并取整到 0.1。
+            let base = snapshot.gantt.dayWidth
+            mutateView {
+                $0.customDayWidth = Self.committedDayWidth(base + delta)
+                $0.usesFitZoom = false
+            }
+
+        case .clearCustomDayWidth:
+            // 清除自定义：回落到当前档位默认宽度（fit 开启时回落到 fit 宽度）。
+            mutateView {
+                $0.customDayWidth = nil
             }
 
         case .panWindow(let date):
@@ -542,6 +577,15 @@ final class WorkspaceStore: ObservableObject {
     }
 
     // MARK: - 变更辅助
+
+    /// 提交自定义日宽：先夹取到合法区间，再取整到 0.1。
+    ///
+    /// 取整放在动作层，保证落盘偏好与状态栏读数一致（核心 `GanttScale.clampDayWidth`
+    /// 只做夹取、不做取整，保持核心接受调用方给定的精度）。
+    private static func committedDayWidth(_ width: Double) -> Double {
+        let clamped = GanttScale.clampDayWidth(width)
+        return (clamped * 10).rounded() / 10
+    }
 
     private func mutateView(_ change: (inout WorkspaceViewState) -> Void) {
         change(&viewState)
@@ -1297,6 +1341,7 @@ final class WorkspaceStore: ObservableObject {
             expandedTaskIDs: Array(viewState.expandedTaskIDs),
             zoom: viewState.zoom,
             usesFitZoom: viewState.usesFitZoom,
+            customDayWidth: viewState.customDayWidth,
             windowStart: viewState.windowStart,
             inspectorWidth: viewState.inspectorWidth,
             inspectorTab: viewState.inspectorTab

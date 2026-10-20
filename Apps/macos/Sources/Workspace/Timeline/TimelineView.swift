@@ -16,8 +16,21 @@ struct TimelineHeaderView: View {
     @State private var panBaseDate: Date?
     @State private var lastPanDays: Int?
 
+    /// 表头下层标签上限：超出后按 stride 抽稀（网格线不抽稀，保持时间网格完整）。
+    private static let maxHeaderLabels = 200
+
     private var upperTicks: [GanttTick] { gantt.ticks.filter(\.isMajor) }
     private var lowerTicks: [GanttTick] { gantt.ticks.filter { !$0.isMajor } }
+
+    /// 需要绘制标签的下层刻度：数量超上限时按 stride 抽稀，避免标签重叠与绘制量爆炸。
+    private var labeledLowerTicks: [GanttTick] {
+        let ticks = lowerTicks
+        guard ticks.count > Self.maxHeaderLabels else { return ticks }
+        let stride = Int((Double(ticks.count) / Double(Self.maxHeaderLabels)).rounded(.up))
+        return ticks.enumerated().compactMap { index, tick in
+            index % stride == 0 ? tick : nil
+        }
+    }
 
     var body: some View {
         Canvas { context, size in
@@ -33,12 +46,13 @@ struct TimelineHeaderView: View {
                 context.stroke(line, with: .color(DesignTokens.grid), lineWidth: 1)
             }
 
-            for tick in lowerTicks {
+            for tick in labeledLowerTicks {
                 let text = Text(tick.label)
                     .font(.system(size: DesignTokens.captionFontSize))
                     .foregroundStyle(DesignTokens.textSecondary)
-                let anchor: UnitPoint = gantt.zoom == .day ? .center : .leading
-                let x = gantt.zoom == .day
+                // 逐日档标签居中于日格；周 / 月档左对齐于刻度线。
+                let anchor: UnitPoint = gantt.tickGranularity == .day ? .center : .leading
+                let x = gantt.tickGranularity == .day
                     ? tick.x + gantt.dayWidth / 2
                     : tick.x + 3
                 context.draw(text, at: CGPoint(x: x, y: 33), anchor: anchor)
@@ -391,7 +405,8 @@ struct TimelineBody: View {
         x: CGFloat,
         y: CGFloat
     ) {
-        guard gantt.showsBarLabels, gantt.zoom != .month else { return }
+        // 条标签在逐月档隐藏（密度过低时标签不可读）；粒度取生效刻度档位。
+        guard gantt.showsBarLabels, gantt.tickGranularity != .month else { return }
         guard x < size.width else { return }
         context.draw(
             Text(text)

@@ -15,6 +15,12 @@ public enum WorkspaceAction: Equatable, Sendable {
     case toggleChartFocus
     case setZoom(GanttZoom)
     case setFitZoom(Bool)
+    /// 设定自定义日宽（内部夹取到 `GanttScale.dayWidthRange`）；进入自定义模式并退出「适合项目」。
+    case setCustomDayWidth(Double)
+    /// 相对步进自定义日宽（基准 = 当前生效日宽；fit 模式下以 fit 宽度为基准）。
+    case nudgeCustomDayWidth(by: Double)
+    /// 清除自定义日宽，回落到当前档位默认宽度（fit 开启时回落到 fit 宽度）。
+    case clearCustomDayWidth
     case panWindow(to: Date)
     case goToToday
 
@@ -71,4 +77,7 @@ public enum WorkspaceAction: Equatable, Sendable {
     case save
     case reloadExternal
     case keepLocal
+
+    /// 清除自定义日宽的便捷构造（与同名 case 共存，便于 `WorkspaceAction.clearCustomDayWidth()` 调用）。
+    public static func clearCustomDayWidth() -> WorkspaceAction { .clearCustomDayWidth }
 }

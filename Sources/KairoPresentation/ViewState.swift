@@ -35,6 +35,11 @@ public struct WorkspaceViewState: Hashable, Sendable {
     public var zoom: GanttZoom
     /// 为 true 时使用「适合项目」日宽，忽略 `zoom.dayWidth` 的绘制宽度。
     public var usesFitZoom: Bool
+    /// 自定义每日宽度（点/天）；非 nil 时为**唯一权威日宽**，覆盖 `zoom.dayWidth`。
+    /// 与 `usesFitZoom` 互斥（最后写入者胜）；呈现层再做一次防御（自定义优先）。
+    /// 动作层写入时夹取到合法区间；呈现层再次夹取兜底。
+    /// 本字段为 public 可变，外部直写可能越界 / NaN。
+    public var customDayWidth: Double?
     /// 自定义窗口起点；nil 时由布局取内容起点或今天。
     public var windowStart: Date?
     public var inspectorVisible: Bool
@@ -58,6 +63,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
         selectedTaskID: UUID? = nil,
         zoom: GanttZoom = .week,
         usesFitZoom: Bool = true,
+        customDayWidth: Double? = nil,
         windowStart: Date? = nil,
         inspectorVisible: Bool = true,
         inspectorWidth: Double = 320,
@@ -77,6 +83,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
         self.selectedTaskID = selectedTaskID
         self.zoom = zoom
         self.usesFitZoom = usesFitZoom
+        self.customDayWidth = customDayWidth
         self.windowStart = windowStart
         self.inspectorVisible = inspectorVisible
         self.inspectorWidth = inspectorWidth

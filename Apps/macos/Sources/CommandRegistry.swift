@@ -246,6 +246,30 @@ enum KairoCommandCatalog {
                 action: { store.filterBarVisible = true }
             ),
             KairoCommand(
+                id: "view.dayWidthWider",
+                title: "加宽每日",
+                group: "视图",
+                shortcut: KairoShortcut(key: "+", modifiers: .command),
+                aliases: ["日宽加宽", "放大日宽"],
+                action: { store.dispatch(.nudgeCustomDayWidth(by: GanttScale.dayWidthStep)) }
+            ),
+            KairoCommand(
+                id: "view.dayWidthNarrower",
+                title: "收窄每日",
+                group: "视图",
+                shortcut: KairoShortcut(key: "-", modifiers: .command),
+                aliases: ["日宽收窄", "缩小日宽"],
+                action: { store.dispatch(.nudgeCustomDayWidth(by: -GanttScale.dayWidthStep)) }
+            ),
+            KairoCommand(
+                id: "view.dayWidthReset",
+                title: "重置每日宽度",
+                group: "视图",
+                shortcut: KairoShortcut(key: "0", modifiers: .command),
+                aliases: ["日宽重置"],
+                action: { store.dispatch(.clearCustomDayWidth) }
+            ),
+            KairoCommand(
                 id: "find.show",
                 title: "查找…",
                 group: "查找",
@@ -296,7 +320,7 @@ struct KairoMenuCommands: Commands {
         CommandGroup(replacing: .appInfo) {
             Button("关于 Kairo") { Self.showAboutPanel() }
         }
-        CommandGroup(after: .saveItem) {
+        CommandGroup(replacing: .saveItem) {
             Divider()
             items(group: "文件")
         }

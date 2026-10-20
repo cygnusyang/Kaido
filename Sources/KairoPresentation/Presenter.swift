@@ -322,7 +322,8 @@ public enum WorkspacePresenter {
             todayVisible: gantt.todayX != nil,
             hiddenTaskCount: tree.hiddenByCollapseCount + tree.hiddenByFilterCount,
             selectionSummary: viewState.selectedTaskID.flatMap { byID[$0]?.title },
-            zoomLabel: zoomLabel(viewState)
+            zoomLabel: zoomLabel(viewState),
+            zoomDetail: zoomDetail(dayWidth: gantt.dayWidth)
         )
 
         return WorkspaceSnapshot(
@@ -372,21 +373,42 @@ public enum WorkspacePresenter {
         let fitRange = content.map {
             DateInterval(start: $0.start, end: $0.end.addingTimeInterval(86_400))
         }
-        let canFit = viewState.usesFitZoom && fitRange != nil && viewport.canvasWidth > 0
-        let dayWidthOverride = canFit
-            ? GanttLayoutEngine.fitDayWidth(
-                contentRange: fitRange!,
-                viewWidth: viewport.canvasWidth,
-                calendar: calendar
-            )
+        // 生效日宽：自定义优先（即便状态里 fit 与自定义同时为真），
+        // 其次「适合项目」的 fit 宽度，最后才是档位默认宽度。
+        // 夹取只作用于自定义路径；fit 宽度不夹取，保持既有 fit 输出不变。
+        let custom = viewState.customDayWidth.map(GanttScale.clampDayWidth)
+        let canFit = viewState.usesFitZoom && custom == nil
+            && fitRange != nil && viewport.canvasWidth > 0
+        let fitWidth: Double? = canFit
+            ? fitRange.map {
+                GanttLayoutEngine.fitDayWidth(
+                    contentRange: $0,
+                    viewWidth: viewport.canvasWidth,
+                    calendar: calendar
+                )
+            }
             : nil
+        let dayWidthOverride = custom ?? fitWidth
+        // 核心内部同样以 `max(dayWidth, 0.5)` 兜底；此处引用同一常量
+        // （`GanttScale.minimumDayWidth`），避免两侧的日宽下限各自漂移。
+        // 自定义路径下该值恒等于 `custom`（已夹取到 ≥ 2，高于核心下限）。
+        let effectiveDayWidth = max(
+            dayWidthOverride ?? viewState.zoom.dayWidth,
+            GanttScale.minimumDayWidth
+        )
+        // 核心 `zoom` 入参（生效刻度档位）：
+        // - 自定义日宽路径：由实际生效日宽推导刻度粒度（≥18 逐日 / ≥6 逐周 / 其余逐月）。
+        // - 预设档位与「适合项目」：沿用 `viewState.zoom`，与本功能引入前逐位一致（A7 门禁）。
+        let engineZoom: GanttZoom = custom == nil
+            ? viewState.zoom
+            : GanttScale.tickUnit(forDayWidth: effectiveDayWidth)
         let requestedStart = viewState.windowStart ?? content?.start ?? today
 
         let layout = GanttLayoutEngine.make(
             tasks: tasks,
             schedule: layoutSchedule,
             calendar: calendar,
-            zoom: viewState.zoom,
+            zoom: engineZoom,
             viewWidth: max(viewport.canvasWidth, 1),
             windowStart: requestedStart,
             dayWidthOverride: dayWidthOverride,
@@ -464,7 +486,8 @@ public enum WorkspacePresenter {
             emptyReason: emptyReason,
             projectStartDerived: schedule?.projectStartDerived ?? false,
             showsCriticalPath: viewState.showCriticalPath,
-            showsBarLabels: viewState.showBarLabels
+            showsBarLabels: viewState.showBarLabels,
+            tickGranularity: engineZoom
         )
     }
 
@@ -726,12 +749,27 @@ public enum WorkspacePresenter {
     }
 
     private static func zoomLabel(_ viewState: WorkspaceViewState) -> String {
+        // 自定义优先：自定义日宽生效时不再显示任何预设档位。
+        if viewState.customDayWidth != nil { return "自定义" }
         if viewState.usesFitZoom { return "适合项目" }
         switch viewState.zoom {
         case .day: return "日"
         case .week: return "周"
         case .month: return "月"
         }
+    }
+
+    /// 实际日宽读数：整数不带小数位（"12 点/天"），非整数保留 1 位（"12.5 点/天"）。
+    ///
+    /// 非有限值（NaN / ±∞）与超出 `Int` 范围的值返回占位符 "—"：
+    /// `Int(_:)` 对这些值会 trap，不能直接转换。
+    public static func zoomDetail(dayWidth: Double) -> String {
+        guard dayWidth.isFinite else { return "—" }
+        let value = (dayWidth * 10).rounded() / 10
+        if value == value.rounded(), value.magnitude <= 1e15 {
+            return "\(Int(value)) 点/天"
+        }
+        return "\(String(format: "%.1f", value)) 点/天"
     }
 
     /// 前置任务摘要：`1:fs`，带延隔时 `1:fs+1.5`，多项逗号分隔（US-E4-01-C4 以大纲编号展示）。

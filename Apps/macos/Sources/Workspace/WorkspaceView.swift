@@ -13,6 +13,8 @@ struct WorkspaceView: View {
     @State private var editingTaskID: UUID?
     @State private var scrollTarget: UUID?
     @State private var findAdapter = RowsFindAdapter()
+    /// 日宽调节面板（工具栏标尺按钮的 popover）是否展开。
+    @State private var showsDayWidthControl = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -159,9 +161,25 @@ struct WorkspaceView: View {
                     }
                 }
                 Divider()
-                Button("适合项目") {
+                Button(fitMenuTitle) {
                     store.dispatch(.setFitZoom(true))
                 }
+                Divider()
+                Button("更宽") {
+                    store.dispatch(.nudgeCustomDayWidth(by: GanttScale.dayWidthStep))
+                }
+                Button("更窄") {
+                    store.dispatch(.nudgeCustomDayWidth(by: -GanttScale.dayWidthStep))
+                }
+                Button("重置宽度") {
+                    store.dispatch(.clearCustomDayWidth)
+                }
+                Button("自定义日宽…") {
+                    // 菜单关闭后再弹出，避免与菜单收起动画抢时机。
+                    Task { @MainActor in showsDayWidthControl = true }
+                }
+                Divider()
+                Text("当前日宽：\(currentDayWidthText)")
                 Divider()
                 Button(store.viewState.showBarLabels ? "隐藏任务条标签" : "显示任务条标签") {
                     store.dispatch(.toggleBarLabels)
@@ -170,6 +188,16 @@ struct WorkspaceView: View {
                 Label(store.snapshot.statusBar.zoomLabel, systemImage: "arrow.left.and.right")
             }
             .help("时间缩放")
+
+            Button {
+                showsDayWidthControl.toggle()
+            } label: {
+                Image(systemName: "ruler")
+            }
+            .help("自定义每日宽度")
+            .popover(isPresented: $showsDayWidthControl, arrowEdge: .bottom) {
+                DayWidthControl(store: store, dayWidth: store.snapshot.gantt.dayWidth)
+            }
 
             Button {
                 store.dispatch(.toggleCriticalPath)
@@ -235,12 +263,34 @@ struct WorkspaceView: View {
         store.snapshot.statusBar.violationErrorCount + store.snapshot.statusBar.violationWarningCount
     }
 
+    /// 缩放菜单的档位标题：当前生效档位打勾，并附该档位的默认日宽。
     private func zoomTitle(_ zoom: GanttZoom) -> String {
+        let name: String
         switch zoom {
-        case .day: return "日"
-        case .week: return "周"
-        case .month: return "月"
+        case .day: name = "日"
+        case .week: name = "周"
+        case .month: name = "月"
         }
+        let mark = isCurrentPreset(zoom) ? "✓ " : ""
+        return "\(mark)\(name)（\(Int(zoom.dayWidth)) 点/天）"
+    }
+
+    /// 当前生效的预设档位：自定义日宽或「适合项目」生效时无档位打勾。
+    private func isCurrentPreset(_ zoom: GanttZoom) -> Bool {
+        store.viewState.customDayWidth == nil
+            && !store.viewState.usesFitZoom
+            && store.viewState.zoom == zoom
+    }
+
+    /// 「适合项目」菜单项标题：生效时打勾。
+    private var fitMenuTitle: String {
+        let active = store.viewState.customDayWidth == nil && store.viewState.usesFitZoom
+        return active ? "✓ 适合项目" : "适合项目"
+    }
+
+    /// 缩放菜单的当前日宽读数（点/天）。
+    private var currentDayWidthText: String {
+        WorkspacePresenter.zoomDetail(dayWidth: store.snapshot.gantt.dayWidth)
     }
 
     // MARK: - 工作区

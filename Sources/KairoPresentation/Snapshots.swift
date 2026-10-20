@@ -292,7 +292,12 @@ public struct GanttSnapshot: Hashable, Sendable {
     public var contentStart: Date?
     public var contentEnd: Date?
     public var dayWidth: Double
+    /// 用户预设档位（保持既有语义，不随自定义日宽改写）。
     public var zoom: GanttZoom
+    /// 生效刻度档位：决定表头下层刻度密度与条标签显隐。
+    /// 自定义日宽路径下由实际生效日宽推导（`GanttScale.tickUnit`）；
+    /// 预设档位与「适合项目」沿用 `zoom`（与本功能引入前的行为逐位一致）。
+    public var tickGranularity: GanttZoom
     public var usesFitZoom: Bool
     public var today: Date
     public var todayX: Double?
@@ -306,6 +311,8 @@ public struct GanttSnapshot: Hashable, Sendable {
     public var showsCriticalPath: Bool
     public var showsBarLabels: Bool
 
+    /// - Parameters:
+    ///   - tickGranularity: 生效刻度档位；缺省时由 `zoom` 派生（保持旧构造点源码兼容）。
     public init(
         windowStart: Date,
         windowEnd: Date,
@@ -324,7 +331,8 @@ public struct GanttSnapshot: Hashable, Sendable {
         emptyReason: EmptyReason? = nil,
         projectStartDerived: Bool = false,
         showsCriticalPath: Bool = false,
-        showsBarLabels: Bool = true
+        showsBarLabels: Bool = true,
+        tickGranularity: GanttZoom? = nil
     ) {
         self.windowStart = windowStart
         self.windowEnd = windowEnd
@@ -332,6 +340,7 @@ public struct GanttSnapshot: Hashable, Sendable {
         self.contentEnd = contentEnd
         self.dayWidth = dayWidth
         self.zoom = zoom
+        self.tickGranularity = tickGranularity ?? zoom
         self.usesFitZoom = usesFitZoom
         self.today = today
         self.todayX = todayX
