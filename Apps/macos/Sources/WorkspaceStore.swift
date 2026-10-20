@@ -71,6 +71,8 @@ final class WorkspaceStore: ObservableObject {
     private var dropExpandTargetID: UUID?
     /// 打开另存为面板时的会话版本；用于判断导出期间是否又有新修改。
     private var exportRevision: UInt64?
+    /// 「保存并打开」触发的升级提示；finishOpen 重置 notice 后恢复一次。
+    private var pendingUpgradeNoticeAfterOpen: String?
 
     /// 文件导出的值快照：随每次刷新更新，避免 SwiftUI body 每次求值都重建。
     private(set) var exportState = ProjectState(
@@ -1102,8 +1104,13 @@ final class WorkspaceStore: ObservableObject {
 
     func saveAndOpenPending() {
         guard pendingOpenURL != nil else { return }
+        let wasUpgrade = session.needsFormatUpgrade
         save()
         guard saveState != .failed else { return }
+        if wasUpgrade {
+            // finishOpen 会用载入警告重置 notice；升级提示需跨过这次打开保留。
+            pendingUpgradeNoticeAfterOpen = "已升级到 v\(KairoFile.currentFormatVersion)"
+        }
         discardChangesAndOpenPending()
     }
 
@@ -1139,9 +1146,11 @@ final class WorkspaceStore: ObservableObject {
                 self.finishOpen()
             case .success:
                 // 载入期间有新编辑：保留当前内容，重新进入保存/丢弃/取消确认。
+                self.pendingUpgradeNoticeAfterOpen = nil
                 self.pendingOpenURL = url
                 self.notice = "载入期间项目有新修改，已保留本地内容；请再次确认打开"
             case .failure(let error):
+                self.pendingUpgradeNoticeAfterOpen = nil
                 self.report(error)
             }
             self.isLoading = false
@@ -1160,7 +1169,8 @@ final class WorkspaceStore: ObservableObject {
         saveState = .saved
         needsFormatUpgrade = session.needsFormatUpgrade
         recordDiskVersion(at: session.projectURL)
-        notice = loadWarnings.first
+        notice = pendingUpgradeNoticeAfterOpen ?? loadWarnings.first
+        pendingUpgradeNoticeAfterOpen = nil
         refresh()
     }
 

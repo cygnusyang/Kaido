@@ -65,12 +65,15 @@ struct FormatUpgradeTests {
         return store
     }
 
-    private func fileFormatVersion(_ url: URL) throws -> Int {
-        let data = try Data(contentsOf: url)
+    private func formatVersion(in data: Data) throws -> Int {
         let json = try #require(
             try JSONSerialization.jsonObject(with: data) as? [String: Any]
         )
         return try #require(json["formatVersion"] as? Int)
+    }
+
+    private func fileFormatVersion(_ url: URL) throws -> Int {
+        try formatVersion(in: Data(contentsOf: url))
     }
 
     // MARK: - FMT-1：当前版本不标记升级
@@ -186,7 +189,32 @@ struct FormatUpgradeTests {
         store.beginExport()
         let project = Project()
         store.exportState.apply(to: project)
-        try KairoFile.encode(project: project).write(to: newURL)
+        let exportedData = try KairoFile.encode(project: project)
+        // 断言生产导出编码（与 KairoDocument 同源）的版本，而非测试自写文件的回读。
+        #expect(try formatVersion(in: exportedData) == KairoFile.currentFormatVersion)
+        try exportedData.write(to: newURL)
+        store.rememberSaveURL(newURL)
+
+        #expect(!store.needsFormatUpgrade)
+        #expect(
+            store.notice == "已另存为并升级到 v\(KairoFile.currentFormatVersion)"
+        )
+        #expect(store.projectURL?.standardizedFileURL == newURL.standardizedFileURL)
+    }
+
+    @Test func fr_kairo_fmt_6_save_as_fallback_write_announces_upgrade() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let originalURL = directory.appendingPathComponent("old.kairo")
+        let newURL = directory.appendingPathComponent("upgraded.kairo")
+        try writeProject(at: originalURL, title: "旧版项目")
+
+        let store = try await openSimulatedOldVersion(originalURL)
+        #expect(store.needsFormatUpgrade)
+
+        store.beginExport()
+        // 面板打开期间继续编辑：导出快照过期，rememberSaveURL 走直接写盘分支。
+        store.dispatch(.setProjectTitle("面板中修改"))
         store.rememberSaveURL(newURL)
 
         #expect(!store.needsFormatUpgrade)
@@ -195,5 +223,59 @@ struct FormatUpgradeTests {
         )
         #expect(store.projectURL?.standardizedFileURL == newURL.standardizedFileURL)
         #expect(try fileFormatVersion(newURL) == KairoFile.currentFormatVersion)
+    }
+
+    // MARK: - 取消另存为 / 保存并打开
+
+    @Test func fr_kairo_fmt_5_cancel_save_as_keeps_upgrade_flag() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("old.kairo")
+        try writeProject(at: url, title: "旧版项目")
+
+        let store = try await openSimulatedOldVersion(url)
+        #expect(store.needsFormatUpgrade)
+
+        store.beginExport()
+        store.cancelExport()
+
+        #expect(store.needsFormatUpgrade)
+        #expect(store.notice?.contains("已升级") != true)
+    }
+
+    @Test func fr_kairo_fmt_5_save_and_open_keeps_upgrade_notice() async throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let originalURL = directory.appendingPathComponent("old.kairo")
+        let secondURL = directory.appendingPathComponent("second.kairo")
+        try writeProject(at: originalURL, title: "旧版项目")
+        try writeProject(at: secondURL, title: "第二个项目")
+
+        // 仅第一个文件模拟旧版本；第二个文件按当前版本打开。
+        let store = makeStore(projectLoader: { url in
+            let decoded = try KairoFile.read(from: url)
+            guard url.standardizedFileURL == originalURL.standardizedFileURL else {
+                return decoded
+            }
+            return DecodedProject(
+                project: decoded.project,
+                sourceFormatVersion: KairoFile.currentFormatVersion - 1
+            )
+        })
+        store.openAsync(url: originalURL)
+        try await waitUntilLoaded(store)
+        #expect(store.needsFormatUpgrade)
+
+        store.dispatch(.setProjectTitle("未保存修改"))
+        store.openAsync(url: secondURL)
+        #expect(store.pendingOpenURL?.standardizedFileURL == secondURL.standardizedFileURL)
+
+        store.saveAndOpenPending()
+        try await waitUntilLoaded(store)
+
+        // finishOpen 重置 notice 后，升级提示仍然可见。
+        #expect(store.notice == "已升级到 v\(KairoFile.currentFormatVersion)")
+        #expect(store.projectURL?.standardizedFileURL == secondURL.standardizedFileURL)
+        #expect(!store.needsFormatUpgrade)
     }
 }
