@@ -29,10 +29,17 @@ jobs:
       - name: 编译打包
         run: bash tools/build.sh
 
-      - name: 压缩应用
+      - name: 打包 DMG（打开拖入 Applications，替代 zip）
         run: |
-          # ditto 保留代码签名与元数据；zip 会破坏签名。
-          ditto -c -k --sequesterRsrc --keepParent dist/Kairo.app "Kairo-${GITHUB_REF_NAME}.zip"
+          # GitHub Release 附件只能是单文件，.app 是目录传不了；
+          # DMG 内放 App + /Applications 软链，挂载后直接拖拽安装。
+          STAGING="$(mktemp -d)/dmg-staging"
+          mkdir -p "$STAGING"
+          cp -R dist/Kairo.app "$STAGING/Kairo.app"
+          ln -s /Applications "$STAGING/Applications"
+          hdiutil create -volname "Kairo ${GITHUB_REF_NAME}" \
+            -srcfolder "$STAGING" -ov -format UDZO \
+            "Kairo-${GITHUB_REF_NAME}.dmg"
 
       - name: 提取本版本 changelog
         id: changelog
@@ -57,12 +64,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ steps.changelog.outputs.has_autonotes }}" = "true" ]; then
-            gh release create "$GITHUB_REF_NAME" "Kairo-${GITHUB_REF_NAME}.zip" \
+            gh release create "$GITHUB_REF_NAME" "Kairo-${GITHUB_REF_NAME}.dmg" \
               --title "Kairo ${GITHUB_REF_NAME}" \
               --notes-file release-notes.md \
               --generate-notes
           else
-            gh release create "$GITHUB_REF_NAME" "Kairo-${GITHUB_REF_NAME}.zip" \
+            gh release create "$GITHUB_REF_NAME" "Kairo-${GITHUB_REF_NAME}.dmg" \
               --title "Kairo ${GITHUB_REF_NAME}" \
               --notes-file release-notes.md
           fi
