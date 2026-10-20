@@ -17,3 +17,4 @@ dist/
 # Agent task-run scaffolding (local only)
 .agent-runs/
 .omc/
+*.dmg
