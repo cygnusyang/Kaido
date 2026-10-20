@@ -64,6 +64,13 @@ public final class KairoSession {
     public private(set) var hasUnsavedChanges = false
     /// 写操作版本号：每次变更递增，供异步加载判断期间是否有新编辑。
     public private(set) var revision: UInt64 = 0
+    /// 当前项目来源文件的格式版本；新建项目或尚未打开文件时为 nil。
+    public private(set) var sourceFormatVersion: Int?
+
+    /// 来源文件早于当前格式，保存后即完成升级（FR-KAIRO-FMT）。
+    public var needsFormatUpgrade: Bool {
+        sourceFormatVersion.map { $0 < KairoFile.currentFormatVersion } ?? false
+    }
 
     public init() {}
 
@@ -96,6 +103,7 @@ public final class KairoSession {
         project.metadata.updatedAt = Date()
         self.project = project
         projectURL = nil
+        sourceFormatVersion = nil
         markChanged()
         markSaved()
         return project.metadata
@@ -104,33 +112,52 @@ public final class KairoSession {
     /// 打开 .kairo 项目文件。
     @discardableResult
     public func openProject(at url: URL) throws -> ProjectMetadata {
-        let project: Project
+        let decoded: DecodedProject
         do {
-            project = try KairoFile.load(from: url)
+            // 保留来源版本：迁移在读取时完成，但磁盘仍可能是旧格式直至保存。
+            decoded = try KairoFile.read(from: url)
         } catch let error as KairoFileError {
-            throw SessionError(code: .unsupportedFormat, message: error.description)
+            // 版本高于当前或无法迁移到当前版本 = 格式不受支持；
+            // 版本字段损坏 = 文件损坏/不是 .kairo。message 保留原始说明。
+            let code: SessionError.Code
+            switch error {
+            case .unsupportedFormatVersion, .noMigrationPath, .migrationFailed:
+                code = .unsupportedFormat
+            case .malformedFormatVersion:
+                code = .fileUnreadable
+            }
+            throw SessionError(code: code, message: error.description)
         } catch {
             throw SessionError(
                 code: .fileUnreadable,
                 message: "无法读取项目文件：\(url.lastPathComponent)"
             )
         }
-        adoptProject(project, from: url)
-        return project.metadata
+        adoptProject(
+            decoded.project, from: url, formatVersion: decoded.sourceFormatVersion
+        )
+        return decoded.project.metadata
     }
 
     /// 接管已在后台解码的项目（应用层异步打开，避免主线程阻塞）。
-    public func adoptProject(_ project: Project, from url: URL) {
+    public func adoptProject(
+        _ project: Project,
+        from url: URL,
+        formatVersion: Int = KairoFile.currentFormatVersion
+    ) {
         normalizeGroupKinds(in: project)
         self.project = project
         projectURL = url
+        sourceFormatVersion = formatVersion
         markChanged()
         markSaved()
     }
 
     /// 文件导出器已把快照写入磁盘：回填路径并清除脏标记，避免重复写文件。
+    /// 导出内容始终是当前格式，因此来源版本同步为当前版本。
     public func noteExported(to url: URL) {
         projectURL = url
+        sourceFormatVersion = KairoFile.currentFormatVersion
         markSaved()
     }
 
@@ -207,6 +234,7 @@ public final class KairoSession {
             throw SessionError(code: .fileUnreadable, message: "保存失败：\(error.localizedDescription)")
         }
         projectURL = target
+        sourceFormatVersion = KairoFile.currentFormatVersion
         markSaved()
         return project.metadata
     }

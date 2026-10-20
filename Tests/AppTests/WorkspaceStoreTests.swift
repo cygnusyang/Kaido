@@ -13,15 +13,15 @@ struct WorkspaceStoreTests {
     /// 每个测试使用独立偏好域，避免写入开发者真实配置。
     /// 既有用例沿用种子数据（seedsDemoData: true）；空启动相关用例显式传 false。
     private func makeStore() -> WorkspaceStore {
-        makeStore(projectLoader: { try KairoFile.load(from: $0) })
+        makeStore(projectLoader: { try KairoFile.read(from: $0) })
     }
 
     private func makeStore(seedsDemoData: Bool) -> WorkspaceStore {
-        makeStore(projectLoader: { try KairoFile.load(from: $0) }, seedsDemoData: seedsDemoData)
+        makeStore(projectLoader: { try KairoFile.read(from: $0) }, seedsDemoData: seedsDemoData)
     }
 
     private func makeStore(
-        projectLoader: @escaping @Sendable (URL) throws -> Project,
+        projectLoader: @escaping @Sendable (URL) throws -> DecodedProject,
         seedsDemoData: Bool = true
     ) -> WorkspaceStore {
         let suite = "kairo.apptests.\(UUID().uuidString)"
@@ -604,7 +604,7 @@ struct WorkspaceStoreTests {
         let gate = DispatchSemaphore(value: 0)
         let store = makeStore(projectLoader: { url in
             gate.wait()
-            return try KairoFile.load(from: url)
+            return try KairoFile.read(from: url)
         })
         store.openAsync(url: url)
         store.dispatch(.setProjectTitle("载入期间编辑"))
@@ -637,7 +637,7 @@ struct WorkspaceStoreTests {
         let gate = DispatchSemaphore(value: 0)
         let store = makeStore(projectLoader: { url in
             gate.wait()
-            return try KairoFile.load(from: url)
+            return try KairoFile.read(from: url)
         })
         store.openAsync(url: first)
         #expect(store.isLoading)

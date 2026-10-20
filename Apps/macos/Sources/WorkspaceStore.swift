@@ -42,6 +42,8 @@ final class WorkspaceStore: ObservableObject {
 
     @Published var pendingDeletion: PendingDeletion?
 
+    /// 打开的磁盘文件早于当前格式；保存/另存为后升级并清除（FR-KAIRO-FMT）。
+    @Published private(set) var needsFormatUpgrade = false
     /// 磁盘文件已被外部修改且本地存在未保存修改。
     @Published private(set) var externalUpdatePending = false
     /// 有待打开的项目，但当前项目存在未保存修改；等待用户选择保存/丢弃/取消。
@@ -57,7 +59,7 @@ final class WorkspaceStore: ObservableObject {
     private let calendar: Calendar
     private let defaults: UserDefaults
     /// 项目文件解码入口；测试可注入受控加载以覆盖载入期间的编辑竞争。
-    private let projectLoader: @Sendable (URL) throws -> Project
+    private let projectLoader: @Sendable (URL) throws -> DecodedProject
     private var monitorTimer: Timer?
     private var knownDiskMtime: Date?
     private var pendingExternalMtime: Date?
@@ -112,8 +114,8 @@ final class WorkspaceStore: ObservableObject {
         now: Date = Date(),
         defaults: UserDefaults = .standard,
         seedsDemoData: Bool = false,
-        projectLoader: @escaping @Sendable (URL) throws -> Project = {
-            try KairoFile.load(from: $0)
+        projectLoader: @escaping @Sendable (URL) throws -> DecodedProject = {
+            try KairoFile.read(from: $0)
         }
     ) {
         var calendar = Calendar(identifier: .gregorian)
@@ -1044,6 +1046,7 @@ final class WorkspaceStore: ObservableObject {
         redoStack.removeAll()
         pendingDeletion = nil
         saveState = .saved
+        needsFormatUpgrade = session.needsFormatUpgrade
         notice = "已载入示例项目"
         refresh()
     }
@@ -1123,14 +1126,16 @@ final class WorkspaceStore: ObservableObject {
         let accessing = url.startAccessingSecurityScopedResource()
         let loader = projectLoader
         Task { [weak self] in
-            let loaded: Result<Project, Error> = await Task.detached(priority: .userInitiated) {
+            let loaded: Result<DecodedProject, Error> = await Task.detached(priority: .userInitiated) {
                 Result { try loader(url) }
             }.value
             if accessing { url.stopAccessingSecurityScopedResource() }
             guard let self, self.loadingToken == token else { return }
             switch loaded {
-            case .success(let project) where self.session.revision == revisionAtStart:
-                self.session.adoptProject(project, from: url)
+            case .success(let decoded) where self.session.revision == revisionAtStart:
+                self.session.adoptProject(
+                    decoded.project, from: url, formatVersion: decoded.sourceFormatVersion
+                )
                 self.finishOpen()
             case .success:
                 // 载入期间有新编辑：保留当前内容，重新进入保存/丢弃/取消确认。
@@ -1153,15 +1158,22 @@ final class WorkspaceStore: ObservableObject {
         pendingDeletion = nil
         pendingOpenURL = nil
         saveState = .saved
+        needsFormatUpgrade = session.needsFormatUpgrade
         recordDiskVersion(at: session.projectURL)
         notice = loadWarnings.first
         refresh()
     }
 
     func save(to url: URL? = nil) {
+        let wasUpgrade = session.needsFormatUpgrade
         do {
             _ = try session.saveProject(to: url)
             saveState = .saved
+            needsFormatUpgrade = session.needsFormatUpgrade
+            // 每次保存至多提示一次：保存成功后来源版本即为当前版本。
+            if wasUpgrade {
+                notice = "已升级到 v\(KairoFile.currentFormatVersion)"
+            }
             recordDiskVersion(at: session.projectURL)
             refresh()
         } catch {
@@ -1202,13 +1214,21 @@ final class WorkspaceStore: ObservableObject {
     func rememberSaveURL(_ url: URL) {
         let revision = exportRevision
         exportRevision = nil
+        let wasUpgrade = session.needsFormatUpgrade
         // 未经 beginExport 的调用无法确认导出内容是否最新，直接写内存内容。
         if revision == nil || revision != session.revision {
             save(to: url)
+            if wasUpgrade, saveState != .failed {
+                notice = "已另存为并升级到 v\(KairoFile.currentFormatVersion)"
+            }
             return
         }
         session.noteExported(to: url)
         saveState = .saved
+        needsFormatUpgrade = session.needsFormatUpgrade
+        if wasUpgrade {
+            notice = "已另存为并升级到 v\(KairoFile.currentFormatVersion)"
+        }
         recordDiskVersion(at: url)
         refresh()
     }
