@@ -13,3 +13,7 @@
 
 # Packaged app / CLI outputs
 dist/
+
+# Agent task-run scaffolding (local only)
+.agent-runs/
+.omc/
