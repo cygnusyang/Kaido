@@ -7,6 +7,7 @@
 
 ### 新增
 
+- 甘特图时间轴「日宽可自定义」：2–120 点/天连续可调，全轴由单一标量日宽驱动（每天等宽、每周等宽）；刻度粒度在启用自定义日宽时按实际日宽推导（≥18 逐日 / ≥6 逐周 / 其余逐月），预设档位与「适合项目」沿用既有粒度行为不变；标签不重叠、绘制量有界。入口为工具栏标尺弹出面板（滑杆 / ± 步进 / 档位芯片 / 重置）、缩放菜单步进项与 `⌘+` / `⌘-` / `⌘0`；自定义值持久化在视图偏好（`customDayWidth`），不改 `.kairo` 项目文件格式。
 - CLI `task add/update` 增加 `--assignee`，MCP `task_add/task_update` 增加 `assignee` 属性：设置任务负责人，空串清空；与 Claude Code 协作时可填子智能体名（US-E1-02-A1…A4）。
 - `task get` 文本输出渲染负责人行。
 - 大纲「前置」列支持按大纲编号填写依赖（如 `1.1`、`1.1:fs`、`1.1:ss:1`），可与任务 ID 前缀混用；前置摘要同以大纲编号展示（US-E4-01-C1…C4）。
@@ -20,6 +21,7 @@
 
 ### 变更
 
+- `KairoPresentation` 公共 API 变更：新增 `WorkspaceAction` case（`setCustomDayWidth` / `nudgeCustomDayWidth` / `clearCustomDayWidth`，外部穷尽 switch 需补 `default`）、`GanttSnapshot` 新增 `tickGranularity` 字段（init 参数可选，缺省由 `zoom` 派生，旧构造点源码兼容）。
 - 应用启动不再默认加载示例数据：默认打开为空项目；「文件 → 载入示例项目」按需填充示例（有未保存修改时先确认）。
 
 ## v0.1.0 — 2026-10-18
