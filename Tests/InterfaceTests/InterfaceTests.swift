@@ -311,27 +311,37 @@ private func makeScratchDir() throws -> (dir: URL, kairo: URL) {
     return (dir: dir, kairo: dir.appendingPathComponent("demo.kairo"))
 }
 
+/// stdout 捕获的进程级互斥锁。
+/// fd 1 是进程级全局资源：并行用例同时进入捕获时，一方的 dup(1) 可能指向另一方的管道
+/// 写端；后者恢复 fd 1 到该写端时其读端已关闭，随后任何 stdout 写入都会触发
+/// SIGPIPE（signal 13）。锁必须覆盖 dup2 → body → 恢复 fd 1 → 关闭写端 全程，
+/// 使捕获窗口不重叠。本函数不得嵌套调用（NSLock 非递归）。
+private let stdoutCaptureLock = NSLock()
+
 /// 捕获闭包内 print 写入 stdout 的文本（断言 CLI 文本输出用）。
 /// 通过 dup2 把 fd 1 重定向到管道，并把 stdout 设为无缓冲，保证 print 立即落管；
 /// 读之前先恢复 fd 1、关闭写端，避免 readToEnd 因残留写引用而阻塞。
 func captureStdout(_ body: () throws -> Void) throws -> String {
+    stdoutCaptureLock.lock()
+    defer { stdoutCaptureLock.unlock() }
+
     let pipe = Pipe()
     let savedFD = dup(FileHandle.standardOutput.fileDescriptor)
     dup2(pipe.fileHandleForWriting.fileDescriptor, FileHandle.standardOutput.fileDescriptor)
     setvbuf(stdout, nil, _IONBF, 0)
-    defer {
-        dup2(savedFD, FileHandle.standardOutput.fileDescriptor)
-        close(savedFD)
-    }
+
+    var thrown: Error?
     do {
         try body()
     } catch {
-        pipe.fileHandleForWriting.closeFile()
-        throw error
+        thrown = error
     }
     fflush(stdout)
     dup2(savedFD, FileHandle.standardOutput.fileDescriptor)
+    close(savedFD)
     pipe.fileHandleForWriting.closeFile()
+
+    if let thrown { throw thrown }
     return String(decoding: try pipe.fileHandleForReading.readToEnd() ?? Data(), as: UTF8.self)
 }
 

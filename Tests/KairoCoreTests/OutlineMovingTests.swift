@@ -23,9 +23,9 @@ struct OutlineMovingTests {
     @Test func movesTaskIntoGroupAtStart() throws {
         let f = Fixture()
 
-        let updated = try #require(try OutlineMoving.move(
+        let updated = try OutlineMoving.move(
             f.other.id, toParent: f.group.id, at: 0, in: f.tasks
-        ).get())
+        ).get()
 
         #expect(updated.map(\.title) == ["组", "其他", "子", "孙"])
         #expect(updated[1].parentID == f.group.id)
@@ -34,9 +34,9 @@ struct OutlineMovingTests {
     @Test func movesTaskIntoGroupAtEnd() throws {
         let f = Fixture()
 
-        let updated = try #require(try OutlineMoving.move(
+        let updated = try OutlineMoving.move(
             f.other.id, toParent: f.group.id, at: 99, in: f.tasks
-        ).get())
+        ).get()
 
         #expect(updated.map(\.title) == ["组", "子", "孙", "其他"])
     }

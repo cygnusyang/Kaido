@@ -883,7 +883,7 @@ struct WorkspaceStoreTests {
     @Test func predecessorColumnAcceptsNestedOutlineNumber() throws {
         let store = makeStore()
         let review = try task(store, "Code Review 搜索模块")
-        let backend = try task(store, "实现搜索后端")
+        _ = try task(store, "实现搜索后端") // 占位保持 spec 大纲编号为 10
         let spec = try task(store, "撰写技术方案文档") // 编号 10
 
         // 把 review 缩进为 backend 子项 → 大纲编号 1.1。
