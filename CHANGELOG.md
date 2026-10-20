@@ -3,7 +3,7 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
-## Unreleased
+## v0.4.0 — 2026-10-21
 
 ### 新增
 

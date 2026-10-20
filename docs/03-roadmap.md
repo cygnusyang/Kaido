@@ -111,6 +111,7 @@
 | v0.1.0 | 2026-10-18 | 计划工作台重设计、甘特布局 v2、核心模型/持久化、MCP/CLI 对等、撤销/重做（覆盖原 Sprint 1–3 与 Sprint 4–5 大部分范围，MVP 出口达成） |
 | v0.2.0 | 2026-10-20 | `.kairo` 格式版本契约、另存为、任务负责人、大纲编号前置、甘特日宽自定义（Sprint 6，dev-team 全流程；缺陷 D-001…D-011/D-018 闭环，IEEE 829 登记） |
 | v0.3.0 / v0.3.1 | 2026-10-20 | OTA 应用内更新（通用模块 KairoUpdater，移植 COFFER OTA；Ed25519 签名清单 + 四级校验 + 白名单；自动检查 4h；见 docs/features/05-ota-updates.md） |
+| v0.4.0 | 2026-10-21 | 甘特图直接编辑（F-14-09：拖条改期、拖端点改持续、拖拽建依赖/删线；见 docs/archive/Sprint7-gantt-direct-edit/design.md） |
 
 ### Sprint 7（计划）
 
