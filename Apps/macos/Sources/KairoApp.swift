@@ -23,6 +23,7 @@ struct KairoApp: App {
                     appDelegate.store = store
                     // 首启消费上次 OTA 安装结果（幂等；无 pending 则 no-op）。
                     updater.consumePendingInstallResult()
+                    scheduleAutoUpdateChecks()
                 }
                 .onOpenURL { handleDeepLink($0) }
                 .sheet(isPresented: $showUpdateSheet) {
@@ -91,6 +92,36 @@ struct KairoApp: App {
             requestSave: { saveDocument() },
             requestSaveAs: { saveDocumentAs() }
         )
+    }
+
+    // MARK: - OTA 自动检查
+
+    /// 已自动弹过面板的版本（同一版本一次运行内只弹一次；用户「跳过此版本」
+    /// 后 check() 会解析为 upToDate，不再打扰）。
+    @State private var autoPresentedVersion: String?
+
+    /// 自动检查：启动后 5s 静默查一次，此后每 4 小时一次。静默 = 网络失败不弹
+    /// 面板（状态留在 manager，手动检查可见）；发现新版本（未跳过）才自动
+    /// 展示更新面板，同版本去重。
+    private func scheduleAutoUpdateChecks() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UpdaterConfiguration.autoCheckInitialDelayNanoseconds)
+            await silentCheck()
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UpdaterConfiguration.autoCheckIntervalNanoseconds)
+                await silentCheck()
+            }
+        }
+    }
+
+    @MainActor
+    private func silentCheck() async {
+        await updater.check()
+        if case .updateAvailable(let info) = updater.state,
+           autoPresentedVersion != info.version {
+            autoPresentedVersion = info.version
+            showUpdateSheet = true
+        }
     }
 
     // MARK: - 深链

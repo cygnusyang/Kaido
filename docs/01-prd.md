@@ -451,6 +451,7 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 | US-E6-04 | 模板（另存为/默认模板） | E6 | P2 | 提议 | — |
 | US-E6-05 | 项目标题与元数据 | E6 | P2 | 提议 | — |
 | US-E6-06 | 跨设备（云盘文件夹委托） | E6 | P2 | 提议 | — |
+| US-E7-01 | 应用内 OTA 更新（通用模块 KairoUpdater） | E7 | P1 | 完成 | v0.3.0/v0.3.1（2026-10-20）：Ed25519 签名清单（canonical JSON）+ 下载 zip SHA256 + 产物 CDHash 校验 + GitHub host 白名单；菜单手动检查与启动/定时静默检查（4h）；确认后退出替换自动重启；支持跳过版本。安全设计移植自 COFFER OTA，见 docs/features/05-ota-updates.md 与 docs/archive/Sprint7-ota-updates/design.md |
 
 ## 7. 待确认问题（2026-10-17 lead 裁定）
 

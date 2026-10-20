@@ -7,6 +7,14 @@
 
 （暂无）
 
+## v0.3.1 — 2026-10-20
+
+### 新增
+
+- **OTA 自动检查**：启动后 5 秒静默检查一次，此后每 4 小时一次；静默语义 = 网络失败不打扰（手动检查可见失败态），发现未跳过的新版本才自动展示更新面板，同版本一次运行只弹一次。「跳过此版本」仍然有效。
+- **产物仓库归档**：发版时 DMG / OTA 载体 zip / 签名清单自动提交到 `artifacts` 分支（按 tag 子目录 + `latest/` 镜像），主分支保持干净。
+- 文档：US-E7-01 落 PRD Backlog（完成）；新增 docs/features/05-ota-updates.md（F-36 规格族）与 docs/archive/Sprint7-ota-updates/design.md（设计决策记录）；roadmap 补状态更新与 Sprint 7/8 计划。
+
 ## v0.3.0 — 2026-10-20
 
 本版引入应用内 OTA 更新（通用更新模块 KairoUpdater，移植自 COFFER OTA 的安全设计）。

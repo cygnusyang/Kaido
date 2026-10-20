@@ -91,6 +91,29 @@ jobs:
             echo "has_autonotes=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: 归档产物到 artifacts 分支（仓库内可追溯）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 产物按 tag 子目录归档 + latest/ 镜像，提交到专用 artifacts 分支
+          #（主分支保持干净，不受 *.dmg/zip gitignore 影响——此处强制添加）。
+          TAG="${GITHUB_REF_NAME}"
+          git config user.name "kairo-release-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if git fetch origin artifacts --depth 1 2>/dev/null; then
+            git checkout -B artifacts origin/artifacts
+          else
+            git checkout --orphan artifacts
+            git rm -rf --cached . >/dev/null 2>&1 || true
+            git clean -fdx >/dev/null 2>&1 || true
+          fi
+          mkdir -p "$TAG" latest
+          cp "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" update-manifest.json "$TAG"/
+          cp "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" update-manifest.json latest/
+          git add -f "$TAG" latest
+          git commit -m "artifacts: ${TAG}（DMG + OTA 载体 zip + 签名清单）"
+          git push origin artifacts
+
       - name: 创建 Release
         env:
           GH_TOKEN: ${{ github.token }}

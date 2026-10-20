@@ -28,6 +28,11 @@ enum UpdaterConfiguration {
         URL(fileURLWithPath: "/Applications/Kairo.app")
     }
 
+    /// 自动检查：启动后首次静默检查延迟（避开启动成本窗口）。
+    static let autoCheckInitialDelayNanoseconds: UInt64 = 5_000_000_000
+    /// 自动检查：运行期周期（4 小时）。
+    static let autoCheckIntervalNanoseconds: UInt64 = 4 * 3_600 * 1_000_000_000
+
     /// 生产装配：真实网络层 / 安装器 / 验签器。
     @MainActor
     static func makeUpdater() -> UpdaterManager {
