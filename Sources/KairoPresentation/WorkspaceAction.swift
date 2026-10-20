@@ -77,7 +77,4 @@ public enum WorkspaceAction: Equatable, Sendable {
     case save
     case reloadExternal
     case keepLocal
-
-    /// 清除自定义日宽的便捷构造（与同名 case 共存，便于 `WorkspaceAction.clearCustomDayWidth()` 调用）。
-    public static func clearCustomDayWidth() -> WorkspaceAction { .clearCustomDayWidth }
 }

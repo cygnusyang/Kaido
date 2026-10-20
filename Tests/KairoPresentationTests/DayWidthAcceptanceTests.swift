@@ -977,7 +977,7 @@ struct DayWidthAcceptanceTests {
             Issue.record("clearCustomDayWidth 必须是独立的无载荷动作")
         }
         #expect(
-            WorkspaceAction.clearCustomDayWidth() == cleared,
+            WorkspaceAction.clearCustomDayWidth == cleared,
             "同名 static 工厂必须返回同一个「清除自定义日宽」动作"
         )
 

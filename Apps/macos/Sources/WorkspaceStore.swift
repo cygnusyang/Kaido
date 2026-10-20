@@ -88,7 +88,8 @@ final class WorkspaceStore: ObservableObject {
     }()
 
     /// 持久化的视图偏好；视图模式与筛选不写入（启动固定计划模式）。
-    /// 新增字段用可选值解码，旧数据缺省时保持默认。
+    /// 逐字段容错解码（D-016）：任一字段缺失/类型不符只回落该字段默认值，
+    /// 不再整体解码失败导致全部偏好回落。
     private struct StoredPreferences: Codable {
         var outlineWidth: Double
         var outlineVisible: Bool?
@@ -100,6 +101,50 @@ final class WorkspaceStore: ObservableObject {
         var windowStart: Date?
         var inspectorWidth: Double
         var inspectorTab: InspectorTab
+
+        /// 字段默认值 = `WorkspaceViewState()` 初值（与新建会话一致）。
+        init(
+            outlineWidth: Double,
+            outlineVisible: Bool?,
+            expandedTaskIDs: [UUID],
+            zoom: GanttZoom,
+            usesFitZoom: Bool,
+            customDayWidth: Double?,
+            windowStart: Date?,
+            inspectorWidth: Double,
+            inspectorTab: InspectorTab
+        ) {
+            self.outlineWidth = outlineWidth
+            self.outlineVisible = outlineVisible
+            self.expandedTaskIDs = expandedTaskIDs
+            self.zoom = zoom
+            self.usesFitZoom = usesFitZoom
+            self.customDayWidth = customDayWidth
+            self.windowStart = windowStart
+            self.inspectorWidth = inspectorWidth
+            self.inspectorTab = inspectorTab
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            // decodeIfPresent：字段缺失 → 默认值；类型不符（typeMismatch）也按
+            // 缺失处理（该字段回落，其余保留）——不让单字段污染整个偏好。
+            outlineWidth = (try? container.decodeIfPresent(Double.self, forKey: .outlineWidth))
+                ?? WorkspaceViewState().outlineWidth
+            outlineVisible = try? container.decodeIfPresent(Bool.self, forKey: .outlineVisible)
+            expandedTaskIDs = (try? container.decodeIfPresent([UUID].self, forKey: .expandedTaskIDs))
+                ?? []
+            zoom = (try? container.decodeIfPresent(GanttZoom.self, forKey: .zoom))
+                ?? WorkspaceViewState().zoom
+            usesFitZoom = (try? container.decodeIfPresent(Bool.self, forKey: .usesFitZoom))
+                ?? WorkspaceViewState().usesFitZoom
+            customDayWidth = try? container.decodeIfPresent(Double.self, forKey: .customDayWidth)
+            windowStart = try? container.decodeIfPresent(Date.self, forKey: .windowStart)
+            inspectorWidth = (try? container.decodeIfPresent(Double.self, forKey: .inspectorWidth))
+                ?? WorkspaceViewState().inspectorWidth
+            inspectorTab = (try? container.decodeIfPresent(InspectorTab.self, forKey: .inspectorTab))
+                ?? WorkspaceViewState().inspectorTab
+        }
     }
 
     private struct UndoEntry {
@@ -152,8 +197,9 @@ final class WorkspaceStore: ObservableObject {
             state.inspectorWidth = stored.inspectorWidth
             state.inspectorTab = stored.inspectorTab
         }
-        // 自定义日宽：载入时归一化（夹取到合法区间），并与「适合项目」互斥（自定义优先）。
-        if let custom = stored?.customDayWidth.map(GanttScale.clampDayWidth) {
+        // 自定义日宽：载入时归一化（夹取 + 取整 0.1，与写入口径一致，D-012），
+        // 并与「适合项目」互斥（自定义优先）。
+        if let custom = stored?.customDayWidth.map(Self.committedDayWidth) {
             state.customDayWidth = custom
             state.usesFitZoom = false
         }
@@ -189,6 +235,9 @@ final class WorkspaceStore: ObservableObject {
     }
 
     // MARK: - 派生
+
+    /// 测试观测缝（@testable 消费）：暴露会话以断言缓存行为（如 D-014 排期计数）。
+    var sessionForTesting: KairoSession { session }
 
     var projectURL: URL? { session.projectURL }
     var hasUnsavedChanges: Bool { session.hasUnsavedChanges }
@@ -252,7 +301,9 @@ final class WorkspaceStore: ObservableObject {
         calendar: Calendar,
         now: Date
     ) -> WorkspaceSnapshot {
-        let schedule = (try? session.computeSchedule()) ?? session.lastSchedule
+        // 排期走会话缓存（D-014）：只有任务/元数据写操作会置空缓存，
+        // 纯视图动作（日宽调整、面板开合等）命中缓存不重算排期。
+        let schedule = (try? session.scheduleOrCompute()) ?? session.lastSchedule
         let violations = schedule.map {
             ViolationEngine.check(result: $0, tasks: state.tasks)
         } ?? []

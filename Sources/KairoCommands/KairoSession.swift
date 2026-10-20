@@ -644,10 +644,14 @@ public final class KairoSession {
     /// 最近一次排期结果（schedule_compute 缓存；critical_path / violations 复用）。
     public private(set) var lastSchedule: ScheduleResult?
 
+    /// 排期实际计算次数（测试观测缝：D-014 断言纯视图动作不触发重算）。
+    public private(set) var scheduleComputeCount = 0
+
     /// 计算排期并缓存结果（ADR-007：经 KairoCore 纯函数，命令层不重复实现）。
     @discardableResult
     public func computeSchedule(projectStart: Date? = nil, projectEnd: Date? = nil) throws -> ScheduleResult {
         guard let project else { throw notOpen() }
+        scheduleComputeCount += 1
         let result = ScheduleEngine.compute(
             tasks: project.tasks,
             resources: project.resources,
@@ -660,7 +664,9 @@ public final class KairoSession {
     }
 
     /// 未排期时先计算一次（缓存复用）。
-    private func scheduleOrCompute() throws -> ScheduleResult {
+    /// 公开供呈现快照复用：写操作经 `markChanged` 置空缓存后才重算，
+    /// 纯视图动作（如日宽调整）命中缓存不重算（D-014）。
+    public func scheduleOrCompute() throws -> ScheduleResult {
         if let lastSchedule { return lastSchedule }
         return try computeSchedule()
     }
