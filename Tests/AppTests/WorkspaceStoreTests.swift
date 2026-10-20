@@ -273,8 +273,10 @@ struct WorkspaceStoreTests {
         #expect(try !row(store, "新群组").isExpanded)
 
         // 注入 1ms 延迟：并行测试负载下 600ms 计时器可能长期得不到唤醒。
+        // deadline 留足余量：CPU 密集用例（性能套件）会长时间垄断 MainActor，
+        // 展开回调排在同一 actor 上被顺延；5s 墙钟在负载高峰会被排队时间耗尽。
         store.scheduleDropExpand(on: groupID, delayNanoseconds: 1_000_000)
-        let deadline = Date().addingTimeInterval(5)
+        let deadline = Date().addingTimeInterval(30)
         while try !row(store, "新群组").isExpanded && Date() < deadline {
             try await Task.sleep(nanoseconds: 50_000_000)
         }

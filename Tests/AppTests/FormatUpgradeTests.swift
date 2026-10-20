@@ -51,7 +51,10 @@ struct FormatUpgradeTests {
     }
 
     private func waitUntilLoaded(_ store: WorkspaceStore) async throws {
-        let deadline = Date().addingTimeInterval(5)
+        // deadline 需留足余量：全量并行回归时，CPU 密集用例（如日宽性能套件）会
+        // 长时间占用 MainActor，打开完成回调排在同一 actor 上被顺延执行；
+        // 5s 墙钟会在负载高峰被排队时间耗尽而误报（isLoading 停留在 true）。
+        let deadline = Date().addingTimeInterval(30)
         while store.isLoading && Date() < deadline {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
