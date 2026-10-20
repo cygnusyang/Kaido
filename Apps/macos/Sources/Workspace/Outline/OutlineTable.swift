@@ -24,7 +24,8 @@ struct OutlineRowsList: View {
                 )
                 .frame(height: DesignTokens.rowHeight)
                 .id(row.id)
-                Divider().opacity(0.35)
+                // 行分隔线由行视图以底部 overlay 自绘（不占布局空间）：
+                // 左列总高必须严格等于 行数 × rowHeight，与画布 28pt 节距对齐。
             }
         }
         .frame(width: layout.totalWidth, alignment: .topLeading)
@@ -122,7 +123,12 @@ private struct OutlineRowView: View {
             isTargeted: $dropTargeted
         ))
         .overlay(alignment: .bottom) {
-            // 普通行插入到目标之后，插入线画在目标下缘；群组以整行高亮表示「放入」。
+            // 行分隔线画进行内底部，不占布局空间，保证行列表节距 = rowHeight。
+            Rectangle()
+                .fill(DesignTokens.separator)
+                .frame(height: 1)
+                .opacity(0.35)
+            // 普通行插入到目标之后，插入线画在目标下缘（覆盖分隔线）；群组以整行高亮表示「放入」。
             if dropTargeted && row.kind != .group {
                 Rectangle()
                     .fill(DesignTokens.accentStrong)
