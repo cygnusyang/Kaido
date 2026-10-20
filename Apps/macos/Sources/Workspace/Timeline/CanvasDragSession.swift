@@ -99,13 +99,13 @@ final class CanvasDragSession {
         case .endHandle(let id):
             mode = .resize(id, isStartEdge: false)
             preview = .bar(Self.resizePreview(anchor: anchor, isStartEdge: false, offsetDays: 0))
-        case .dependencyStart(let id):
+        case .dependencyStart(_):
             mode = .link(isFromEnd: false)
             preview = .link(LinkPreview(
                 sourceBar: anchor.bar, isFromEnd: false,
                 pointX: anchor.bar.x, pointY: rowCenter, targetID: nil
             ))
-        case .dependencyEnd(let id):
+        case .dependencyEnd(_):
             mode = .link(isFromEnd: true)
             preview = .link(LinkPreview(
                 sourceBar: anchor.bar, isFromEnd: true,

@@ -49,7 +49,6 @@ public enum GanttHitTesting {
         rowHeight: Double,
         dayWidth: Double
     ) -> GanttDragTarget {
-        let dw = max(dayWidth, 0.5)
         let row = Int((pointY + canvasOffset) / max(rowHeight, 1))
 
         // 1) 依赖线优先：逐依赖逐线段做点到折线距离测试。
