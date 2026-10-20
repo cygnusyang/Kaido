@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 614" width="900" height="614"
+     role="img" aria-labelledby="kairo-fig-title kairo-fig-desc">
+  <title id="kairo-fig-title">Kairo 分层架构</title>
+  <desc id="kairo-fig-desc">等价接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）之下依次为 KairoPresentation 与 KairoCommands，底部为跨平台核心 KairoCore（数据模型、调度引擎、存储、查询过滤）。箭头方向为依赖方向。</desc>
+  <style>
+    .canvas { fill: #FFFFFF; }
+    .panel { fill: #FFFFFF; stroke: #D8DAE0; stroke-width: 1; }
+    .soft { fill: #F6F7F9; stroke: #D8DAE0; stroke-width: 1; }
+    .accent { fill: #EEF0FE; stroke: #5F6CF8; stroke-width: 1; }
+    .core { fill: #F4EEFC; stroke: #A13EF2; stroke-width: 1; }
+    .line { stroke: #7A8290; stroke-width: 1.3; fill: none; }
+    .tree { stroke: #C3C7D0; stroke-width: 1; fill: none; }
+    .t-title { font: 600 13px "SF Pro Text", -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; fill: #1C1C1E; }
+    .t-sub { font: 400 12px "SF Pro Text", -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; fill: #5C6169; }
+    .t-name { font: 600 12.5px "SF Mono", ui-monospace, Menlo, monospace; fill: #1C1C1E; }
+    .t-mono { font: 400 12px "SF Mono", ui-monospace, Menlo, monospace; fill: #1C1C1E; }
+    .t-band { font: 600 11px "SF Pro Text", -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; fill: #5C6169; letter-spacing: 0.4px; }
+    .t-note { font: 400 10.5px "SF Pro Text", -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; fill: #5C6169; }
+    .arrow-head { fill: #7A8290; }
+    @media (prefers-color-scheme: dark) {
+      .canvas { fill: #1C1C1E; }
+      .panel { fill: #2C2C2E; stroke: #3A3A3C; }
+      .soft { fill: #242426; stroke: #3A3A3C; }
+      .accent { fill: #232640; stroke: #5F6CF8; }
+      .core { fill: #2B2233; stroke: #A13EF2; }
+      .line { stroke: #8B93A3; }
+      .tree { stroke: #4A4A4E; }
+      .t-title, .t-name, .t-mono { fill: #F2F2F7; }
+      .t-sub, .t-band, .t-note { fill: #A6A6AD; }
+      .arrow-head { fill: #8B93A3; }
+    }
+  </style>
+  <defs>
+    <marker id="kairo-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
+            orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 Z" class="arrow-head"/>
+    </marker>
+  </defs>
+  <rect class="canvas" x="0" y="0" width="900" height="614"/>
+  <rect class="soft" x="20" y="20" width="860" height="164" rx="12"/>
+  <text class="t-band" x="36" y="44">等价接口层（能力对等）</text>
+  <rect class="panel" x="44" y="58" width="180" height="100" rx="8"/>
+  <text class="t-title" x="134" y="100" text-anchor="middle">macOS 应用</text>
+  <text class="t-sub" x="134" y="122" text-anchor="middle">SwiftUI</text>
+  <rect class="panel" x="240" y="58" width="180" height="100" rx="8"/>
+  <text class="t-title" x="330" y="100" text-anchor="middle">MCP 服务</text>
+  <text class="t-sub" x="330" y="122" text-anchor="middle">MCP SDK</text>
+  <rect class="panel" x="436" y="58" width="180" height="100" rx="8"/>
+  <text class="t-title" x="526" y="100" text-anchor="middle">CLI</text>
+  <text class="t-sub" x="526" y="122" text-anchor="middle">kairo cmd</text>
+  <rect class="panel" x="632" y="58" width="224" height="100" rx="8"/>
+  <text class="t-title" x="744" y="82" text-anchor="middle">Claude Code 插件</text>
+  <text class="t-sub" x="744" y="104" text-anchor="middle">斜杠命令 + hooks</text>
+  <text class="t-sub" x="744" y="124" text-anchor="middle">+ .mcp.json</text>
+  <text class="t-sub" x="744" y="146" text-anchor="middle">（经 MCP 服务 / CLI 接入）</text>
+  <rect class="accent" x="44" y="222" width="250" height="64" rx="8"/>
+  <text class="t-title" x="169" y="248" text-anchor="middle">KairoPresentation</text>
+  <text class="t-sub" x="169" y="270" text-anchor="middle">视图状态 → 平台中立快照 + 动作</text>
+  <rect class="accent" x="44" y="326" width="812" height="60" rx="8"/>
+  <text class="t-title" x="60" y="352">KairoCommands</text>
+  <text class="t-sub" x="60" y="372">KairoSession（唯一写入口）；MCP 服务与 CLI 共用同一命令语义</text>
+  <path class="line" d="M134,158 L134,222" marker-end="url(#kairo-arrow)"/>
+  <path class="line" d="M169,286 L169,326" marker-end="url(#kairo-arrow)"/>
+  <path class="line" d="M330,158 L330,326" marker-end="url(#kairo-arrow)"/>
+  <path class="line" d="M526,158 L526,326" marker-end="url(#kairo-arrow)"/>
+  <path class="line" d="M450,386 L450,420" marker-end="url(#kairo-arrow)"/>
+  <rect class="core" x="20" y="420" width="860" height="154" rx="12"/>
+  <text class="t-band" x="36" y="444">跨平台核心 KairoCore（纯逻辑）</text>
+  <rect class="panel" x="44" y="456" width="191" height="96" rx="8"/>
+  <text class="t-title" x="139" y="492" text-anchor="middle">数据模型</text>
+  <text class="t-sub" x="139" y="514" text-anchor="middle">Model</text>
+  <rect class="panel" x="251" y="456" width="191" height="96" rx="8"/>
+  <text class="t-title" x="346" y="492" text-anchor="middle">调度引擎</text>
+  <text class="t-sub" x="346" y="514" text-anchor="middle">Schedule</text>
+  <rect class="panel" x="458" y="456" width="191" height="96" rx="8"/>
+  <text class="t-title" x="553" y="492" text-anchor="middle">存储</text>
+  <text class="t-sub" x="553" y="514" text-anchor="middle">Storage</text>
+  <rect class="panel" x="665" y="456" width="191" height="96" rx="8"/>
+  <text class="t-title" x="760" y="492" text-anchor="middle">查询过滤</text>
+  <text class="t-sub" x="760" y="514" text-anchor="middle">Query</text>
+  <text class="t-note" x="20" y="588">箭头方向 = 依赖方向（上层依赖下层）。KairoCore / KairoCommands / KairoPresentation 均为 Foundation-only，可在 iOS 与 Linux 编译。</text>
+  <text class="t-note" x="20" y="606">macOS 应用是本期唯一 UI 壳；MCP 服务与 CLI 经 KairoCommands 共享同一命令语义，接口层互不依赖。</text>
+</svg>

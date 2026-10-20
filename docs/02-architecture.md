@@ -6,30 +6,9 @@
 
 ## 1. 总体架构
 
-### 1.1 分层图（ASCII）
+### 1.1 分层图
 
-```
-                 ┌──────────────────────────────────────────────────┐
-                 │                  等价接口层（能力对等）             │
-                 │                                                   │
-                 │  ┌────────────┐  ┌────────────┐  ┌─────────────┐  │
-                 │  │ macOS 应用  │  │ MCP 服务   │  │   CLI       │  │
-                 │  │ SwiftUI     │  │ (MCP SDK)  │  │ (kairo cmd) │  │
-                 │  └─────┬──────┘  └─────┬──────┘  └──────┬──────┘  │
-                 │        │               │                │         │
-                 │        └── Claude Code 插件（斜杠命令 + hooks + .mcp.json）
-                 └────────┼───────────────┼────────────────┼─────────┘
-                          │               │                │
-                 ┌────────▼───────────────▼────────────────▼─────────┐
-                 │              跨平台核心 KairoCore（纯逻辑）          │
-                 │                                                   │
-                 │  ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌────────┐ │
-                 │  │ 数据模型  │ │ 调度引擎  │ │  存储    │ │ 查询/  │ │
-                 │  │ Model    │ │ Schedule │ │ Storage │ │ 过滤   │ │
-                 │  │          │ │          │ │         │ │ Query  │ │
-                 │  └──────────┘ └──────────┘ └─────────┘ └────────┘ │
-                 └───────────────────────────────────────────────────┘
-```
+![Kairo 分层架构](architecture-layers.svg)
 
 核心（KairoCore）承载全部业务逻辑：数据模型、调度引擎、存储、查询过滤；接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）互不依赖、能力对等，只复用核心。该结构对应 vision §4 与 G3 判据。
 
@@ -37,13 +16,7 @@ Sprint 4 起，UI 与命令层之间加入 `KairoPresentation`（Foundation-only
 
 ### 1.2 数据流（核心闭环，vision §3）
 
-```
-需求文档 ──AI 读取──▶ WBS 分解 ──(MCP/CLI: 建任务树)──▶ KairoCore 排期
-     ▲                                                      │
-     └─────(MCP/CLI: 状态回写)◀──── AI 逐功能开发 ◀─────────┘
-                          ▲
-                          └── 人随时在 macOS 应用审阅/干预
-```
+![Kairo 核心闭环数据流](architecture-dataflow.svg)
 
 ## 2. 核心技术选型
 
@@ -197,29 +170,7 @@ kairo version
 
 ### 4.1 实体关系
 
-```
-Project
- ├── settings: ProjectSettings（direction, schedulePrecision, dateMode,
- │             granularity, projectStartDate/EndDate, workWeek）
- ├── tasks: [Task]
- │     Task: id, title, notes, kind(task|group|milestone|hammock), parentID?
- │            startDate, dueDate, duration, effort, progress, status,
- │            priority, tags, constraints(4 个可空时限日期),
- │            baselineStart/baselineEnd, customValues
- ├── dependencies: [TaskDependency]
- │     TaskDependency: predecessorID, type(FS|FF|SS|SF),
- │                     lag { amount, unit: working|elapsed|percentage }
- ├── resources: [Resource]
- │     Resource: id, name, email, type(person|equipment|material|group),
- │               units, efficiency, costPerUse, costPerHour,
- │               availabilityStart/End, parentID?, calendar?
- ├── assignments: [TaskAssignment]
- │     TaskAssignment: taskID, resourceID, units
- ├── calendar: WorkCalendar（weeklyBlocks + exceptions）
- ├── baselines: [Baseline]（快照名 + 时间 + 任务时间/进度）
- ├── history: [ChangeRecord]（字段路径 + 旧值 + 新值 + 时间 + 来源）
- └── metadata: title, fileVersion, createdAt, updatedAt
-```
+![Kairo 项目实体关系](architecture-entities.svg)
 
 要点：
 
@@ -271,30 +222,7 @@ Project
 
 现有 `Sources/Kairo/`（单 target）重构为「核心 + 产品」多 target。macOS 应用迁入 `Apps/macos/`。
 
-```
-Kairo/
-├── Package.swift                     # SwiftPM 根清单（core + 各产品 target 同仓）
-├── Sources/
-│   └── KairoCore/                    # 跨平台核心（纯逻辑；零 AppKit/SwiftUI import）
-│       ├── Model/                    # Task/TaskDependency/Resource/WorkCalendar/Project/ProjectSettings
-│       ├── Schedule/                 # 调度引擎（相关性传播/重要路径/宽延/违例）
-│       ├── Storage/                  # .kairo 编解码 / 模板 / 导入导出
-│       └── Query/                    # AIFilter 迁移 + 查询/过滤接口
-├── Apps/
-│   └── macos/                        # macOS SwiftUI 应用（import KairoCore）
-│       ├── Sources/                  # ContentView / 甘特 / 命令面板 / kairo:// 深链
-│       └── Resources/
-├── Interfaces/
-│   ├── mcp/                          # MCP 服务（复用 KairoCore）
-│   └── cli/                          # CLI（复用 KairoCore；从 MCP 契约派生命令）
-├── Plugins/
-│   └── claude-code/                  # 斜杠命令 + hooks + .mcp.json 模板
-├── Tests/
-│   ├── KairoCoreTests/               # 核心全量单测（Linux 亦编译；现有 17 项迁入）
-│   ├── AppTests/                     # 应用层测试（Store 交互 + ImageRenderer 离屏渲染）
-│   └── InterfaceTests/               # MCP/CLI 对等性契约测试（US-E5-05）
-└── docs/                             # 本文档集（00-vision / 01-prd / 02-architecture / 03-roadmap / features）
-```
+![Kairo 仓库目录结构](architecture-repo-layout.svg)
 
 边界规则：KairoCore 不得反向依赖任何接口层或 UI；接口层只允许依赖 KairoCore 公开 API；`Plugins/claude-code` 为配置与提示词，不含核心逻辑。
 
@@ -320,17 +248,7 @@ Kairo/
 
 分层：
 
-```
-KairoCore          Foundation-only：模型、排期、违例、查询、布局几何
-   ↑
-KairoCommands      Foundation-only：KairoSession（唯一写入口）
-   ↑
-KairoPresentation  Foundation-only：视图状态 → 平台中立快照 + 动作
-   ↑
-KairoMacApp        SwiftUI：WorkspaceStore 适配、壳层、绘制与手势
-
-KairoMCP / KairoCLI → KairoCommands → KairoCore
-```
+![ADR-013 呈现层与唯一写路径分层](architecture-adr013-layers.svg)
 
 依赖方向单向。`KairoPresentation` 不得 import SwiftUI、AppKit 或 Combine。`KairoCore`、`KairoCommands`、`KairoPresentation` 必须能在 iOS 与 Linux 编译；macOS 应用仍是本期唯一 UI 壳。
 
