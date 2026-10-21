@@ -79,6 +79,8 @@ public struct TaskInspector: Hashable, Sendable {
     public var notes: String
     public var scheduledStart: Date?
     public var scheduledFinish: Date?
+    /// 「开始」字段的用户意图（排期结果见 scheduledStart）；群组为 nil。
+    public var startDate: Date?
     public var durationDays: Double?
     public var effortHours: Double?
     public var slackDays: Double?
@@ -124,7 +126,8 @@ public struct TaskInspector: Hashable, Sendable {
         predecessors: [DependencyRow] = [],
         successors: [DependencyRow] = [],
         violations: [Violation] = [],
-        assignmentNames: [String] = []
+        assignmentNames: [String] = [],
+        startDate: Date? = nil
     ) {
         self.taskID = taskID
         self.title = title
@@ -136,6 +139,7 @@ public struct TaskInspector: Hashable, Sendable {
         self.notes = notes
         self.scheduledStart = scheduledStart
         self.scheduledFinish = scheduledFinish
+        self.startDate = startDate
         self.durationDays = durationDays
         self.effortHours = effortHours
         self.slackDays = slackDays

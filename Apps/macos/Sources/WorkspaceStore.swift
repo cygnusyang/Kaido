@@ -542,6 +542,25 @@ final class WorkspaceStore: ObservableObject {
                 try self.session.updateTask(id: id, patch: patch)
             }
 
+        case .setTaskStart(let id, let date):
+            update(id: id, mergeKey: "task-start-\(id)") {
+                var patch = TaskPatch()
+                patch.startDate = date.map(FieldPatch.set) ?? .clear
+                try self.session.updateTask(id: id, patch: patch)
+            }
+
+        case .setTaskFinish(let id, let finish, let start):
+            // 「结束」只折算持续时间；非法区间在 update 之前拒绝，避免产生撤销点。
+            guard let duration = ScheduleDateMath.durationDays(start: start, finish: finish) else {
+                alertMessage = "结束日期必须晚于开始日期"
+                return
+            }
+            update(id: id, mergeKey: "task-finish-\(id)") {
+                var patch = TaskPatch()
+                patch.durationDays = .set(duration)
+                try self.session.updateTask(id: id, patch: patch)
+            }
+
         case .canvasEditSchedule(let id, let startDate, let durationDays):
             // F-14-09 画布拖拽：同一 mergeKey 在连续节流提交间合并为一步撤销。
             // move 只带 startDate；resize 右端只带 durationDays；resize 左端两者都带。

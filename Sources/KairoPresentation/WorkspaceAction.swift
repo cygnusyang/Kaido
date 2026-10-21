@@ -48,6 +48,11 @@ public enum WorkspaceAction: Equatable, Sendable {
     case setDueDate(UUID, Date?)
     case setAssignee(UUID, String?)
     case setDuration(UUID, Double?)
+    /// 「开始」字段：写 startDate（用户意图锚点，与画布拖条同一字段）。nil = 清除。
+    case setTaskStart(UUID, Date?)
+    /// 「结束」字段：finish 为排他端点；start 为本次换算采用的排期起点
+    /// （视图传 scheduledStart ?? startDate，不自行做除法）。Store 折算后只写 durationDays。
+    case setTaskFinish(UUID, finish: Date, start: Date)
     /// 甘特画布直接编辑（F-14-09）：拖条改期（仅 startDate）/ 拖端点改持续
     /// （仅 durationDays）/ 拖左端（两者同时，end 不变）。视图层日粒度吸附后提交。
     case canvasEditSchedule(UUID, startDate: Date?, durationDays: Double?)

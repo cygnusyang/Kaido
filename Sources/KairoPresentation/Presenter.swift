@@ -685,7 +685,8 @@ public enum WorkspacePresenter {
             predecessors: predecessors,
             successors: successors,
             violations: violations.filter { $0.taskID == task.id },
-            assignmentNames: assignmentNames
+            assignmentNames: assignmentNames,
+            startDate: isGroup ? nil : task.startDate
         )
     }
 
