@@ -20,6 +20,9 @@ struct Sprint8DateFieldRenderTests {
         static let distinctColors = 20
         /// 整套表面/文字 token 换肤后画面差异下限（背景占绝大多数像素）。
         static let themeChange = 0.3
+        /// 内容/状态变化的最低可区分差异（与 GUIRenderTests 的 contentChange 同口径；
+        /// 用以排除「只有一个像素不同」的抗锯齿噪声）。
+        static let contentChange = 0.002
     }
 
     /// 固定时区与周首（周一）的日历，避免渲染与断言随主机设置漂移。
@@ -109,7 +112,7 @@ struct Sprint8DateFieldRenderTests {
         selection: Date?,
         minimumDate: Date? = nil,
         allowsClear: Bool = false,
-        preview: String? = nil,
+        preview: ((Date?) -> String?)? = nil,
         today: Date? = nil
     ) -> some View {
         let anchor = selection ?? date(2026, 11, 6)
@@ -164,9 +167,9 @@ struct Sprint8DateFieldRenderTests {
         for rendered in [filled, empty, disabled] {
             #expect(rendered.distinctColorCount >= Threshold.distinctColors)
         }
-        #expect(filled.differenceRatio(from: empty) > 0)
-        #expect(filled.differenceRatio(from: disabled) > 0)
-        #expect(empty.differenceRatio(from: disabled) > 0)
+        #expect(filled.differenceRatio(from: empty) > Threshold.contentChange)
+        #expect(filled.differenceRatio(from: disabled) > Threshold.contentChange)
+        #expect(empty.differenceRatio(from: disabled) > Threshold.contentChange)
     }
 
     // MARK: - AC-S8-18 弹层浅色 / 深色
@@ -193,7 +196,7 @@ struct Sprint8DateFieldRenderTests {
 
         #expect(selectedToday.distinctColorCount >= Threshold.distinctColors)
         #expect(selectedOtherDay.distinctColorCount >= Threshold.distinctColors)
-        #expect(selectedToday.differenceRatio(from: selectedOtherDay) > 0)
+        #expect(selectedToday.differenceRatio(from: selectedOtherDay) > Threshold.contentChange)
     }
 
     // MARK: - AC-S8-05 结束日历越界日置灰
@@ -229,7 +232,7 @@ struct Sprint8DateFieldRenderTests {
         let bounded = try renderPopover(selection: minimum, minimumDate: minimum, today: start)
         let unbounded = try renderPopover(selection: minimum, minimumDate: nil, today: start)
         #expect(bounded.distinctColorCount >= Threshold.distinctColors)
-        #expect(bounded.differenceRatio(from: unbounded) > 0)
+        #expect(bounded.differenceRatio(from: unbounded) > Threshold.contentChange)
     }
 
     // MARK: - AC-S8-12 群组两行只读外观
@@ -264,7 +267,7 @@ struct Sprint8DateFieldRenderTests {
 
         #expect(group.distinctColorCount >= Threshold.distinctColors)
         // 只读行不再渲染可编辑样式（次要文字色 + 禁用说明副行）。
-        #expect(group.differenceRatio(from: editable) > 0)
+        #expect(group.differenceRatio(from: editable) > Threshold.contentChange)
     }
 
     // MARK: - AC-S8-19 可静态断言的文案
@@ -346,5 +349,115 @@ struct Sprint8DateFieldRenderTests {
                 calendar: calendar
             )
         )
+    }
+
+    // MARK: - M-8 单元格状态纯逻辑
+
+    @Test func calendarDayStyleClassifiesSelectionTodayAndBounds() {
+        let today = date(2026, 11, 6)
+        let month = CalendarGrid.month(containing: today, calendar: calendar)
+        let minimum = date(2026, 11, 7)
+
+        // 当天：已选中 + 今天 + 本月 + 工作日，但因早于最小可选日而不可选。
+        let todayStyle = CalendarPopover.style(
+            for: today,
+            in: month,
+            selection: today,
+            minimumDate: minimum,
+            maximumDate: nil,
+            today: today
+        )
+        #expect(!todayStyle.isSelectable)
+        #expect(todayStyle.isSelected)
+        #expect(todayStyle.isToday)
+        #expect(todayStyle.isCurrentMonth)
+        #expect(!todayStyle.isWeekend)
+
+        // 次日（周六）：可选、周末、非今天、非选中。
+        let saturday = CalendarPopover.style(
+            for: minimum,
+            in: month,
+            selection: today,
+            minimumDate: minimum,
+            maximumDate: nil,
+            today: today
+        )
+        #expect(saturday.isSelectable)
+        #expect(saturday.isWeekend)
+        #expect(!saturday.isToday)
+        #expect(!saturday.isSelected)
+        #expect(saturday.isCurrentMonth)
+
+        // 上月尾巴：非本月但可点（点了顺带翻月）。
+        let previousMonth = CalendarPopover.style(
+            for: date(2026, 10, 26),
+            in: month,
+            selection: today,
+            minimumDate: nil,
+            maximumDate: nil,
+            today: today
+        )
+        #expect(!previousMonth.isCurrentMonth)
+        #expect(previousMonth.isSelectable)
+    }
+
+    // MARK: - M-2 预览行随候选日求值
+
+    @Test func popoverPreviewFollowsCandidateDay() {
+        let start = date(2026, 11, 6)
+        let preview: (Date?) -> String? = { candidate in
+            guard let candidate else { return nil }
+            let days = ScheduleDateMath.dayOffset(from: start, to: candidate, calendar: calendar)
+            return "\(Display.isoDate(start)) – \(Display.isoDate(candidate)) · \(days) 天"
+        }
+
+        let short = CalendarPopover.previewText(for: date(2026, 11, 9), using: preview)
+        let long = CalendarPopover.previewText(for: date(2026, 11, 12), using: preview)
+        #expect(short == "2026-11-06 – 2026-11-09 · 3 天")
+        #expect(long == "2026-11-06 – 2026-11-12 · 6 天")
+        #expect(short != long)
+        #expect(CalendarPopover.previewText(for: nil, using: preview) == nil)
+        #expect(CalendarPopover.previewText(for: date(2026, 11, 9), using: nil) == nil)
+    }
+
+    // MARK: - M-4 亚日持续时间的显示值夹取
+
+    @Test func subDayDurationFinishIsClampedToMinimum() throws {
+        let start = date(2026, 11, 6)
+        let minimum = ScheduleDateMath.minimumFinish(start: start, kind: .task, calendar: calendar)
+        #expect(minimum == date(2026, 11, 7))
+
+        // 引擎口径：0.5 天 → 排期结束日是「起点 + 12 小时」，归一后仍是 11-06，
+        // 早于最小可选日 11-07。
+        let engineFinish = try #require(calendar.date(byAdding: .hour, value: 12, to: start))
+        #expect(engineFinish < minimum)
+        #expect(
+            DateFieldValueMath.clampedFinish(engineFinish, minimumDate: minimum, calendar: calendar)
+                == minimum
+        )
+        // 正常区间不受夹取影响。
+        #expect(
+            DateFieldValueMath.clampedFinish(
+                date(2026, 11, 12),
+                minimumDate: minimum,
+                calendar: calendar
+            ) == date(2026, 11, 12)
+        )
+        #expect(
+            DateFieldValueMath.clampedFinish(engineFinish, minimumDate: nil, calendar: calendar)
+                == start
+        )
+
+        // 夹取前后是两个不同画面：未夹取显示 11-06（死格日），夹取后显示 11-07。
+        let clamped = try snapshot(
+            row(label: "结束", value: minimum),
+            width: 220, height: 56, scheme: .light
+        )
+        let unclamped = try snapshot(
+            row(label: "结束", value: engineFinish),
+            width: 220, height: 56, scheme: .light
+        )
+        #expect(clamped.distinctColorCount >= Threshold.distinctColors)
+        #expect(clamped.differenceRatio(from: unclamped) > Threshold.contentChange)
     }
 }

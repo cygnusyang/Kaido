@@ -260,24 +260,16 @@ private struct TaskInspectorContent: View {
                     store.dispatch(.setTaskStart(task.taskID, date))
                 }
             )
-            if startLaterThanPlan {
-                Label(
-                    "开始晚于计划结束；实际排期仍按依赖与项目开始计算",
-                    systemImage: "exclamationmark.circle"
-                )
-                .font(.system(size: DesignTokens.captionFontSize))
-                .foregroundStyle(DesignTokens.violationWarning)
-                .lineLimit(2)
-            }
             DateFieldRow(
                 label: "结束",
                 value: finishValue,
                 placeholder: "无排期",
-                helper: "结束日不含当天",
+                helper: finishHelper,
                 isEnabled: finishDisabledReason == nil,
                 disabledReason: finishDisabledReason,
                 minimumDate: finishMinimumDate,
                 allowsClear: false,
+                boundaryHint: Self.finishBoundaryHint,
                 preview: { finishPreview(for: $0) },
                 onCommit: { date in
                     guard let date, let start = finishStart else { return }
@@ -465,14 +457,34 @@ private struct TaskInspectorContent: View {
 
     // MARK: - 日期字段
 
+    /// 结束字段的最小可选日提示（越界格 tooltip / 无障碍说明）。
+    private static let finishBoundaryHint = "结束须晚于开始，至少 1 天"
+
     /// 「结束」换算采用的起点：排期起点优先，其次意图起点（设计 §1.4）。
     private var finishStart: Date? { task.scheduledStart ?? task.startDate }
 
     /// 「结束」显示值：排期结果；无排期时回退「起点 + 持续时间」（设计 §1.1）。
+    ///
+    /// 两者都夹取到最小可选日之后：亚日持续时间（< 1 天）会让原始结束日落在
+    /// 「起点 + 1 天」之前，显示成不可选的死格（M-4）。
     private var finishValue: Date? {
-        if let scheduledFinish = task.scheduledFinish { return scheduledFinish }
-        guard let start = finishStart else { return nil }
-        return ScheduleDateMath.finish(start: start, durationDays: task.durationDays ?? 1)
+        let finish: Date
+        if let scheduledFinish = task.scheduledFinish {
+            finish = scheduledFinish
+        } else if let start = finishStart {
+            finish = ScheduleDateMath.finish(start: start, durationDays: task.durationDays ?? 1)
+        } else {
+            return nil
+        }
+        return DateFieldValueMath.clampedFinish(finish, minimumDate: finishMinimumDate)
+    }
+
+    /// 结束行副行：排他口径 + 亚日持续时间的下限说明（M-4）。
+    private var finishHelper: String {
+        guard let duration = task.durationDays, duration > 0, duration < 1 else {
+            return "结束日不含当天"
+        }
+        return "结束日不含当天；持续时间不足 1 天，结束日按最少 1 天显示"
     }
 
     /// 结束行最小可选日：起点 + 1 天（排他）；里程碑为起点当日（该行本身禁用）。
@@ -496,12 +508,6 @@ private struct TaskInspectorContent: View {
         guard let startDate = task.startDate, let planned = task.scheduledStart else { return nil }
         guard abs(ScheduleDateMath.dayOffset(from: startDate, to: planned)) >= 1 else { return nil }
         return "计划开始 \(Display.isoDate(planned))"
-    }
-
-    /// 意图起点晚于计划结束：不阻断写入，行下警示（设计 §1.5）。
-    private var startLaterThanPlan: Bool {
-        guard let startDate = task.startDate, let finish = task.scheduledFinish else { return false }
-        return ScheduleDateMath.startOfDay(startDate) > ScheduleDateMath.startOfDay(finish)
     }
 
     /// 开始弹层预览：「开始日 – 结束日 · N 天」（按当前持续时间推结束日）。
