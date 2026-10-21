@@ -4,6 +4,8 @@ import Foundation
 ///
 /// 输入任务清单与项目边界，输出每任务的最早/最晚可行窗口与选定安排；
 /// 不改写 TaskItem 的原始字段（startDate/dueDate 是用户输入意图，调度结果是另一张表）。
+/// `startDate` 作为「开始不早于」下界参与前向传播（S8 / D-021）：不驱动提前，
+/// 但排期结果不得早于该日；群组忽略自身 `startDate`，里程碑同样适用。
 ///
 /// 日历简化：以自然日（24 小时）为最小单位做日期算术；工作周日历（US-E2-04）
 /// 不在本 Sprint 范围，代码注释保留该口径。
@@ -193,14 +195,22 @@ public enum ScheduleEngine {
         for id in cycleSet {
             let task = byID[id]!
             let duration = durations[id] ?? 1
-            let start = max(base, constraintStartLowerBound(task, calendar: calendar))
+            let start = max(
+                base,
+                constraintStartLowerBound(task, calendar: calendar),
+                startDateLowerBound(task, calendar: calendar)
+            )
             earliest[id] = Window(start: start, finish: addDays(start, duration))
         }
 
         for id in order {
             let task = byID[id]!
             let duration = durations[id] ?? 1
-            var start = max(base, constraintStartLowerBound(task, calendar: calendar))
+            var start = max(
+                base,
+                constraintStartLowerBound(task, calendar: calendar),
+                startDateLowerBound(task, calendar: calendar)
+            )
             for dep in task.dependencies {
                 guard let pred = byID[dep.predecessorID], let pw = earliest[pred.id] else { continue }
                 start = max(start, forwardStartLowerBound(type: dep.type, lag: dep.lagDays, pred: pw, duration: duration))
@@ -326,6 +336,15 @@ public enum ScheduleEngine {
     }
 
     // MARK: - 时限辅助
+
+    /// 任务意图开始日期对最早开始的下界（S8 / D-021）：显式 `startDate` 归一为当天零点后
+    /// 作为「开始不早于」下界，不驱动提前。群组由子任务聚合，忽略自身 `startDate`。
+    private static func startDateLowerBound(_ task: TaskItem, calendar: Calendar) -> Date {
+        guard task.kind != .group, let startDate = task.startDate else {
+            return Date(timeIntervalSince1970: 0)
+        }
+        return calendar.startOfDay(for: startDate)
+    }
 
     /// 时限对最早开始的抬升：startNoEarlierThan 时取其日期，否则不下限。
     private static func constraintStartLowerBound(_ task: TaskItem, calendar: Calendar) -> Date {
