@@ -516,4 +516,84 @@ struct Sprint8DateAcceptanceTests {
         #expect(try task(store, a).durationDays == 6, "不回滚")
         #expect(try store.sessionForTesting.violations().count == violationsBefore)
     }
+
+    // MARK: - AC-S8-14 快捷项顺序（lead 裁定 2026-10-21）
+
+    /// AC-S8-14（lead 裁定 2026-10-21，覆盖 design §3.3 原文）：视觉/Tab 顺序为
+    /// 上个月 → 下个月 → 网格 → 今天 → 下周一 → +1 周 → 清除。
+    ///
+    /// 网格是单一焦点停靠点（42 格各有无障碍元素，但不做 42 个 Tab 停靠点）。
+    /// 视图声明顺序即焦点顺序（`DateFieldRow.swift` 的 header → weekdayHeader → grid → previewRow → quickBar），
+    /// 但物理键盘事件不可离屏派发（§3 N2），因此本用例只锁定可测的快捷项声明顺序；
+    /// 「网格在快捷区之前」与完整 Tab 环仍为人工走查。
+    @Test func calendarQuickActionOrderMatchesRuling() {
+        #expect(DateQuickAction.allCases == [.today, .nextMonday, .plusWeek])
+        #expect(DateQuickAction.allCases.map(\.title) == ["今天", "下周一", "+1 周"])
+    }
+
+    // MARK: - AC-S8-22 夏令时口径
+
+    /// AC-S8-22：America/New_York 回拨日（2025-11-02）前后，duration 3 / 5 的结束日
+    /// 必须等于「日历整日相加」的结果（不得少一天），且 finish − start 的日历天数 == duration。
+    @Test func dstTransitionKeepsFinishOnCalendarDay() throws {
+        let ny = S8Fixture.calendar(firstWeekday: 2, timeZone: "America/New_York")
+        let start = S8Fixture.day(2025, 11, 1, in: ny) // 回拨前一日：11-02 02:00 回拨到 01:00
+
+        let cases: [(Double, Date)] = [
+            (3, S8Fixture.day(2025, 11, 4, in: ny)),
+            (5, S8Fixture.day(2025, 11, 6, in: ny))
+        ]
+        for (duration, expectedFinish) in cases {
+            // 换算层（检查器「结束」字段的显示值）
+            #expect(
+                ScheduleDateMath.finish(start: start, durationDays: duration, calendar: ny) == expectedFinish,
+                "duration \(duration) 的结束显示值必须是日历加日结果"
+            )
+            #expect(ScheduleDateMath.dayOffset(from: start, to: expectedFinish, calendar: ny) == Int(duration))
+
+            // 排期层（引擎落点）
+            let task = TaskItem(title: "DST", startDate: start, durationDays: duration)
+            let result = ScheduleEngine.compute(tasks: [task], projectStart: start, calendar: ny)
+            let scheduled = try #require(result.tasks.first { $0.taskID == task.id })
+            #expect(scheduled.scheduledStart == start)
+            #expect(
+                scheduled.scheduledFinish == expectedFinish,
+                "duration \(duration) 的 scheduledFinish 不得比日历少一天"
+            )
+            #expect(
+                ScheduleDateMath.dayOffset(
+                    from: scheduled.scheduledStart, to: scheduled.scheduledFinish, calendar: ny
+                ) == Int(duration),
+                "finish − start 的日历天数必须等于 duration"
+            )
+        }
+    }
+
+    // MARK: - AC-S8-23 陈旧起点
+
+    /// AC-S8-23：弹层打开后（视图记住的起点）排期发生变化，再提交旧起点 → 必须拒绝。
+    @Test func staleStartFinishIsRejectedWithoutUndo() throws {
+        let (store, a, _) = try makeDateFixture()
+        let staleStart = try #require(try row(store, a).scheduledStart)
+        #expect(staleStart == localDay(2026, 11, 2), "前提：弹层打开时起点为 11-02")
+
+        // 打开期间排期变化（等价于画布拖拽 / 撤销重做 / ALAP 重算）。
+        store.dispatch(.canvasEditSchedule(a, startDate: localDay(2026, 11, 6), durationDays: nil))
+        #expect(try row(store, a).scheduledStart == localDay(2026, 11, 6))
+        let duration = try #require(try task(store, a).durationDays)
+        let scheduledFinish = try #require(try row(store, a).scheduledFinish)
+
+        // 用户仍按旧起点 11-02 看到的月历选 11-10 提交。
+        store.dispatch(.setTaskFinish(a, finish: localDay(2026, 11, 10), start: staleStart))
+
+        #expect(store.alertMessage == "排期已变化，请重新选择结束日期")
+        #expect(try task(store, a).durationDays == duration, "数据不变")
+        #expect(try row(store, a).scheduledFinish == scheduledFinish, "落点不变")
+
+        // 撤销栈不变：一次 undo 只回退画布拖拽，而不是先回退这笔被拒的写回。
+        store.alertMessage = nil
+        store.dispatch(.undo)
+        #expect(try task(store, a).startDate == nil)
+        #expect(try row(store, a).scheduledStart == localDay(2026, 11, 2))
+    }
 }
