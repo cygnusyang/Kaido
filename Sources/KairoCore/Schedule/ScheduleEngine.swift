@@ -52,7 +52,8 @@ public enum ScheduleEngine {
 
         let scheduled = scheduledTasks(
             tasks: tasks, durations: durations,
-            earliest: earliest, latest: latest, successorMap: successorMap
+            earliest: earliest, latest: latest, successorMap: successorMap,
+            calendar: calendar
         )
 
         // 无法排期：环上任务与空群组。其余任务均有调度条目。
@@ -287,7 +288,8 @@ public enum ScheduleEngine {
         durations: [UUID: Double],
         earliest: [UUID: Window],
         latest: [UUID: Window],
-        successorMap: [UUID: [TaskItem]]
+        successorMap: [UUID: [TaskItem]],
+        calendar: Calendar
     ) -> [ScheduledTask] {
         tasks.map { task in
             let duration = durations[task.id] ?? 1
@@ -296,13 +298,20 @@ public enum ScheduleEngine {
             let useLatest = task.schedulingPolicy == .alap
             let totalSlack = daysBetween(e.start, l.start)
             let free = freeSlack(of: task.id, earliest: earliest, successorMap: successorMap, totalSlack: totalSlack)
+            // 选定安排统一收敛到 startDate 下界（S8 / D-021）：ASAP 已由前向传播保证，
+            // ALAP 取最晚窗口时可能早于意图开始（后向传播不消费该下界），此处补齐，
+            // 避免两条选定路径口径分叉。
+            let selectedStart = max(
+                useLatest ? l.start : e.start,
+                startDateLowerBound(task, calendar: calendar)
+            )
             return ScheduledTask(
                 taskID: task.id,
                 durationDays: duration,
                 earliestStart: e.start, earliestFinish: e.finish,
                 latestStart: l.start, latestFinish: l.finish,
-                scheduledStart: useLatest ? l.start : e.start,
-                scheduledFinish: useLatest ? l.finish : e.finish,
+                scheduledStart: selectedStart,
+                scheduledFinish: addDays(selectedStart, duration),
                 totalSlackDays: totalSlack,
                 freeSlackDays: free
             )

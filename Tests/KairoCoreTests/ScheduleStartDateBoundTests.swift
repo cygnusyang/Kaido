@@ -140,4 +140,35 @@ struct ScheduleStartDateBoundTests {
         #expect(sa.earliestStart == day(2026, 11, 10))
         #expect(sb.earliestStart == day(2026, 11, 12))
     }
+
+    @Test func alapTaskNeverStartsBeforeStartDate() throws {
+        // 项目结束锚点（11-05）早于意图开始（11-20）：ALAP 的最晚窗口落在 11-04，
+        // 选定安排必须收敛到 startDate 下界，并保持 finish = start + duration。
+        let t = TaskItem(
+            title: "T", startDate: day(2026, 11, 20), durationDays: 1, schedulingPolicy: .alap
+        )
+
+        let result = ScheduleEngine.compute(
+            tasks: [t], projectStart: projectStart, projectEnd: day(2026, 11, 5), calendar: utc
+        )
+        let s = try #require(result.scheduled(t.id))
+
+        #expect(s.latestStart == day(2026, 11, 4))
+        #expect(s.earliestStart == day(2026, 11, 20))
+        #expect(s.scheduledStart == day(2026, 11, 20))
+        #expect(s.scheduledFinish == day(2026, 11, 21))
+    }
+
+    @Test func asapTaskSelectionKeepsStartDateBound() throws {
+        // 统一收敛路径的 ASAP 回归：选定值不应回退到锚点。
+        let t = TaskItem(title: "T", startDate: day(2026, 11, 20), durationDays: 2)
+
+        let result = ScheduleEngine.compute(
+            tasks: [t], projectStart: projectStart, projectEnd: day(2026, 11, 5), calendar: utc
+        )
+        let s = try #require(result.scheduled(t.id))
+
+        #expect(s.scheduledStart == day(2026, 11, 20))
+        #expect(s.scheduledFinish == day(2026, 11, 22))
+    }
 }
