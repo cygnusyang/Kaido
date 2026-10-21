@@ -53,7 +53,7 @@ struct CalendarDayStyle: Equatable {
 /// 组件不持有 `WorkspaceStore`——值由调用方传入，提交经 `onCommit` 回到检查器接线点，
 /// 使「视图只搬运日期，换算与写回在 Store」的分工成立。
 struct DateFieldRow: View {
-    /// 字段名（「开始」「结束」「截止日期」）。
+    /// 字段名（如「开始」「截止日期」）——由调用方给，组件不解释字段语义。
     let label: String
     /// 主值：行内渲染 `YYYY-MM-DD`。
     let value: Date?
@@ -64,13 +64,16 @@ struct DateFieldRow: View {
     var isEnabled: Bool = true
     /// 禁用原因：显示为副行并以无障碍 hint 播报。
     var disabledReason: String? = nil
-    /// 最小可选日（含）；结束行传「起点 + 1 天」。
+    /// 最小可选日（含）；由调用方按字段语义给出（如排他端点传「起点 + 1 天」）。
     var minimumDate: Date? = nil
     /// 最大可选日（含）；`nil` = 不限。
     var maximumDate: Date? = nil
     var allowsClear: Bool = false
     var quickActions: [DateQuickAction] = DateQuickAction.allCases
-    /// 弹层预览行文案（按字段语义由调用方给出）；`nil` 时该行留白。
+    /// 月历越界日（早于 minimumDate / 晚于 maximumDate）的 tooltip 与无障碍说明。
+    /// 由调用方按字段语义给出——组件不知道字段含义，不得自造文案。
+    var boundaryHint: String? = nil
+    /// 弹层预览行文案（按字段语义由调用方给出，参数为候选日）；`nil` 时该行留白。
     var preview: ((Date?) -> String?)? = nil
     /// 提交：`nil` 只可能来自「清除」（`allowsClear` 为真时）。
     let onCommit: (Date?) -> Void
@@ -109,8 +112,8 @@ struct DateFieldRow: View {
                     maximumDate: maximumDate,
                     allowsClear: allowsClear,
                     quickActions: quickActions,
-                    preview: preview?(value),
-                    disabledDayHint: disabledDayHint,
+                    preview: preview,
+                    disabledDayHint: boundaryHint,
                     visibleMonth: $visibleMonth,
                     onPick: commit,
                     onDismiss: { isPopoverPresented = false }
@@ -134,6 +137,7 @@ struct DateFieldRow: View {
         .accessibilityValue(value.map { Self.accessibilityDateText($0) } ?? placeholder)
         .accessibilityHint(isEnabled ? "打开月历选择日期" : (disabledReason ?? "打开月历选择日期"))
         .accessibilityAddTraits(isEnabled ? .isButton : [])
+        .modifier(OptionalHelpModifier(text: isEnabled ? nil : disabledReason))
     }
 
     // MARK: - 交互
@@ -175,11 +179,6 @@ struct DateFieldRow: View {
 
     // MARK: - 文案
 
-    /// 越界格的无障碍说明。
-    private var disabledDayHint: String? {
-        minimumDate == nil && maximumDate == nil ? nil : "结束须晚于开始，至少 1 天"
-    }
-
     /// 无障碍标签：「开始日期，2026年11月6日」/「开始日期，未设置」。
     static func accessibilityLabelText(
         label: String,
@@ -198,6 +197,24 @@ struct DateFieldRow: View {
     }
 }
 
+/// 日期字段的显示值口径（纯函数，供检查器与测试共用）。
+enum DateFieldValueMath {
+    /// 排他端点（finish）的显示值：与最小可选日取较晚者。
+    ///
+    /// 持续时间可小于 1 天（引擎接受任意 > 0），此时「起点 + duration」早于
+    /// 最小可选日「起点 + 1 天」，直接显示会出现「已选中但不可选」的死格；
+    /// 按设计 §1.4 的下限 1 天口径夹取到可选区间内。
+    static func clampedFinish(
+        _ finish: Date,
+        minimumDate: Date?,
+        calendar: Calendar = .current
+    ) -> Date {
+        let normalized = calendar.startOfDay(for: finish)
+        guard let minimumDate else { return normalized }
+        return max(normalized, calendar.startOfDay(for: minimumDate))
+    }
+}
+
 /// 236×300 月历弹层：月份导航 / 星期表头 / 6×7 网格 / 预览行 / 快捷区。
 ///
 /// 网格数据来自 `CalendarMonthGrid`（视图不自算日历）；颜色全部走 `DesignTokens`。
@@ -213,10 +230,13 @@ struct CalendarPopover: View {
     var maximumDate: Date? = nil
     var allowsClear: Bool = false
     var quickActions: [DateQuickAction] = DateQuickAction.allCases
-    /// 预览行文案；`nil` 时留白（保持 300pt 总高）。
-    var preview: String? = nil
-    /// 越界格的无障碍说明与 tooltip。
+    /// 预览行文案（参数为候选日：焦点日优先，其次选中值）；`nil` 时留白（保持 300pt 总高）。
+    var preview: ((Date?) -> String?)? = nil
+    /// 越界格的无障碍说明与 tooltip；由调用方给字段级文案，组件不自造。
     var disabledDayHint: String? = nil
+
+    /// 焦点跳格的最大步数：42 格（6×7）+ 余量，防止整月不可选时死循环。
+    private static let maxFocusSteps = 62
     /// 「今天」基准，默认当前时刻（测试可注入固定日期）。
     var today: Date = Date()
     var calendar: Calendar = .current
@@ -228,9 +248,6 @@ struct CalendarPopover: View {
     @FocusState private var isGridFocused: Bool
     @State private var focusedDay: Date?
     @State private var hoveredDay: Date?
-
-    /// 越界格 tooltip（设计 §1.5）。
-    private static let boundaryTooltip = "结束须晚于开始，至少 1 天"
 
     var body: some View {
         VStack(spacing: 0) {
@@ -377,7 +394,7 @@ struct CalendarPopover: View {
                     self.hoveredDay = nil
                 }
             }
-            .modifier(OptionalHelpModifier(text: style.isSelectable ? nil : cellHint))
+            .modifier(OptionalHelpModifier(text: style.isSelectable ? nil : disabledDayHint))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(
                 Self.dayAccessibilityLabel(
@@ -388,7 +405,7 @@ struct CalendarPopover: View {
                     isSelectable: style.isSelectable
                 )
             )
-            .modifier(OptionalAccessibilityHint(text: style.isSelectable ? nil : cellHint))
+            .modifier(OptionalAccessibilityHint(text: style.isSelectable ? nil : disabledDayHint))
             .accessibilityAddTraits(style.isSelectable ? .isButton : [])
     }
 
@@ -431,14 +448,10 @@ struct CalendarPopover: View {
         return calendar.isDate(focusedDay, inSameDayAs: day)
     }
 
-    private var cellHint: String {
-        disabledDayHint ?? Self.boundaryTooltip
-    }
-
     // MARK: - 预览与快捷区
 
     private var previewRow: some View {
-        Text(preview ?? " ")
+        Text(Self.previewText(for: focusedDay ?? selection, using: preview) ?? " ")
             .font(.system(size: DesignTokens.captionFontSize))
             .monospacedDigit()
             .foregroundStyle(DesignTokens.textSecondary)
@@ -515,7 +528,7 @@ struct CalendarPopover: View {
         guard var candidate = calendar.date(byAdding: .day, value: delta, to: base) else { return }
         // 越界日不可聚焦：沿移动方向跳到最近的可选日。
         var steps = 0
-        while !isSelectable(candidate), steps < 62 {
+        while !isSelectable(candidate), steps < Self.maxFocusSteps {
             guard let next = calendar.date(byAdding: .day, value: delta, to: candidate) else { return }
             candidate = next
             steps += 1
@@ -577,6 +590,14 @@ struct CalendarPopover: View {
         if let minimumDate, dayStart < calendar.startOfDay(for: minimumDate) { return false }
         if let maximumDate, dayStart > calendar.startOfDay(for: maximumDate) { return false }
         return true
+    }
+
+    /// 预览行求值：候选日为焦点日优先、其次选中值。
+    ///
+    /// 每次渲染都会重算（M-2）——方向键移动焦点时区间与天数随之更新，
+    /// 而不是在打开瞬间固化。
+    static func previewText(for candidate: Date?, using preview: ((Date?) -> String?)?) -> String? {
+        preview?(candidate)
     }
 
     /// 单元格无障碍标签：「11 月 2 日，星期日，今天，已选中，不在本月，不可选」。
