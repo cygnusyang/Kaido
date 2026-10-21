@@ -311,4 +311,59 @@ struct Sprint8TaskDateActionTests {
         #expect(inspector.kind == .group)
         #expect(inspector.startDate == nil)
     }
+
+    // MARK: - F-14-19 大纲日期列与检查器同源
+
+    /// 大纲日期单元格与检查器日期行 dispatch 同一动作、同一合并键：
+    /// - 大纲：`OutlineTable.swift:179`（开始）/ `:191-195`（结束，起点取同快照行的 `scheduledStart`）
+    /// - 检查器：`InspectorView.swift:260` / `:276`
+    ///
+    /// 因此 `task-start-*` 与 `task-finish-*` 是两个合并键 ⇒ 各占一步撤销，一次 undo 只回滚
+    /// 最近一笔；且结束以上一帧快照的起点折算不会命中「排期已变化」二次校验（设计 R2）。
+    @Test func outlineDateCellCommitSharesInspectorActionAndUndoKeys() throws {
+        let store = makeStore()
+        let original = try plainTask(store)
+        let depthBefore = store.undoDepthForTesting
+        let target = makeDate(2025, 11, 2)
+
+        // ① 大纲「开始」单元格提交（与检查器同一动作 `.setTaskStart`）。
+        store.dispatch(.setTaskStart(original.id, target))
+        #expect(try task(store, original.id).startDate == target)
+        #expect(store.undoDepthForTesting == depthBefore + 1)
+
+        // ② 大纲「结束」单元格提交：起点按接线取同一快照行（`row.scheduledStart`）。
+        let scheduledStart = try #require(try row(store, original.id).scheduledStart)
+        let finish = try #require(Calendar.current.date(byAdding: .day, value: 4, to: scheduledStart))
+        store.dispatch(.setTaskFinish(original.id, finish: finish, start: scheduledStart))
+        #expect(store.alertMessage == nil, "快照起点与 Store 判定同源，不应命中陈旧起点拦截")
+        #expect(try row(store, original.id).scheduledFinish == finish)
+        #expect(store.undoDepthForTesting == depthBefore + 2)
+
+        // ③ 一次 undo 只回滚「结束」（开始/结束是两个合并键）。
+        store.dispatch(.undo)
+        #expect(try task(store, original.id).durationDays == original.durationDays)
+        #expect(try task(store, original.id).startDate == target, "回滚结束不影响开始意图")
+        #expect(store.undoDepthForTesting == depthBefore + 1)
+
+        // ④ 再 undo 回滚「开始」。
+        store.dispatch(.undo)
+        #expect(try task(store, original.id).startDate == original.startDate)
+        #expect(store.undoDepthForTesting == depthBefore)
+    }
+
+    /// 大纲开始列提供「清除」（`allowsClear: true`，设计 §2）：清除同样是一次编辑、一步撤销。
+    @Test func outlineStartClearIsOneUndoStepRestoringIntentDate() throws {
+        let store = makeStore()
+        let backend = try task(store, "实现搜索后端")
+        let originalStartDate = try #require(backend.startDate)
+        let depthBefore = store.undoDepthForTesting
+
+        store.dispatch(.setTaskStart(backend.id, nil))
+        #expect(try task(store, backend.id).startDate == nil)
+        #expect(store.undoDepthForTesting == depthBefore + 1)
+
+        store.dispatch(.undo)
+        #expect(try task(store, backend.id).startDate == originalStartDate)
+        #expect(store.undoDepthForTesting == depthBefore)
+    }
 }

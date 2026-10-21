@@ -68,6 +68,9 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
     public var priority: TaskPriority
     public var scheduledStart: Date?
     public var scheduledFinish: Date?
+    /// 意图起点（`TaskItem.startDate`）：用户设置的最早开始日；`nil` = 未设置，
+    /// 完全由自动排期决定。群组行为 `nil`（聚合口径只有排期结果）。
+    public var startDate: Date?
     public var durationDays: Double?
     public var assignee: String?
     /// 前置任务摘要（`A8FC:fs` / `A8FC:fs+1.5`，逗号分隔）；空串表示无前置。
@@ -85,6 +88,7 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
     public var unscheduledReason: UnscheduledReason?
     public var isHighlighted: Bool
 
+    /// - Parameter startDate: 意图起点；追加在参数表末尾并带默认值，既有构造点无需改动。
     public init(
         id: UUID,
         depth: Int,
@@ -109,7 +113,8 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
         isCritical: Bool = false,
         hasSchedule: Bool = false,
         unscheduledReason: UnscheduledReason? = nil,
-        isHighlighted: Bool = false
+        isHighlighted: Bool = false,
+        startDate: Date? = nil
     ) {
         self.id = id
         self.depth = depth
@@ -120,6 +125,7 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
         self.priority = priority
         self.scheduledStart = scheduledStart
         self.scheduledFinish = scheduledFinish
+        self.startDate = startDate
         self.durationDays = durationDays
         self.assignee = assignee
         self.predecessorsText = predecessorsText

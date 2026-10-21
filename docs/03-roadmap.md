@@ -114,6 +114,7 @@
 | v0.4.0 | 2026-10-21 | 甘特图直接编辑（F-14-09：拖条改期、拖端点改持续、拖拽建依赖/删线；见 docs/archive/Sprint7-gantt-direct-edit/design.md） |
 | v0.5.0 | 2026-10-21 | 任务起止日期可自定义（F-14-10：检查器「开始/结束」+ 月历弹层）+ **D-021 修复**（排期引擎消费 `startDate`，画布拖条改期真正生效）+ 日历日算术（DST 结束落点修复）；见 docs/archive/Sprint8-task-dates/design.md |
 | v0.6.0 | 2026-10-22 | 甘特图横向平移（F-14-18：触摸板/滚轮横向滚动 + 画布空白拖拽；亚日余量累积、整天归一；见 docs/archive/Sprint9-gantt-horizontal-pan/design.md） |
+| v0.7.0 | 2026-10-22 | 大纲「开始/结束」日期列可编辑（F-14-19：点击弹月历、复用 CalendarPopover；群组/里程碑/无排期按策略禁用；写回与撤销与检查器同源；见 docs/archive/Sprint10-outline-date-cells/design.md） |
 
 ### Sprint 7（计划）
 
@@ -136,3 +137,11 @@
 - **设计稿**：docs/archive/Sprint9-gantt-horizontal-pan/design.md。
 - **未做（有意排除）**：横向滚动条、子日粒度窗口（会破坏 A7 黄金基线）。
 - **候选池**：沿用 Sprint 8 候选池；D-022 / D-023 / D-024 仍计划 v0.6.1 处置。
+
+### Sprint 10（已交付 v0.7.0 · 2026-10-22）
+
+- **Goal**：大纲「开始 / 结束」两列可编辑（用户需求：左侧日期要能改，并用日历组件快速选日）。
+- **交付**：`OutlineDateCell`（点击弹 `CalendarPopover`，复用 F-14-10 组件不改造）；`OutlineDateEditing` 纯函数策略（启用/原因/最小日）；写回复用 `setTaskStart` / `setTaskFinish`，撤销键与检查器同源；群组/里程碑/无排期禁用并给出原因。
+- **测试**：策略 17 例（含跨 DST、闰日、群组优先于里程碑）+ App 层 2 例同源断言；全量 701/701。
+- **设计稿**：docs/archive/Sprint10-outline-date-cells/design.md。
+- **顺带修正**：PRD 中 v0.6.0 甘特平移误用 US-E4-05（与命令面板冲突），已改为 US-E4-08；本需求登记 US-E4-09。

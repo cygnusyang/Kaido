@@ -3,6 +3,18 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.7.0 — 2026-10-22
+
+### 新增
+
+- **大纲「开始 / 结束」日期列可编辑（F-14-19）**：左侧大纲两列由只读文本改为点击即弹月历，快速选日期。
+  - 开始列：写任务意图开始日期（可「清除」回落自动排期）；显示值仍是排期开始（与画布对齐），依赖可能使排期后移，单元格 tooltip 已说明。
+  - 结束列：改写持续时间（结束为排他端点），最小可选日 = 起点次日；不允许清除。
+  - 禁用语义与检查器一致：群组两列只读、里程碑结束只读、无排期时结束不可选，均以灰字 + tooltip 给出原因而不是静默无反应。
+  - 写回动作与撤销粒度与检查器完全同源（`setTaskStart` / `setTaskFinish`，`task-start-*` / `task-finish-*`）；命令层零改动。
+- 新增 `OutlineDateEditing` 纯函数策略（KairoPresentation）承载启用/原因/最小日判定，视图不写规则；跨 DST 日期以日历加法而非 +86400 秒推进。
+- 设计稿与测试矩阵：docs/archive/Sprint10-outline-date-cells/design.md（17 例策略测试 + 2 例同源断言）。
+
 ## v0.6.0 — 2026-10-22
 
 ### 新增

@@ -245,7 +245,9 @@ public enum WorkspacePresenter {
                 isCritical: isCriticalRow(task),
                 hasSchedule: hasSchedule,
                 unscheduledReason: unscheduledReason(for: task, hasSchedule: hasSchedule),
-                isHighlighted: viewState.highlightedTaskID == task.id
+                isHighlighted: viewState.highlightedTaskID == task.id,
+                // 意图起点只对非群组行有意义：群组的起止一律是子任务聚合值（口径与 `start` 一致）。
+                startDate: isGroup ? nil : task.startDate
             ))
         }
 

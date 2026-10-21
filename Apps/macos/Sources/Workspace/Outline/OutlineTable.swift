@@ -171,9 +171,35 @@ private struct OutlineRowView: View {
                 onCommit: { store.dispatch(.setPredecessors(row.id, $0)) }
             )
         case .start:
-            dateCell(row.scheduledStart)
+            OutlineDateCell(
+                column: .start,
+                row: row,
+                isSelected: isSelected,
+                onOpen: { store.dispatch(.select(row.id)) },
+                onCommit: { store.dispatch(.setTaskStart(row.id, $0)) }
+            )
         case .finish:
-            dateCell(row.scheduledFinish)
+            OutlineDateCell(
+                column: .finish,
+                row: row,
+                isSelected: isSelected,
+                onOpen: { store.dispatch(.select(row.id)) },
+                onCommit: { date in
+                    // 结束列不提供「清除」，`nil` 只可能来自清除（该列 `allowsClear` 为假，实际不可达）。
+                    // 起点取同一快照行：Store 会用它做「排期已变化」与「结束晚于开始」两重校验（设计 R2）。
+                    // 参数由策略纯函数给出：列禁用或快照没有排期起点时整体不提交，
+                    // 不拿结束日兜底当起点（那会折算成 0 天并掩盖真实原因）。
+                    guard let date,
+                          let commit = OutlineDateEditing.finishCommit(row: row, finish: date) else {
+                        return
+                    }
+                    store.dispatch(.setTaskFinish(
+                        row.id,
+                        finish: commit.finish,
+                        start: commit.start
+                    ))
+                }
+            )
         case .duration:
             EditableTextCell(
                 text: row.durationDays.map { Display.duration($0) } ?? "—",
@@ -194,16 +220,6 @@ private struct OutlineRowView: View {
         case .progress:
             progressCell
         }
-    }
-
-    private func dateCell(_ date: Date?) -> some View {
-        Text(Display.date(date))
-            .font(.system(size: DesignTokens.bodyFontSize))
-            .monospacedDigit()
-            .foregroundStyle(row.isOverdue
-                ? DesignTokens.semanticText(DesignTokens.overdue, isSelected: isSelected)
-                : DesignTokens.textSecondary)
-            .padding(.horizontal, 4)
     }
 
     private var statusCell: some View {
@@ -495,6 +511,212 @@ private struct OutlineRowDropDelegate: DropDelegate {
             }
         }
         return true
+    }
+}
+
+/// 大纲日期单元格（F-14-19）：显示排期值，点击开月历弹层写回。
+///
+/// 只服务 `.start` / `.finish` 两列。可编辑性、禁用原因、最小可选日、清除显隐
+/// 全部取自 `OutlineDateEditing`（纯函数策略）——单元格不判语义，也不持有 store：
+/// 选中与写回经 `onOpen` / `onCommit` 回到行的接线点。
+private struct OutlineDateCell: View {
+    /// 日期列（`.start` / `.finish`）。
+    let column: OutlineColumn
+    let row: PlanRow
+    let isSelected: Bool
+    /// 弹层打开前回调（行选中同步）。
+    let onOpen: () -> Void
+    /// 提交选中日期；`nil` 只可能来自「清除」（仅开始列提供）。
+    let onCommit: (Date?) -> Void
+
+    /// 弹层开关与浏览月独立于标题编辑的 `editingTaskID`：翻月不改值，重开保留上月视图。
+    @State private var isPresented = false
+    /// 浏览月恒为「当月 1 日」：与 `CalendarGrid` 的口径一致，首次打开时再定位到选中值所在月。
+    @State private var visibleMonth = CalendarGrid.month(containing: Date()).firstDay
+    /// 上次打开时看到的值：用来识别「值被外部改动」（撤销、画布拖拽、检查器改写）。
+    @State private var knownValue: Date?
+    @State private var hasKnownValue = false
+
+    /// 结束列越界格的 tooltip / 无障碍说明；与检查器「结束」行同一文案。
+    private static let finishBoundaryHint = "结束须晚于开始，至少 1 天"
+
+    var body: some View {
+        // 单一视图 + 条件 help：`if let / else` 会因分支切换换掉视图类型，连带丢掉 @State
+        //（弹层开关、浏览月），tooltip 也就成了「一显示就重建」。
+        content.modifier(OutlineDateHelpModifier(text: helpText))
+    }
+
+    /// 文案 + 点击 + 弹层；tooltip 由 `body` 按需附加（空文案不生成 tooltip）。
+    private var content: some View {
+        Text(Display.date(value))
+            .font(.system(size: DesignTokens.bodyFontSize))
+            .monospacedDigit()
+            .foregroundStyle(foreground)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: toggle)
+            .popover(
+                isPresented: $isPresented,
+                attachmentAnchor: .rect(.bounds),
+                arrowEdge: .bottom
+            ) {
+                CalendarPopover(
+                    label: label,
+                    selection: selection,
+                    minimumDate: minimumDate,
+                    allowsClear: column == .start,
+                    canClear: OutlineDateEditing.canClear(column: column, row: row),
+                    quickActions: DateQuickAction.allCases,
+                    preview: { previewText(for: $0) },
+                    disabledDayHint: column == .finish ? Self.finishBoundaryHint : nil,
+                    visibleMonth: $visibleMonth,
+                    onPick: commit,
+                    onDismiss: { isPresented = false }
+                )
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue(Display.isoDate(value))
+            .accessibilityHint(isEnabled ? "打开月历选择日期" : (disabledReason ?? ""))
+            .accessibilityAddTraits(isEnabled ? .isButton : [])
+    }
+
+    // MARK: - 策略
+
+    private var isEnabled: Bool {
+        OutlineDateEditing.isEnabled(column: column, row: row)
+    }
+
+    private var disabledReason: String? {
+        OutlineDateEditing.disabledReason(column: column, row: row)
+    }
+
+    private var minimumDate: Date? {
+        OutlineDateEditing.minimumDate(column: column, row: row)
+    }
+
+    /// 列显示值：开始列是排期起点（可能被依赖后移）；结束列是排期排他端点。
+    ///
+    /// 结束日夹取到最小可选日（设计 R3）：亚日持续时间会让原始结束日落在
+    /// 「起点 + 1 天」之前，弹层里就会出现「已选中但不可选」的死格。
+    /// 口径与检查器一致（`DateFieldValueMath.clampedFinish`）。
+    private var value: Date? {
+        switch column {
+        case .start:
+            return row.scheduledStart
+        case .finish:
+            guard let finish = row.scheduledFinish else { return nil }
+            return DateFieldValueMath.clampedFinish(finish, minimumDate: minimumDate)
+        default:
+            return nil
+        }
+    }
+
+    /// 弹层选中值 = 真正可编辑的那个值：开始列是意图起点（`startDate`，未设置时回落排期起点），
+    /// 结束列与显示值同源。
+    ///
+    /// 与 `value` 分开是因为开始列「显示排期、编辑意图」（设计 §2）：显示值可能由依赖推后，
+    /// 弹层里要落在用户实际设置的那一天，否则「已选中」与「能清除」会指向两个不同的日期。
+    private var selection: Date? {
+        switch column {
+        case .start:
+            return row.startDate ?? row.scheduledStart
+        case .finish:
+            return value
+        default:
+            return nil
+        }
+    }
+
+    private var label: String {
+        column == .start ? "开始" : "结束"
+    }
+
+    /// 无障碍标签：与检查器同一措辞（「开始日期」/「结束日期」）。
+    private var accessibilityLabel: String {
+        column == .start ? "开始日期" : "结束日期"
+    }
+
+    private var foreground: Color {
+        guard isEnabled else { return DesignTokens.textSecondary }
+        return row.isOverdue
+            ? DesignTokens.semanticText(DesignTokens.overdue, isSelected: isSelected)
+            : DesignTokens.textPrimary
+    }
+
+    /// tooltip：禁用时说明原因；开始列启用态说明「显示排期、编辑意图」的口径差异（设计 §2）。
+    private var helpText: String? {
+        guard isEnabled else { return disabledReason }
+        return column == .start ? "设置为最早开始日期；依赖可能使排期后移" : nil
+    }
+
+    // MARK: - 交互
+
+    private func toggle() {
+        // 行级 tap 手势会被单元格手势抢先吃掉，选中在这里主动同步（设计 §3.2 / R1）；
+        // 禁用行同样同步选中，只是不开弹层——点禁用格仍能选中该行，不至于「点了没反应」。
+        onOpen()
+        guard isEnabled else { return }
+        // 弹层已开时点击就是关闭（toggle），不重新定位浏览月。
+        guard !isPresented else {
+            isPresented = false
+            return
+        }
+        // 首次打开定位到选中值所在月；只有外部改动（撤销、画布拖拽、检查器改写）
+        // 才重新定位，否则保留用户上次翻到的月份。
+        let changedExternally = hasKnownValue && !isSameDay(knownValue, selection)
+        if !hasKnownValue || changedExternally {
+            visibleMonth = CalendarGrid.month(containing: selection ?? Date()).firstDay
+        }
+        knownValue = selection
+        hasKnownValue = true
+        isPresented = true
+    }
+
+    private func commit(_ date: Date?) {
+        knownValue = date
+        hasKnownValue = true
+        if let date {
+            visibleMonth = CalendarGrid.month(containing: date).firstDay
+        }
+        isPresented = false
+        onCommit(date)
+    }
+
+    private func isSameDay(_ lhs: Date?, _ rhs: Date?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil): return true
+        case let (lhs?, rhs?): return Calendar.current.isDate(lhs, inSameDayAs: rhs)
+        default: return false
+        }
+    }
+
+    /// 弹层预览行：「开始 2026-10-22」/「结束 2026-10-25 · 4 天」。
+    private func previewText(for candidate: Date?) -> String? {
+        guard let candidate else { return nil }
+        guard column == .finish,
+              let start = row.scheduledStart,
+              let days = ScheduleDateMath.durationDays(start: start, finish: candidate) else {
+            return "\(label) \(Display.isoDate(candidate))"
+        }
+        return "\(label) \(Display.isoDate(candidate)) · \(Display.duration(days))"
+    }
+}
+
+/// 只在有文案时附加 tooltip（空文案不生成 tooltip）。
+///
+/// 用 modifier 包住条件分支，调用方视图保持单一类型：`if let / else` 换分支会换视图类型，
+/// 连带丢掉单元格的 `@State`（弹层开关、浏览月）。
+private struct OutlineDateHelpModifier: ViewModifier {
+    let text: String?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let text {
+            content.help(text)
+        } else {
+            content
+        }
     }
 }
 

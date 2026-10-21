@@ -229,6 +229,10 @@ struct CalendarPopover: View {
     var minimumDate: Date? = nil
     var maximumDate: Date? = nil
     var allowsClear: Bool = false
+    /// 清除按钮的显示条件覆盖；`nil` = 沿用 `allowsClear && selection != nil`。
+    ///
+    /// 供「显示值 ≠ 可清除值」的调用方使用（如大纲开始列：显示排期结果，只有意图起点可清除）。
+    var canClear: Bool? = nil
     var quickActions: [DateQuickAction] = DateQuickAction.allCases
     /// 预览行文案（参数为候选日：焦点日优先，其次选中值）；`nil` 时留白（保持 300pt 总高）。
     var preview: ((Date?) -> String?)? = nil
@@ -478,7 +482,7 @@ struct CalendarPopover: View {
                 .disabled(!isAvailable)
             }
             Spacer(minLength: 0)
-            if allowsClear, selection != nil {
+            if canClear ?? (allowsClear && selection != nil) {
                 Button("清除") {
                     onPick(nil)
                 }
