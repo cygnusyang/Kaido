@@ -42,21 +42,16 @@ import KairoPresentation
         return (session, box)
     }
 
-    private func waitForPendingCommit() async {
-        // 节流窗口 100ms；等待待提交任务落地。
-        try? await Task.sleep(nanoseconds: 250_000_000)
-    }
+    // 注：节流实现不含延迟任务（D-020），全部用例同步断言，不依赖真实时钟。
 
     // MARK: - 拖条改期
 
-    @Test func moveCommitsStartDate() async {
+    @Test func moveCommitsStartDate() {
         let (session, box) = makeSession()
         session.begin(target: .body(sourceID), anchor: makeAnchor())
         session.update(translationX: 50, pointX: 0, pointY: 0, canvasOffset: 0, targetID: nil)
         // 起点 day 10 + 位移 5 天。
         #expect(box.commits == [.move(id: sourceID, startDate: makeFixtureDate(2025, 3, 16))])
-        await waitForPendingCommit()
-        #expect(box.count == 1)
     }
 
     @Test func movePreviewMatchesOffset() {
@@ -78,25 +73,27 @@ import KairoPresentation
 
     // MARK: - 节流与收尾
 
-    @Test func throttleMergesRapidUpdates() async {
+    @Test func throttleSkipsWithinWindowThenFinishCommitsTrailingValue() {
         let (session, box) = makeSession()
         session.begin(target: .body(sourceID), anchor: makeAnchor())
         session.update(translationX: 10, pointX: 0, pointY: 0, canvasOffset: 0, targetID: nil)
+        // 节流窗口内的第二笔跳过（不提交），预览仍跟进。
         session.update(translationX: 20, pointX: 0, pointY: 0, canvasOffset: 0, targetID: nil)
-        // 第一笔立即提交，第二笔在节流窗口内由待提交任务补上。
         #expect(box.count == 1)
-        await waitForPendingCommit()
+        #expect(box.commits.last == .move(id: sourceID, startDate: makeFixtureDate(2025, 3, 12)))
+        session.finish()
+        // 松手必提交末值（R-02 / D-010 同源纪律）。
         #expect(box.count == 2)
-        #expect(box[1] == .move(id: sourceID, startDate: makeFixtureDate(2025, 3, 13)))
+        #expect(box.commits.last == .move(id: sourceID, startDate: makeFixtureDate(2025, 3, 13)))
     }
 
-    @Test func duplicateValuesAreSkipped() async {
+    @Test func duplicateValuesAreSkipped() {
         let (session, box) = makeSession()
         session.begin(target: .body(sourceID), anchor: makeAnchor())
         session.update(translationX: 50, pointX: 0, pointY: 0, canvasOffset: 0, targetID: nil)
         session.update(translationX: 51, pointX: 0, pointY: 0, canvasOffset: 0, targetID: nil)
         // 51/10 → 5.1 → 5 天，与首笔同值，跳过。
-        await waitForPendingCommit()
+        session.finish()
         #expect(box.count == 1)
     }
 
@@ -111,13 +108,12 @@ import KairoPresentation
         #expect(session.preview == nil)
     }
 
-    @Test func cancelProducesNoFurtherCommits() async {
+    @Test func cancelProducesNoFurtherCommits() {
         let (session, box) = makeSession()
         session.begin(target: .body(sourceID), anchor: makeAnchor())
         session.update(translationX: 10, pointX: 0, pointY: 0, canvasOffset: 0, targetID: nil)
         #expect(box.count == 1)
         session.cancel()
-        await waitForPendingCommit()
         #expect(box.count == 1)
         #expect(session.preview == nil)
     }

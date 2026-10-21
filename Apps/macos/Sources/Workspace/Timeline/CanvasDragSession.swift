@@ -68,8 +68,7 @@ final class CanvasDragSession {
     private var mode: Mode = .idle
     /// 已提交的末值（同值跳过，避免重复 dispatch 造成无谓刷新）。
     private var lastCommit: Commit?
-    /// 节流窗口内待提交的收尾任务。
-    private var pendingCommit: Task<Void, Never>?
+    /// 节流基准：距上次提交不足 `commitInterval` 的中间值跳过。
     private var lastCommitAt = Date.distantPast
 
     init(commit: @escaping @MainActor (Commit) -> Void) {
@@ -88,6 +87,8 @@ final class CanvasDragSession {
             return
         }
         lastCommit = nil
+        // 新拖拽首笔必提交（不受上一次拖拽的节流窗口影响）。
+        lastCommitAt = .distantPast
         let rowCenter = Double(anchor.bar.rowIndex) * 28 + 14
         switch target {
         case .body(let id):
@@ -239,22 +240,18 @@ final class CanvasDragSession {
         return .resize(id: id, startDate: nil, durationDays: max(1, anchor.durationDays + Double(offsetDays)))
     }
 
-    // MARK: - 节流（与 DayWidthThrottle 同式）
+    // MARK: - 节流
 
+    /// 节流提交：距上次提交不足 `commitInterval` 的中间值直接跳过，
+    /// 末值由 `finish()` 必提交兜底。
+    ///
+    /// 与 `DayWidthThrottle` 的差异：**不使用延迟任务**。延迟任务依赖真实时钟调度，
+    /// 在 CI 并行测试负载下可能长时间不被调度（D-020），且让拖拽提交时序不可测。
+    /// 去掉定时器后：连续拖动仍在 100ms 粒子上提交，停手不动的末值由松手保证落地。
     private func throttledCommit(_ value: Commit) {
         guard value != lastCommit else { return }
-        let elapsed = Date().timeIntervalSince(lastCommitAt)
-        if elapsed >= Self.commitInterval {
-            commitNow(value)
-        } else {
-            pendingCommit?.cancel()
-            let delay = Self.commitInterval - elapsed
-            pendingCommit = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-                guard !Task.isCancelled else { return }
-                self.commitNow(value)
-            }
-        }
+        guard Date().timeIntervalSince(lastCommitAt) >= Self.commitInterval else { return }
+        commitNow(value)
     }
 
     private func commitNow(_ value: Commit) {
@@ -264,8 +261,6 @@ final class CanvasDragSession {
     }
 
     private func endPending() {
-        pendingCommit?.cancel()
-        pendingCommit = nil
         anchor = nil
         mode = .idle
         preview = nil
