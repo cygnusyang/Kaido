@@ -73,6 +73,17 @@ struct Sprint8TaskDateActionTests {
         #expect(try task(store, backend.id).startDate == nil)
     }
 
+    /// AC-S8-01：归一只在 Store，绕过日历弹层传入带时分秒的值也落库为当天零点（M-6）。
+    @Test func setTaskStartNormalizesToStartOfDay() throws {
+        let store = makeStore()
+        let original = try plainTask(store)
+        let lateNight = makeDate(2025, 11, 2, hour: 23).addingTimeInterval(30 * 60)
+
+        store.dispatch(.setTaskStart(original.id, lateNight))
+
+        #expect(try task(store, original.id).startDate == makeDate(2025, 11, 2))
+    }
+
     @Test func setTaskStartDoesNotTouchDueDate() throws {
         let store = makeStore()
         let original = try plainTask(store)
@@ -165,6 +176,34 @@ struct Sprint8TaskDateActionTests {
         #expect(try task(store, original.id).startDate == originalStartDate)
     }
 
+    /// H-2：渲染快照到点击之间排期变化 → 传入的旧起点被拒绝，不写库、不产生撤销点。
+    @Test func staleStartIsRejectedWithoutUndoPoint() throws {
+        let store = makeStore()
+        let original = try plainTask(store)
+        let staleStart = try #require(try row(store, original.id).scheduledStart)
+
+        // 制造排期变化：项目开始日整体后移一周（等价于撤销/画布拖拽/外部合并造成的起点位移）。
+        let shifted = try #require(Calendar.current.date(byAdding: .day, value: 7, to: staleStart))
+        store.dispatch(.setProjectStart(shifted))
+        let currentStart = try #require(try row(store, original.id).scheduledStart)
+        #expect(ScheduleDateMath.dayOffset(from: staleStart, to: currentStart) == 7)
+
+        let durationBefore = try task(store, original.id).durationDays
+        let depthBefore = store.undoDepthForTesting
+        let finish = try #require(Calendar.current.date(byAdding: .day, value: 5, to: staleStart))
+
+        store.dispatch(.setTaskFinish(original.id, finish: finish, start: staleStart))
+
+        #expect(store.alertMessage == "排期已变化，请重新选择结束日期")
+        #expect(try task(store, original.id).durationDays == durationBefore, "陈旧起点不得折算落库")
+        #expect(store.undoDepthForTesting == depthBefore, "拒绝路径不产生撤销点")
+
+        // 撤销回退的是项目开始日，证明被拒绝的「结束」没有多插一步。
+        store.dispatch(.undo)
+        let restoredStart = try #require(try row(store, original.id).scheduledStart)
+        #expect(ScheduleDateMath.dayOffset(from: staleStart, to: restoredStart) == 0)
+    }
+
     @Test func rejectedFinishLeavesNoDraftOrNotice() throws {
         let store = makeStore()
         let original = try plainTask(store)
@@ -178,17 +217,35 @@ struct Sprint8TaskDateActionTests {
 
     // MARK: - 撤销粒度
 
-    @Test func eachTaskStartEditIsOneUndoStep() throws {
+    /// AC-S8-09 a：单笔编辑恰好一步撤销。
+    @Test func singleTaskStartEditIsOneUndoStep() throws {
+        let store = makeStore()
+        let original = try plainTask(store)
+        let target = makeDate(2025, 11, 2)
+        let depthBefore = store.undoDepthForTesting
+
+        store.dispatch(.setTaskStart(original.id, target))
+        #expect(try task(store, original.id).startDate == target)
+        #expect(store.undoDepthForTesting == depthBefore + 1)
+
+        store.dispatch(.undo)
+        #expect(try task(store, original.id).startDate == original.startDate)
+        #expect(store.undoDepthForTesting == depthBefore)
+    }
+
+    /// 既有 pushUndo 合并规则：同字段 500ms 内两笔只占一步撤销（不是两笔各一步）。
+    @Test func sameFieldEditsWithin500msMergeIntoOneStep() throws {
         let store = makeStore()
         let original = try plainTask(store)
         let first = makeDate(2025, 11, 2)
         let second = makeDate(2025, 11, 9)
+        let depthBefore = store.undoDepthForTesting
 
         store.dispatch(.setTaskStart(original.id, first))
         store.dispatch(.setTaskStart(original.id, second))
         #expect(try task(store, original.id).startDate == second)
+        #expect(store.undoDepthForTesting == depthBefore + 1)
 
-        // 同字段 500ms 内两笔合并为一步（既有 pushUndo 合并规则）。
         store.dispatch(.undo)
         #expect(try task(store, original.id).startDate == original.startDate)
     }

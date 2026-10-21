@@ -239,6 +239,9 @@ final class WorkspaceStore: ObservableObject {
     /// 测试观测缝（@testable 消费）：暴露会话以断言缓存行为（如 D-014 排期计数）。
     var sessionForTesting: KairoSession { session }
 
+    /// 测试观测缝（@testable 消费）：撤销栈深度，用于断言被拒绝的动作不产生撤销点。
+    var undoDepthForTesting: Int { undoStack.count }
+
     var projectURL: URL? { session.projectURL }
     var hasUnsavedChanges: Bool { session.hasUnsavedChanges }
     var selection: UUID? { viewState.selectedTaskID }
@@ -543,14 +546,26 @@ final class WorkspaceStore: ObservableObject {
             }
 
         case .setTaskStart(let id, let date):
+            // 日粒度归一落在 Store（AC-S8-01 / M-6）：画布、CLI、内联等其它入口不再各自归一，
+            // 系统日历是唯一口径来源，文件里不出现带时分秒的 startDate。
             update(id: id, mergeKey: "task-start-\(id)") {
                 var patch = TaskPatch()
-                patch.startDate = date.map(FieldPatch.set) ?? .clear
+                patch.startDate = date.map {
+                    FieldPatch.set(ScheduleDateMath.startOfDay($0, calendar: self.calendar))
+                } ?? .clear
                 try self.session.updateTask(id: id, patch: patch)
             }
 
         case .setTaskFinish(let id, let finish, let start):
-            // 「结束」只折算持续时间；非法区间在 update 之前拒绝，避免产生撤销点。
+            // 「结束」只折算持续时间；两重校验都在 update 之前，任一失败不写库、不产生撤销点。
+            // ① 起点必须仍是当前排期起点：快照渲染到点击之间排期可能已被撤销/重做、画布拖拽、
+            //    ALAP 重算或外部文件合并改写，用陈旧起点折算会把持续时间算错并静默落到别的结束日。
+            guard let currentStart = currentScheduleStart(for: id),
+                  ScheduleDateMath.dayOffset(from: currentStart, to: start, calendar: calendar) == 0 else {
+                alertMessage = "排期已变化，请重新选择结束日期"
+                return
+            }
+            // ② 结束是排他端点，必须晚于起点。
             guard let duration = ScheduleDateMath.durationDays(start: start, finish: finish) else {
                 alertMessage = "结束日期必须晚于开始日期"
                 return
@@ -671,6 +686,19 @@ final class WorkspaceStore: ObservableObject {
     private func mutateView(_ change: (inout WorkspaceViewState) -> Void) {
         change(&viewState)
         refresh()
+    }
+
+    /// 任务当前排期起点：优先排期结果；未排期（群组/环/无安排）回落到 `startDate` 意图。
+    ///
+    /// 「结束」字段的折算口径（视图传 `scheduledStart ?? startDate`）在这里复核，
+    /// 保证落库的持续时间与用户看到的起点同源。
+    private func currentScheduleStart(for id: UUID) -> Date? {
+        if let result = try? session.scheduleOrCompute(),
+           result.hasSchedule(for: id),
+           let scheduled = result.scheduled(id) {
+            return scheduled.scheduledStart
+        }
+        return session.project?.tasksByID[id]?.startDate
     }
 
     /// 记录撤销点；相同 `mergeKey` 在 500ms 内合并为一步。
