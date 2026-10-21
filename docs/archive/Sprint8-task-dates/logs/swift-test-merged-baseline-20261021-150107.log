@@ -1,0 +1,1550 @@
+[0/1] Planning build
+Building for debugging...
+[0/12] Write sources
+[3/12] Write swift-version--58304C5D6DBC2206.txt
+[5/34] Compiling KairoPresentationTests TestSupport.swift
+[6/34] Emitting module InterfaceTests
+[7/34] Compiling KairoCoreTests ViolationEngineTests.swift
+[8/34] Compiling KairoCoreTests ScheduleStartDateBoundTests.swift
+[9/38] Compiling KairoCoreTests ResourceStatusTests.swift
+[10/39] Emitting module AppTests
+[11/40] Compiling KairoCoreTests ScheduleAnchorEngineTests.swift
+[12/40] Compiling KairoCoreTests ScheduleEngineTests.swift
+[13/41] Compiling KairoPresentationTests GanttHitTestingTests.swift
+[14/41] Compiling KairoPresentationTests ScheduleDateMathTests.swift
+[15/41] Compiling AppTests Sprint7DebtTests.swift
+[16/41] Compiling AppTests Sprint8TaskDateActionTests.swift
+[17/41] Compiling KairoCoreTests ScheduleAnchorTests.swift
+[18/41] Emitting module KairoCoreTests
+[19/41] Compiling KairoCoreTests SessionCacheTests.swift
+[20/41] Compiling AppTests AppPerformanceTests.swift
+[21/41] Compiling AppTests CanvasDragSessionTests.swift
+[22/41] Compiling AppTests DayWidthControlTests.swift
+[23/41] Compiling AppTests DayWidthPerformanceTests.swift
+[24/41] Compiling AppTests GUIRenderTests.swift
+[25/41] Compiling AppTests GanttCanvasEditTests.swift
+[26/41] Compiling AppTests OutlineAlignmentTests.swift
+[27/41] Compiling AppTests SaveAsTests.swift
+[28/41] Compiling AppTests DayWidthUxAcceptanceTests.swift
+[29/41] Compiling AppTests FormatUpgradeTests.swift
+[30/41] Compiling KairoCoreTests TaskPatchTests.swift
+[31/41] Compiling KairoPresentationTests PresenterTests.swift
+[32/41] Compiling KairoPresentationTests DayWidthTests.swift
+[33/41] Compiling KairoCoreTests OutlineTreeTests.swift
+[34/41] Compiling KairoCoreTests ProjectSummaryTests.swift
+[35/41] Compiling KairoCoreTests GanttLayoutTests.swift
+[36/41] Emitting module KairoPresentationTests
+[37/41] Compiling KairoPresentationTests CalendarGridTests.swift
+[38/41] Compiling KairoPresentationTests DayWidthAcceptanceTests.swift
+[39/41] Compiling AppTests WorkspaceStoreTests.swift
+[39/41] Write Objects.LinkFileList
+[40/41] Linking KairoPackageTests
+Build complete! (12.98s)
+Test Suite 'All tests' started at 2026-10-21 15:01:22.273.
+Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+◇ Test run started.
+↳ Testing Library Version: 1743
+↳ Target Platform: arm64e-apple-macos14.0
+◇ Suite "OTA 清单解析" started.
+◇ Suite "OTA 安装层" started.
+◇ Suite "OTA 下载校验和" started.
+◇ Suite "F-14-09 画布直接编辑" started.
+◇ Suite "OTA 端点白名单" started.
+◇ Suite "OTA 清单验签" started.
+◇ Suite "OTA 配置" started.
+◇ Suite "日宽自定义（应用层）" started.
+◇ Suite "大纲纵向对齐" started.
+◇ Suite "GUI 离屏渲染" started.
+◇ Suite "日宽性能" started.
+◇ Suite "Sprint 7 技术债" started.
+◇ Suite "F-14-10 任务起止日期动作" started.
+◇ Suite "OTA 状态机" started.
+◇ Suite "WorkspaceStore 交互" started.
+◇ Suite "F-14-10 日程日期换算" started.
+◇ Suite "另存为" started.
+◇ Suite CanvasDragSessionTests started.
+◇ Suite "格式版本升级（App）" started.
+◇ Suite "应用性能" started.
+◇ Suite "日宽自定义（UX 自动化验收）" started.
+◇ Suite RouteErrorTests started.
+◇ Suite CLIJSONTests started.
+◇ Suite "F-14-10 月历网格" started.
+◇ Suite RouteTests started.
+◇ Suite Sprint2CommandTests started.
+◇ Suite GanttHitTestingTests started.
+◇ Suite TaskHookTests started.
+◇ Suite OptionsParsingTests started.
+◇ Suite "日宽自定义验收（Sprint 6 / T2）" started.
+◇ Suite "日宽自定义（呈现层）" started.
+◇ Suite PolicyTests started.
+◇ Suite ResourceModelTests started.
+◇ Suite ProjectSummaryTests started.
+◇ Suite ProjectBoundaryViolationTests started.
+◇ Suite CycleDetectionTests started.
+◇ Suite MonthFastPathEquivalenceTests started.
+◇ Suite ConstraintConflictsDependencyTests started.
+◇ Suite ScheduleAnchorTests started.
+◇ Suite ConstraintIsDependencyTests started.
+◇ Suite StatusUpdateTests started.
+◇ Suite OutlineEditingTests started.
+◇ Suite ConstraintIsPrerequisiteTests started.
+◇ Suite OutlineMovingTests started.
+◇ Suite TaskPatchTests started.
+◇ Suite ScheduleStartDateBoundTests started.
+◇ Suite ProjectDirectionTests started.
+◇ Suite CycleViolationTests started.
+◇ Suite DeepLinkParsingTests started.
+◇ Suite SlackTests started.
+◇ Suite ProjectStateTests started.
+◇ Suite DependencyPropagationTests started.
+◇ Suite NegativeSlackViolationTests started.
+◇ Suite DeepLinkResolutionTests started.
+◇ Suite ConstraintWindowTests started.
+◇ Suite OutlineTreeTests started.
+◇ Suite DurationTests started.
+◇ Suite SessionCacheTests started.
+◇ Suite CriticalPathTests started.
+◇ Suite GanttLayoutTests started.
+◇ Suite ScheduleAnchorEngineTests started.
+◇ Suite GanttScaleTests started.
+◇ Suite EffortDurationConversionTests started.
+◇ Suite GroupProgressTests started.
+◇ Suite DependencyEditingTests started.
+◇ Suite SeedDataTests started.
+◇ Test snapshotIsDeterministicForSameInput() started.
+◇ Test cycleTasksAreUnscheduledWithReason() started.
+◇ Test statusBarZoomLabelReflectsPreference() started.
+◇ Test fr_kairo_fmt_6_mcpSaveReportsUpgradedFromWithoutTouchingOriginal() started.
+◇ Test deadlineRiskUsesDueDateAndPlannedFinish() started.
+◇ Test taskAssignmentDrivesDurationFromEffort() started.
+◇ Test outlineColumnsDegradeWithWidth() started.
+◇ Test ganttSnapshotCarriesDependencyRoutes() started.
+◇ Test statusUpdateDoneReturnsCompletedAtAndGroupAggregate() started.
+◇ Test todayOutsideWindowIsMarked() started.
+◇ Test unparsedFilterTextDoesNotFilter() started.
+◇ Test resourceAddThenListRoundTrip() started.
+◇ Test thousandTaskSnapshotStaysWithinBudget() started.
+◇ Test emptyReasonsCoverNoTasksNoMatchesNoSchedule() started.
+◇ Test rowsAndBarsShareIndexAndOrder() started.
+◇ Test fr_kairo_fmt_6_mcpOpenReportsDiskVersionAndUpgradeNeed() started.
+◇ Test inspectorFallsBackWhenSelectionMissing() started.
+◇ Test violationInspectorGroupsAndListsRuleCatalog() started.
+◇ Test scheduleComputeReportsConstraintConflictThenViolationsList() started.
+◇ Test filterKeepsAncestorsAndForcesExpansion() started.
+◇ Test groupViolationSeverityAggregatesSubtree() started.
+◇ Test statusBatchUpdateReportsPerTaskSuccessAndFailure() started.
+◇ Test toolErrorReturnsIsErrorWithStructuredCode() started.
+◇ Test usE102A3_mcpTaskUpdateAssigneePersistsAndClears() started.
+◇ Test initializeHandshakeReturnsProtocolAndServerInfo() started.
+◇ Test taskAddWithDependenciesCreatesFSChain() started.
+◇ Test usE102A1_cliTaskAddWithAssigneePersists() started.
+◇ Test inspectorShowsTaskDependencies() started.
+◇ Test usE102A3_mcpTaskAddWithAssigneePersists() started.
+◇ Test todayInsideWindowProducesX() started.
+◇ Test collapsedGroupHidesChildrenAndKeepsSummaryBar() started.
+◇ Test usE102A2_cliTaskUpdateAssigneePersistsAndClears() started.
+◇ Test fr_kairo_fmt_6_mcpProjectToolsReportFormatVersion() started.
+◇ Test statusBarMirrorsProjectSummary() started.
+◇ Test toolsListReturnsSprint2ToolSetWithSchema() started.
+◇ Test unknownMethodReturnsJSONRPCError() started.
+◇ Test groupAggregatesWeightedProgressStatusAndRange() started.
+◇ Test taskAddThenTaskListRoundTrip() started.
+◇ Test fr_kairo_fmt_2_rejects_missing_step() started.
+◇ Test encodeProducesSingleJSONWithVersionAndRootKeys() started.
+◇ Test fr_kairo_fmt_4_failed_migration_writes_nothing() started.
+◇ Test translateTodayYieldsDueTodayClause() started.
+◇ Test explanationSummarizesClauses() started.
+◇ Test fr_kairo_fmt_2_rejects_document_version_mismatch() started.
+◇ Test taskDependencyCodableRoundTrip() started.
+◇ Test searchTermHasTagMatchesAndRejects() started.
+◇ Test searchTermEqualsMatchesAndRejects() started.
+◇ Test fr_kairo_fmt_2_migrates_steps_in_ascending_order() started.
+◇ Test legacyUUIDDependenciesMigrateToFS() started.
+◇ Test findControllerReportsInvalidRegex() started.
+◇ Test fr_kairo_fmt_1_read_current_file_reports_current_source_version() started.
+◇ Test translateCombinesOverdueAndDone() started.
+◇ Test dependencyTypeRawValues() started.
+◇ Test regexPatternFindsFirstMatch() started.
+◇ Test fr_kairo_fmt_3_rejects_future_version() started.
+◇ Test saveToURLAndLoadFromURL() started.
+◇ Test unsupportedFormatVersionThrows() started.
+◇ Test applyAndCombinesClauses() started.
+◇ Test fr_kairo_fmt_malformed_non_integer_version_is_rejected(json:) started.
+◇ Test findControllerCountsAndWraps() started.
+◇ Test fr_kairo_fmt_2_rejects_backwards_range() started.
+◇ Test translateUnknownTokenFallsBackToTitleContains() started.
+◇ Test literalPatternIsCaseSensitiveWhenRequested() started.
+◇ Test translateUrgentAndTag() started.
+◇ Test fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test fr_kairo_fmt_1_current_version_skips_migration() started.
+◇ Test fr_kairo_fmt_malformed_non_positive_version_is_rejected(json:) started.
+◇ Test fr_kairo_fmt_decode_error_without_migration_is_preserved() started.
+◇ Test fr_kairo_fmt_2_step_must_land_on_its_to_version() started.
+◇ Test searchTermContainsMatchesAndRejects() started.
+◇ Test fr_kairo_fmt_4_throwing_step_is_wrapped_with_from_to() started.
+◇ Test invalidRegexPatternFailsInit() started.
+◇ Test legacyTaskMissingNewFieldsDefaults() started.
+◇ Test fr_kairo_fmt_malformed_missing_version_is_rejected_without_migration() started.
+◇ Test taskItemWithKindParentAndEffortRoundTrips() started.
+◇ Test fr_kairo_fmt_4_decode_failure_after_migration_is_wrapped() started.
+◇ Test parentChildrenTreeStructure() started.
+◇ Test milestoneKindRoundTrips() started.
+◇ Test literalPatternMatchesCaseInsensitively() started.
+◇ Test fr_kairo_fmt_5_encode_always_writes_current_version() started.
+◇ Test applyFiltersFixtureTasks() started.
+◇ Test dependencyAndMilestoneSurviveRoundTrip() started.
+◇ Test saveLoadRoundTripPreservesTasksAndMetadata() started.
+◇ Test decodeIgnoresUnknownFields() started.
+◇ Test fr_kairo_fmt_2_read_migrates_end_to_end() started.
+◇ Test searchTermIsValueMatchesPriority() started.
+◇ Test fr_kairo_fmt_5_legacy_file_resaves_as_current_version_and_reopens() started.
+◇ Test canvasDependencyCommitAndRemove() started.
+◇ Test milestoneMoveViaAction() started.
+◇ Test resizeStartKeepsFinishDate() started.
+◇ Test moveUpdatesStartDateOnly() started.
+◇ Test consecutiveCanvasMovesMergeIntoSingleUndo() started.
+◇ Test resizeEndUpdatesDurationOnly() started.
+◇ Test cycleDependencyIsRejectedWithoutSideEffect() started.
+◇ Test unreadableFileFailsClosed() started.
+◇ Test missingFieldRejected() started.
+◇ Test unsupportedSchemaRejected() started.
+◇ Test wrongAppIdRejected() started.
+◇ Test sha256KnownVector() started.
+◇ Test launchPathMismatchFailsFast() started.
+◇ Test prepareExtractsAppFromZip() started.
+◇ Test shapeGuardsFailClosed() started.
+◇ Test parseValidManifest() started.
+◇ Test validateThrowsOnViolation() started.
+◇ Test tamperedManifestRejected() started.
+◇ Test replacementScriptWaitsBacksUpReplacesAndReports() started.
+◇ Test missingSignatureRejected() started.
+◇ Test appIdMatchesBundleAndFeed() started.
+◇ Test httpsAndWhitelistEnforced() started.
+◇ Test hostCaseInsensitive() started.
+◇ Test wrongKeyRejected() started.
+◇ Test feedIsInsideWhitelist() started.
+◇ Test clearCustomDayWidthFallsBackToPresetWidth() started.
+◇ Test signAndVerifyRoundtrip() started.
+◇ Test nudgeInFitModeUsesFitWidthAsBase() started.
+◇ Test setCustomDayWidthStoresClampedValueAndLeavesFitMode() started.
+◇ Test publicKeyIsWellFormedEd25519() started.
+◇ Test setCustomDayWidthClampsOutOfRangeValues() started.
+◇ Test outlineRowsListHeightMatchesTimelinePitch() started.
+◇ Test presetZoomClearsCustomDayWidth() started.
+◇ Test fr_kairo_fmt_2_rejects_version_skip() started.
+◇ Test sliderDayWidthStaysInsideLegalRange() started.
+◇ Test sliderPositionMapsDayWidthBothWays() started.
+◇ Test panningKeepsCustomDayWidth() started.
+◇ Test dayWidthControlRenders() started.
+◇ Test fitZoomClearsCustomDayWidth() started.
+◇ Test dayWidthCommandsDriveTheStore() started.
+◇ Test nudgeUsesEffectiveDayWidthAsBase() started.
+◇ Test planModeRendersWorkspaceChrome() started.
+◇ Test customDayWidthPersistsAcrossStores() started.
+◇ Test filterWithoutMatchesReplacesRowsWithEmptyState() started.
+◇ Test zoomLevelsRenderDistinctCharts() started.
+◇ Test customDayWidthChangesRender() started.
+◇ Test catalogExposesDayWidthCommandsWithShortcuts() started.
+◇ Test findBarChangesRenderWhenOpened() started.
+◇ Test switchingToOutlineModeChangesRender() started.
+◇ Test legacyPreferencesWithoutCustomDayWidthStillLoad() started.
+◇ Test persistedOutOfRangeCustomDayWidthIsClampedOnLoad() started.
+◇ Test missingSingleFieldKeepsOtherPreferences() started.
+◇ Test commandPaletteRowsDependOnCommandList() started.
+◇ Test corruptedFieldTypeDegradesGracefully() started.
+◇ Test setCustomDayWidthMeetsBudgetOnThousandTaskProject() started.
+◇ Test loadedCustomDayWidthIsRoundedToTenth() started.
+◇ Test taskStartEditDoesNotMergeWithCanvasMove() started.
+◇ Test eachTaskStartEditIsOneUndoStep() started.
+◇ Test setTaskFinishRejectsFinishEqualToStart() started.
+◇ Test scheduleRecomputeCostIsIsolatedForDayWidthCommit() started.
+◇ Test dayWidthCommitReusesScheduleCache() started.
+◇ Test rejectedFinishLeavesNoDraftOrNotice() started.
+◇ Test commandPaletteOverlayChangesRender() started.
+◇ Test setTaskStartOnGroupIsNotBlockedByStore() started.
+◇ Test setTaskStartDoesNotTouchDueDate() started.
+◇ Test dismissResetsToIdle() started.
+◇ Test inspectorSnapshotCarriesNilStartDateForGroup() started.
+◇ Test setTaskFinishRewritesDurationAndKeepsStartDate() started.
+◇ Test setTaskStartWithNilClearsIntentDate() started.
+◇ Test setTaskFinishRejectsFinishEarlierThanStart() started.
+◇ Test loadedOutOfRangeCustomDayWidthStillClamped() started.
+◇ Test setTaskStartWritesIntentDate() started.
+◇ Test checkFindsUpdateAndDownloadsToConfirmedState() started.
+◇ Test inspectorTabAndLockChangeRender() started.
+◇ Test networkFailureIsNotSilentlyUpToDate() started.
+◇ Test inspectorSnapshotCarriesStartDate() started.
+◇ Test skipVersionSuppressesPromptUntilNewer() started.
+◇ Test taskStartAndFinishEditsAreSeparateUndoSteps() started.
+◇ Test belowMinimumFailsClosed() started.
+◇ Test rejectedFinishDoesNotPushUndoPoint() started.
+◇ Test findCommandReopensAndRefocusesEveryPress() started.
+◇ Test invalidSignatureFailsClosed() started.
+◇ Test sameVersionReportsUpToDate() started.
+◇ Test dropExitCancelsPendingExpand() started.
+◇ Test externalChangeWithoutLocalEditsReloadsAutomatically() started.
+◇ Test predecessorColumnReportsHiddenOrUnknownNumber() started.
+◇ Test dropExitOnAnotherRowKeepsPendingExpand() started.
+◇ Test loadExampleConfirmsWhenDirty() started.
+◇ Test indentAndOutdentMoveTaskThroughSession() started.
+◇ Test dropTargetAppendsToGroupAndInsertsAfterSibling() started.
+◇ Test setTaskFinishMakesScheduledFinishMatchSelectedDay() started.
+◇ Test externalChangeWithUnsavedEditsShowsBanner() started.
+◇ Test predecessorColumnAcceptsNestedOutlineNumber() started.
+◇ Test viewPreferencesPersistAcrossStoresButModeDoesNot() started.
+◇ Test deletingLeafTaskClearsSelection() started.
+◇ Test viewCatalogCommandsSwitchMode() started.
+◇ Test progressAndStatusRefreshSnapshot() started.
+◇ Test predecessorCandidatesExcludeSelfAndExisting() started.
+◇ Test createSiblingInsertsAfterSelectionAndSelectsIt() started.
+◇ Test durationDaysOfSingleDayTaskIsOne() started.
+◇ Test openWhileLoadingIsReportedInsteadOfSilentlyDropped() started.
+◇ Test undoRestoresDeletedTask() started.
+◇ Test schedulePlacesDependentTaskAfterPredecessor() started.
+◇ Test minimumFinishOfTaskIsTheNextDay() started.
+◇ Test startOfDayStripsTimeOfDay() started.
+◇ Test createTaskUsesExplicitParentAndSelectsIt() started.
+◇ Test paletteCommandOpensPaletteAndFiltersByAlias() started.
+◇ Test undoRedoCommandsRouteThroughSession() started.
+◇ Test durationAndFinishRoundTrip() started.
+◇ Test dropTargetRejectsSelf() started.
+◇ Test finishOfNegativeDurationFallsBackToStartOfDay() started.
+◇ Test catalogIsSingleSourceForMenuAndPalette() started.
+◇ Test exportDuringEditFallsBackToDirectSave() started.
+◇ Test revealExpandsCollapsedAncestors() started.
+◇ Test dayOffsetStaysWholeAcrossDaylightSavingChange() started.
+◇ Test dependencyCycleIsRejectedWithAlert() started.
+◇ Test finishCrossesDaylightSavingChangeAtMidnight() started.
+◇ Test durationDaysRejectsFinishEqualToStart() started.
+◇ Test dayOffsetIsZeroForSameDayDifferentTimes() started.
+◇ Test throttleSkipsWithinWindowThenFinishCommitsTrailingValue() started.
+◇ Test durationDaysRejectsSameDayWithEarlierTime() started.
+◇ Test resizeEndClampsToMinimumDuration() started.
+◇ Test durationDaysRejectsFinishEarlierThanStart() started.
+◇ Test fr_file_saveas_1_action_invokes_injected_request() started.
+◇ Test linkWithoutTargetDoesNotCommit() started.
+◇ Test durationDaysSpansYearBoundary() started.
+◇ Test violationsCommandOpensInspectorTab() started.
+◇ Test minimumFinishOfMilestoneIsItsOwnStartDay() started.
+◇ Test consecutiveRenamesMergeIntoOneUndoStep() started.
+◇ Test finishOfZeroDurationIsStartOfDay() started.
+◇ Test dayOffsetIsNegativeWhenTargetIsEarlier() started.
+◇ Test fr_file_saveas_6_cancel_forces_direct_write_branch() started.
+◇ Test fr_file_saveas_6_export_failure_classification() started.
+◇ Test predecessorColumnSetsDependencyByIDPrefix() started.
+◇ Test filterWithNoMatchesProducesEmptyState() started.
+◇ Test fr_file_saveas_5_confirms_latest_edits() started.
+◇ Test dayOffsetCountsWholeDaysAcrossMonthBoundary() started.
+◇ Test outlineColumnsScaleWithWidth() started.
+◇ Test minimumFinishOfTaskIsAlwaysSelectableByDurationMath() started.
+◇ Test groupDeleteRequiresConfirmationThenRemovesSubtree() started.
+◇ Test fr_file_saveas_2_store_suggests_filename() started.
+◇ Test focusCommandFromOutlineEntersPlanMode() started.
+◇ Test finishRoundsFractionalDurationToWholeDays() started.
+◇ Test durationDaysOfMultiDayTaskCountsCalendarDays() started.
+◇ Test fr_file_saveas_2_hidden_current_filename_falls_back_to_title() started.
+◇ Test durationDaysNormalizesTimeOfDayBeforeSubtracting() started.
+◇ Test fr_file_saveas_2_new_file_uses_current_format_version() started.
+◇ Test fr_file_saveas_6_cancel_preserves_state() started.
+◇ Test hidingOutlineGivesCanvasFullWidth() started.
+◇ Test finishAddsWholeDaysToStartOfDay() started.
+◇ Test startOfDayKeepsAlreadyNormalizedDate() started.
+◇ Test selectingElsewhereRestoresTemporarilySuspendedFilter() started.
+◇ Test fr_file_saveas_2_caps_filename_at_200_utf8_bytes() started.
+◇ Test fr_file_saveas_2_falls_back_when_title_empty() started.
+◇ Test openAsyncLoadsProjectAndClearsLoadingState() started.
+◇ Test shortcutLabelsMatchMenuBindings() started.
+◇ Test fr_file_saveas_2_keeps_single_kairo_suffix() started.
+◇ Test fr_file_saveas_4_points_project_url_and_clears_dirty() started.
+◇ Test predecessorColumnReplacesWholeSet() started.
+◇ Test inspectorLockKeepsFrozenTaskWhileSelectionMoves() started.
+◇ Test fr_file_saveas_4_external_change_to_old_path_is_ignored() started.
+◇ Test loadExampleFillsSeedData() started.
+◇ Test fr_file_saveas_2_trims_trailing_replacement_hyphen() started.
+◇ Test fr_file_saveas_2_falls_back_when_title_all_illegal() started.
+◇ Test fr_file_saveas_2_uses_current_filename() started.
+◇ Test fr_file_saveas_3_saves_to_new_path() started.
+◇ Test revealMissingTaskClearsSelectionAndNotifies() started.
+◇ Test predecessorColumnMixesOutlineNumberAndIDPrefix() started.
+◇ Test fr_file_saveas_2_trims_spaces_and_dots() started.
+◇ Test editsDuringAsyncOpenArePreserved() started.
+◇ Test fr_file_saveas_6_export_failure_keeps_url_and_reports() started.
+◇ Test fr_file_saveas_2_replaces_illegal_characters() started.
+◇ Test fr_file_saveas_1_catalog_defines_command() started.
+◇ Test predecessorColumnClearsWhenEmpty() started.
+◇ Test dropHoverAutoExpandsCollapsedGroup() started.
+◇ Test fieldEditorUndoIsInertWithoutKeyWindow() started.
+◇ Test fr_kairo_fmt_5_save_and_open_load_failure_clears_pending_notice() started.
+◇ Test adoptingExportedFileDoesNotRewriteDiskFile() started.
+◇ Test fr_file_saveas_2_derives_from_title() started.
+◇ Test unrulyExternalFileIsNotRetriedRepeatedly() started.
+◇ Test predecessorColumnRejectsCycleAndUnknownID() started.
+◇ Test storeSeedsNoTasksByDefault() started.
+◇ Test predecessorColumnAcceptsOutlineNumber() started.
+◇ Test dirtyOpenWaitsForUserChoice() started.
+◇ Test saveThenOpenRoundTripsProject() started.
+◇ Test addingChildPromotesParentAndDeleteCascades() started.
+◇ Test fr_kairo_fmt_5_save_and_open_keeps_upgrade_notice() started.
+◇ Test thousandTaskActionsMeetBudget() started.
+◇ Test scheduleRecomputeMeetsBudget() started.
+◇ Test unknownCommandThrowsUsageError() started.
+◇ Test taskOnMissingFileReturnsRuntimeExitCode() started.
+◇ Test updateAcceptsWellFormedDependencySpec() started.
+◇ Test unknownCommandReturnsUsageExitCode() started.
+◇ Test missingOperandThrowsUsageError() started.
+◇ Test updateRejectsMalformedDependencySpec() started.
+◇ Test flagDetection() started.
+◇ Test taskListJSONEncodesStableFields() started.
+◇ Test fr_kairo_fmt_5_save_and_open_without_upgrade_has_no_upgrade_notice() started.
+◇ Test taskListJSONUsesISODates() started.
+◇ Test taskListRejectsUnknownOptions() started.
+◇ Test fr_kairo_fmt_5_cancel_save_as_keeps_upgrade_flag() started.
+◇ Test fr_kairo_fmt_2_open_project_maps_error_codes() started.
+◇ Test fr_kairo_fmt_5_save_after_upgrade_announces_once() started.
+◇ Test fr_kairo_fmt_6_save_as_after_upgrade_announces() started.
+◇ Test sundayFirstGridStartsOnSunday() started.
+◇ Test isSameDayIgnoresTimeOfDay() started.
+◇ Test gridFirstDayIsFirstOfMonthAtMidnight() started.
+◇ Test fr_kairo_fmt_5_save_and_open_merges_upgrade_notice_and_warning() started.
+◇ Test isWeekendFollowsFirstWeekdaySetting() started.
+◇ Test fr_kairo_fmt_2_old_version_is_flagged_on_open() started.
+◇ Test gridFirstCellIsTheWeekStartContainingTheFirstOfMonth() started.
+◇ Test fr_kairo_fmt_6_save_as_fallback_write_announces_upgrade() started.
+◇ Test firstWeekdaySettingShiftsGridButKeepsTheSameMonth() started.
+◇ Test taskListSupportsParentFilter() started.
+◇ Test gridHasSixRowsAndSevenColumns() started.
+◇ Test taskAddAcceptsParentIDPrefix() started.
+◇ Test mondayFirstGridStartsOnMonday() started.
+◇ Test fr_kairo_fmt_1_current_version_is_not_flagged() started.
+◇ Test projectCreateThenWBSImportPersistsTree() started.
+◇ Test taskUpdateProgressAndStatus() started.
+◇ Test monthWithThirtyOneDaysFillsAllCellsInMonth() started.
+◇ Test monthOffsetCanJumpMoreThanAYear() started.
+◇ Test taskAddWithDependencyThenGetRoundTrip() started.
+◇ Test isInMonthDistinguishesAdjacentMonthCells() started.
+◇ Test isWeekendMarksSaturdayAndSunday() started.
+◇ Test taskUpdatePersistsDateOnlyConstraint() started.
+◇ Test monthOffsetMovesBackwardAcrossYearBoundary() started.
+◇ Test dateForYearMonthDayRejectsInvalidDay() started.
+◇ Test monthOffsetByZeroKeepsSameGrid() started.
+◇ Test dateForYearMonthDayReturnsMidnight() started.
+◇ Test dateForYearMonthDayCanTargetAnotherMonth() started.
+◇ Test gridAlwaysHasFortyTwoConsecutiveUniqueDays() started.
+◇ Test monthOffsetMovesForwardAcrossYearBoundary() started.
+◇ Test monthContainingIsIdempotentForAnyDayInGrid() started.
+◇ Test februaryOfCommonYearHasTwentyEightInMonthDays() started.
+◇ Test februaryOfLeapYearHasTwentyNineInMonthDays() started.
+◇ Test panelRendersAtBoundaryDayWidths() started.
+◇ Test zoomDetailHandlesNonFiniteValuesWithoutCrashing() started.
+◇ Test dismissalWithoutDraftKeepsCommittedValue() started.
+◇ Test slidesInsideThrottleWindowCommitTrailingValueOnly() started.
+已创建项目：0F64DCE1「负责人 CLI 添加」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-interface-D4864BE7-F1DD-41C3-A27E-DED983450A92/demo.kairo
+格式版本：v1
+◇ Test fr_kairo_fmt_6_cliProjectCommandsPrintFormatVersion() started.
+◇ Test firstSlideCommitsImmediately() started.
+◇ Test resourceAddAndListPersist() started.
+◇ Test narrowBarHandlesResolveToNearestEnd() started.
+◇ Test canvasOffsetShiftsRowHit() started.
+已创建项目：65F05319「负责人 CLI 更新」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-interface-C5D4B79E-B837-43F8-9D7D-E1F91048B755/demo.kairo
+格式版本：v1
+◇ Test scheduleComputeThenStatusUpdatePersistsCompletedAt() started.
+◇ Test startAndEndHandles() started.
+◇ Test dependencyLineTakesPriorityOverBar() started.
+◇ Test distanceToDegenerateSegment() started.
+◇ Test finishDraggingCommitsFinalDraftImmediately() started.
+◇ Test taskAddAndUpdateWithAssignmentByPrefix() started.
+◇ Test groupBarIsNotDraggableButLinks() started.
+◇ Test statusBatchWithUnknownTaskExitsWithRuntimeCode() started.
+◇ Test fr_kairo_fmt_6_cliFormatVersionLineRendersUpgradeSource() started.
+◇ Test statusBatchUpdatesMultipleTasksAndReportsSummary() started.
+◇ Test taskAddWithUnknownResourceFailsAndWritesNothing() started.
+◇ Test dismissalInsideThrottleWindowCommitsLastValue() started.
+◇ Test dependencyLineHitAndTolerance() started.
+◇ Test externalDayWidthChangeDiscardsStaleDraft() started.
+◇ Test emptySpaceAndOtherRows() started.
+◇ Test fr_kairo_fmt_6_cliSourceVersionLineRendersUpgradeHint() started.
+◇ Test pasteboardMenuGroupRemainsAfterNotReplacing() started.
+◇ Test daysFromTranslation() started.
+◇ Test milestoneDegradesHandlesToBody() started.
+◇ Test linkZones() started.
+已创建任务：CE2199B3 负责人任务
+已创建任务：90979562 待更新任务
+◇ Test assignmentSpecParsesPrefixAndUnits() started.
+◇ Test bodyHit() started.
+◇ Test dateAtXSnapsToDay() started.
+◇ Test dependencySpecRejectsBadTypeAndEmptyPredecessor() started.
+◇ Test dependencySpecParsesTypeAndLag() started.
+◇ Test linkToSelfDoesNotCommit() started.
+◇ Test linkFromEndMakesSourcePredecessor() started.
+◇ Test dependencySpecAcceptsShortPrefix() started.
+已更新任务：90979562 待更新任务
+◇ Test enumsParseValidKinds() started.
+◇ Test operandsAndFlagValues() started.
+◇ Test beginOnLineOrEmptyIsNoOp() started.
+◇ Test enumsRejectInvalidValues() started.
+已更新任务：90979562 待更新任务
+◇ Test dependencySpecDefaultsToFSNoLag() started.
+◇ Test moveCommitsStartDate() started.
+◇ Test negativeTranslationMovesEarlier() started.
+◇ Test resizeStartClampsToMinimumDuration() started.
+◇ Test cancelProducesNoFurtherCommits() started.
+◇ Test resizeStartKeepsFinishDate() started.
+◇ Test completedTaskIsNotRewritten() started.
+◇ Test linkFromStartMakesTargetPredecessor() started.
+◇ Test movePreviewMatchesOffset() started.
+◇ Test duplicateValuesAreSkipped() started.
+◇ Test repeatedDependencyValues() started.
+◇ Test malformedTaskListsExitZero(_:) started.
+◇ Test finishCommitsFinalValueWithinThrottleWindow() started.
+◇ Test malformedEventsExitZero(_:) started.
+◇ Test resizeEndChangesDurationOnly() started.
+◇ Test schedulingPolicyAndConstraintParse() started.
+◇ Test missingTitleIsSkipped() started.
+◇ Test missingProjectIsIgnored() started.
+◇ Test uniqueTitleWritesDone() started.
+◇ Test zoomKeepsPresetSemanticsWhileTickGranularityReportsEffectiveUnit() started.
+◇ Test otherEventsAreIgnored() started.
+◇ Test duplicateTitlesAreSkipped() started.
+◇ Test presetModeKeepsPresetWidthGranularityAndMatchesCoreReference() started.
+◇ Test outOfRangeCustomDayWidthIsClamped() started.
+◇ Test customModeDerivesTickGranularityFromTheEffectiveWidth() started.
+◇ Test legacyEnvelopeWithoutResourcesDefaultsEmpty() started.
+◇ Test allCoordinatesAreMultiplesOfTheDayWidth() started.
+◇ Test customDayWidthBecomesTheSingleAuthoritativeWidth() started.
+◇ Test presetModeKeepsTheUserZoomAsTickGranularity() started.
+◇ Test monthGranularityKeepsAdjacentTickSpacingWithinOneMonthSpan() started.
+◇ Test customDayWidthTakesPriorityInZoomLabel() started.
+◇ Test tinyDayWidthKeepsTickCountBounded() started.
+◇ Test customDayWidthWinsOverFitZoom() started.
+◇ Test taskAssignmentCodableRoundTrip() started.
+◇ Test weekGranularityKeepsAdjacentTicksSevenDayWidthsApart() started.
+◇ Test dayGranularityKeepsAdjacentTickSpacingEqualToDayWidth() started.
+◇ Test resourcesPersistThroughKairoFileRoundTrip() started.
+◇ Test resourceCodableRoundTrip() started.
+◇ Test fitZoomKeepsFitWidthWithoutClamping() started.
+◇ Test dayWidthActionsExposeInspectablePayloads() started.
+◇ Test fitModeKeepsTheUserZoomAsTickGranularity() started.
+◇ Test overdueUsesPlannedFinishThenDueDateFallback() started.
+◇ Test weightedProgressIgnoresGroups() started.
+◇ Test sessionResourceAddAndList() started.
+◇ Test presetAndFitOutputMatchThePreChangeBaseline() started.
+◇ Test presetZoomKeepsItsOwnDayWidth() started.
+◇ Test customModeDerivesGranularityFromEffectiveDayWidth() started.
+◇ Test enablingCustomDayWidthChangesTheOutput() started.
+◇ Test legacySnapshotInitDerivesTickGranularityFromZoom() started.
+◇ Test alapTaskInChainPushedToLatest() started.
+◇ Test dayWidthGridHoldsAcrossMonthAndYearBoundary() started.
+◇ Test statusBarReportsZoomLabelAndDetail() started.
+◇ Test presetZoomUsesPresetDayWidthAndSelfConsistentGranularity() started.
+◇ Test remainingDaysFallsBackToLatestFinishAndClampsPast() started.
+◇ Test overdueRatioAboveTwentyPercentIsRed() started.
+◇ Test tinyDayWidthKeepsTickCountsAndWindowBounded() started.
+◇ Test dayGranularityKeepsAdjacentTicksOneDayWidthApart() started.
+◇ Test asapTaskSchedulesAtEarliest() started.
+◇ Test warningOrMissingDueDateMajorityIsOrange() started.
+◇ Test errorViolationForcesRed() started.
+◇ Test criticalPathCountsZeroSlackLeavesOnly() started.
+◇ Test fitModeGranularityIsInvariantToViewportWidth() started.
+◇ Test customDayWidthOverridesFitZoomAndFitModeUsesFitWidth() started.
+◇ Test singleOverdueIsOrange() started.
+◇ Test greenWhenNoSignals() started.
+◇ Test outOfRangeCustomDayWidthIsClampedAndNeverIllegal() started.
+◇ Test alapTaskSchedulesAtLatestBoundedByProjectEnd() started.
+◇ Test countsKindsAndIncompleteLeaves() started.
+◇ Test weekGranularityKeepsAdjacentTickSpacingSevenDayWidths() started.
+◇ Test unscheduledTaskFallsBackToDueDate() started.
+◇ Test viewStateCarriesCustomDayWidthAsPersistableValue() started.
+◇ Test remainingDaysUsesProjectEnd() started.
+◇ Test customModeWidthAndGranularityWinOverFit() started.
+◇ Test dayWidthGridCoversTicksBandsAndBars() started.
+◇ Test legalDayWidthBoundsProduceUsableSnapshot() started.
+◇ Test fitModeKeepsPresetGranularityAndMatchesCoreReference() started.
+◇ Test twoTaskCycleFlagsBoth() started.
+◇ Test threeCycleExcludesFreeTask() started.
+◇ Test tickGranularityThresholdsMatchPresetDefaults() started.
+◇ Test startNoLaterThanTooCloseToFitDuration() started.
+◇ Test monthFastPathStartsAtNextMonthWhenMidMonth() started.
+◇ Test taskInsideProjectEndHasNoBoundaryViolation() started.
+◇ Test monthFastPathMatchesNaiveDayLoop() started.
+◇ Test startNoLaterThanWithRoomHasNoViolation() started.
+◇ Test asapTaskAtProjectStartHasNoEarlyViolation() started.
+◇ Test todayIsFallbackWhenNoProjectOrTaskDate() started.
+◇ Test earliestTaskIntentStartIsUsedWhenProjectStartMissing() started.
+◇ Test alapTaskStartBeforeProjectStartReportsViolation() started.
+◇ Test statusBarReportsZoomLabelAndActualDayWidth() started.
+◇ Test dueDateDoesNotDriveAnchor() started.
+◇ Test startNoEarlierThanBeyondLatestWindow() started.
+◇ Test anchorIsNormalizedToStartOfDay() started.
+◇ Test explicitProjectStartWins() started.
+◇ Test doneStatusRecordsCompletedAtAndProgressOne() started.
+◇ Test outdentMovesSubtreeAfterParentSubtree() started.
+◇ Test indentFirstSiblingIsNoOp() started.
+◇ Test progressAboveOneRejected() started.
+◇ Test projectInsertPlacesAfterSibling() started.
+◇ Test taskEndingAfterProjectEndReportsViolation() started.
+◇ Test indentDoesNotCrossParentGroups() started.
+◇ Test progressUpdateReflectsWithoutCompleting() started.
+◇ Test outdentNestedBecomesSiblingOfParent() started.
+◇ Test progressBelowZeroRejected() started.
+◇ Test startNoEarlierThanWithinWindowHasNoViolation() started.
+◇ Test siblingParentDependsOnKind() started.
+◇ Test indentBecomesChildOfPreviousSibling() started.
+◇ Test startNoLaterThanViolatedByPredecessors() started.
+◇ Test indentUsesPreviousSiblingWithinGroup() started.
+◇ Test startNoLaterThanSatisfiedHasNoViolation() started.
+◇ Test subtreeIncludesDescendantsAndGuardsCycles() started.
+◇ Test outdentTopLevelIsNoOp() started.
+◇ Test movesTaskIntoGroupAtEnd() started.
+◇ Test sessionMoveUpdatesOutlineOrder() started.
+◇ Test rejectsMoveIntoItself() started.
+◇ Test rejectsUnknownTarget() started.
+◇ Test rejectsMoveIntoOwnSubtree() started.
+◇ Test movesSubtreeOutToRoot() started.
+◇ Test startDateBeforeProjectAnchorDoesNotPullScheduleEarlier() started.
+◇ Test patchRejectsOutOfRangeProgress() started.
+◇ Test sessionUpdatesDirectionAndPassesItToSchedule() started.
+◇ Test leafStartDateRaisesEarliestStart() started.
+◇ Test movesTaskIntoGroupAtStart() started.
+◇ Test addTaskCarriesDatesAndAssignee() started.
+◇ Test directionRoundTrips() started.
+◇ Test startDateAndFinishToStartDependencyPickLater() started.
+◇ Test setReplacesOptionalValues() started.
+◇ Test movingUnderPlainTaskPromotesParentToGroup() started.
+◇ Test asapTaskSelectionKeepsStartDateBound() started.
+◇ Test directionPersistsThroughFileRoundTrip() started.
+◇ Test case passing 1 argument json → "{"formatVersion":1.5,"project":{},"tasks":[]}" to fr_kairo_fmt_malformed_non_integer_version_is_rejected(json:) started.
+◇ Test milestoneStartDateActsAsBound() started.
+◇ Test addTaskAssigneeTrimsWhitespaceToNil() started.
+◇ Test startDateAndConstraintPickLater() started.
+◇ Test case passing 1 argument json → "{"formatVersion":true,"project":{},"tasks":[]}" to fr_kairo_fmt_malformed_non_integer_version_is_rejected(json:) started.
+◇ Test cycleTaskStartDateDoesNotCrash() started.
+◇ Test alapTaskNeverStartsBeforeStartDate() started.
+◇ Test clearRemovesOptionalValues() started.
+◇ Test patchValidatesParentExists() started.
+◇ Test case passing 1 argument json → "{"formatVersion":"1","project":{},"tasks":[]}" to fr_kairo_fmt_malformed_non_integer_version_is_rejected(json:) started.
+◇ Test legacyUpdateTaskAssigneeTrimsWhitespace() started.
+◇ Test patchAssigneeTrimsWhitespaceAndClearsWhenBlank() started.
+◇ Test fullProgressMarksDone() started.
+◇ Test patchUpdatesPlainFields() started.
+◇ Test statusDoneSetsProgressAndCompletedAt() started.
+◇ Test leavingDoneClearsCompletedAt() started.
+◇ Test demotingTaskWithChildrenIsRejected() started.
+◇ Test legacyMetadataDecodesAsForward() started.
+◇ Test unchangedPatchLeavesTaskIntact() started.
+◇ Test acyclicChainHasNoCycleViolation() started.
+◇ Test cycleReportsCycleViolationOnBothTasks() started.
+◇ Test patchRejectsMovingIntoOwnSubtree() started.
+◇ Test parsesPercentEncodedTitle() started.
+◇ Test parsesTaskIDAndPrefix() started.
+◇ Test parsesProjectID() started.
+◇ Test groupStartDateIsIgnored() started.
+◇ Test patchRejectsSelfParent() started.
+◇ Test totalAndFreeSlackOnTightChain() started.
+◇ Test startDateWithTimeIsNormalizedToStartOfDay() started.
+◇ Test case passing 1 argument payload → ""scalar"" to fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test case passing 1 argument payload → "42" to fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test case passing 1 argument payload → "[]" to fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test rejectsMalformedLinks() started.
+◇ Test case passing 1 argument payload → "null" to fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test case passing 1 argument payload → "{ not json" to fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test case passing 1 argument json → "{"formatVersion":-1,"project":{},"tasks":[]}" to fr_kairo_fmt_malformed_non_positive_version_is_rejected(json:) started.
+◇ Test case passing 1 argument json → "{"formatVersion":0,"project":{},"tasks":[]}" to fr_kairo_fmt_malformed_non_positive_version_is_rejected(json:) started.
+◇ Test emptyStateAppliesAsEmptyProject() started.
+◇ Test stateRoundTripsThroughCodable() started.
+◇ Test applyRestoresFullProject() started.
+◇ Test snapshotCopiesProjectContent() started.
+◇ Test finishToFinishWithLag() started.
+◇ Test finishToStartWithPositiveLag() started.
+◇ Test startToFinishWithLag() started.
+◇ Test snapshotIsIndependentOfLaterProjectMutation() started.
+◇ Test startToFinishBasic() started.
+◇ Test finishToStartWithNegativeLag() started.
+◇ Test finishToFinishBasic() started.
+◇ Test negativeSlackReportsCannotSchedule() started.
+◇ Test finishToStartBasic() started.
+◇ Test startToStartBasic() started.
+◇ Test rejectsShortOrUnknownPrefix() started.
+◇ Test unknownTitleFindsNothing() started.
+◇ Test projectLinkReportsMatchOnly() started.
+◇ Test positiveSlackHasNoCannotSchedule() started.
+◇ Test titleFallsBackToCaseInsensitive() started.
+◇ Test titleTakesFirstMatchAndReportsAmbiguity() started.
+◇ Test startAndEndConstraintsWindowTooNarrow() started.
+◇ Test startToStartWithLag() started.
+◇ Test filterShowsMatchesAndForcesAncestorsExpanded() started.
+◇ Test orphanIsTreatedAsRoot() started.
+◇ Test emptyGroupHasNoAggregateWindow() started.
+◇ Test resolvesUniqueIDPrefix() started.
+◇ Test leavesCarryOwnScheduleAndProgress() started.
+◇ Test singleSidedConstraintHasNoWindowViolation() started.
+◇ Test groupAggregatesWeightedProgress() started.
+◇ Test groupCountsSubtreeViolations() started.
+◇ Test groupAggregatesScheduleWindow() started.
+◇ Test groupStatusRules() started.
+◇ Test filterWithNoMatchesProducesEmptyTree() started.
+◇ Test startNoEarlierThanConstraintRaisesEarliestStart() started.
+◇ Test projectStartBoundsEarliestStart() started.
+◇ Test freeSlackDifferentiatesParallelPredecessors() started.
+◇ Test collapsedGroupsHideChildren() started.
+◇ Test restoreReplacesProjectContent() started.
+◇ Test writeOperationsIncrementRevision() started.
+◇ Test tightChainIsCriticalPathAndParallelIsNot() started.
+◇ Test expandedGroupsShowChildrenInOrder() started.
+◇ Test milestoneHasZeroDuration() started.
+◇ Test hasUnsavedChangesTracksWritesAndSave() started.
+◇ Test addTaskInvalidatesCachedSchedule() started.
+◇ Test statusUpdateInvalidatesCachedSchedule() started.
+◇ Test patchInvalidatesCachedSchedule() started.
+◇ Test deletingParentRemovesDescendantsSoNoDanglingParentIDs() started.
+◇ Test missingDurationDefaultsToOneDay() started.
+◇ Test fitDayWidthSpreadsContentAcrossView() started.
+◇ Test slackLimitExpandsCriticalSet() started.
+◇ Test pannedWindowStartMovesOppositeToDrag() started.
+◇ Test zoomChangesDayWidth() started.
+◇ Test dependencyRoutesSkipUnscheduledEndpoints() started.
+◇ Test barPositionFollowsScheduledDates() started.
+◇ Test contentRangeCoversProjectAndTaskBounds() started.
+◇ Test deleteCascadeRemovesSubtreeAndCleansDependencies() started.
+◇ Test todayXTracksWindowBounds() started.
+◇ Test cycleTasksAreUnscheduled() started.
+◇ Test dayZoomTicksUseTwoTiers() started.
+◇ Test pannedWindowStartClampsDayWidthToAvoidDivisionExplosion() started.
+◇ Test weekendBandsShadeSaturdayAndSunday() started.
+◇ Test tickUnitMatchesPresetDefaults() started.
+◇ Test ruleCategoriesAreExposed() started.
+◇ Test contentRangeFallsBackToScheduledTasks() started.
+◇ Test monthZoomHidesNonWorkingBands() started.
+◇ Test clampKeepsValuesInsideRange() started.
+◇ Test tickUnitRespectsThresholds() started.
+◇ Test engineDerivesAnchorFromEarliestTaskStart() started.
+◇ Test emptyGroupIsUnscheduled() started.
+◇ Test tickUnitOfNonFiniteWidthFallsBackToCoarsest() started.
+◇ Test monthZoomTicksAtMonthStart() started.
+◇ Test explicitProjectStartIsNotDerived() started.
+◇ Test windowEndFollowsViewWidth() started.
+◇ Test clampBoundsOutOfRangeValues() started.
+◇ Test clampHandlesNonFiniteValues() started.
+◇ Test barsStartingBeforeWindowKeepNegativeX() started.
+◇ Test tickUnitNeverGetsFinerAsWidthGrows() started.
+◇ Test unscheduledTasksAreExcludedFromBarsAndContent() started.
+◇ Test dependencyRoutesAvoidMiddleRowBars() started.
+◇ Test milestoneHasZeroWidth() started.
+◇ Test barsOutsideWindowAreExcluded() started.
+◇ Test declaredConstantsMatchContract() started.
+◇ Test clampResultAlwaysInsideDeclaredRange() started.
+◇ Test dayWidthOverrideWinsOverZoom() started.
+◇ Test dependencyRoutesConnectAllFourTypesAtBarEdges() started.
+◇ Test progressAndCriticalFlagsComeFromTasks() started.
+◇ Test engineFallsBackToTodayWithoutDates() started.
+◇ Test resultDecodesLegacyPayloadWithoutNewFields() started.
+◇ Test effortAdjustedByEfficiency() started.
+◇ Test durationDaysTakesPrecedenceOverEffort() started.
+◇ Test effortSplitAcrossTwoUnits() started.
+◇ Test effortWithoutAssignmentConvertsAtOneUnit() started.
+◇ Test milestoneStaysZeroDurationWithEffort() started.
+◇ Test groupProgressWeightedByEffort() started.
+◇ Test leafTaskReturnsOwnProgress() started.
+◇ Test groupProgressMixedEffortAndNoEffortLeaves() started.
+◇ Test addsAllFourTypes() started.
+◇ Test duplicatePredecessorIsNormalized() started.
+◇ Test cleansDanglingReferencesAfterDelete() started.
+◇ Test rejectsSelfDependency() started.
+◇ Test removesDependency() started.
+◇ Test demoProjectAnchorsTimelineNearToday() started.
+◇ Test rejectsUnknownPredecessor() started.
+◇ Test rejectsCycle() started.
+◇ Test demoProjectSeedsTenTasks() started.
+◇ Test rejectsLongerCycle() started.
+◇ Test groupProgressAggregatesNestedGroups() started.
+✔ Test deadlineRiskUsesDueDateAndPlannedFinish() passed after 0.034 seconds.
+✔ Test ganttSnapshotCarriesDependencyRoutes() passed after 0.034 seconds.
+✔ Test cycleTasksAreUnscheduledWithReason() passed after 0.034 seconds.
+✔ Test statusBarZoomLabelReflectsPreference() passed after 0.034 seconds.
+✔ Test todayOutsideWindowIsMarked() passed after 0.034 seconds.
+✔ Test snapshotIsDeterministicForSameInput() passed after 0.034 seconds.
+错误：无法读取项目文件：demo.kairo
+错误：无法读取项目文件：demo.kairo
+用法错误：未知命令：nope x
+✔ Test unparsedFilterTextDoesNotFilter() passed after 0.034 seconds.
+用法错误：无效相关性类型：zz（可选 fs/ff/ss/sf）
+用法错误：未知选项：--jsn（可用：--parent --filter --json --file）
+✔ Test inspectorFallsBackWhenSelectionMissing() passed after 0.035 seconds.
+✔ Test violationInspectorGroupsAndListsRuleCatalog() passed after 0.035 seconds.
+✔ Test rowsAndBarsShareIndexAndOrder() passed after 0.035 seconds.
+✔ Test outlineColumnsDegradeWithWidth() passed after 0.034 seconds.
+✔ Test fr_kairo_fmt_6_mcpOpenReportsDiskVersionAndUpgradeNeed() passed after 0.035 seconds.
+✔ Test resourceAddThenListRoundTrip() passed after 0.035 seconds.
+✔ Test groupViolationSeverityAggregatesSubtree() passed after 0.035 seconds.
+✔ Test fr_kairo_fmt_6_mcpSaveReportsUpgradedFromWithoutTouchingOriginal() passed after 0.035 seconds.
+✔ Test initializeHandshakeReturnsProtocolAndServerInfo() passed after 0.035 seconds.
+✔ Test statusUpdateDoneReturnsCompletedAtAndGroupAggregate() passed after 0.035 seconds.
+✔ Test toolErrorReturnsIsErrorWithStructuredCode() passed after 0.035 seconds.
+✔ Test taskAssignmentDrivesDurationFromEffort() passed after 0.035 seconds.
+已创建项目：62246211「演示项目」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-E2A9788A-D6BC-42B9-871E-63A8478AE73D/demo.kairo
+格式版本：v1
+已创建项目：94AFFBED「列表演示」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-169EC230-3635-4139-A241-7070A17508C1/demo.kairo
+格式版本：v1
+已创建项目：87E6F3BD「依赖演示」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-E24710A9-6E0A-4F7D-A13C-7276D9C9BC30/demo.kairo
+格式版本：v1
+已创建项目：E5B72CFC「前缀演示」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-17BDC76B-69F2-4024-AFBB-05961767F5F6/demo.kairo
+格式版本：v1
+已创建项目：469F826E「更新演示」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-981363AB-18FF-4419-921E-4366F93746B4/demo.kairo
+格式版本：v1
+已创建任务：F1174736 进行中的任务
+已导入 5 个任务
+已创建任务：1827AF0A 前驱任务
+已导入 3 个任务
+  182DE137 群组A
+  530783B1 设计
+  043E2348 开发
+已导入 1 个任务
+  740B8D99 群组B
+251FF062 子一 待办
+3613B9CF 子二 待办
+已更新任务：F1174736 进行中的任务
+已创建任务：DA86E33D 后继任务
+任务：前驱任务
+ID：1827AF0A-9440-4CCA-9A24-72B05529449A
+类型：任务
+状态：待办
+进度：0%
+已创建项目：79794FB4「时限演示」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-40CC15EA-C690-48F8-93E2-029320FDEF03/demo.kairo
+格式版本：v1
+已创建任务：3991753B 子任务
+已创建任务：53A8BFF1 受时限任务
+✔ Test usE102A3_mcpTaskUpdateAssigneePersistsAndClears() passed after 0.041 seconds.
+✔ Test emptyReasonsCoverNoTasksNoMatchesNoSchedule() passed after 0.042 seconds.
+✔ Test filterKeepsAncestorsAndForcesExpansion() passed after 0.043 seconds.
+✔ Test inspectorShowsTaskDependencies() passed after 0.042 seconds.
+✔ Test todayInsideWindowProducesX() passed after 0.042 seconds.
+✔ Test collapsedGroupHidesChildrenAndKeepsSummaryBar() passed after 0.042 seconds.
+✔ Test statusBatchUpdateReportsPerTaskSuccessAndFailure() passed after 0.043 seconds.
+已更新任务：53A8BFF1 受时限任务
+✔ Test scheduleComputeReportsConstraintConflictThenViolationsList() passed after 0.043 seconds.
+✔ Test usE102A3_mcpTaskAddWithAssigneePersists() passed after 0.044 seconds.
+已创建项目：9199BF4D「分配演示」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli2-3EF80297-92BC-46DB-8A34-3592B604286B/demo.kairo
+格式版本：v1
+已创建项目：67ADEBC6「闭环演示」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli2-1986A6A0-73F4-4B7B-B141-0685F26AB04D/demo.kairo
+格式版本：v1
+已添加资源：85ED838B 李工（人员，单位 1，效率 0.9）
+已创建任务：8588BFF6 任务 A
+85ED838B 李工（人员，单位 1，效率 0.9）
+已添加资源：ABB958B0 李工（人员，单位 1，效率 1）
+已创建任务：C9894F74 群组 G
+已创建任务：CD12258F 受分配任务
+已创建项目：9E4216B2「批量失败演示」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli2-3715A643-FC1E-41D8-8011-9B091614EF91/demo.kairo
+格式版本：v1
+已更新任务：CD12258F 受分配任务
+失败：B94CE8BA 任务不存在
+批量结果：成功 0 条，失败 1 条
+错误：批量回写存在 1 条失败
+用法错误：找不到资源：DEADBEEF
+✔ Test usE102A1_cliTaskAddWithAssigneePersists() passed after 0.051 seconds.
+✔ Test taskAddWithDependenciesCreatesFSChain() passed after 0.051 seconds.
+已创建项目：9E18B069「批量演示」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli2-5B839525-586A-497C-AC6D-462D1BC0E974/demo.kairo
+格式版本：v1
+已计算排期：2 个任务
+已创建项目：E6963AEC「悬空分配演示」
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli2-653B129F-93C8-4184-8576-5909BF7C224E/demo.kairo
+格式版本：v1
+  8588BFF6 任务 A  2026-11-01T16:00:00Z → 2026-11-04T16:00:00Z（3 天，ASAP）
+  C9894F74 群组 G  2026-11-01T16:00:00Z → 2026-11-02T16:00:00Z（1 天，ASAP）
+重要路径：1 个任务（宽延限制 0 天）
+  8588BFF6 任务 A *  总宽延 0 天 / 自由宽延 0 天
+  C9894F74 群组 G  总宽延 2 天 / 自由宽延 2 天
+无违例
+✔ Test fr_kairo_fmt_6_mcpProjectToolsReportFormatVersion() passed after 0.051 seconds.
+✔ Test usE102A2_cliTaskUpdateAssigneePersistsAndClears() passed after 0.051 seconds.
+✔ Test statusBarMirrorsProjectSummary() passed after 0.051 seconds.
+✔ Test fr_kairo_fmt_2_rejects_missing_step() passed after 0.052 seconds.
+✔ Test taskAddThenTaskListRoundTrip() passed after 0.052 seconds.
+◇ Test case passing 1 argument tasksJSON → "null" to malformedTaskListsExitZero(_:) started.
+◇ Test case passing 1 argument tasksJSON → "{"tasks":[]}" to malformedTaskListsExitZero(_:) started.
+已创建任务：C8A9756C 任务一
+已创建任务：577E9883 任务二
+已创建任务：583FEC61 子一
+已回写：C8A9756C 任务一（已完成，进度 100%）
+已回写：577E9883 任务二（待办，进度 50%）
+批量结果：成功 2 条，失败 0 条
+已回写：583FEC61 子一（已完成，进度 100%）
+◇ Test case passing 1 argument tasksJSON → "[1,2]" to malformedTaskListsExitZero(_:) started.
+完成于：2026-10-21T07:01:22Z
+完成度聚合：100%
+◇ Test case passing 1 argument event → "[]" to malformedEventsExitZero(_:) started.
+◇ Test case passing 1 argument event → "not json" to malformedEventsExitZero(_:) started.
+◇ Test case passing 1 argument event → "{"hook_event_name":"TaskCompleted"}" to malformedEventsExitZero(_:) started.
+◇ Test case passing 1 argument event → "{"hook_event_name":"TaskCompleted","task_subject":1}" to malformedEventsExitZero(_:) started.
+✔ Test unknownMethodReturnsJSONRPCError() passed after 0.408 seconds.
+✔ Test explanationSummarizesClauses() passed after 0.437 seconds.
+✔ Test groupAggregatesWeightedProgressStatusAndRange() passed after 0.438 seconds.
+✔ Test translateTodayYieldsDueTodayClause() passed after 0.437 seconds.
+✔ Test encodeProducesSingleJSONWithVersionAndRootKeys() passed after 0.554 seconds.
+✔ Test taskDependencyCodableRoundTrip() passed after 0.573 seconds.
+✔ Test fr_kairo_fmt_2_rejects_document_version_mismatch() passed after 0.691 seconds.
+✔ Test fr_kairo_fmt_2_migrates_steps_in_ascending_order() passed after 0.692 seconds.
+✔ Test searchTermEqualsMatchesAndRejects() passed after 0.693 seconds.
+✔ Test searchTermHasTagMatchesAndRejects() passed after 0.696 seconds.
+✔ Test legacyUUIDDependenciesMigrateToFS() passed after 0.714 seconds.
+✔ Test fr_kairo_fmt_1_read_current_file_reports_current_source_version() passed after 0.721 seconds.
+✔ Test fr_kairo_fmt_4_failed_migration_writes_nothing() passed after 0.721 seconds.
+✔ Test translateCombinesOverdueAndDone() passed after 0.721 seconds.
+✔ Test dependencyTypeRawValues() passed after 0.725 seconds.
+✔ Test regexPatternFindsFirstMatch() passed after 0.726 seconds.
+✔ Test applyAndCombinesClauses() passed after 0.727 seconds.
+✔ Test unsupportedFormatVersionThrows() passed after 0.727 seconds.
+✔ Test toolsListReturnsSprint2ToolSetWithSchema() passed after 0.727 seconds.
+✔ Test fr_kairo_fmt_malformed_non_integer_version_is_rejected(json:) with 3 test cases passed after 0.727 seconds.
+✔ Test saveToURLAndLoadFromURL() passed after 0.728 seconds.
+✔ Test fr_kairo_fmt_3_rejects_future_version() passed after 0.729 seconds.
+✔ Test literalPatternIsCaseSensitiveWhenRequested() passed after 0.729 seconds.
+✔ Test translateUnknownTokenFallsBackToTitleContains() passed after 0.729 seconds.
+✔ Test fr_kairo_fmt_2_rejects_backwards_range() passed after 0.729 seconds.
+✔ Test fr_kairo_fmt_1_current_version_skips_migration() passed after 0.730 seconds.
+✔ Test fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) with 5 test cases passed after 0.730 seconds.
+✔ Test translateUrgentAndTag() passed after 0.730 seconds.
+✔ Test fr_kairo_fmt_malformed_non_positive_version_is_rejected(json:) with 2 test cases passed after 0.730 seconds.
+✔ Test searchTermContainsMatchesAndRejects() passed after 0.730 seconds.
+✔ Test fr_kairo_fmt_2_step_must_land_on_its_to_version() passed after 0.730 seconds.
+✔ Test fr_kairo_fmt_4_throwing_step_is_wrapped_with_from_to() passed after 0.730 seconds.
+✔ Test fr_kairo_fmt_decode_error_without_migration_is_preserved() passed after 0.730 seconds.
+✔ Test legacyTaskMissingNewFieldsDefaults() passed after 0.730 seconds.
+✔ Test invalidRegexPatternFailsInit() passed after 0.730 seconds.
+✔ Test fr_kairo_fmt_malformed_missing_version_is_rejected_without_migration() passed after 0.730 seconds.
+✔ Test parentChildrenTreeStructure() passed after 0.730 seconds.
+✔ Test taskItemWithKindParentAndEffortRoundTrips() passed after 0.730 seconds.
+✔ Test milestoneKindRoundTrips() passed after 0.730 seconds.
+✔ Test literalPatternMatchesCaseInsensitively() passed after 0.730 seconds.
+✔ Test fr_kairo_fmt_4_decode_failure_after_migration_is_wrapped() passed after 0.731 seconds.
+✔ Test fr_kairo_fmt_5_encode_always_writes_current_version() passed after 0.731 seconds.
+✔ Test applyFiltersFixtureTasks() passed after 0.731 seconds.
+✔ Test decodeIgnoresUnknownFields() passed after 0.731 seconds.
+✔ Test dependencyAndMilestoneSurviveRoundTrip() passed after 0.731 seconds.
+✔ Test saveLoadRoundTripPreservesTasksAndMetadata() passed after 0.732 seconds.
+✔ Test searchTermIsValueMatchesPriority() passed after 0.732 seconds.
+✔ Test fr_kairo_fmt_2_read_migrates_end_to_end() passed after 0.732 seconds.
+✔ Test fr_kairo_fmt_5_legacy_file_resaves_as_current_version_and_reopens() passed after 0.732 seconds.
+✔ Test missingFieldRejected() passed after 0.732 seconds.
+✔ Test shapeGuardsFailClosed() passed after 0.732 seconds.
+✔ Test unsupportedSchemaRejected() passed after 0.733 seconds.
+✔ Test parseValidManifest() passed after 0.732 seconds.
+✔ Test wrongAppIdRejected() passed after 0.733 seconds.
+✔ Test validateThrowsOnViolation() passed after 0.733 seconds.
+✔ Test tamperedManifestRejected() passed after 0.733 seconds.
+✔ Test appIdMatchesBundleAndFeed() passed after 0.732 seconds.
+✔ Test hostCaseInsensitive() passed after 0.733 seconds.
+✔ Test httpsAndWhitelistEnforced() passed after 0.733 seconds.
+✔ Test sha256KnownVector() passed after 0.733 seconds.
+✔ Test feedIsInsideWhitelist() passed after 0.733 seconds.
+✔ Test wrongKeyRejected() passed after 0.733 seconds.
+✔ Test unreadableFileFailsClosed() passed after 0.733 seconds.
+✔ Test publicKeyIsWellFormedEd25519() passed after 0.733 seconds.
+✔ Test fr_kairo_fmt_2_rejects_version_skip() passed after 0.733 seconds.
+✔ Test signAndVerifyRoundtrip() passed after 0.733 seconds.
+✔ Test missingSignatureRejected() passed after 0.733 seconds.
+✔ Test launchPathMismatchFailsFast() passed after 0.733 seconds.
+✔ Test durationDaysOfSingleDayTaskIsOne() passed after 0.732 seconds.
+✔ Test durationAndFinishRoundTrip() passed after 0.732 seconds.
+✔ Test minimumFinishOfTaskIsTheNextDay() passed after 0.732 seconds.
+✔ Test finishOfNegativeDurationFallsBackToStartOfDay() passed after 0.732 seconds.
+✔ Test dayOffsetStaysWholeAcrossDaylightSavingChange() passed after 0.732 seconds.
+✔ Test finishCrossesDaylightSavingChangeAtMidnight() passed after 0.732 seconds.
+✔ Test durationDaysRejectsFinishEqualToStart() passed after 0.732 seconds.
+✔ Test startOfDayStripsTimeOfDay() passed after 0.732 seconds.
+✔ Test dayOffsetIsZeroForSameDayDifferentTimes() passed after 0.732 seconds.
+✔ Test durationDaysRejectsFinishEarlierThanStart() passed after 0.732 seconds.
+✔ Test durationDaysSpansYearBoundary() passed after 0.732 seconds.
+✔ Test dayOffsetCountsWholeDaysAcrossMonthBoundary() passed after 0.732 seconds.
+✔ Test dayOffsetIsNegativeWhenTargetIsEarlier() passed after 0.732 seconds.
+✔ Test durationDaysRejectsSameDayWithEarlierTime() passed after 0.732 seconds.
+✔ Test finishRoundsFractionalDurationToWholeDays() passed after 0.732 seconds.
+✔ Test durationDaysOfMultiDayTaskCountsCalendarDays() passed after 0.732 seconds.
+✔ Test durationDaysNormalizesTimeOfDayBeforeSubtracting() passed after 0.732 seconds.
+✔ Test finishAddsWholeDaysToStartOfDay() passed after 0.731 seconds.
+✔ Test startOfDayKeepsAlreadyNormalizedDate() passed after 0.731 seconds.
+✔ Test minimumFinishOfMilestoneIsItsOwnStartDay() passed after 0.732 seconds.
+✔ Test finishOfZeroDurationIsStartOfDay() passed after 0.732 seconds.
+✔ Test minimumFinishOfTaskIsAlwaysSelectableByDurationMath() passed after 0.732 seconds.
+✔ Test updateAcceptsWellFormedDependencySpec() passed after 0.729 seconds.
+✔ Test taskOnMissingFileReturnsRuntimeExitCode() passed after 0.729 seconds.
+✔ Test unknownCommandReturnsUsageExitCode() passed after 0.729 seconds.
+✔ Test unknownCommandThrowsUsageError() passed after 0.729 seconds.
+✔ Test updateRejectsMalformedDependencySpec() passed after 0.729 seconds.
+✔ Test taskListJSONEncodesStableFields() passed after 0.729 seconds.
+✔ Test taskListRejectsUnknownOptions() passed after 0.729 seconds.
+✔ Test flagDetection() passed after 0.729 seconds.
+✔ Test missingOperandThrowsUsageError() passed after 0.729 seconds.
+✔ Test isSameDayIgnoresTimeOfDay() passed after 0.726 seconds.
+✔ Test sundayFirstGridStartsOnSunday() passed after 0.728 seconds.
+✔ Test isWeekendFollowsFirstWeekdaySetting() passed after 0.725 seconds.
+✔ Test gridFirstDayIsFirstOfMonthAtMidnight() passed after 0.726 seconds.
+✔ Test gridFirstCellIsTheWeekStartContainingTheFirstOfMonth() passed after 0.725 seconds.
+✔ Test gridHasSixRowsAndSevenColumns() passed after 0.725 seconds.
+✔ Test mondayFirstGridStartsOnMonday() passed after 0.725 seconds.
+✔ Test firstWeekdaySettingShiftsGridButKeepsTheSameMonth() passed after 0.725 seconds.
+✔ Test taskListJSONUsesISODates() passed after 0.729 seconds.
+✔ Test monthWithThirtyOneDaysFillsAllCellsInMonth() passed after 0.724 seconds.
+✔ Test monthOffsetCanJumpMoreThanAYear() passed after 0.724 seconds.
+✔ Test projectCreateThenWBSImportPersistsTree() passed after 0.725 seconds.
+✔ Test isInMonthDistinguishesAdjacentMonthCells() passed after 0.724 seconds.
+✔ Test isWeekendMarksSaturdayAndSunday() passed after 0.724 seconds.
+✔ Test taskUpdateProgressAndStatus() passed after 0.724 seconds.
+✔ Test monthOffsetMovesBackwardAcrossYearBoundary() passed after 0.724 seconds.
+✔ Test dateForYearMonthDayRejectsInvalidDay() passed after 0.724 seconds.
+✔ Test taskAddAcceptsParentIDPrefix() passed after 0.725 seconds.
+✔ Test monthOffsetByZeroKeepsSameGrid() passed after 0.724 seconds.
+✔ Test dateForYearMonthDayCanTargetAnotherMonth() passed after 0.724 seconds.
+✔ Test taskListSupportsParentFilter() passed after 0.725 seconds.
+✔ Test dateForYearMonthDayReturnsMidnight() passed after 0.724 seconds.
+✔ Test monthOffsetMovesForwardAcrossYearBoundary() passed after 0.723 seconds.
+✔ Test februaryOfCommonYearHasTwentyEightInMonthDays() passed after 0.722 seconds.
+✔ Test februaryOfLeapYearHasTwentyNineInMonthDays() passed after 0.722 seconds.
+✔ Test gridAlwaysHasFortyTwoConsecutiveUniqueDays() passed after 0.723 seconds.
+✔ Test monthContainingIsIdempotentForAnyDayInGrid() passed after 0.722 seconds.
+✔ Test taskAddWithDependencyThenGetRoundTrip() passed after 0.724 seconds.
+✔ Test canvasOffsetShiftsRowHit() passed after 0.720 seconds.
+✔ Test narrowBarHandlesResolveToNearestEnd() passed after 0.720 seconds.
+✔ Test startAndEndHandles() passed after 0.720 seconds.
+✔ Test dependencyLineTakesPriorityOverBar() passed after 0.720 seconds.
+✔ Test distanceToDegenerateSegment() passed after 0.720 seconds.
+✔ Test groupBarIsNotDraggableButLinks() passed after 0.720 seconds.
+✔ Test taskUpdatePersistsDateOnlyConstraint() passed after 0.724 seconds.
+✔ Test resourceAddAndListPersist() passed after 0.720 seconds.
+✔ Test taskAddAndUpdateWithAssignmentByPrefix() passed after 0.720 seconds.
+✔ Test statusBatchWithUnknownTaskExitsWithRuntimeCode() passed after 0.720 seconds.
+✔ Test emptySpaceAndOtherRows() passed after 0.720 seconds.
+✔ Test fr_kairo_fmt_6_cliSourceVersionLineRendersUpgradeHint() passed after 0.719 seconds.
+✔ Test dependencyLineHitAndTolerance() passed after 0.720 seconds.
+✔ Test taskAddWithUnknownResourceFailsAndWritesNothing() passed after 0.720 seconds.
+✔ Test linkZones() passed after 0.719 seconds.
+✔ Test daysFromTranslation() passed after 0.719 seconds.
+✔ Test milestoneDegradesHandlesToBody() passed after 0.719 seconds.
+✔ Test assignmentSpecParsesPrefixAndUnits() passed after 0.719 seconds.
+✔ Test dateAtXSnapsToDay() passed after 0.719 seconds.
+✔ Test bodyHit() passed after 0.719 seconds.
+✔ Test dependencySpecParsesTypeAndLag() passed after 0.719 seconds.
+✔ Test dependencySpecRejectsBadTypeAndEmptyPredecessor() passed after 0.719 seconds.
+✔ Test dependencySpecAcceptsShortPrefix() passed after 0.719 seconds.
+✔ Test enumsParseValidKinds() passed after 0.719 seconds.
+✔ Test operandsAndFlagValues() passed after 0.719 seconds.
+✔ Test enumsRejectInvalidValues() passed after 0.719 seconds.
+✔ Test dependencySpecDefaultsToFSNoLag() passed after 0.719 seconds.
+✔ Test fr_kairo_fmt_6_cliFormatVersionLineRendersUpgradeSource() passed after 0.720 seconds.
+✔ Test fr_kairo_fmt_6_cliProjectCommandsPrintFormatVersion() passed after 0.721 seconds.
+✔ Test statusBatchUpdatesMultipleTasksAndReportsSummary() passed after 0.720 seconds.
+✔ Test repeatedDependencyValues() passed after 0.718 seconds.
+✔ Test scheduleComputeThenStatusUpdatePersistsCompletedAt() passed after 0.720 seconds.
+✔ Test prepareExtractsAppFromZip() passed after 0.735 seconds.
+✔ Test replacementScriptWaitsBacksUpReplacesAndReports() passed after 0.735 seconds.
+✔ Test thousandTaskSnapshotStaysWithinBudget() passed after 0.736 seconds.
+✔ Test malformedEventsExitZero(_:) with 4 test cases passed after 0.718 seconds.
+✔ Test schedulingPolicyAndConstraintParse() passed after 0.718 seconds.
+✔ Test missingProjectIsIgnored() passed after 0.718 seconds.
+✔ Test zoomKeepsPresetSemanticsWhileTickGranularityReportsEffectiveUnit() passed after 0.718 seconds.
+✔ Test outOfRangeCustomDayWidthIsClamped() passed after 0.718 seconds.
+✔ Test presetModeKeepsPresetWidthGranularityAndMatchesCoreReference() passed after 0.718 seconds.
+✔ Test customModeDerivesTickGranularityFromTheEffectiveWidth() passed after 0.718 seconds.
+✔ Test legacyEnvelopeWithoutResourcesDefaultsEmpty() passed after 0.718 seconds.
+✔ Test allCoordinatesAreMultiplesOfTheDayWidth() passed after 0.718 seconds.
+✔ Test customDayWidthBecomesTheSingleAuthoritativeWidth() passed after 0.718 seconds.
+✔ Test presetModeKeepsTheUserZoomAsTickGranularity() passed after 0.718 seconds.
+✔ Test monthGranularityKeepsAdjacentTickSpacingWithinOneMonthSpan() passed after 0.718 seconds.
+✔ Test customDayWidthTakesPriorityInZoomLabel() passed after 0.718 seconds.
+✔ Test customDayWidthWinsOverFitZoom() passed after 0.718 seconds.
+✔ Test tinyDayWidthKeepsTickCountBounded() passed after 0.718 seconds.
+✔ Test taskAssignmentCodableRoundTrip() passed after 0.718 seconds.
+✔ Test weekGranularityKeepsAdjacentTicksSevenDayWidthsApart() passed after 0.718 seconds.
+✔ Test dayGranularityKeepsAdjacentTickSpacingEqualToDayWidth() passed after 0.718 seconds.
+✔ Test resourcesPersistThroughKairoFileRoundTrip() passed after 0.718 seconds.
+✔ Test resourceCodableRoundTrip() passed after 0.718 seconds.
+✔ Test fitZoomKeepsFitWidthWithoutClamping() passed after 0.718 seconds.
+✔ Test dayWidthActionsExposeInspectablePayloads() passed after 0.718 seconds.
+✔ Test fitModeKeepsTheUserZoomAsTickGranularity() passed after 0.718 seconds.
+✔ Test overdueUsesPlannedFinishThenDueDateFallback() passed after 0.718 seconds.
+✔ Test weightedProgressIgnoresGroups() passed after 0.718 seconds.
+✔ Test presetAndFitOutputMatchThePreChangeBaseline() passed after 0.718 seconds.
+✔ Test sessionResourceAddAndList() passed after 0.718 seconds.
+✔ Test presetZoomKeepsItsOwnDayWidth() passed after 0.718 seconds.
+✔ Test customModeDerivesGranularityFromEffectiveDayWidth() passed after 0.718 seconds.
+✔ Test enablingCustomDayWidthChangesTheOutput() passed after 0.718 seconds.
+✔ Test legacySnapshotInitDerivesTickGranularityFromZoom() passed after 0.718 seconds.
+✔ Test alapTaskInChainPushedToLatest() passed after 0.718 seconds.
+✔ Test dayWidthGridHoldsAcrossMonthAndYearBoundary() passed after 0.718 seconds.
+✔ Test statusBarReportsZoomLabelAndDetail() passed after 0.718 seconds.
+✔ Test presetZoomUsesPresetDayWidthAndSelfConsistentGranularity() passed after 0.718 seconds.
+✔ Test remainingDaysFallsBackToLatestFinishAndClampsPast() passed after 0.718 seconds.
+✔ Test overdueRatioAboveTwentyPercentIsRed() passed after 0.718 seconds.
+✔ Test tinyDayWidthKeepsTickCountsAndWindowBounded() passed after 0.718 seconds.
+✔ Test dayGranularityKeepsAdjacentTicksOneDayWidthApart() passed after 0.718 seconds.
+✔ Test asapTaskSchedulesAtEarliest() passed after 0.718 seconds.
+✔ Test warningOrMissingDueDateMajorityIsOrange() passed after 0.718 seconds.
+✔ Test errorViolationForcesRed() passed after 0.718 seconds.
+✔ Test criticalPathCountsZeroSlackLeavesOnly() passed after 0.718 seconds.
+✔ Test fitModeGranularityIsInvariantToViewportWidth() passed after 0.717 seconds.
+✔ Test customDayWidthOverridesFitZoomAndFitModeUsesFitWidth() passed after 0.718 seconds.
+✔ Test singleOverdueIsOrange() passed after 0.717 seconds.
+✔ Test greenWhenNoSignals() passed after 0.717 seconds.
+✔ Test outOfRangeCustomDayWidthIsClampedAndNeverIllegal() passed after 0.717 seconds.
+✔ Test alapTaskSchedulesAtLatestBoundedByProjectEnd() passed after 0.717 seconds.
+✔ Test countsKindsAndIncompleteLeaves() passed after 0.717 seconds.
+✔ Test weekGranularityKeepsAdjacentTickSpacingSevenDayWidths() passed after 0.717 seconds.
+✔ Test unscheduledTaskFallsBackToDueDate() passed after 0.717 seconds.
+✔ Test viewStateCarriesCustomDayWidthAsPersistableValue() passed after 0.717 seconds.
+✔ Test customModeWidthAndGranularityWinOverFit() passed after 0.717 seconds.
+✔ Test dayWidthGridCoversTicksBandsAndBars() passed after 0.717 seconds.
+✔ Test remainingDaysUsesProjectEnd() passed after 0.717 seconds.
+✔ Test legalDayWidthBoundsProduceUsableSnapshot() passed after 0.717 seconds.
+✔ Test fitModeKeepsPresetGranularityAndMatchesCoreReference() passed after 0.717 seconds.
+✔ Test findControllerReportsInvalidRegex() passed after 0.736 seconds.
+✔ Test twoTaskCycleFlagsBoth() passed after 0.717 seconds.
+✔ Test threeCycleExcludesFreeTask() passed after 0.717 seconds.
+✔ Test tickGranularityThresholdsMatchPresetDefaults() passed after 0.717 seconds.
+✔ Test monthFastPathStartsAtNextMonthWhenMidMonth() passed after 0.717 seconds.
+✔ Test startNoLaterThanTooCloseToFitDuration() passed after 0.717 seconds.
+✔ Test taskInsideProjectEndHasNoBoundaryViolation() passed after 0.717 seconds.
+✔ Test otherEventsAreIgnored() passed after 0.719 seconds.
+✔ Test startNoLaterThanWithRoomHasNoViolation() passed after 0.717 seconds.
+✔ Test asapTaskAtProjectStartHasNoEarlyViolation() passed after 0.717 seconds.
+✔ Test todayIsFallbackWhenNoProjectOrTaskDate() passed after 0.717 seconds.
+✔ Test earliestTaskIntentStartIsUsedWhenProjectStartMissing() passed after 0.717 seconds.
+✔ Test alapTaskStartBeforeProjectStartReportsViolation() passed after 0.717 seconds.
+✔ Test dueDateDoesNotDriveAnchor() passed after 0.717 seconds.
+✔ Test monthFastPathMatchesNaiveDayLoop() passed after 0.717 seconds.
+✔ Test startNoEarlierThanBeyondLatestWindow() passed after 0.717 seconds.
+✔ Test anchorIsNormalizedToStartOfDay() passed after 0.717 seconds.
+✔ Test explicitProjectStartWins() passed after 0.717 seconds.
+✔ Test doneStatusRecordsCompletedAtAndProgressOne() passed after 0.717 seconds.
+✔ Test outdentMovesSubtreeAfterParentSubtree() passed after 0.717 seconds.
+✔ Test indentFirstSiblingIsNoOp() passed after 0.717 seconds.
+✔ Test progressAboveOneRejected() passed after 0.717 seconds.
+✔ Test projectInsertPlacesAfterSibling() passed after 0.717 seconds.
+✔ Test taskEndingAfterProjectEndReportsViolation() passed after 0.717 seconds.
+✔ Test indentDoesNotCrossParentGroups() passed after 0.717 seconds.
+✔ Test progressUpdateReflectsWithoutCompleting() passed after 0.717 seconds.
+✔ Test progressBelowZeroRejected() passed after 0.717 seconds.
+✔ Test outdentNestedBecomesSiblingOfParent() passed after 0.716 seconds.
+✔ Test startNoEarlierThanWithinWindowHasNoViolation() passed after 0.717 seconds.
+✔ Test siblingParentDependsOnKind() passed after 0.716 seconds.
+✔ Test indentBecomesChildOfPreviousSibling() passed after 0.716 seconds.
+✔ Test startNoLaterThanViolatedByPredecessors() passed after 0.716 seconds.
+✔ Test indentUsesPreviousSiblingWithinGroup() passed after 0.716 seconds.
+✔ Test startNoLaterThanSatisfiedHasNoViolation() passed after 0.716 seconds.
+✔ Test subtreeIncludesDescendantsAndGuardsCycles() passed after 0.716 seconds.
+✔ Test outdentTopLevelIsNoOp() passed after 0.717 seconds.
+✔ Test movesTaskIntoGroupAtEnd() passed after 0.716 seconds.
+✔ Test sessionMoveUpdatesOutlineOrder() passed after 0.716 seconds.
+✔ Test statusBarReportsZoomLabelAndActualDayWidth() passed after 0.717 seconds.
+✔ Test rejectsMoveIntoItself() passed after 0.716 seconds.
+✔ Test rejectsUnknownTarget() passed after 0.716 seconds.
+✔ Test rejectsMoveIntoOwnSubtree() passed after 0.716 seconds.
+✔ Test movesSubtreeOutToRoot() passed after 0.716 seconds.
+✔ Test startDateBeforeProjectAnchorDoesNotPullScheduleEarlier() passed after 0.716 seconds.
+✔ Test patchRejectsOutOfRangeProgress() passed after 0.716 seconds.
+✔ Test sessionUpdatesDirectionAndPassesItToSchedule() passed after 0.716 seconds.
+✔ Test leafStartDateRaisesEarliestStart() passed after 0.716 seconds.
+✔ Test movesTaskIntoGroupAtStart() passed after 0.716 seconds.
+✔ Test addTaskCarriesDatesAndAssignee() passed after 0.716 seconds.
+✔ Test directionRoundTrips() passed after 0.716 seconds.
+✔ Test startDateAndFinishToStartDependencyPickLater() passed after 0.716 seconds.
+✔ Test setReplacesOptionalValues() passed after 0.716 seconds.
+✔ Test movingUnderPlainTaskPromotesParentToGroup() passed after 0.716 seconds.
+✔ Test asapTaskSelectionKeepsStartDateBound() passed after 0.716 seconds.
+✔ Test milestoneStartDateActsAsBound() passed after 0.716 seconds.
+✔ Test addTaskAssigneeTrimsWhitespaceToNil() passed after 0.716 seconds.
+✔ Test startDateAndConstraintPickLater() passed after 0.716 seconds.
+✔ Test cycleTaskStartDateDoesNotCrash() passed after 0.716 seconds.
+✔ Test alapTaskNeverStartsBeforeStartDate() passed after 0.716 seconds.
+✔ Test clearRemovesOptionalValues() passed after 0.716 seconds.
+✔ Test patchValidatesParentExists() passed after 0.716 seconds.
+✔ Test legacyUpdateTaskAssigneeTrimsWhitespace() passed after 0.716 seconds.
+✔ Test patchAssigneeTrimsWhitespaceAndClearsWhenBlank() passed after 0.716 seconds.
+✔ Test fullProgressMarksDone() passed after 0.716 seconds.
+✔ Test patchUpdatesPlainFields() passed after 0.716 seconds.
+✔ Test findControllerCountsAndWraps() passed after 0.737 seconds.
+✔ Test directionPersistsThroughFileRoundTrip() passed after 0.716 seconds.
+✔ Test leavingDoneClearsCompletedAt() passed after 0.716 seconds.
+✔ Test demotingTaskWithChildrenIsRejected() passed after 0.716 seconds.
+✔ Test legacyMetadataDecodesAsForward() passed after 0.717 seconds.
+✔ Test unchangedPatchLeavesTaskIntact() passed after 0.716 seconds.
+✔ Test statusDoneSetsProgressAndCompletedAt() passed after 0.716 seconds.
+✔ Test acyclicChainHasNoCycleViolation() passed after 0.716 seconds.
+✔ Test patchRejectsMovingIntoOwnSubtree() passed after 0.716 seconds.
+✔ Test cycleReportsCycleViolationOnBothTasks() passed after 0.716 seconds.
+✔ Test parsesTaskIDAndPrefix() passed after 0.716 seconds.
+✔ Test parsesPercentEncodedTitle() passed after 0.716 seconds.
+✔ Test parsesProjectID() passed after 0.716 seconds.
+✔ Test groupStartDateIsIgnored() passed after 0.716 seconds.
+✔ Test patchRejectsSelfParent() passed after 0.716 seconds.
+✔ Test startDateWithTimeIsNormalizedToStartOfDay() passed after 0.716 seconds.
+✔ Test totalAndFreeSlackOnTightChain() passed after 0.716 seconds.
+✔ Test rejectsMalformedLinks() passed after 0.716 seconds.
+✔ Test emptyStateAppliesAsEmptyProject() passed after 0.716 seconds.
+✔ Test applyRestoresFullProject() passed after 0.716 seconds.
+✔ Test snapshotCopiesProjectContent() passed after 0.716 seconds.
+✔ Test stateRoundTripsThroughCodable() passed after 0.716 seconds.
+✔ Test finishToFinishWithLag() passed after 0.716 seconds.
+✔ Test finishToStartWithPositiveLag() passed after 0.716 seconds.
+✔ Test startToFinishWithLag() passed after 0.716 seconds.
+✔ Test snapshotIsIndependentOfLaterProjectMutation() passed after 0.716 seconds.
+✔ Test startToFinishBasic() passed after 0.716 seconds.
+✔ Test finishToStartWithNegativeLag() passed after 0.716 seconds.
+✔ Test finishToFinishBasic() passed after 0.716 seconds.
+✔ Test negativeSlackReportsCannotSchedule() passed after 0.715 seconds.
+✔ Test finishToStartBasic() passed after 0.715 seconds.
+✔ Test startToStartBasic() passed after 0.715 seconds.
+✔ Test rejectsShortOrUnknownPrefix() passed after 0.715 seconds.
+✔ Test unknownTitleFindsNothing() passed after 0.715 seconds.
+✔ Test projectLinkReportsMatchOnly() passed after 0.715 seconds.
+✔ Test titleFallsBackToCaseInsensitive() passed after 0.716 seconds.
+✔ Test titleTakesFirstMatchAndReportsAmbiguity() passed after 0.715 seconds.
+✔ Test positiveSlackHasNoCannotSchedule() passed after 0.716 seconds.
+✔ Test startAndEndConstraintsWindowTooNarrow() passed after 0.715 seconds.
+✔ Test startToStartWithLag() passed after 0.716 seconds.
+✔ Test orphanIsTreatedAsRoot() passed after 0.715 seconds.
+✔ Test filterShowsMatchesAndForcesAncestorsExpanded() passed after 0.715 seconds.
+✔ Test emptyGroupHasNoAggregateWindow() passed after 0.715 seconds.
+✔ Test resolvesUniqueIDPrefix() passed after 0.715 seconds.
+✔ Test singleSidedConstraintHasNoWindowViolation() passed after 0.715 seconds.
+✔ Test leavesCarryOwnScheduleAndProgress() passed after 0.715 seconds.
+✔ Test groupCountsSubtreeViolations() passed after 0.715 seconds.
+✔ Test groupAggregatesScheduleWindow() passed after 0.715 seconds.
+✔ Test groupAggregatesWeightedProgress() passed after 0.716 seconds.
+✔ Test filterWithNoMatchesProducesEmptyTree() passed after 0.715 seconds.
+✔ Test groupStatusRules() passed after 0.715 seconds.
+✔ Test startNoEarlierThanConstraintRaisesEarliestStart() passed after 0.715 seconds.
+✔ Test projectStartBoundsEarliestStart() passed after 0.715 seconds.
+✔ Test collapsedGroupsHideChildren() passed after 0.715 seconds.
+✔ Test freeSlackDifferentiatesParallelPredecessors() passed after 0.715 seconds.
+✔ Test restoreReplacesProjectContent() passed after 0.715 seconds.
+✔ Test writeOperationsIncrementRevision() passed after 0.715 seconds.
+✔ Test expandedGroupsShowChildrenInOrder() passed after 0.715 seconds.
+✔ Test tightChainIsCriticalPathAndParallelIsNot() passed after 0.715 seconds.
+✔ Test milestoneHasZeroDuration() passed after 0.715 seconds.
+✔ Test addTaskInvalidatesCachedSchedule() passed after 0.715 seconds.
+✔ Test statusUpdateInvalidatesCachedSchedule() passed after 0.715 seconds.
+✔ Test patchInvalidatesCachedSchedule() passed after 0.715 seconds.
+✔ Test deletingParentRemovesDescendantsSoNoDanglingParentIDs() passed after 0.715 seconds.
+✔ Test missingDurationDefaultsToOneDay() passed after 0.715 seconds.
+✔ Test fitDayWidthSpreadsContentAcrossView() passed after 0.715 seconds.
+✔ Test slackLimitExpandsCriticalSet() passed after 0.715 seconds.
+✔ Test pannedWindowStartMovesOppositeToDrag() passed after 0.715 seconds.
+✔ Test dependencyRoutesSkipUnscheduledEndpoints() passed after 0.715 seconds.
+✔ Test zoomChangesDayWidth() passed after 0.715 seconds.
+✔ Test barPositionFollowsScheduledDates() passed after 0.715 seconds.
+✔ Test contentRangeCoversProjectAndTaskBounds() passed after 0.715 seconds.
+✔ Test todayXTracksWindowBounds() passed after 0.715 seconds.
+✔ Test deleteCascadeRemovesSubtreeAndCleansDependencies() passed after 0.715 seconds.
+✔ Test hasUnsavedChangesTracksWritesAndSave() passed after 0.715 seconds.
+✔ Test pannedWindowStartClampsDayWidthToAvoidDivisionExplosion() passed after 0.715 seconds.
+✔ Test cycleTasksAreUnscheduled() passed after 0.715 seconds.
+✔ Test dayZoomTicksUseTwoTiers() passed after 0.715 seconds.
+✔ Test tickUnitMatchesPresetDefaults() passed after 0.715 seconds.
+✔ Test weekendBandsShadeSaturdayAndSunday() passed after 0.715 seconds.
+✔ Test ruleCategoriesAreExposed() passed after 0.715 seconds.
+✔ Test contentRangeFallsBackToScheduledTasks() passed after 0.715 seconds.
+✔ Test monthZoomHidesNonWorkingBands() passed after 0.715 seconds.
+✔ Test clampKeepsValuesInsideRange() passed after 0.715 seconds.
+✔ Test tickUnitRespectsThresholds() passed after 0.715 seconds.
+✔ Test engineDerivesAnchorFromEarliestTaskStart() passed after 0.715 seconds.
+✔ Test tickUnitOfNonFiniteWidthFallsBackToCoarsest() passed after 0.715 seconds.
+✔ Test emptyGroupIsUnscheduled() passed after 0.715 seconds.
+✔ Test monthZoomTicksAtMonthStart() passed after 0.715 seconds.
+✔ Test explicitProjectStartIsNotDerived() passed after 0.715 seconds.
+✔ Test windowEndFollowsViewWidth() passed after 0.715 seconds.
+✔ Test clampBoundsOutOfRangeValues() passed after 0.715 seconds.
+✔ Test clampHandlesNonFiniteValues() passed after 0.715 seconds.
+✔ Test barsStartingBeforeWindowKeepNegativeX() passed after 0.715 seconds.
+✔ Test unscheduledTasksAreExcludedFromBarsAndContent() passed after 0.715 seconds.
+✔ Test dependencyRoutesAvoidMiddleRowBars() passed after 0.715 seconds.
+✔ Test milestoneHasZeroWidth() passed after 0.715 seconds.
+✔ Test tickUnitNeverGetsFinerAsWidthGrows() passed after 0.715 seconds.
+✔ Test declaredConstantsMatchContract() passed after 0.715 seconds.
+✔ Test barsOutsideWindowAreExcluded() passed after 0.715 seconds.
+✔ Test clampResultAlwaysInsideDeclaredRange() passed after 0.715 seconds.
+✔ Test dayWidthOverrideWinsOverZoom() passed after 0.715 seconds.
+✔ Test progressAndCriticalFlagsComeFromTasks() passed after 0.715 seconds.
+✔ Test engineFallsBackToTodayWithoutDates() passed after 0.715 seconds.
+✔ Test resultDecodesLegacyPayloadWithoutNewFields() passed after 0.715 seconds.
+✔ Test dependencyRoutesConnectAllFourTypesAtBarEdges() passed after 0.715 seconds.
+✔ Test effortAdjustedByEfficiency() passed after 0.714 seconds.
+✔ Test durationDaysTakesPrecedenceOverEffort() passed after 0.714 seconds.
+✔ Test effortSplitAcrossTwoUnits() passed after 0.713 seconds.
+✔ Test effortWithoutAssignmentConvertsAtOneUnit() passed after 0.713 seconds.
+✔ Test milestoneStaysZeroDurationWithEffort() passed after 0.713 seconds.
+✔ Test leafTaskReturnsOwnProgress() passed after 0.712 seconds.
+✔ Test groupProgressWeightedByEffort() passed after 0.712 seconds.
+✔ Test groupProgressMixedEffortAndNoEffortLeaves() passed after 0.712 seconds.
+✔ Test duplicatePredecessorIsNormalized() passed after 0.712 seconds.
+✔ Test addsAllFourTypes() passed after 0.712 seconds.
+✔ Test cleansDanglingReferencesAfterDelete() passed after 0.712 seconds.
+✔ Test rejectsSelfDependency() passed after 0.712 seconds.
+✔ Test removesDependency() passed after 0.712 seconds.
+✔ Test rejectsUnknownPredecessor() passed after 0.712 seconds.
+✔ Test demoProjectAnchorsTimelineNearToday() passed after 0.712 seconds.
+✔ Test rejectsCycle() passed after 0.711 seconds.
+✔ Test rejectsLongerCycle() passed after 0.711 seconds.
+✔ Test groupProgressAggregatesNestedGroups() passed after 0.711 seconds.
+✔ Test demoProjectSeedsTenTasks() passed after 0.711 seconds.
+✔ Suite "OTA 清单解析" passed after 0.743 seconds.
+✔ Suite "OTA 安装层" passed after 0.743 seconds.
+✔ Suite "OTA 端点白名单" passed after 0.743 seconds.
+✔ Suite "OTA 配置" passed after 0.743 seconds.
+✔ Suite "OTA 清单验签" passed after 0.743 seconds.
+✔ Suite "OTA 下载校验和" passed after 0.744 seconds.
+✔ Suite RouteErrorTests passed after 0.743 seconds.
+✔ Suite CLIJSONTests passed after 0.743 seconds.
+✔ Suite "F-14-10 月历网格" passed after 0.743 seconds.
+✔ Suite RouteTests passed after 0.743 seconds.
+✔ Suite GanttHitTestingTests passed after 0.743 seconds.
+✔ Suite Sprint2CommandTests passed after 0.744 seconds.
+✔ Suite OptionsParsingTests passed after 0.744 seconds.
+✔ Suite "F-14-10 日程日期换算" passed after 0.743 seconds.
+✔ Test dismissResetsToIdle() passed after 0.740 seconds.
+✔ Suite "日宽自定义（呈现层）" passed after 0.744 seconds.
+✔ Suite "日宽自定义验收（Sprint 6 / T2）" passed after 0.744 seconds.
+✔ Suite ResourceModelTests passed after 0.744 seconds.
+✔ Suite PolicyTests passed after 0.744 seconds.
+✔ Suite ProjectSummaryTests passed after 0.744 seconds.
+✔ Suite CycleDetectionTests passed after 0.744 seconds.
+✔ Suite MonthFastPathEquivalenceTests passed after 0.744 seconds.
+✔ Suite ConstraintConflictsDependencyTests passed after 0.744 seconds.
+✔ Suite ProjectBoundaryViolationTests passed after 0.744 seconds.
+✔ Suite ScheduleAnchorTests passed after 0.744 seconds.
+✔ Suite ConstraintIsDependencyTests passed after 0.744 seconds.
+✔ Suite StatusUpdateTests passed after 0.744 seconds.
+✔ Suite ConstraintIsPrerequisiteTests passed after 0.744 seconds.
+✔ Suite OutlineMovingTests passed after 0.744 seconds.
+✔ Suite OutlineEditingTests passed after 0.744 seconds.
+✔ Suite ScheduleStartDateBoundTests passed after 0.744 seconds.
+✔ Suite ProjectDirectionTests passed after 0.744 seconds.
+✔ Suite CycleViolationTests passed after 0.744 seconds.
+✔ Suite DeepLinkParsingTests passed after 0.744 seconds.
+✔ Suite SlackTests passed after 0.744 seconds.
+✔ Suite ProjectStateTests passed after 0.744 seconds.
+✔ Test networkFailureIsNotSilentlyUpToDate() passed after 0.741 seconds.
+✔ Suite TaskPatchTests passed after 0.744 seconds.
+✔ Test belowMinimumFailsClosed() passed after 0.741 seconds.
+✔ Test invalidSignatureFailsClosed() passed after 0.741 seconds.
+✔ Suite DependencyPropagationTests passed after 0.744 seconds.
+✔ Suite NegativeSlackViolationTests passed after 0.744 seconds.
+✔ Suite DeepLinkResolutionTests passed after 0.744 seconds.
+✔ Suite ConstraintWindowTests passed after 0.744 seconds.
+✔ Test sameVersionReportsUpToDate() passed after 0.741 seconds.
+✔ Suite OutlineTreeTests passed after 0.744 seconds.
+✔ Suite DurationTests passed after 0.744 seconds.
+✔ Suite SessionCacheTests passed after 0.744 seconds.
+✔ Suite CriticalPathTests passed after 0.744 seconds.
+✔ Suite ScheduleAnchorEngineTests passed after 0.744 seconds.
+✔ Suite GanttLayoutTests passed after 0.744 seconds.
+✔ Suite GanttScaleTests passed after 0.744 seconds.
+✔ Suite EffortDurationConversionTests passed after 0.744 seconds.
+✔ Suite GroupProgressTests passed after 0.744 seconds.
+✔ Suite SeedDataTests passed after 0.744 seconds.
+✔ Suite DependencyEditingTests passed after 0.744 seconds.
+✔ Test malformedTaskListsExitZero(_:) with 3 test cases passed after 1.342 seconds.
+✔ Test completedTaskIsNotRewritten() passed after 1.666 seconds.
+✔ Test missingTitleIsSkipped() passed after 1.990 seconds.
+✔ Test uniqueTitleWritesDone() passed after 2.507 seconds.
+✔ Test duplicateTitlesAreSkipped() passed after 2.852 seconds.
+✔ Suite TaskHookTests passed after 2.872 seconds.
+[day-width-perf] 1000 任务 setCustomDayWidth 单次提交耗时（ms）：57.8, 53.1, 48.2, 48.3, 50.7, 50.6, 51.2, 52.4, 57.1, 47.2；单次平均 51.6；单次最差 57.8
+[day-width-perf] 1000 任务 computeSchedule 排期重算耗时（ms）：11.3, 11.2, 11.2, 11.3, 11.3, 11.4, 11.3, 11.1, 11.3, 11.3；单次平均 11.3
+✔ Test openWhileLoadingIsReportedInsteadOfSilentlyDropped() passed after 6.323 seconds.
+✔ Test openAsyncLoadsProjectAndClearsLoadingState() passed after 6.325 seconds.
+✔ Test editsDuringAsyncOpenArePreserved() passed after 6.327 seconds.
+✔ Test fr_kairo_fmt_5_save_and_open_without_upgrade_has_no_upgrade_notice() passed after 6.326 seconds.
+✔ Test dirtyOpenWaitsForUserChoice() passed after 6.329 seconds.
+✔ Test fr_kairo_fmt_5_cancel_save_as_keeps_upgrade_flag() passed after 6.328 seconds.
+✔ Test fr_kairo_fmt_5_save_after_upgrade_announces_once() passed after 6.330 seconds.
+✔ Test fr_kairo_fmt_6_save_as_after_upgrade_announces() passed after 6.331 seconds.
+✔ Test fr_kairo_fmt_2_old_version_is_flagged_on_open() passed after 6.329 seconds.
+✔ Test fr_kairo_fmt_6_save_as_fallback_write_announces_upgrade() passed after 6.333 seconds.
+✔ Test milestoneMoveViaAction() passed after 6.353 seconds.
+✔ Test canvasDependencyCommitAndRemove() passed after 6.353 seconds.
+✔ Test resizeStartKeepsFinishDate() passed after 6.353 seconds.
+✔ Test consecutiveCanvasMovesMergeIntoSingleUndo() passed after 6.353 seconds.
+✔ Test resizeEndUpdatesDurationOnly() passed after 6.353 seconds.
+✔ Test dropExitOnAnotherRowKeepsPendingExpand() passed after 6.352 seconds.
+✔ Test dropHoverAutoExpandsCollapsedGroup() passed after 6.350 seconds.
+✔ Test moveUpdatesStartDateOnly() passed after 6.354 seconds.
+✔ Test cycleDependencyIsRejectedWithoutSideEffect() passed after 6.353 seconds.
+✔ Test clearCustomDayWidthFallsBackToPresetWidth() passed after 6.353 seconds.
+✔ Test nudgeInFitModeUsesFitWidthAsBase() passed after 6.354 seconds.
+✔ Test setCustomDayWidthClampsOutOfRangeValues() passed after 6.354 seconds.
+✔ Suite "F-14-09 画布直接编辑" passed after 6.360 seconds.
+✔ Test outlineRowsListHeightMatchesTimelinePitch() passed after 6.364 seconds.
+✔ Test setCustomDayWidthStoresClampedValueAndLeavesFitMode() passed after 6.364 seconds.
+✔ Test presetZoomClearsCustomDayWidth() passed after 6.364 seconds.
+✔ Test sliderDayWidthStaysInsideLegalRange() passed after 6.364 seconds.
+✔ Test panningKeepsCustomDayWidth() passed after 6.364 seconds.
+✔ Test dayWidthControlRenders() passed after 6.364 seconds.
+✔ Test fitZoomClearsCustomDayWidth() passed after 6.364 seconds.
+✔ Test nudgeUsesEffectiveDayWidthAsBase() passed after 6.364 seconds.
+✔ Test planModeRendersWorkspaceChrome() passed after 6.364 seconds.
+✔ Test zoomLevelsRenderDistinctCharts() passed after 6.364 seconds.
+✔ Test filterWithoutMatchesReplacesRowsWithEmptyState() passed after 6.364 seconds.
+✔ Test dayWidthCommandsDriveTheStore() passed after 6.364 seconds.
+✔ Test customDayWidthPersistsAcrossStores() passed after 6.364 seconds.
+✔ Test dropExitCancelsPendingExpand() passed after 6.363 seconds.
+✔ Test sliderPositionMapsDayWidthBothWays() passed after 6.364 seconds.
+✔ Test findBarChangesRenderWhenOpened() passed after 6.364 seconds.
+✔ Test switchingToOutlineModeChangesRender() passed after 6.364 seconds.
+✔ Test legacyPreferencesWithoutCustomDayWidthStillLoad() passed after 6.364 seconds.
+✔ Test persistedOutOfRangeCustomDayWidthIsClampedOnLoad() passed after 6.364 seconds.
+✔ Test commandPaletteRowsDependOnCommandList() passed after 6.364 seconds.
+✔ Test missingSingleFieldKeepsOtherPreferences() passed after 6.364 seconds.
+✔ Test loadedCustomDayWidthIsRoundedToTenth() passed after 6.364 seconds.
+✔ Test setCustomDayWidthMeetsBudgetOnThousandTaskProject() passed after 6.364 seconds.
+✔ Test catalogExposesDayWidthCommandsWithShortcuts() passed after 6.364 seconds.
+✔ Test taskStartEditDoesNotMergeWithCanvasMove() passed after 6.364 seconds.
+✔ Test scheduleRecomputeCostIsIsolatedForDayWidthCommit() passed after 6.364 seconds.
+✔ Test dayWidthCommitReusesScheduleCache() passed after 6.364 seconds.
+✔ Test rejectedFinishLeavesNoDraftOrNotice() passed after 6.364 seconds.
+✔ Test setTaskFinishRejectsFinishEqualToStart() passed after 6.364 seconds.
+✔ Test commandPaletteOverlayChangesRender() passed after 6.364 seconds.
+✔ Test setTaskStartOnGroupIsNotBlockedByStore() passed after 6.364 seconds.
+✔ Test setTaskStartDoesNotTouchDueDate() passed after 6.364 seconds.
+✔ Test customDayWidthChangesRender() passed after 6.364 seconds.
+✔ Test setTaskFinishRewritesDurationAndKeepsStartDate() passed after 6.364 seconds.
+✔ Test inspectorSnapshotCarriesNilStartDateForGroup() passed after 6.364 seconds.
+✔ Test loadedOutOfRangeCustomDayWidthStillClamped() passed after 6.364 seconds.
+✔ Test eachTaskStartEditIsOneUndoStep() passed after 6.364 seconds.
+✔ Test setTaskFinishRejectsFinishEarlierThanStart() passed after 6.364 seconds.
+✔ Test setTaskStartWritesIntentDate() passed after 6.364 seconds.
+✔ Test corruptedFieldTypeDegradesGracefully() passed after 6.364 seconds.
+✔ Suite "大纲纵向对齐" passed after 6.368 seconds.
+✔ Test inspectorTabAndLockChangeRender() passed after 6.364 seconds.
+✔ Test setTaskStartWithNilClearsIntentDate() passed after 6.364 seconds.
+✔ Test taskStartAndFinishEditsAreSeparateUndoSteps() passed after 6.364 seconds.
+✔ Test externalChangeWithoutLocalEditsReloadsAutomatically() passed after 6.364 seconds.
+✔ Test predecessorColumnReportsHiddenOrUnknownNumber() passed after 6.364 seconds.
+✔ Test inspectorSnapshotCarriesStartDate() passed after 6.364 seconds.
+✔ Test findCommandReopensAndRefocusesEveryPress() passed after 6.364 seconds.
+✔ Suite "日宽性能" passed after 6.368 seconds.
+✔ Suite "GUI 离屏渲染" passed after 6.368 seconds.
+✔ Suite "Sprint 7 技术债" passed after 6.368 seconds.
+✔ Suite "日宽自定义（应用层）" passed after 6.368 seconds.
+✔ Test skipVersionSuppressesPromptUntilNewer() passed after 6.368 seconds.
+✔ Test indentAndOutdentMoveTaskThroughSession() passed after 6.368 seconds.
+✔ Test dropTargetAppendsToGroupAndInsertsAfterSibling() passed after 6.368 seconds.
+✔ Test externalChangeWithUnsavedEditsShowsBanner() passed after 6.368 seconds.
+✔ Test predecessorColumnAcceptsNestedOutlineNumber() passed after 6.368 seconds.
+✔ Test viewPreferencesPersistAcrossStoresButModeDoesNot() passed after 6.368 seconds.
+✔ Test deletingLeafTaskClearsSelection() passed after 6.368 seconds.
+✔ Test predecessorCandidatesExcludeSelfAndExisting() passed after 6.368 seconds.
+✔ Test progressAndStatusRefreshSnapshot() passed after 6.368 seconds.
+✔ Test createSiblingInsertsAfterSelectionAndSelectsIt() passed after 6.368 seconds.
+✔ Test viewCatalogCommandsSwitchMode() passed after 6.368 seconds.
+✔ Test undoRestoresDeletedTask() passed after 6.368 seconds.
+✔ Test schedulePlacesDependentTaskAfterPredecessor() passed after 6.368 seconds.
+✔ Test loadExampleConfirmsWhenDirty() passed after 6.368 seconds.
+✔ Test rejectedFinishDoesNotPushUndoPoint() passed after 6.368 seconds.
+✔ Test paletteCommandOpensPaletteAndFiltersByAlias() passed after 6.368 seconds.
+✔ Test createTaskUsesExplicitParentAndSelectsIt() passed after 6.368 seconds.
+✔ Test dropTargetRejectsSelf() passed after 6.368 seconds.
+✔ Test revealExpandsCollapsedAncestors() passed after 6.368 seconds.
+✔ Test exportDuringEditFallsBackToDirectSave() passed after 6.368 seconds.
+✔ Test dependencyCycleIsRejectedWithAlert() passed after 6.368 seconds.
+✔ Test catalogIsSingleSourceForMenuAndPalette() passed after 6.368 seconds.
+✔ Test resizeEndClampsToMinimumDuration() passed after 6.368 seconds.
+✔ Test undoRedoCommandsRouteThroughSession() passed after 6.368 seconds.
+✔ Test fr_file_saveas_1_action_invokes_injected_request() passed after 6.368 seconds.
+✔ Test violationsCommandOpensInspectorTab() passed after 6.368 seconds.
+✔ Test consecutiveRenamesMergeIntoOneUndoStep() passed after 6.368 seconds.
+✔ Test linkWithoutTargetDoesNotCommit() passed after 6.368 seconds.
+✔ Test setTaskFinishMakesScheduledFinishMatchSelectedDay() passed after 6.369 seconds.
+✔ Test throttleSkipsWithinWindowThenFinishCommitsTrailingValue() passed after 6.368 seconds.
+✔ Test fr_file_saveas_6_export_failure_classification() passed after 6.368 seconds.
+✔ Test fr_file_saveas_6_cancel_forces_direct_write_branch() passed after 6.368 seconds.
+✔ Test predecessorColumnSetsDependencyByIDPrefix() passed after 6.368 seconds.
+✔ Test fr_file_saveas_5_confirms_latest_edits() passed after 6.368 seconds.
+✔ Test filterWithNoMatchesProducesEmptyState() passed after 6.368 seconds.
+✔ Test outlineColumnsScaleWithWidth() passed after 6.368 seconds.
+✔ Test fr_file_saveas_2_store_suggests_filename() passed after 6.368 seconds.
+✔ Test focusCommandFromOutlineEntersPlanMode() passed after 6.368 seconds.
+✔ Test fr_file_saveas_2_hidden_current_filename_falls_back_to_title() passed after 6.368 seconds.
+✔ Test groupDeleteRequiresConfirmationThenRemovesSubtree() passed after 6.368 seconds.
+✔ Test fr_file_saveas_2_new_file_uses_current_format_version() passed after 6.368 seconds.
+✔ Test fr_file_saveas_6_cancel_preserves_state() passed after 6.368 seconds.
+✔ Test hidingOutlineGivesCanvasFullWidth() passed after 6.368 seconds.
+✔ Test selectingElsewhereRestoresTemporarilySuspendedFilter() passed after 6.368 seconds.
+✔ Test fr_file_saveas_2_caps_filename_at_200_utf8_bytes() passed after 6.368 seconds.
+✔ Test shortcutLabelsMatchMenuBindings() passed after 6.368 seconds.
+✔ Test fr_file_saveas_2_keeps_single_kairo_suffix() passed after 6.368 seconds.
+✔ Test predecessorColumnReplacesWholeSet() passed after 6.368 seconds.
+✔ Test inspectorLockKeepsFrozenTaskWhileSelectionMoves() passed after 6.368 seconds.
+✔ Test fr_file_saveas_4_points_project_url_and_clears_dirty() passed after 6.368 seconds.
+✔ Test fr_file_saveas_2_trims_trailing_replacement_hyphen() passed after 6.368 seconds.
+✔ Test loadExampleFillsSeedData() passed after 6.368 seconds.
+✔ Test fr_file_saveas_4_external_change_to_old_path_is_ignored() passed after 6.368 seconds.
+✔ Test fr_file_saveas_3_saves_to_new_path() passed after 6.368 seconds.
+✔ Test revealMissingTaskClearsSelectionAndNotifies() passed after 6.368 seconds.
+✔ Test predecessorColumnMixesOutlineNumberAndIDPrefix() passed after 6.368 seconds.
+✔ Test fr_file_saveas_2_trims_spaces_and_dots() passed after 6.368 seconds.
+✔ Test fr_file_saveas_6_export_failure_keeps_url_and_reports() passed after 6.368 seconds.
+✔ Test fr_file_saveas_2_uses_current_filename() passed after 6.368 seconds.
+✔ Test fr_file_saveas_1_catalog_defines_command() passed after 6.367 seconds.
+✔ Test predecessorColumnClearsWhenEmpty() passed after 6.367 seconds.
+✔ Test fr_file_saveas_2_replaces_illegal_characters() passed after 6.367 seconds.
+✔ Test fr_file_saveas_2_falls_back_when_title_empty() passed after 6.368 seconds.
+✔ Test fr_file_saveas_2_falls_back_when_title_all_illegal() passed after 6.368 seconds.
+✔ Test adoptingExportedFileDoesNotRewriteDiskFile() passed after 6.367 seconds.
+✔ Test fr_file_saveas_2_derives_from_title() passed after 6.367 seconds.
+✔ Test unrulyExternalFileIsNotRetriedRepeatedly() passed after 6.367 seconds.
+✔ Test predecessorColumnRejectsCycleAndUnknownID() passed after 6.367 seconds.
+✔ Test fieldEditorUndoIsInertWithoutKeyWindow() passed after 6.367 seconds.
+✔ Test predecessorColumnAcceptsOutlineNumber() passed after 6.366 seconds.
+✔ Test saveThenOpenRoundTripsProject() passed after 6.366 seconds.
+✔ Test addingChildPromotesParentAndDeleteCascades() passed after 6.366 seconds.
+✔ Test scheduleRecomputeMeetsBudget() passed after 6.366 seconds.
+✔ Test thousandTaskActionsMeetBudget() passed after 6.366 seconds.
+✔ Test storeSeedsNoTasksByDefault() passed after 6.367 seconds.
+✔ Test fr_kairo_fmt_2_open_project_maps_error_codes() passed after 6.365 seconds.
+✔ Test fr_kairo_fmt_1_current_version_is_not_flagged() passed after 6.361 seconds.
+✔ Test panelRendersAtBoundaryDayWidths() passed after 6.357 seconds.
+✔ Test dismissalWithoutDraftKeepsCommittedValue() passed after 6.357 seconds.
+✔ Test zoomDetailHandlesNonFiniteValuesWithoutCrashing() passed after 6.357 seconds.
+✔ Test firstSlideCommitsImmediately() passed after 6.356 seconds.
+✔ Test finishDraggingCommitsFinalDraftImmediately() passed after 6.356 seconds.
+✔ Test dismissalInsideThrottleWindowCommitsLastValue() passed after 6.356 seconds.
+✔ Test externalDayWidthChangeDiscardsStaleDraft() passed after 6.356 seconds.
+✔ Test pasteboardMenuGroupRemainsAfterNotReplacing() passed after 6.356 seconds.
+✔ Test linkToSelfDoesNotCommit() passed after 6.355 seconds.
+✔ Test linkFromEndMakesSourcePredecessor() passed after 6.355 seconds.
+✔ Test beginOnLineOrEmptyIsNoOp() passed after 6.355 seconds.
+✔ Test moveCommitsStartDate() passed after 6.355 seconds.
+✔ Test negativeTranslationMovesEarlier() passed after 6.354 seconds.
+✔ Test resizeStartKeepsFinishDate() passed after 6.354 seconds.
+✔ Test resizeStartClampsToMinimumDuration() passed after 6.354 seconds.
+✔ Test cancelProducesNoFurtherCommits() passed after 6.355 seconds.
+✔ Test linkFromStartMakesTargetPredecessor() passed after 6.354 seconds.
+✔ Test duplicateValuesAreSkipped() passed after 6.354 seconds.
+✔ Test movePreviewMatchesOffset() passed after 6.354 seconds.
+✔ Test finishCommitsFinalValueWithinThrottleWindow() passed after 6.354 seconds.
+✔ Test resizeEndChangesDurationOnly() passed after 6.354 seconds.
+✔ Suite "另存为" passed after 6.374 seconds.
+✔ Suite "F-14-10 任务起止日期动作" passed after 6.374 seconds.
+✔ Suite "应用性能" passed after 6.374 seconds.
+✔ Test slidesInsideThrottleWindowCommitTrailingValueOnly() passed after 6.358 seconds.
+✔ Suite CanvasDragSessionTests passed after 6.374 seconds.
+✔ Suite "日宽自定义（UX 自动化验收）" passed after 6.374 seconds.
+✔ Suite "WorkspaceStore 交互" passed after 6.375 seconds.
+✔ Test checkFindsUpdateAndDownloadsToConfirmedState() passed after 6.371 seconds.
+✔ Suite "OTA 状态机" passed after 6.375 seconds.
+✔ Test fr_kairo_fmt_5_save_and_open_keeps_upgrade_notice() passed after 6.378 seconds.
+✔ Test fr_kairo_fmt_5_save_and_open_merges_upgrade_notice_and_warning() passed after 6.374 seconds.
+✔ Test fr_kairo_fmt_5_save_and_open_load_failure_clears_pending_notice() passed after 6.392 seconds.
+✔ Suite "格式版本升级（App）" passed after 6.398 seconds.
+✔ Test run with 627 tests in 66 suites passed after 6.399 seconds.

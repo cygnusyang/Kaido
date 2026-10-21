@@ -3,6 +3,36 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.5.0 — 2026-10-21
+
+### 新增
+
+- **任务起止日期可自定义（F-14-10）**：检查器任务页「开始」「结束」两行可编辑，点击字段弹出月历（236×300）选择日期——月份导航、今天/选中/非本月/周末状态、越界日置灰、预览行「开始日 – 结束日 · N 天」、「今天 / 下周一 / +1 周 / 清除」快捷项、方向键/Return/Esc/Tab 键盘导航与 VoiceOver 标签；深浅色全部走 DesignTokens。
+  - 「开始」写 `startDate`（用户意图锚点，可清除；群组只读；与计划开始相差 ≥1 天时副行显示计划开始）。
+  - 「结束」写 `durationDays`（保持开始不变，落点为排他端点；里程碑/群组/无排期禁用并给出原因；结束早于开始不可达，Store 二次拒绝）。
+  - 截止日期与项目开始/结束改用同一组件；行内日期统一 `YYYY-MM-DD`；每次编辑一步撤销，与画布拖拽撤销互不合并；提交时校验排期起点是否已变化（陈旧输入拒绝，不占撤销点）。
+- **排期引擎消费 `startDate`（D-021 修复）**：显式开始日作为「开始不早于」下界参与前向传播（叶子任务与里程碑；群组仍由子任务聚合），ASAP/ALAP 选定安排统一收敛到该下界。**v0.4.0 中画布拖条改期实际不移动条体的缺陷随本项修复**——拖条、检查器、命令三条入口自本版起真正生效。
+- **按日历日计算排期（夏令时修复）**：`addDays` / `daysBetween` 改为 Calendar 整日算术（小数天余量仍按秒折算）。跨夏令时的结束落点不再少一天，宽延恒为整数天；America/New_York 回拨/春令两侧均有自动化用例。
+
+### 已知观感变化（升级必读）
+
+- v0.4.0 期间由画布拖拽或命令写入、但因 D-021 从未生效的 `startDate`，自 v0.5.0 起会参与排期：相关任务可能前移、依赖链随之位移。**不做数据迁移**（无字段改写）；如不希望某个任务被钉住，可在检查器点「清除开始」。
+
+### 已知限制（顺延 v0.5.1，均不阻断）
+
+- **D-022**：给任务设置晚于项目窗口的开始日后，违例页出现错误级「任务无法安排：最晚开始早于最早开始」，文案未点明是用户输入导致（后向传播按裁定不变）。
+- **D-023**：违例引擎仍以 86 400 秒换算持续时间，跨夏令时的时限窗口可能误报/漏报。
+- **D-024**：同文件两个「无下界」哨兵取值不一致（`distantPast` vs epoch 0），无现实故障。
+- **真机未验证**：popover 系统动画与屏幕边缘翻转、物理键盘事件与焦点环可见性、VoiceOver 实际播报顺序、系统 firstWeekday 真机渲染、窄窗排版。
+
+### 门禁与证据
+
+- `swift test`：**669 用例 / 69 套件全部通过**（v0.4.0 收尾基线 558 → 669，只增不减）；日志 `docs/archive/Sprint8-task-dates/logs/gate-*.log`。
+- `tools/gate-core.sh` · `tools/gate-ui.sh` 通过；`swift build -c release -Xswiftc -warnings-as-errors` 通过（CI 口径）。
+- 判据：[acceptance.md](docs/archive/Sprint8-task-dates/acceptance.md)（AC-S8-01…23）· 设计与裁定：[design.md](docs/archive/Sprint8-task-dates/design.md) · 范围：[scope.md](docs/archive/Sprint8-task-dates/scope.md)。
+- 审查：[Sprint8-task-dates-review.md](docs/reviews/Sprint8-task-dates-review.md)（3 HIGH 全部修复并复跑；MEDIUM 修复 5 项、驳回 1 项经裁定、LOW 修 3 项）。
+- 缺陷：[defects.md](docs/defects.md) D-021 已核销；D-022…D-024 顺延 v0.5.1。
+
 ## v0.4.0 — 2026-10-21
 
 ### 新增

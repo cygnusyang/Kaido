@@ -142,6 +142,7 @@
   - `allowsSplitting: Bool`。
   - `priorityNumeric: Int`（分级资源分配顺序依据）；`deferredBy`（延迟，分级自动写入）。
 - **Kairo 实现方案**：`TaskItem` 增加上述字段；详情面板「排期」区从单一截止日期扩展为开始/结束 + 时限 + 自动/手动开关；调度引擎在 forward pass 尊重不早于、在 backward pass 尊重不晚于。
+- **Kairo 实现方案（F-14-10 / Sprint 8 已落地部分）**：检查器任务页「开始」「结束」均可编辑，点击字段弹出月历。**开始**写 `TaskItem.startDate`（用户意图锚点，可清除）；**结束**取计划结束 `scheduledFinish`（**排他端点**：1 天任务 11-02 开始 → 结束 11-03，条体覆盖 11-02 当天），编辑时保持排期起点、按 `durationDays = 结束 − 起点`（日粒度整数，下限 1 天）改写持续时间；`dueDate`（截止日期）保持独立字段与原义，不改。里程碑「结束」只读（持续时间为 0），群组只读。依赖冲突与时限违例**不阻断**写入，由违例检查呈现。见 `docs/archive/Sprint8-task-dates/design.md`。
 - **优先级**：P1（自动/手动与时限是调度引擎的主要输入）
 
 ### F-22-05 基线
