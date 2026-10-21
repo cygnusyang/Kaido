@@ -28,6 +28,47 @@ enum Display {
         return shortDateFormatter.string(from: value)
     }
 
+    /// 检查器日期字段的行内格式 `2026-11-06`。
+    ///
+    /// 与 `date`（`yyyy/M/d`）分开：大纲列、违例文案与 CLI 输出沿用既有格式，
+    /// 只有日历字段行用 ISO 口径（F-14-10 / R7）。
+    static let isoDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    static func isoDate(_ value: Date?) -> String {
+        guard let value else { return "—" }
+        return isoDateFormatter.string(from: value)
+    }
+
+    /// 月历头部「2026 年 11 月」。
+    static func monthTitle(_ date: Date, calendar: Calendar = .current) -> String {
+        let parts = calendar.dateComponents([.year, .month], from: date)
+        return "\(parts.year ?? 0) 年 \(parts.month ?? 1) 月"
+    }
+
+    /// 星期表头短名，按 `calendar.firstWeekday` 起排（周首为周一则首项为「一」）。
+    static func weekdaySymbols(calendar: Calendar = .current) -> [String] {
+        // Calendar.weekday：1 = 周日 … 7 = 周六。
+        let names = ["日", "一", "二", "三", "四", "五", "六"]
+        let first = calendar.firstWeekday
+        return (0..<7).map { index in
+            names[(first - 1 + index) % 7]
+        }
+    }
+
+    /// 无障碍日期标签「11 月 2 日，星期日」。
+    static func dayLabel(_ day: Date, calendar: Calendar = .current) -> String {
+        let parts = calendar.dateComponents([.month, .day, .weekday], from: day)
+        let names = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
+        let weekday = parts.weekday ?? 1
+        let name = names[min(max(weekday - 1, 0), names.count - 1)]
+        return "\(parts.month ?? 0) 月 \(parts.day ?? 0) 日，\(name)"
+    }
+
     static func duration(_ days: Double?) -> String {
         guard let days else { return "—" }
         if abs(days.rounded() - days) < 0.0001 {

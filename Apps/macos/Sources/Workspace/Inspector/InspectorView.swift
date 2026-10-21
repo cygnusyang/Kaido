@@ -247,8 +247,35 @@ private struct TaskInspectorContent: View {
         }
 
         section("排期") {
-            FieldRow(label: "计划开始") { readOnly(Display.date(task.scheduledStart)) }
-            FieldRow(label: "计划结束") { readOnly(Display.date(task.scheduledFinish)) }
+            DateFieldRow(
+                label: "开始",
+                value: task.startDate,
+                placeholder: "未设置",
+                helper: plannedStartHelper,
+                isEnabled: !task.isAggregate,
+                disabledReason: "群组字段由子任务聚合，只读",
+                allowsClear: true,
+                preview: { startPreview(for: $0) },
+                onCommit: { date in
+                    store.dispatch(.setTaskStart(task.taskID, date))
+                }
+            )
+            DateFieldRow(
+                label: "结束",
+                value: finishValue,
+                placeholder: "无排期",
+                helper: finishHelper,
+                isEnabled: finishDisabledReason == nil,
+                disabledReason: finishDisabledReason,
+                minimumDate: finishMinimumDate,
+                allowsClear: false,
+                boundaryHint: Self.finishBoundaryHint,
+                preview: { finishPreview(for: $0) },
+                onCommit: { date in
+                    guard let date, let start = finishStart else { return }
+                    store.dispatch(.setTaskFinish(task.taskID, finish: date, start: start))
+                }
+            )
             FieldRow(label: "持续时间") {
                 TextField("天", text: Binding(
                     get: { task.durationDays.map { String(format: "%g", $0) } ?? "" },
@@ -257,7 +284,8 @@ private struct TaskInspectorContent: View {
                     }
                 ))
                 .textFieldStyle(.roundedBorder)
-                .disabled(task.isAggregate)
+                // 里程碑恒为 0 天：与「结束」行一致，不提供编辑入口（设计 §1.1）。
+                .disabled(task.isAggregate || task.kind == .milestone)
             }
             FieldRow(label: "投入") {
                 readOnly(task.effortHours.map { String(format: "%g 小时", $0) } ?? "—")
@@ -265,10 +293,13 @@ private struct TaskInspectorContent: View {
             FieldRow(label: "宽延") {
                 readOnly(task.slackDays.map { Display.duration($0) } ?? "—")
             }
-            OptionalDateRow(
+            DateFieldRow(
                 label: "截止日期",
-                date: task.dueDate,
-                onChange: { store.dispatch(.setDueDate(task.taskID, $0)) }
+                value: task.dueDate,
+                allowsClear: true,
+                onCommit: { date in
+                    store.dispatch(.setDueDate(task.taskID, date))
+                }
             )
             FieldRow(label: "排期策略") {
                 readOnly(Display.scheduleTitle(task.schedulingPolicy))
@@ -424,6 +455,90 @@ private struct TaskInspectorContent: View {
         }
     }
 
+    // MARK: - 日期字段
+
+    /// 结束字段的最小可选日提示（越界格 tooltip / 无障碍说明）。
+    private static let finishBoundaryHint = "结束须晚于开始，至少 1 天"
+
+    /// 「结束」换算采用的起点：排期起点优先，其次意图起点（设计 §1.4）。
+    private var finishStart: Date? { task.scheduledStart ?? task.startDate }
+
+    /// 「结束」显示值：排期结果；无排期时回退「起点 + 持续时间」（设计 §1.1）。
+    ///
+    /// 两者都夹取到最小可选日之后：亚日持续时间（< 1 天）会让原始结束日落在
+    /// 「起点 + 1 天」之前，显示成不可选的死格（M-4）。
+    private var finishValue: Date? {
+        let finish: Date
+        if let scheduledFinish = task.scheduledFinish {
+            finish = scheduledFinish
+        } else if let start = finishStart {
+            finish = ScheduleDateMath.finish(start: start, durationDays: task.durationDays ?? 1)
+        } else {
+            return nil
+        }
+        return DateFieldValueMath.clampedFinish(finish, minimumDate: finishMinimumDate)
+    }
+
+    /// 结束行副行：排他口径 + 亚日持续时间的下限说明（M-4）。
+    private var finishHelper: String {
+        guard let duration = task.durationDays, duration > 0, duration < 1 else {
+            return "结束日不含当天"
+        }
+        return "结束日不含当天；持续时间不足 1 天，结束日按最少 1 天显示"
+    }
+
+    /// 结束行最小可选日：起点 + 1 天（排他）；里程碑为起点当日（该行本身禁用）。
+    private var finishMinimumDate: Date? {
+        guard let start = finishStart else { return nil }
+        return ScheduleDateMath.minimumFinish(start: start, kind: task.kind)
+    }
+
+    /// 结束行禁用原因，判定顺序：群组 → 里程碑 → 无起点。
+    private var finishDisabledReason: String? {
+        if task.isAggregate { return "群组字段由子任务聚合，只读" }
+        if task.kind == .milestone { return "里程碑无持续时间" }
+        if finishStart == nil {
+            return "无排期（\(Display.unscheduledReason(task.unscheduledReason))），无法设置结束"
+        }
+        return nil
+    }
+
+    /// 「计划开始」副行：与意图起点相差 ≥ 1 天才显示（设计 §1.1）。
+    private var plannedStartHelper: String? {
+        guard let startDate = task.startDate, let planned = task.scheduledStart else { return nil }
+        guard abs(ScheduleDateMath.dayOffset(from: startDate, to: planned)) >= 1 else { return nil }
+        return "计划开始 \(Display.isoDate(planned))"
+    }
+
+    /// 开始弹层预览：「开始日 – 结束日 · N 天」（按当前持续时间推结束日）。
+    private func startPreview(for date: Date?) -> String? {
+        guard let date else { return nil }
+        let days = (task.durationDays ?? 1).rounded()
+        guard days >= 1 else { return nil }
+        let finish = ScheduleDateMath.finish(start: date, durationDays: days)
+        return Self.spanText(from: date, to: finish)
+    }
+
+    /// 结束弹层预览：「起点 – 选中日 · N 天」；小数持续时间额外明示换算（设计 §1.4）。
+    private func finishPreview(for date: Date?) -> String? {
+        guard let date, let start = finishStart else { return nil }
+        let span = Self.spanText(from: start, to: date)
+        guard let duration = task.durationDays, abs(duration - duration.rounded()) > 0.0001 else {
+            return span
+        }
+        let days = ScheduleDateMath.dayOffset(from: start, to: date)
+        return "\(span)（\(Display.duration(duration)) → \(days) 天）"
+    }
+
+    private static func spanText(from start: Date, to finish: Date) -> String {
+        let days = ScheduleDateMath.dayOffset(from: start, to: finish)
+        return "\(monthDayText(start)) – \(monthDayText(finish)) · \(days) 天"
+    }
+
+    private static func monthDayText(_ date: Date) -> String {
+        String(Display.isoDate(date).suffix(5))
+    }
+
     private func section<Content: View>(
         _ title: String,
         @ViewBuilder content: () -> Content
@@ -463,15 +578,17 @@ private struct ProjectInspectorContent: View {
                 ))
                 .textFieldStyle(.roundedBorder)
             }
-            OptionalDateRow(
+            DateFieldRow(
                 label: "开始",
-                date: project.projectStart,
-                onChange: { store.dispatch(.setProjectStart($0)) }
+                value: project.projectStart,
+                allowsClear: true,
+                onCommit: { store.dispatch(.setProjectStart($0)) }
             )
-            OptionalDateRow(
+            DateFieldRow(
                 label: "结束",
-                date: project.projectEnd,
-                onChange: { store.dispatch(.setProjectEnd($0)) }
+                value: project.projectEnd,
+                allowsClear: true,
+                onCommit: { store.dispatch(.setProjectEnd($0)) }
             )
             FieldRow(label: "方向") {
                 Menu {
@@ -646,46 +763,6 @@ private struct FieldRow<Content: View>: View {
                 .frame(width: 68, alignment: .leading)
             content()
                 .font(.system(size: DesignTokens.bodyFontSize))
-        }
-    }
-}
-
-/// 可清除的可选日期字段。
-private struct OptionalDateRow: View {
-    let label: String
-    let date: Date?
-    let onChange: (Date?) -> Void
-
-    private var binding: Binding<Date> {
-        Binding(
-            get: { date ?? Date() },
-            set: { onChange($0) }
-        )
-    }
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label)
-                .font(.system(size: DesignTokens.captionFontSize))
-                .foregroundStyle(DesignTokens.textSecondary)
-                .frame(width: 68, alignment: .leading)
-            if date != nil {
-                DatePicker("", selection: binding, displayedComponents: .date)
-                    .labelsHidden()
-                Button {
-                    onChange(nil)
-                } label: {
-                    Image(systemName: "xmark.circle")
-                        .foregroundStyle(DesignTokens.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .help("清除\(label)")
-            } else {
-                Button("设置日期") { onChange(Date()) }
-                    .buttonStyle(.link)
-                    .font(.system(size: DesignTokens.captionFontSize))
-            }
-            Spacer(minLength: 0)
         }
     }
 }
