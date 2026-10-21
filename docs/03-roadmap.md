@@ -113,6 +113,7 @@
 | v0.3.0 / v0.3.1 | 2026-10-20 | OTA 应用内更新（通用模块 KairoUpdater，移植 COFFER OTA；Ed25519 签名清单 + 四级校验 + 白名单；自动检查 4h；见 docs/features/05-ota-updates.md） |
 | v0.4.0 | 2026-10-21 | 甘特图直接编辑（F-14-09：拖条改期、拖端点改持续、拖拽建依赖/删线；见 docs/archive/Sprint7-gantt-direct-edit/design.md） |
 | v0.5.0 | 2026-10-21 | 任务起止日期可自定义（F-14-10：检查器「开始/结束」+ 月历弹层）+ **D-021 修复**（排期引擎消费 `startDate`，画布拖条改期真正生效）+ 日历日算术（DST 结束落点修复）；见 docs/archive/Sprint8-task-dates/design.md |
+| v0.6.0 | 2026-10-22 | 甘特图横向平移（F-14-18：触摸板/滚轮横向滚动 + 画布空白拖拽；亚日余量累积、整天归一；见 docs/archive/Sprint9-gantt-horizontal-pan/design.md） |
 
 ### Sprint 7（计划）
 
@@ -127,3 +128,11 @@
 - **交付**：F-14-10 检查器「开始/结束」两行 + 月历弹层（键盘/无障碍/深浅色）；排期引擎把显式 startDate 作为开始下界（ASAP/ALAP 统一收敛）；排期算术改为 Calendar 整日（跨夏令时结束落点不再少一天）。
 - **顺延 v0.5.1**：D-022（晚开始触发误导性违例文案）、D-023（违例引擎跨 DST 秒算术）、D-024（无下界哨兵口径）。
 - **候选池**：US-E2-04 工作时数日历、US-E3-03 重新安排未完成任务、US-E3-04 字段级版本历史、US-E4-06 项目摘要面板、US-E6-02 自动保存与文件监控、US-E6-03 CSV 导入导出。
+
+### Sprint 9（已交付 v0.6.0 · 2026-10-22）
+
+- **Goal**：甘特图横向平移（F-14-18）——任务/依赖链超出视口时无法左右移动，macOS 触摸板横向滚动无效。
+- **交付**：触摸板双指横向滚动、Shift+纵向滚轮、画布空白拖拽三条平移入口；亚日余量累积（整天归一契约下不丢位移）、平移退出「适合项目」、Escape 取消；`HorizontalPanAccumulator` 纯函数 + `PanDragSession`/`HorizontalPanContext` 状态机均可单测，命令层零改动。
+- **设计稿**：docs/archive/Sprint9-gantt-horizontal-pan/design.md。
+- **未做（有意排除）**：横向滚动条、子日粒度窗口（会破坏 A7 黄金基线）。
+- **候选池**：沿用 Sprint 8 候选池；D-022 / D-023 / D-024 仍计划 v0.6.1 处置。

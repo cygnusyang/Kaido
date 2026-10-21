@@ -113,6 +113,12 @@ struct TimelineBody: View {
     @State private var dragSession: CanvasDragSession?
     /// 点选中的依赖线（视图交互态，不进持久化 view state）。
     @State private var selectedDependencyIndex: Int?
+    /// 横向平移上下文（F-14-18）：滚动监听长生命周期，几何必须走引用语义。
+    @State private var panContext = HorizontalPanContext()
+    /// 横向平移：空白处拖拽状态机（引用语义，可单测）。
+    @State private var panDrag = PanDragSession()
+    /// 横向滚动捕获（`NSEvent` 本地监听，见 HorizontalScrollMonitor）。
+    @State private var scrollMonitor: HorizontalScrollMonitor?
 
     private var contentHeight: CGFloat {
         CGFloat(rows.count) * DesignTokens.rowHeight
@@ -164,14 +170,25 @@ struct TimelineBody: View {
                     handleTap(value.location, offset: offset)
                 })
                 // F-14-09：拖条改期 / 拖端点改持续 / 拖出建依赖（经 CanvasDragSession 节流提交）。
+                // F-14-18：空白处拖拽 = 横向平移（同一手势槽位，按命中分派）。
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 2)
                         .onChanged { value in
                             handleDragChanged(value, offset: offset)
                         }
                         .onEnded { _ in
+                            panDrag.end()
                             drag.finish()
                         }
+                )
+                // 记录画布视口矩形（窗口内容坐标），供横向滚动命中判断。
+                .background(
+                    GeometryReader { proxy in
+                        let rect = proxy.frame(in: .global)
+                        Color.clear
+                            .onAppear { panContext.viewportRect = rect }
+                            .onChange(of: rect) { _, newValue in panContext.viewportRect = newValue }
+                    }
                 )
             }
         }
@@ -182,13 +199,46 @@ struct TimelineBody: View {
         }
         // Escape 取消进行中的拖拽（丢弃预览，不产生提交）。
         .onExitCommand {
+            panDrag.cancel()
             drag.cancel()
         }
         .onChange(of: gantt.dependencies) { _, _ in
             // 快照刷新后索引语义失效，清空点选（内容未变时 Equatable 不触发）。
             selectedDependencyIndex = nil
         }
+        .onAppear {
+            panContext.sync(dayWidth: gantt.dayWidth, windowStart: gantt.windowStart)
+            installScrollMonitorIfNeeded()
+        }
+        .onDisappear { scrollMonitor?.stop() }
+        .onChange(of: gantt.windowStart) { _, _ in
+            panContext.sync(dayWidth: gantt.dayWidth, windowStart: gantt.windowStart)
+        }
+        .onChange(of: gantt.dayWidth) { _, _ in
+            // 尺度变化后旧余量失去意义，清空避免跳变。
+            panContext.resetAccumulator()
+            panContext.sync(dayWidth: gantt.dayWidth, windowStart: gantt.windowStart)
+        }
         .frame(width: width, alignment: .topLeading)
+    }
+
+    /// 横向滚动捕获（F-14-18）：光标在画布内时把横向滚动换算成窗口平移。
+    /// 闭包只捕获引用语义的 `panContext` 与 `store`，不锁定值型快照。
+    private func installScrollMonitorIfNeeded() {
+        guard scrollMonitor == nil else { return }
+        let context = panContext
+        let monitor = HorizontalScrollMonitor(
+            viewportRect: { context.viewportRect },
+            handler: { deltaX in
+                let days = context.consumeScroll(deltaX: deltaX)
+                guard days != 0 else { return }
+                // 内容跟手：向右滑（正位移）看更早日期 ⇒ 窗口起点减小。
+                let target = context.windowStart.addingTimeInterval(-Double(days) * 86_400)
+                store.dispatch(.panWindow(to: target))
+            }
+        )
+        monitor.start()
+        scrollMonitor = monitor
     }
 
     private func handleTap(_ point: CGPoint, offset: CGFloat) {
@@ -218,15 +268,27 @@ struct TimelineBody: View {
     }
 
     private func handleDragChanged(_ value: DragGesture.Value, offset: CGFloat) {
-        // 首次回调按起点命中进入对应模式；起点命中空白/依赖线则整段手势不进入。
-        if drag.preview == nil {
+        // 首次回调按起点命中分派：条/端点/环带 → F-14-09 编辑；空白（且该行无条）→ 平移。
+        if drag.preview == nil, !panDrag.isActive {
             let target = GanttHitTesting.hitTest(
                 pointX: value.startLocation.x, pointY: value.startLocation.y,
                 canvasOffset: offset, bars: gantt.bars, dependencies: gantt.dependencies,
                 rowHeight: DesignTokens.rowHeight, dayWidth: gantt.dayWidth
             )
-            guard let bar = draggableBar(for: target) else { return }
-            drag.begin(target: target, anchor: anchor(for: bar))
+            if let bar = draggableBar(for: target) {
+                drag.begin(target: target, anchor: anchor(for: bar))
+            } else if case .none = target, taskID(at: value.startLocation, offset: offset) == nil {
+                // 空白区拖拽平移：群组条所在行不参与（交给点选，避免误移窗口）。
+                panDrag.begin(windowStart: gantt.windowStart, dayWidth: gantt.dayWidth)
+            } else {
+                return
+            }
+        }
+        if panDrag.isActive {
+            if let target = panDrag.update(translationX: value.translation.width) {
+                store.dispatch(.panWindow(to: target))
+            }
+            return
         }
         // 连线目标：光标所在行有任务条即为目标（含群组/里程碑）。
         let targetID = taskID(at: value.location, offset: offset)

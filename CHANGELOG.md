@@ -3,6 +3,18 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.6.0 — 2026-10-22
+
+### 新增
+
+- **甘特图横向平移（F-14-18）**：任务或依赖链超出视口时可左右移动时间窗查看前后日期。
+  - 触摸板双指横向滑动直接平移（光标在画布内即生效；鼠标用户用 Shift + 纵向滚轮）。
+  - 画布空白处按住拖拽平移，内容跟手；条体 / 端点 / 依赖线上的拖拽仍是 F-14-09 编辑行为，互不干扰。
+  - 平移粒度为整天（布局契约）：滚动输入按亚日余量累积、跨整天才提交，慢速滑动不丢位移也不跳格；切换缩放档位时余量清零。
+  - 平移自动退出「适合项目」，窗口起点按整天归一；Escape 可取消进行中的拖拽（已生效的平移不回滚，与表头拖拽一致）。
+- 实现：`HorizontalPanAccumulator` 纯函数（KairoPresentation）、`PanDragSession` 拖拽状态机与 `HorizontalPanContext` 引用上下文（App 层）、`HorizontalScrollMonitor` 事件捕获薄层；命令层与 Store 复用既有 `.panWindow`，零改动。
+- 设计稿：docs/archive/Sprint9-gantt-horizontal-pan/design.md；F-14-13 原「本期不做横向滚动条」约束改写（仍不做滚动条，横向平移由触摸板/拖拽承担）。
+
 ## v0.5.0 — 2026-10-21
 
 ### 新增
