@@ -81,6 +81,22 @@ enum Display {
         "\(Int((min(max(value, 0), 1) * 100).rounded()))%"
     }
 
+    /// 大纲列名：列显隐菜单与「显示/隐藏X列」命令共用同一份文案（F-14-20）。
+    static func outlineColumnTitle(_ column: OutlineColumn) -> String {
+        switch column {
+        case .status: return "状态"
+        case .violation: return "违例"
+        case .number: return "序号"
+        case .title: return "任务说明"
+        case .predecessors: return "前置"
+        case .start: return "开始"
+        case .finish: return "结束"
+        case .duration: return "持续"
+        case .assignee: return "负责人"
+        case .progress: return "完成"
+        }
+    }
+
     static func statusTitle(_ status: TaskStatus) -> String {
         switch status {
         case .pending: return "待办"

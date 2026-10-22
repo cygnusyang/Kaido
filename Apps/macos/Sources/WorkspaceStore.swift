@@ -101,6 +101,10 @@ final class WorkspaceStore: ObservableObject {
         var windowStart: Date?
         var inspectorWidth: Double
         var inspectorTab: InspectorTab
+        /// 大纲列宽覆盖（键 = 列 rawValue）；旧数据缺省时为 nil，全部列用默认宽。
+        var outlineColumnWidths: [String: Double]?
+        /// 隐藏的大纲列（列 rawValue）；旧数据缺省时为 nil，全部列显示。
+        var hiddenOutlineColumns: [String]?
 
         /// 字段默认值 = `WorkspaceViewState()` 初值（与新建会话一致）。
         init(
@@ -112,7 +116,9 @@ final class WorkspaceStore: ObservableObject {
             customDayWidth: Double?,
             windowStart: Date?,
             inspectorWidth: Double,
-            inspectorTab: InspectorTab
+            inspectorTab: InspectorTab,
+            outlineColumnWidths: [String: Double]?,
+            hiddenOutlineColumns: [String]?
         ) {
             self.outlineWidth = outlineWidth
             self.outlineVisible = outlineVisible
@@ -123,6 +129,8 @@ final class WorkspaceStore: ObservableObject {
             self.windowStart = windowStart
             self.inspectorWidth = inspectorWidth
             self.inspectorTab = inspectorTab
+            self.outlineColumnWidths = outlineColumnWidths
+            self.hiddenOutlineColumns = hiddenOutlineColumns
         }
 
         init(from decoder: Decoder) throws {
@@ -144,6 +152,12 @@ final class WorkspaceStore: ObservableObject {
                 ?? WorkspaceViewState().inspectorWidth
             inspectorTab = (try? container.decodeIfPresent(InspectorTab.self, forKey: .inspectorTab))
                 ?? WorkspaceViewState().inspectorTab
+            outlineColumnWidths = try? container.decodeIfPresent(
+                [String: Double].self, forKey: .outlineColumnWidths
+            )
+            hiddenOutlineColumns = try? container.decodeIfPresent(
+                [String].self, forKey: .hiddenOutlineColumns
+            )
         }
     }
 
@@ -196,6 +210,9 @@ final class WorkspaceStore: ObservableObject {
             state.windowStart = stored.windowStart
             state.inspectorWidth = stored.inspectorWidth
             state.inspectorTab = stored.inspectorTab
+            // 列宽/显隐（F-14-20）：未知列与越界宽度静默丢弃，不牵连其余偏好（D-016）。
+            state.outlineColumnWidths = Self.loadedColumnWidths(stored.outlineColumnWidths)
+            state.hiddenOutlineColumns = Self.loadedHiddenColumns(stored.hiddenOutlineColumns)
         }
         // 自定义日宽：载入时归一化（夹取 + 取整 0.1，与写入口径一致，D-012），
         // 并与「适合项目」互斥（自定义优先）。
@@ -487,6 +504,12 @@ final class WorkspaceStore: ObservableObject {
         case .setOutlineWidth(let width):
             mutateView { $0.outlineWidth = min(max(width, 320), 640) }
 
+        case .setOutlineColumnWidth(let column, let width):
+            setOutlineColumnWidth(column, width)
+
+        case .toggleOutlineColumn(let column):
+            toggleOutlineColumn(column)
+
         case .createTask(let parentID, let kind):
             createTask(kind: kind, parentID: parentID)
 
@@ -681,6 +704,39 @@ final class WorkspaceStore: ObservableObject {
     private static func committedDayWidth(_ width: Double) -> Double {
         let clamped = GanttScale.clampDayWidth(width)
         return (clamped * 10).rounded() / 10
+    }
+
+    /// 列宽覆盖（F-14-20）：`nil` 删除该列覆盖值（回落默认宽），非 `nil` 夹取后写入。
+    ///
+    /// 非有限值（NaN/∞）无法夹取，按复位处理，不留越界值给布局。
+    /// 列宽是视图偏好，显隐集合不受影响，也不产生撤销点。
+    /// 列宽（F-14-20）：应用级视图偏好，与 `.setOutlineWidth` 一致**不进撤销栈**
+    /// （撤销栈只存项目快照，记一步空撤销只会清空 redo 且无法真正回滚列宽）。
+    private func setOutlineColumnWidth(_ column: OutlineColumn, _ width: Double?) {
+        // 弹性列（任务说明）不吃覆盖值：布局恒按余量计算，写入只会留下永不生效的死状态。
+        guard OutlineColumnPreferences.isResizable(column) else { return }
+        mutateView { state in
+            guard let width, width.isFinite else {
+                state.outlineColumnWidths.removeValue(forKey: column.rawValue)
+                return
+            }
+            let range = OutlineColumnPreferences.widthRange(for: column)
+            state.outlineColumnWidths[column.rawValue] = min(max(width, range.lowerBound), range.upperBound)
+        }
+    }
+
+    /// 列显隐（F-14-20）：序号/任务说明固定显示，请求直接忽略（不产生撤销点、不改状态）。
+    ///
+    /// 纯视图偏好，与大纲整体宽度一致：走 `mutateView` 而非 `update`，不进撤销栈。
+    private func toggleOutlineColumn(_ column: OutlineColumn) {
+        guard !OutlineColumnPreferences.alwaysVisible.contains(column) else { return }
+        mutateView { state in
+            if state.hiddenOutlineColumns.contains(column.rawValue) {
+                state.hiddenOutlineColumns.remove(column.rawValue)
+            } else {
+                state.hiddenOutlineColumns.insert(column.rawValue)
+            }
+        }
     }
 
     private func mutateView(_ change: (inout WorkspaceViewState) -> Void) {
@@ -1425,7 +1481,11 @@ final class WorkspaceStore: ObservableObject {
             inspectorVisible: viewState.inspectorVisible,
             inspectorWidth: viewState.inspectorWidth,
             showCriticalPath: viewState.showCriticalPath,
-            showBarLabels: viewState.showBarLabels
+            showBarLabels: viewState.showBarLabels,
+            // 列宽/显隐是应用级视图偏好（与检查器宽度同类）：换项目不重置，
+            // 否则打开文件会静默清空用户配置并写回偏好。
+            outlineColumnWidths: viewState.outlineColumnWidths,
+            hiddenOutlineColumns: viewState.hiddenOutlineColumns
         )
         lockedTaskID = nil
         lockedTaskTitle = nil
@@ -1443,6 +1503,31 @@ final class WorkspaceStore: ObservableObject {
         return try? JSONDecoder().decode(StoredPreferences.self, from: data)
     }
 
+    /// 载入列宽覆盖：丢弃未知列、非有限值与越界宽度（静默容错，不牵连其它字段）。
+    ///
+    /// 越界值丢弃而不夹取：宽度不合法说明数据已损坏，回落默认宽比落到边界更贴近用户原意。
+    private static func loadedColumnWidths(_ stored: [String: Double]?) -> [String: Double] {
+        guard let stored else { return [:] }
+        var loaded: [String: Double] = [:]
+        for (raw, width) in stored {
+            guard let column = OutlineColumn(rawValue: raw),
+                  width.isFinite,
+                  OutlineColumnPreferences.widthRange(for: column).contains(width) else { continue }
+            loaded[column.rawValue] = width
+        }
+        return loaded
+    }
+
+    /// 载入隐藏列：丢弃未知列 rawValue 与固定列（序号/任务说明不参与显隐）。
+    private static func loadedHiddenColumns(_ stored: [String]?) -> Set<String> {
+        guard let stored else { return [] }
+        return Set(stored.compactMap { raw -> String? in
+            guard let column = OutlineColumn(rawValue: raw),
+                  !OutlineColumnPreferences.alwaysVisible.contains(column) else { return nil }
+            return column.rawValue
+        })
+    }
+
     private func savePreferences() {
         let stored = StoredPreferences(
             outlineWidth: viewState.outlineWidth,
@@ -1453,7 +1538,12 @@ final class WorkspaceStore: ObservableObject {
             customDayWidth: viewState.customDayWidth,
             windowStart: viewState.windowStart,
             inspectorWidth: viewState.inspectorWidth,
-            inspectorTab: viewState.inspectorTab
+            inspectorTab: viewState.inspectorTab,
+            // 空覆盖/空隐藏写 nil：JSON 不落空容器，旧版本读回同一语义。
+            outlineColumnWidths: viewState.outlineColumnWidths.isEmpty ? nil : viewState.outlineColumnWidths,
+            hiddenOutlineColumns: viewState.hiddenOutlineColumns.isEmpty
+                ? nil
+                : viewState.hiddenOutlineColumns.sorted()
         )
         guard let data = try? JSONEncoder().encode(stored) else { return }
         defaults.set(data, forKey: Self.preferencesKey)

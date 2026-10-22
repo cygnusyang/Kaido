@@ -263,7 +263,12 @@ public enum WorkspacePresenter {
 
         let outline = OutlineSnapshot(
             rows: planRows,
-            columns: OutlineColumn.visibleColumns(outlineWidth: viewState.outlineWidth),
+            // 列集合与视图共用同一策略（F-14-20）：阈值降级优先，用户隐藏只能进一步收窄。
+            columns: OutlineColumnPreferences.visibleColumns(
+                outlineWidth: viewState.outlineWidth,
+                hidden: Set(viewState.hiddenOutlineColumns.compactMap(OutlineColumn.init(rawValue:))),
+                focused: viewState.chartFocused
+            ),
             filterSummary: filterActive ? AIFilterTranslator.explanation(for: clauses) : nil,
             emptyReason: outlineEmptyReason,
             hiddenByCollapseCount: tree.hiddenByCollapseCount,

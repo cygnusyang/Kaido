@@ -308,7 +308,16 @@ enum KairoCommandCatalog {
                 shortcut: KairoShortcut(key: "k", modifiers: .command),
                 action: { store.showCommandPalette = true }
             )
-        ]
+        ] + OutlineColumnPreferences.configurable.map { column in
+            // 大纲列显隐（F-14-20）：与表头右键菜单同源动作；
+            // 序号/任务说明固定显示，故由 `configurable` 派生，不手写 8 条以免两处漂移。
+            KairoCommand(
+                id: "view.outlineColumn.\(column.rawValue)",
+                title: "显示/隐藏\(Display.outlineColumnTitle(column))列",
+                group: "视图",
+                action: { store.dispatch(.toggleOutlineColumn(column)) }
+            )
+        }
     }
 }
 
@@ -368,7 +377,7 @@ struct KairoMenuCommands: Commands {
     // MARK: - 关于面板
 
     /// 应用版本号：发版前更新。
-    static let appVersion = "0.7.0"
+    static let appVersion = "0.8.0"
 
     /// 「关于 Kairo」面板：版本号 + 编译时间。
     /// 打包应用读 Info.plist 的 CFBundleVersion（构建时写入的时间戳）；

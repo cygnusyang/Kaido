@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 import KairoCore
@@ -29,6 +30,7 @@ struct OutlineRowsList: View {
             }
         }
         .frame(width: layout.totalWidth, alignment: .topLeading)
+        .clipped()
         .background(DesignTokens.surfaceBase)
     }
 }
@@ -38,15 +40,28 @@ struct OutlineColumnLayout {
     let columns: [OutlineColumn]
     let totalWidth: CGFloat
     let focused: Bool
+    /// 用户列宽覆盖（点，F-14-20）：命中时不再乘压缩系数，否则拖宽无效。
+    var widthOverrides: [OutlineColumn: Double] = [:]
+    /// 拖拽中的预览草稿（列 + 点宽）：优先于覆盖值，松手才提交。
+    var liveResize: (column: OutlineColumn, width: CGFloat)? = nil
 
     /// 压缩系数：以 600pt 为基准，最窄压到 0.6；聚焦标签栏不压缩。
     private var scale: CGFloat {
         focused ? 1 : min(max(totalWidth / 600, 0.6), 1)
     }
 
+    /// 列宽优先级：拖拽草稿 → 用户覆盖值（不压缩）→ 默认派生宽（乘压缩系数）。
+    /// 三者皆无、即无用户配置时与引入本机制前逐位一致。
     func width(of column: OutlineColumn) -> CGFloat {
         if column == .title {
             return max(totalWidth - fixedWidthTotal, focused ? 0 : 120)
+        }
+        if let live = liveResize, live.column == column {
+            return max(live.width, 0)
+        }
+        // 聚焦标签栏（180pt）忽略用户宽度，避免计划模式拖过的宽度在聚焦模式里串味。
+        if !focused, let override = widthOverrides[column] {
+            return CGFloat(override)
         }
         return CGFloat(column.width(bodyFontSize: 13)) * scale
     }
@@ -56,8 +71,19 @@ struct OutlineColumnLayout {
     }
 }
 
+/// 大纲表头：列标题 + 每列右缘的调宽手柄 + 右键列显隐菜单（F-14-20）。
+///
+/// 手柄只在表头出现；列宽拖拽期间只回调预览草稿（`onResizeChanged`），
+/// 松手才由 `onResizeEnded` 提交一次，避免每帧落盘（设计 R1）。
 struct OutlineHeaderView: View {
     let layout: OutlineColumnLayout
+    /// 当前隐藏的列：右键菜单勾选态的数据源。
+    let hiddenColumns: Set<OutlineColumn>
+    let onResizeChanged: (OutlineColumn, CGFloat) -> Void
+    /// 松手：参数为「是否应提交」（<2pt 视为误触，只清草稿）。
+    let onResizeEnded: (Bool) -> Void
+    let onResizeReset: (OutlineColumn) -> Void
+    let onToggleColumn: (OutlineColumn) -> Void
 
     var body: some View {
         HStack(spacing: 0) {
@@ -68,12 +94,40 @@ struct OutlineHeaderView: View {
                     .lineLimit(1)
                     .padding(.horizontal, 4)
                     .frame(width: layout.width(of: column), alignment: .leading)
+                    .overlay(alignment: .trailing) {
+                        // 聚焦标签栏不提供调宽；末列手柄内缩 6pt，避开大纲右边界手柄的热区。
+                        if OutlineColumnPreferences.isResizable(column), !layout.focused {
+                            OutlineColumnResizeHandle(
+                                baseWidth: layout.width(of: column),
+                                isLastColumn: layout.columns.last == column,
+                                onChanged: { onResizeChanged(column, $0) },
+                                onEnded: onResizeEnded,
+                                onReset: { onResizeReset(column) }
+                            )
+                        }
+                    }
             }
         }
         .frame(maxHeight: .infinity, alignment: .bottom)
         .padding(.bottom, 4)
-        .frame(width: layout.totalWidth)
+        // leading 锚定 + 裁切：列宽总和超过大纲宽时从右侧裁切，与行列表的 topLeading 一致。
+        .frame(width: layout.totalWidth, alignment: .topLeading)
+        .clipped()
         .background(DesignTokens.surfaceChrome)
+        .contextMenu { columnMenu }
+    }
+
+    /// 列显隐菜单：序号/任务说明固定显示，不出现在开关列表（`configurable` 已排除）。
+    private var columnMenu: some View {
+        ForEach(OutlineColumnPreferences.configurable, id: \.self) { column in
+            Toggle(isOn: Binding(
+                get: { !hiddenColumns.contains(column) },
+                set: { _ in onToggleColumn(column) }
+            )) {
+                // 标签只写列名：勾选态本身表达显示/隐藏。
+                Text("\(Display.outlineColumnTitle(column))列")
+            }
+        }
     }
 
     private func headerTitle(_ column: OutlineColumn) -> String {
@@ -89,6 +143,79 @@ struct OutlineHeaderView: View {
         case .assignee: return "负责人"
         case .progress: return "完成"
         }
+    }
+}
+
+/// 表头列宽手柄：叠在列右缘的 6pt 热区。
+///
+/// - hover 切左右调整光标并显示 1pt 高亮（设计 §2）；
+/// - 拖拽以手势开始时的列宽为基准，避免与已回写的预览草稿重复累加；
+/// - 双击复位该列（删除覆盖值）。
+private struct OutlineColumnResizeHandle: View {
+    /// 手势开始时的列宽（点）；每次求值由表头按当前布局给出。
+    let baseWidth: CGFloat
+    /// 是否末列：末列右缘与大纲右边界手柄重合，需内缩让出热区。
+    var isLastColumn: Bool = false
+    let onChanged: (CGFloat) -> Void
+    /// 松手：参数为「是否应提交」——抖动不足 2pt（误触）时只清草稿、不写覆盖值。
+    let onEnded: (Bool) -> Void
+    let onReset: () -> Void
+
+    @State private var dragBase: CGFloat?
+    @State private var hovering = false
+
+    /// 右缘热区宽度（点）：窄到不挡住相邻列标题，又足够抓取。
+    private static let hotZoneWidth: CGFloat = 6
+    /// 提交阈值（点）：小于该位移视为抖动，避免单击手柄写入粘滞覆盖值。
+    private static let commitThreshold: CGFloat = 2
+
+    var body: some View {
+        Color.clear
+            .frame(width: Self.hotZoneWidth)
+            .contentShape(Rectangle())
+            .overlay(alignment: .trailing) {
+                Rectangle()
+                    .fill(DesignTokens.accentStrong)
+                    .frame(width: 1)
+                    .opacity(hovering || dragBase != nil ? 1 : 0)
+            }
+            .onHover { inside in
+                hovering = inside
+                if inside {
+                    NSCursor.resizeLeftRight.set()
+                } else {
+                    NSCursor.arrow.set()
+                }
+            }
+            // 表头位于滚动容器之外的固定区，仍用 highPriorityGesture 与行选中手势隔离。
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        if dragBase == nil { dragBase = baseWidth }
+                        guard let base = dragBase else { return }
+                        onChanged(base + value.translation.width)
+                    }
+                    .onEnded { value in
+                        dragBase = nil
+                        onEnded(abs(value.translation.width) >= Self.commitThreshold)
+                    }
+            )
+            .onTapGesture(count: 2) { onReset() }
+            // 拖拽被系统中断（切模式/换项目/窗口失焦）时 onEnded 不保证触发：
+            // 这里兜底清草稿并复位光标，避免未提交宽度长期驻留。
+            .onDisappear {
+                if dragBase != nil {
+                    dragBase = nil
+                    onEnded(false)
+                }
+                if hovering {
+                    hovering = false
+                    NSCursor.arrow.set()
+                }
+            }
+            .offset(x: isLastColumn ? -Self.hotZoneWidth : 0)
+            .accessibilityHidden(true)
+            .help("拖动调整列宽，双击复位")
     }
 }
 

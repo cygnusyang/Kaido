@@ -15,6 +15,9 @@ struct WorkspaceView: View {
     @State private var findAdapter = RowsFindAdapter()
     /// 日宽调节面板（工具栏标尺按钮的 popover）是否展开。
     @State private var showsDayWidthControl = false
+    /// 列宽拖拽中的预览草稿（F-14-20）：表头与行共用同一 layout，故两侧同步预览。
+    /// 松手（`onResizeEnded`）才提交一次，拖动期间不落盘。
+    @State private var liveColumnResize: (column: OutlineColumn, width: CGFloat)?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -333,15 +336,21 @@ struct WorkspaceView: View {
     private func planArea(sizes: WorkspaceSizes, height: CGFloat) -> some View {
         let rows = store.snapshot.outline.rows
         let gantt = store.snapshot.gantt
+        let hiddenColumns = hiddenOutlineColumns
+        // 列集合与 Presenter 同源（F-14-20 策略）：阈值降级优先，用户隐藏只进一步收窄。
         let columns = !sizes.showsOutline
             ? []
-            : (sizes.focused
-                ? [.status, .violation, .title]
-                : OutlineColumn.visibleColumns(outlineWidth: Double(sizes.outlineWidth)))
+            : OutlineColumnPreferences.visibleColumns(
+                outlineWidth: Double(sizes.outlineWidth),
+                hidden: hiddenColumns,
+                focused: sizes.focused
+            )
         let layout = OutlineColumnLayout(
             columns: columns,
             totalWidth: sizes.outlineWidth,
-            focused: sizes.focused
+            focused: sizes.focused,
+            widthOverrides: columnWidthOverrides,
+            liveResize: liveColumnResize
         )
         let bannerHeight: CGFloat = gantt.projectStartDerived && sizes.showsTimeline ? 24 : 0
         let bodyHeight = max(height - DesignTokens.headerHeight - 1 - bannerHeight, 1)
@@ -352,8 +361,20 @@ struct WorkspaceView: View {
             }
             HStack(spacing: 0) {
                 if sizes.showsOutline {
-                    OutlineHeaderView(layout: layout)
-                        .frame(width: sizes.outlineWidth, height: DesignTokens.headerHeight)
+                    OutlineHeaderView(
+                        layout: layout,
+                        hiddenColumns: hiddenColumns,
+                        onResizeChanged: { column, width in
+                            liveColumnResize = (column, clampedColumnWidth(width, for: column))
+                        },
+                        onResizeEnded: { shouldCommit in commitLiveColumnResize(shouldCommit) },
+                        onResizeReset: { column in
+                            liveColumnResize = nil
+                            store.dispatch(.setOutlineColumnWidth(column, nil))
+                        },
+                        onToggleColumn: { store.dispatch(.toggleOutlineColumn($0)) }
+                    )
+                    .frame(width: sizes.outlineWidth, height: DesignTokens.headerHeight)
                 }
                 if sizes.showsTimeline {
                     if sizes.showsOutline {
@@ -412,6 +433,41 @@ struct WorkspaceView: View {
             }
         }
         .frame(width: sizes.mainWidth, height: height, alignment: .top)
+    }
+
+    // MARK: - 大纲列偏好（F-14-20）
+
+    /// 用户隐藏的列：状态里存的是 rawValue，未知键在此静默忽略。
+    private var hiddenOutlineColumns: Set<OutlineColumn> {
+        Set(store.viewState.hiddenOutlineColumns.compactMap(OutlineColumn.init(rawValue:)))
+    }
+
+    /// 用户列宽覆盖（列 → 点宽）：Store 载入/写入时已过滤未知列与越界值。
+    private var columnWidthOverrides: [OutlineColumn: Double] {
+        var overrides: [OutlineColumn: Double] = [:]
+        for (raw, width) in store.viewState.outlineColumnWidths {
+            guard let column = OutlineColumn(rawValue: raw) else { continue }
+            overrides[column] = width
+        }
+        return overrides
+    }
+
+    /// 列宽夹取到策略区间（非有限值回落默认宽）：拖动草稿与提交共用同一口径。
+    private func clampedColumnWidth(_ width: CGFloat, for column: OutlineColumn) -> CGFloat {
+        let range = OutlineColumnPreferences.widthRange(for: column)
+        guard Double(width).isFinite else {
+            return CGFloat(OutlineColumnPreferences.defaultWidth(for: column))
+        }
+        return CGFloat(min(max(Double(width), range.lowerBound), range.upperBound))
+    }
+
+    /// 表头拖拽松手：提交一次并清空草稿（拖动期间只改本地状态，设计 R1）。
+    /// 松手提交：`shouldCommit == false`（误触/中断）只清草稿，不写覆盖值。
+    private func commitLiveColumnResize(_ shouldCommit: Bool = true) {
+        guard let live = liveColumnResize else { return }
+        liveColumnResize = nil
+        guard shouldCommit else { return }
+        store.dispatch(.setOutlineColumnWidth(live.column, Double(live.width)))
     }
 
     private var projectStartBanner: some View {

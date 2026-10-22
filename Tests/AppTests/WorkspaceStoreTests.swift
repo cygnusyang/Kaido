@@ -118,8 +118,9 @@ struct WorkspaceStoreTests {
 
     @Test func catalogIsSingleSourceForMenuAndPalette() {
         let commands = makeCatalog(makeStore())
-        // 24 条基线 + 日宽调节 3 条（加宽 / 收窄 / 重置，Sprint 6 / T3）。
-        #expect(commands.count == 27)
+        // 24 条基线 + 日宽调节 3 条（加宽 / 收窄 / 重置，Sprint 6 / T3）
+        // + 大纲列显隐 8 条（F-14-20：状态/违例/前置/开始/结束/持续/负责人/完成）。
+        #expect(commands.count == 35)
         #expect(Set(commands.map(\.id)).count == commands.count)
         #expect(Set(commands.map(\.group)) == Set(["文件", "编辑", "大纲", "任务", "视图", "查找"]))
         #expect(commands.allSatisfy { !$0.title.isEmpty })
@@ -1043,5 +1044,270 @@ struct WorkspaceStoreTests {
         writer.dispatch(.setProjectTitle(title))
         writer.save(to: url)
         #expect(writer.alertMessage == nil)
+    }
+
+    // MARK: - 大纲列宽 / 列显隐（F-14-20）
+
+    /// 独立偏好域（同域可跨 store 复用，用于偏好往返与容错解码）。
+    private func makePreferencesDefaults() -> UserDefaults {
+        let suite = "kairo.apptests.outlinecolumns.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
+        defaults.removePersistentDomain(forName: suite)
+        return defaults
+    }
+
+    /// 直接写入偏好 JSON：模拟旧版本数据 / 损坏数据。
+    private func writePreferences(_ json: String, to defaults: UserDefaults) {
+        defaults.set(Data(json.utf8), forKey: WorkspaceStore.preferencesKey)
+    }
+
+    /// 列宽写入按 `widthRange` 夹取：图标列 10–60、序号 18–80、文本列 24–320；边界值原样保留。
+    @Test func setOutlineColumnWidthClampsToPerColumnRange() {
+        let store = makeStore(seedsDemoData: false)
+
+        #expect(store.viewState.outlineColumnWidths.isEmpty)
+
+        store.dispatch(.setOutlineColumnWidth(.start, 500))
+        #expect(store.viewState.outlineColumnWidths["start"] == 320)
+
+        store.dispatch(.setOutlineColumnWidth(.start, 1))
+        #expect(store.viewState.outlineColumnWidths["start"] == 24)
+
+        store.dispatch(.setOutlineColumnWidth(.start, 320))
+        #expect(store.viewState.outlineColumnWidths["start"] == 320, "上界本身不夹取")
+
+        // 窄图标列：状态/违例上限 60、下限 10（覆盖 0.6 压缩宽）。
+        store.dispatch(.setOutlineColumnWidth(.status, 500))
+        #expect(store.viewState.outlineColumnWidths["status"] == 60)
+        store.dispatch(.setOutlineColumnWidth(.status, 0))
+        #expect(store.viewState.outlineColumnWidths["status"] == 10)
+        store.dispatch(.setOutlineColumnWidth(.violation, -5))
+        #expect(store.viewState.outlineColumnWidths["violation"] == 10)
+
+        // 序号列：18–80（默认 30 与压缩宽 18 都在区间内）。
+        store.dispatch(.setOutlineColumnWidth(.number, 500))
+        #expect(store.viewState.outlineColumnWidths["number"] == 80)
+
+        // 文本列（前置/开始/结束/持续/负责人/完成）共用 24–320。
+        store.dispatch(.setOutlineColumnWidth(.duration, 10))
+        #expect(store.viewState.outlineColumnWidths["duration"] == 24)
+    }
+
+    /// `nil` 与非有限值都表示「回落默认宽」：删除覆盖值，不留 NaN/∞ 给布局。
+    @Test func setOutlineColumnWidthNilOrNonFiniteClearsOverride() {
+        let store = makeStore(seedsDemoData: false)
+
+        store.dispatch(.setOutlineColumnWidth(.start, 140))
+        #expect(store.viewState.outlineColumnWidths["start"] == 140)
+        store.dispatch(.setOutlineColumnWidth(.start, nil))
+        #expect(store.viewState.outlineColumnWidths["start"] == nil, "nil = 双击手柄复位，删除覆盖值")
+
+        store.dispatch(.setOutlineColumnWidth(.finish, 150))
+        store.dispatch(.setOutlineColumnWidth(.finish, Double.nan))
+        #expect(store.viewState.outlineColumnWidths["finish"] == nil, "NaN 无法夹取，按复位处理")
+
+        store.dispatch(.setOutlineColumnWidth(.duration, 100))
+        store.dispatch(.setOutlineColumnWidth(.duration, Double.infinity))
+        #expect(store.viewState.outlineColumnWidths["duration"] == nil, "∞ 无法夹取，按复位处理")
+    }
+
+    /// 列宽/显隐是视图偏好：与大纲整体宽度一致，不进撤销栈、不把项目标记为已修改。
+    @Test func outlineColumnActionsDoNotPushUndoPoints() {
+        let store = makeStore(seedsDemoData: false)
+        let depthBefore = store.undoDepthForTesting
+        let dirtyBefore = store.hasUnsavedChanges
+
+        store.dispatch(.setOutlineColumnWidth(.start, 140))
+        #expect(store.viewState.outlineColumnWidths["start"] == 140)
+        #expect(store.undoDepthForTesting == depthBefore, "列宽写入不产生撤销点")
+
+        store.dispatch(.toggleOutlineColumn(.start))
+        #expect(store.viewState.hiddenOutlineColumns == ["start"])
+        #expect(store.undoDepthForTesting == depthBefore, "列显隐不产生撤销点")
+
+        store.dispatch(.setOutlineColumnWidth(.start, nil))
+        #expect(store.undoDepthForTesting == depthBefore, "复位不产生撤销点")
+        #expect(store.hasUnsavedChanges == dirtyBefore, "视图偏好不得把项目标记为已修改")
+    }
+
+    /// 弹性列（任务说明）不接受宽度覆盖：布局恒按余量计算，写入只会留下死状态。
+    @Test func setOutlineColumnWidthRejectsFlexibleTitleColumn() {
+        let store = makeStore(seedsDemoData: false)
+        store.dispatch(.setOutlineColumnWidth(.title, 200))
+        #expect(store.viewState.outlineColumnWidths["title"] == nil, "弹性列宽度请求应被拒绝")
+    }
+
+    /// `toggleOutlineColumn` 切换可配置列；序号/任务说明固定显示，请求被直接拒绝。
+    @Test func toggleOutlineColumnFlipsHiddenAndRejectsFixedColumns() {
+        let store = makeStore(seedsDemoData: false)
+        #expect(store.viewState.hiddenOutlineColumns.isEmpty)
+
+        store.dispatch(.toggleOutlineColumn(.start))
+        #expect(store.viewState.hiddenOutlineColumns == ["start"])
+        store.dispatch(.toggleOutlineColumn(.start))
+        #expect(store.viewState.hiddenOutlineColumns.isEmpty, "再次切换恢复显示")
+
+        // 多列互不影响。
+        store.dispatch(.toggleOutlineColumn(.predecessors))
+        store.dispatch(.toggleOutlineColumn(.progress))
+        #expect(store.viewState.hiddenOutlineColumns == ["predecessors", "progress"])
+        store.dispatch(.toggleOutlineColumn(.predecessors))
+        #expect(store.viewState.hiddenOutlineColumns == ["progress"])
+
+        // 固定列：无效果（不改状态）。
+        store.dispatch(.toggleOutlineColumn(.number))
+        store.dispatch(.toggleOutlineColumn(.title))
+        #expect(store.viewState.hiddenOutlineColumns == ["progress"], "序号/任务说明不得被隐藏")
+    }
+
+    /// 隐藏偏好下发到快照列集合（视图与 Presenter 同源）：固定列忽略隐藏，可配置列生效。
+    @Test func snapshotColumnsFollowHiddenPreferences() {
+        let store = makeStore()
+        #expect(store.viewState.outlineWidth == 600, "默认大纲宽度下所有列均可显示")
+        #expect(store.snapshot.outline.columns.contains(.start))
+        #expect(store.snapshot.outline.columns.contains(.number))
+
+        store.dispatch(.toggleOutlineColumn(.start))
+        #expect(!store.snapshot.outline.columns.contains(.start))
+        #expect(store.snapshot.outline.columns.contains(.finish), "隐藏只影响被切换那一列")
+        #expect(store.snapshot.outline.columns.contains(.number), "序号固定显示")
+
+        store.dispatch(.toggleOutlineColumn(.number))
+        #expect(store.snapshot.outline.columns.contains(.number), "隐藏序号请求被忽略")
+
+        store.dispatch(.toggleOutlineColumn(.start))
+        #expect(store.snapshot.outline.columns.contains(.start), "取消隐藏后恢复")
+    }
+
+    /// 「显示/隐藏X列」命令（视图菜单）与表头右键菜单同源：动作落到同一个 toggle。
+    @Test func outlineColumnCommandsToggleFromCatalog() throws {
+        let store = makeStore(seedsDemoData: false)
+        let commands = makeCatalog(store)
+
+        #expect(try command(commands, "view.outlineColumn.start").title == "显示/隐藏开始列")
+        #expect(!commands.contains { $0.id == "view.outlineColumn.number" }, "固定列不出现在显隐命令里")
+        #expect(!commands.contains { $0.id == "view.outlineColumn.title" }, "固定列不出现在显隐命令里")
+
+        try command(commands, "view.outlineColumn.start").action()
+        #expect(store.viewState.hiddenOutlineColumns == ["start"])
+
+        try command(commands, "view.outlineColumn.start").action()
+        #expect(store.viewState.hiddenOutlineColumns.isEmpty)
+    }
+
+    /// 偏好往返：新 store 读回同一组列宽与隐藏列。
+    @Test func outlineColumnPreferencesRoundTripThroughDefaults() {
+        let defaults = makePreferencesDefaults()
+        let first = WorkspaceStore(defaults: defaults, seedsDemoData: false)
+        first.dispatch(.setOutlineColumnWidth(.start, 140))
+        first.dispatch(.setOutlineColumnWidth(.assignee, 200))
+        first.dispatch(.toggleOutlineColumn(.predecessors))
+        #expect(first.viewState.hiddenOutlineColumns == ["predecessors"])
+
+        let second = WorkspaceStore(defaults: defaults, seedsDemoData: false)
+        #expect(second.viewState.outlineColumnWidths == ["start": 140, "assignee": 200])
+        #expect(second.viewState.hiddenOutlineColumns == ["predecessors"])
+        // 读回的偏好进入生效列集合（不只是字段回填）。
+        #expect(!second.snapshot.outline.columns.contains(.predecessors))
+
+        // 复位后落盘同样生效：空覆盖写 nil，新 store 回到默认宽。
+        second.dispatch(.setOutlineColumnWidth(.start, nil))
+        let third = WorkspaceStore(defaults: defaults, seedsDemoData: false)
+        #expect(third.viewState.outlineColumnWidths == ["assignee": 200])
+    }
+
+    /// `outlineColumnWidths` 类型不符（`"x"`）：该字段整体回落空覆盖，不牵连其它偏好。
+    @Test func corruptedOutlineColumnWidthsFallBackWithoutTouchingOtherPreferences() {
+        let defaults = makePreferencesDefaults()
+        writePreferences(
+            """
+            {
+              "outlineWidth": 480,
+              "outlineVisible": true,
+              "expandedTaskIDs": [],
+              "zoom": "day",
+              "usesFitZoom": false,
+              "inspectorWidth": 360,
+              "inspectorTab": "violations",
+              "outlineColumnWidths": {"start": "x"},
+              "hiddenOutlineColumns": ["predecessors"]
+            }
+            """,
+            to: defaults
+        )
+
+        let store = WorkspaceStore(defaults: defaults, seedsDemoData: false)
+        #expect(store.viewState.outlineColumnWidths.isEmpty, "非法宽度字典整字段回落")
+        // 同一条 JSON 的其余字段（含另一个新字段）完整保留。
+        #expect(store.viewState.hiddenOutlineColumns == ["predecessors"])
+        #expect(store.viewState.outlineWidth == 480)
+        #expect(store.viewState.zoom == .day)
+        #expect(store.viewState.inspectorWidth == 360)
+        #expect(store.viewState.inspectorTab == .violations)
+    }
+
+    /// 越界/未知列的持久化宽度逐项丢弃，合法项保留（D-016 逐字段容错）。
+    @Test func outOfRangePersistedColumnWidthsAreDropped() {
+        let defaults = makePreferencesDefaults()
+        writePreferences(
+            """
+            {
+              "outlineWidth": 480,
+              "outlineColumnWidths": {"start": 500, "finish": 90, "status": 18, "bogus": 100},
+              "hiddenOutlineColumns": []
+            }
+            """,
+            to: defaults
+        )
+
+        let store = WorkspaceStore(defaults: defaults, seedsDemoData: false)
+        // 500 越界（start 区间 40–320）→ 丢弃；bogus 未知列 → 丢弃；合法项保留原值。
+        #expect(store.viewState.outlineColumnWidths == ["finish": 90, "status": 18])
+        #expect(store.viewState.outlineWidth == 480)
+    }
+
+    /// 持久化的隐藏列：未知 rawValue 与固定列（序号/任务说明）在载入时被过滤。
+    @Test func persistedHiddenColumnsDropUnknownAndFixedColumns() {
+        let defaults = makePreferencesDefaults()
+        writePreferences(
+            """
+            {
+              "outlineWidth": 480,
+              "outlineColumnWidths": {},
+              "hiddenOutlineColumns": ["start", "number", "title", "bogus"]
+            }
+            """,
+            to: defaults
+        )
+
+        let store = WorkspaceStore(defaults: defaults, seedsDemoData: false)
+        #expect(store.viewState.hiddenOutlineColumns == ["start"])
+        #expect(store.viewState.outlineWidth == 480)
+    }
+
+    /// 旧偏好 JSON 不含两个新键：载入为「无覆盖、无隐藏」，其余偏好照旧。
+    @Test func legacyPreferencesWithoutOutlineColumnKeysStillLoad() {
+        let defaults = makePreferencesDefaults()
+        writePreferences(
+            """
+            {
+              "outlineWidth": 480,
+              "outlineVisible": true,
+              "expandedTaskIDs": [],
+              "zoom": "week",
+              "usesFitZoom": true,
+              "inspectorWidth": 320,
+              "inspectorTab": "inspector"
+            }
+            """,
+            to: defaults
+        )
+
+        let store = WorkspaceStore(defaults: defaults, seedsDemoData: false)
+        #expect(store.viewState.outlineColumnWidths.isEmpty)
+        #expect(store.viewState.hiddenOutlineColumns.isEmpty)
+        #expect(store.viewState.outlineWidth == 480)
+        #expect(store.viewState.inspectorWidth == 320)
+        #expect(store.viewState.usesFitZoom)
     }
 }

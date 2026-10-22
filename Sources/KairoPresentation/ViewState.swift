@@ -49,6 +49,12 @@ public struct WorkspaceViewState: Hashable, Sendable {
     public var inspectorLocked: Bool
     public var showCriticalPath: Bool
     public var showBarLabels: Bool
+    /// 大纲列宽覆盖值（键 = `OutlineColumn.rawValue`，值 = 用户设定的点宽）。
+    /// 缺键 = 该列按默认派生宽度；无覆盖值时布局与引入本字段前逐位一致。
+    public var outlineColumnWidths: [String: Double] = [:]
+    /// 用户隐藏的大纲列（键 = `OutlineColumn.rawValue`）。
+    /// 序号/任务说明固定显示，隐藏请求不生效（见 `OutlineColumnPreferences`）。
+    public var hiddenOutlineColumns: Set<String> = []
     public var filterText: String
     /// 查找/定位目标（只高亮跳转，不改变筛选）。
     public var highlightedTaskID: UUID?
@@ -73,7 +79,9 @@ public struct WorkspaceViewState: Hashable, Sendable {
         showBarLabels: Bool = true,
         filterText: String = "",
         highlightedTaskID: UUID? = nil,
-        revealStatus: RevealStatus? = nil
+        revealStatus: RevealStatus? = nil,
+        outlineColumnWidths: [String: Double] = [:],
+        hiddenOutlineColumns: Set<String> = []
     ) {
         self.mode = mode
         self.chartFocused = chartFocused
@@ -94,6 +102,8 @@ public struct WorkspaceViewState: Hashable, Sendable {
         self.filterText = filterText
         self.highlightedTaskID = highlightedTaskID
         self.revealStatus = revealStatus
+        self.outlineColumnWidths = outlineColumnWidths
+        self.hiddenOutlineColumns = hiddenOutlineColumns
     }
 }
 

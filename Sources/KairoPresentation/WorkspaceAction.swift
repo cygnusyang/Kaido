@@ -36,6 +36,11 @@ public enum WorkspaceAction: Equatable, Sendable {
     case setInspectorWidth(Double)
     case setOutlineVisible(Bool)
     case setOutlineWidth(Double)
+    /// 大纲单列宽度覆盖（F-14-20）：`nil` = 删除该列覆盖值（回落默认宽）；
+    /// 非 `nil` 按 `OutlineColumnPreferences.widthRange` 夹取后写入。不改显隐。
+    case setOutlineColumnWidth(OutlineColumn, Double?)
+    /// 大纲列显隐切换（F-14-20）：序号/任务说明直接忽略；不产生撤销点。
+    case toggleOutlineColumn(OutlineColumn)
 
     // 任务编辑（经会话）
     case createTask(parentID: UUID?, kind: TaskKind)
