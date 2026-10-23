@@ -117,6 +117,7 @@
 | v0.7.0 | 2026-10-22 | 大纲「开始/结束」日期列可编辑（F-14-19：点击弹月历、复用 CalendarPopover；群组/里程碑/无排期按策略禁用；写回与撤销与检查器同源；见 docs/archive/Sprint10-outline-date-cells/design.md） |
 | v0.8.0 | 2026-10-22 | 大纲列宽可调 + 列显隐可配置（F-14-20：表头手柄拖拽调宽、双击复位；视图菜单/右键菜单显隐列，序号与任务说明固定；偏好持久化、不进撤销栈；见 docs/archive/Sprint11-outline-columns/design.md） |
 | v0.8.1 | 2026-10-23 | 发版 CI 时区缺陷修复（D-025：S8 日期渲染用例在 UTC runner 整体错位一天）+ AI 协作接入指南（Plugins/README.md：Claude Code / CodeBuddy / Codex 接法与 WBS 拆解规程） |
+| v0.8.2 | 2026-10-23 | 发版工作流加固（D-026：artifacts 推送重试与 postBuffer、latest/ 每次重建不残留历史产物） |
 
 ### Sprint 7（计划）
 

@@ -3,6 +3,15 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.8.2 — 2026-10-23
+
+### 修复
+
+- **发版归档步骤加固（D-026）**：产物推送失败不再让整轮发版白跑。
+  - `git push origin artifacts` 连续失败时重试 3 次（间隔 10 秒）；提交已生成，重试不产生冗余提交。同时抬高 `http.postBuffer` 并放宽低速判定，减少 408 / 断连概率。
+  - `artifacts` 分支的 `latest/` 每次重建，只镜像当前版本；此前的 `Kairo-v0.3.1.*`、`Kairo-v0.4.0.*` 等历史残留随本次归档一并清除（`git add -Af` 记录删除）。
+  - 同一 tag 重跑幂等：内容无变化时跳过提交，推送为 no-op 且判成功。
+
 ## v0.8.1 — 2026-10-23
 
 ### 修复
