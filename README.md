@@ -211,6 +211,32 @@ args = []
 
 应用支持 `kairo://task/<完整 UUID 或 ≥4 位前缀>`、`kairo://task?title=<标题>`、`kairo://project/<id>`，可在 MCP/CLI 输出中返回给人工审阅跳转。
 
+### 发版
+
+发版只需要一条命令，CHANGELOG 的对应章节会被直接用作 Release 说明：
+
+```bash
+# 1) 先在 CHANGELOG.md 写好「## vX.Y.Z — 日期」章节
+# 2) 一条命令走完：校验 → 改版本号 → 全量测试 → 打包 → 提交 → tag → 推送
+tools/release.sh 0.8.3
+
+# 只验证不提交（产物在 dist/，版本号会留在工作区）
+tools/release.sh 0.8.3 --dry-run
+```
+
+产物由 `tools/package.sh` 生成（本地与 CI 同源）：
+
+```bash
+tools/package.sh v0.8.3            # 构建 + 打包，产出 dist/Kairo-v0.8.3.{dmg,zip}
+tools/package.sh v0.8.3 --skip-build --out /tmp/out
+```
+
+- `Kairo-vX.Y.Z.dmg`：人装，挂载后拖入 Applications；
+- `Kairo-vX.Y.Z.zip`：OTA 载体（ditto 保留签名），配 `update-manifest.json` 使用；
+- 打包前会校验应用内版本号等于 tag，不一致直接失败。
+
+推送 tag 后 GitHub Actions 复跑测试、重新打包、签名更新清单、归档 `artifacts` 分支并创建 Release。
+
 ## 目录结构
 
 ```

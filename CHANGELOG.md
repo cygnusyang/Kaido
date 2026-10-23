@@ -3,6 +3,18 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.8.3 — 2026-10-23
+
+### 新增
+
+- **一键发版（`tools/release.sh`）**：`tools/release.sh 0.8.3` 一次完成发版全流程——前置校验（必须在 main、工作区干净、tag 不存在、版本递增、CHANGELOG 有对应章节）→ 同步三处版本号 → 全量测试 → 打包 → 提交 → annotated tag → 推送。`--dry-run` 只做校验、测试与打包，不动仓库。
+- **产物打包抽为 `tools/package.sh`**：本地与 CI 同源，一次产出 `Kairo-<tag>.dmg`（挂载后拖入 Applications）与 `Kairo-<tag>.zip`（OTA 载体，ditto 保留签名）。打包前校验应用内 `CFBundleShortVersionString` 与 tag 一致——版本号漏改会在打包阶段直接失败，而不是把旧版本装进新版本附件。
+- **Release 说明单一来源 `tools/release_notes.sh`**：CI 与本地共用同一段 CHANGELOG 抽取逻辑，Release 说明即 `CHANGELOG.md` 的对应章节；章节缺失时回退为自动生成的提交列表。
+
+### 变更
+
+- 发版工作流改为调用上述脚本：CI 内联的 zip / DMG / changelog 逻辑（三处重复实现）合并为一处，避免本地与线上产物口径漂移。
+
 ## v0.8.2 — 2026-10-23
 
 ### 修复

@@ -29,9 +29,11 @@ jobs:
       - name: 编译打包
         run: bash tools/build.sh
 
-      - name: 打包 OTA 载体 zip（ditto 保留签名与元数据）
+      - name: 打包发布产物（DMG + OTA 载体 zip）
         run: |
-          ditto -c -k --keepParent dist/Kairo.app "Kairo-${GITHUB_REF_NAME}.zip"
+          # 与本地 tools/release.sh 同源：一次产出 DMG（人装）与 zip（OTA 载体），
+          # 并校验应用内版本号等于 tag，避免把旧版本装进新版本的附件。
+          bash tools/package.sh "${GITHUB_REF_NAME}" --skip-build --out .
           echo "ZIP_SHA256=$(shasum -a 256 "Kairo-${GITHUB_REF_NAME}.zip" | awk '{print $1}')" >> "$GITHUB_ENV"
 
       - name: 签名更新清单（update-manifest.json）
@@ -61,33 +63,15 @@ jobs:
             Apps/macos/Sources/Updater/UpdaterConfiguration.swift | sed 's/.*"\(.*\)"/\1/')"
           swift tools/verify_update_manifest.swift update-manifest.json "$PUBLIC_KEY"
 
-      - name: 打包 DMG（打开拖入 Applications，替代 zip）
-        run: |
-          # GitHub Release 附件只能是单文件，.app 是目录传不了；
-          # DMG 内放 App + /Applications 软链，挂载后直接拖拽安装。
-          STAGING="$(mktemp -d)/dmg-staging"
-          mkdir -p "$STAGING"
-          cp -R dist/Kairo.app "$STAGING/Kairo.app"
-          ln -s /Applications "$STAGING/Applications"
-          hdiutil create -volname "Kairo ${GITHUB_REF_NAME}" \
-            -srcfolder "$STAGING" -ov -format UDZO \
-            "Kairo-${GITHUB_REF_NAME}.dmg"
-
       - name: 提取本版本 changelog
         id: changelog
         run: |
-          # 章节标题形如「## v0.1.0 — 2026-10-18」，按前缀匹配。
-          TAG="${GITHUB_REF_NAME}"
-          if [ -f CHANGELOG.md ]; then
-            awk -v t="$TAG" '
-              index($0, "## " t) == 1 { found=1; next }
-              /^## / && found { exit }
-              found { print }
-            ' CHANGELOG.md > release-notes.md
-          fi
-          if [ ! -s release-notes.md ]; then
-            # 无对应章节时回退：说明 + GitHub 自动生成的提交列表。
-            echo "（CHANGELOG.md 中没有「## $TAG」章节，以下为自动生成的提交列表。）" > release-notes.md
+          # 说明的唯一来源是 CHANGELOG.md（与本地 tools/release.sh 同源抽取）。
+          if bash tools/release_notes.sh "${GITHUB_REF_NAME}" > release-notes.md 2>/dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            # 章节缺失时回退：说明 + GitHub 自动生成的提交列表。
+            echo "（CHANGELOG.md 中没有「## ${GITHUB_REF_NAME}」章节，以下为自动生成的提交列表。）" > release-notes.md
             echo "has_autonotes=true" >> "$GITHUB_OUTPUT"
           fi
 
