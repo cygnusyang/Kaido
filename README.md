@@ -24,6 +24,66 @@ AI 编码智能体擅长执行单个任务，但缺少调度侧的「对照物�
 | CLI | AI 智能体 / 脚本 / 终端 | 与 MCP 能力对等的命令行 |
 | Claude Code 插件 | Claude Code | 斜杠命令 `/kairo plan|done|status` + `TaskCompleted` 自动回写 hook |
 
+> Codex 与 CodeBuddy 不装插件：直接用 MCP + 一段写进 `AGENTS.md` / `CODEBUDDY.md` 的约定。三个宿主怎么接、WBS 怎么拆、每条命令怎么复制，见 **[Plugins/README.md](Plugins/README.md)**。
+
+## 和 AI 一起做项目：WBS 怎么走
+
+分工是固定的：**人定边界，AI 拆与执行，Kairo 记账并算账。**
+
+```
+人：定起止日期与验收口径
+ ↓
+AI：task_list 看现状 → 拆 WBS（里程碑→群组→叶子）→ wbs_import
+ ↓
+Kairo：schedule_compute 排期 → violations_list 报违例 → schedule_critical_path 给重要路径
+ ↓
+人：在 macOS 应用看甘特与违例，批准或改期限/依赖
+ ↓
+AI：逐任务实现 → status_update done → 群组完成度按投入加权聚合
+```
+
+拆解的四条硬判据（不满足就不是叶子）：
+
+1. **可独立验收**——一句话能说清「做完的标准」；
+2. **单人单责**——一个负责人，不需要并行协商；
+3. **0.5–3 人日**——低于半天拆过头，高于 3 天还没拆清；
+4. **有明确产出物**——文件、接口、文档或可运行的行为。
+
+叶子必须给 `effortHours`（8 小时/人日折算工期）；群组和里程碑不给投入，它们的完成度由子任务聚合。
+
+最小可跑的一段（复制即用，路径换成自己的）：
+
+```bash
+export KAIRO="$HOME/path/to/Kairo"
+BIN="$KAIRO/.build/release/KairoCLI"
+
+"$BIN" project create "示例项目" --start 2026-11-02 --end 2026-11-20 --file demo.kairo
+cat > wbs.json <<'EOF'
+[
+  {"title": "支付模块", "kind": "group", "children": [
+    {"title": "接口设计", "effortHours": 16},
+    {"title": "服务端实现", "effortHours": 40},
+    {"title": "客户端接入", "effortHours": 24},
+    {"title": "联调验收", "kind": "milestone"}
+  ]}
+]
+EOF
+"$BIN" wbs import wbs.json --file demo.kairo
+"$BIN" task list --file demo.kairo                 # 看清单（AI 也可直接 --json）
+
+# 用标题取 4 位前缀，避免手抄 ID
+id() { "$BIN" task list --file demo.kairo --json \
+  | python3 -c "import json,sys;print([t['id'][:4] for t in json.load(sys.stdin) if t['title']=='$1'][0])"; }
+
+"$BIN" task update "$(id 服务端实现)" --dep "$(id 接口设计):fs" --file demo.kairo
+"$BIN" task update "$(id 客户端接入)" --dep "$(id 服务端实现):fs" --file demo.kairo
+"$BIN" task update "$(id 联调验收)" --dep "$(id 客户端接入):fs" --file demo.kairo
+"$BIN" schedule compute --file demo.kairo          # 排期
+"$BIN" schedule path --file demo.kairo             # 重要路径与宽延
+"$BIN" violations --file demo.kairo                # 环 / 越界 / 时限冲突
+"$BIN" status update "$(id 接口设计)" --status done --file demo.kairo  # AI 完成一个回写一个
+```
+
 ## 快速开始
 
 ### 环境
@@ -124,6 +184,29 @@ claude --plugin-dir /path/to/Kairo/Plugins/claude-code
 
 详见 [Plugins/claude-code/README.md](Plugins/claude-code/README.md)。
 
+### 5. Codex / CodeBuddy（MCP + 约定，不装插件）
+
+两者都只需要一份 MCP 配置加一段约定，工具面与插件完全一致。唯一代价是没有自动回写 hook：任务完成由模型按约定主动调 `status_update`，不再靠 `TaskCompleted` 事件兜底。
+
+**Claude Code / CodeBuddy 共用**（项目根 `.mcp.json`，两个宿主都读）：
+
+```bash
+KAIRO="$HOME/path/to/Kairo"          # ← 改成你的仓库路径
+cat > .mcp.json <<EOF
+{ "mcpServers": { "kairo": { "command": "$KAIRO/.build/release/KairoMCP" } } }
+EOF
+```
+
+**Codex**（写入 `~/.codex/config.toml`）：
+
+```toml
+[mcp_servers.kairo]
+command = "/absolute/path/to/Kairo/.build/release/KairoMCP"
+args = []
+```
+
+再在项目根放 `AGENTS.md`（CodeBuddy 用 `CODEBUDDY.md`、Claude Code 用 `CLAUDE.md`），写明：项目文件路径、拆解顺序与叶子判据、完成必须 `status_update`、ID 用 ≥4 位前缀。这段约定的原文可直接复制自 [Plugins/README.md §3](Plugins/README.md)。
+
 ### 深链
 
 应用支持 `kairo://task/<完整 UUID 或 ≥4 位前缀>`、`kairo://task?title=<标题>`、`kairo://project/<id>`，可在 MCP/CLI 输出中返回给人工审阅跳转。
@@ -138,6 +221,7 @@ Sources/KairoPresentation/  平台中立呈现层：快照、视图状态与动�
 Sources/KairoMCP/           MCP 服务（stdio JSON-RPC）
 Sources/KairoCLI/           CLI
 Apps/macos/Sources/         macOS SwiftUI 工作台（WorkspaceStore 适配层 + 视图）
+Plugins/README.md           AI 协作指南：Claude Code / CodeBuddy / Codex 接法与 WBS 拆解规程
 Plugins/claude-code/        Claude Code 插件（斜杠命令 + hooks）
 Tests/                      KairoCoreTests / KairoPresentationTests / InterfaceTests / AppTests
 tools/gate-core.sh          核心与呈现层门禁
