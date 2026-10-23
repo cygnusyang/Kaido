@@ -124,11 +124,11 @@ fi
 echo "==> 提交发版"
 git add tools/build.sh Sources/KairoMCP/MCPServer.swift Apps/macos/Sources/CommandRegistry.swift CHANGELOG.md
 git commit -q -F - <<MSG
-chore(release): $TAG
+chore(release): ${TAG}
 
-- 版本号同步至 $VERSION（tools/build.sh、MCPServer、CommandRegistry）
-- 产物：Kairo-$TAG.dmg（人装）+ Kairo-$TAG.zip（OTA 载体），本地打包校验通过
-- Release 说明取自 CHANGELOG.md「## $TAG」章节
+- 版本号同步至 ${VERSION}（tools/build.sh、MCPServer、CommandRegistry）
+- 产物：Kairo-${TAG}.dmg（人装）+ Kairo-${TAG}.zip（OTA 载体），本地打包校验通过
+- Release 说明取自 CHANGELOG.md「## ${TAG}」章节
 MSG
 
 git tag -a "$TAG" -m "Kairo $TAG"
