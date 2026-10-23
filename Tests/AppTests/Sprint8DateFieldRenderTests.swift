@@ -25,10 +25,14 @@ struct Sprint8DateFieldRenderTests {
         static let contentChange = 0.002
     }
 
-    /// 固定时区与周首（周一）的日历，避免渲染与断言随主机设置漂移。
+    /// 固定周首（周一）的日历，时区跟随主机。
+    ///
+    /// 时区不能在这里钉死：被测的 `Display.isoDate` 与视图渲染都用 `TimeZone.current`
+    /// 格式化日期，测试若固定在 Asia/Shanghai，在 UTC runner 上同一瞬间会落到前一天，
+    /// 断言与离屏渲染比对整体错位（D-025：v0.5.0–v0.8.0 发版 CI 红）。
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Shanghai") ?? .current
+        calendar.timeZone = .current
         calendar.locale = Locale(identifier: "zh_CN")
         calendar.firstWeekday = 2
         return calendar

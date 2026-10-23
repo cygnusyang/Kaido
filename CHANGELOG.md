@@ -3,6 +3,13 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.8.1 — 2026-10-23
+
+### 修复
+
+- **发版 CI 在 UTC runner 上整体错位一天（D-025）**：`Sprint8DateFieldRenderTests` 把日历钉死在 Asia/Shanghai，而被测的 `Display.isoDate` 与视图渲染使用 `TimeZone.current`，两者在 UTC 主机上相差一天，导致 4 条用例失败、v0.5.0 起的 tag 全部跑红。测试日历改为跟随主机时区（locale 与周首仍固定），断言与被测实现同口径。核销：`TZ=UTC swift test` 742/742。
+- 由此确认：v0.5.0–v0.8.0 只存在于 CHANGELOG 与 git 历史，未发布过 GitHub Release；首个带产物的发布版本为 v0.8.1。
+
 ## v0.8.0 — 2026-10-22
 
 ### 新增

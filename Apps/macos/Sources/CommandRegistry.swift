@@ -377,7 +377,7 @@ struct KairoMenuCommands: Commands {
     // MARK: - 关于面板
 
     /// 应用版本号：发版前更新。
-    static let appVersion = "0.8.0"
+    static let appVersion = "0.8.1"
 
     /// 「关于 Kairo」面板：版本号 + 编译时间。
     /// 打包应用读 Info.plist 的 CFBundleVersion（构建时写入的时间戳）；
