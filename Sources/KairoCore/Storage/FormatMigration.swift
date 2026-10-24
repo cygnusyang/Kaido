@@ -37,7 +37,9 @@ public struct FormatDocument {
     static func parseVersion(_ value: Any?) -> Int? {
         guard let number = value as? NSNumber else { return nil }
         // JSONSerialization 用 NSNumber 表示 true/false；布尔不是合法版本号。
-        guard CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+        // objCType 在 Darwin 与 Linux 上都把布尔记为 'c'（整数 i/q、浮点 d），
+        // 不用 CoreFoundation 的 CFGetTypeID / CFBooleanGetTypeID——Linux 没有这两个符号。
+        guard String(cString: number.objCType) != "c" else { return nil }
         let double = number.doubleValue
         guard double.rounded() == double,
               double >= Double(Int.min),
