@@ -1,6 +1,8 @@
 # 多语言支持（先英文）· 方案与任务拆分
 
-> 版本 0.3 · 2026-10-24 · 状态：方案（已评审）· 归属版本：v0.9.0（阶段一）/ v0.10.0（阶段二）
+> 版本 0.5 · 2026-10-24 · 状态：方案（已评审；v0.9.0 开工中）· 归属版本：v0.9.0（阶段一）/ v0.10.0（阶段二）
+> 本版回填：F-0700 实测结论（§7.1 三条事实与主路径 B）、§4 取词与门禁规约、CLI 语言回退定为 zh-Hans、F-0715 码名统一为 `schedule_start_after_project_window`。
+> 上版追加：F-0715 / F-0716 / F-0717 承接缺陷登记表顺延项 D-022 / D-023 / D-024。
 > 上游依据：[02-architecture.md](../02-architecture.md) 的 ADR-004（核心层零 UI 依赖）与 ADR-013（唯一写路径 + 快照边界）、[04-glossary.md](04-glossary.md)（术语）
 > 本文只定方案与任务拆分，不含实现代码。
 
@@ -62,21 +64,53 @@ grep -rho '"[^"]*[一-龥][^"]*"' <目录> --include=*.swift | sort -u | wc -l  
 
 **硬约束**：`KairoCore`、`KairoCommands`、`KairoPresentation` 必须不引入本地化资源（不得出现 `Bundle.module`），且必须在 Linux 编译。此约束由 CI 强制（F-0711）。
 
+**错误码规模（以代码为准）**：方案早期版本按设计稿估算过码数，与落地后的实际集合不一致。权威值只能用命令复算，不要引用文档里的估算数字：
+
+```bash
+grep -oE '=\s*"[a-z0-9_]+"' Sources/KairoCore/Diagnostics/KairoErrorCode.swift | sort -u | wc -l    # 47
+grep -oE '=\s*"[a-z0-9_]+"' Sources/KairoUpdater/UpdaterErrorCode.swift | sort -u | wc -l          # 34
+```
+
+| 集合 | 实测 | 说明 |
+|---|---|---|
+| `KairoErrorCode` | **47** | 含 `schedule_start_after_project_window`（F-0715）；v0.9.0 起冻结，只增不改 |
+| `UpdaterErrorCode` | **34** | `updater_` 前缀；等价于 v0.8.5 的 49 行 `errorDescription` 去重后逐条落码，含 F-0719 的三个安装失败码 |
+| MCP 响应的 `code` | **6** | `project_not_open` / `task_not_found` / `invalid_argument` / `file_unreadable` / `unsupported_format` / `internal_error`，取值不变；细粒度信息在 `reason` |
+> 两套码不要混算：`UpdaterErrorCode`（34 个，`updater_*` 前缀）是错误码；`InstallResult.FailureReason`（4 个，无前缀）是替换脚本写进 result JSON 的稳定标记，由 `UpdaterManager` 映射到上述错误码（`app_not_quitting` → `install_app_still_running`、`backup_failed` → `install_backup_failed`、`replace_failed` → `install_replace_failed`）。`relaunch_failed` 由替换脚本以 `success=true`（退出码 1）写出，消费端走成功分支、不读该取值，界面呈现「已是最新」；仅当结果文件被写成 `success=false` 且取值为 `relaunch_failed` 时（本仓脚本不会这样写），才与旧版中文取值、无法识别的取值一样回落 `updater_install_failed`。历史提交正文里出现过 32 / 35，均按本表的 34 为准。
+
 理由：快照是跨层公共契约，已被 UI、CLI、MCP 三端消费。若快照携带中文文本，CLI 与 MCP 的语言策略就被呈现层绑死。
 
 ## 4. 本地化机制
 
-采用 **String Catalog（`.xcstrings`）**。
+采用 **String Catalog（`.xcstrings`）作为唯一源文件**，构建期编译成 `.lproj` 装进 `.app`（加载路径的实测结论见 §7），运行期不读 Catalog。
 
 | 方案 | 取舍 |
 |---|---|
-| String Catalog | 单一文件承载全部语言、可在 Xcode 内逐条审校、`sourceLanguage` 元数据与键同源；需要验证 SwiftPM 资源在自建 `.app` 内的加载路径（§7） |
+| String Catalog | 单一文件承载全部语言、可在 Xcode 内逐条审校、`sourceLanguage` 元数据与键同源；运行期需编译产物（§7） |
 | `Localizable.strings` | 兼容性最好，但语言分散在多个 `.lproj` 目录，缺少统一的审校视图与键状态 |
 | 自建键值表 | 失去系统语言协商与格式化能力，等于自造 i18n |
 
-键命名规约：`<域>.<对象>.<语义>`，例如 `inspector.task.effort`、`palette.command.schedule_compute`、`error.dependency.cycle`。占位符用位置参数（`%1$ld`），不使用具名插值，避免语序差异。
+**取词入口**（唯一，`Apps/macos/Sources/Workspace/I18n.swift`）：
 
-复数用 String Catalog 的 variations 表达，例如：
+```swift
+enum I18n {
+    static func t(_ key: String, _ en: String, bundle: Bundle = .main) -> String {
+        bundle.localizedString(forKey: key, value: en, table: nil)
+    }
+    /// 位置参数（%1$ld / %2$@），避免语序差异。
+    static func t(_ key: String, _ en: String, _ args: CVarArg...) -> String {
+        String(format: t(key, en), arguments: args)
+    }
+}
+```
+
+调用形如 `I18n.t("column.status", "Status")`、`I18n.t("palette.result.count", "%1$ld tasks", count)`、`I18n.t("violation.rule.\(code)", fallbackName(for: code))`。
+
+**为什么带英文兜底**：`swift run` / `swift test` 的产物里没有 `.lproj`（§7 的 E1/E2），`String(localized:)` 取不到值。统一走 `localizedString(forKey:value:table:)` 后，`.app` 内命中 Catalog 显示译文，未命中则显示调用点写的英文——任何情况下都不会把裸键显示给用户。代价是英文文案存在两处（Catalog 与调用点），由 F-0711 的键检查与评审保证不漂移。
+
+**键命名规约**（v0.9.0 起冻结，只增不改）：`<域>.<对象>.<语义>`，域限 `menu` / `outline` / `inspector` / `palette` / `statusbar` / `update` / `alert` / `error` / `column` / `action` / `date` / `unit` / `violation.rule` / `seed`，例如 `inspector.task.effort`、`palette.command.schedule_compute`、`error.dependency.cycle`、`violation.rule.schedule_cycle`。占位符一律用位置参数（`%1$ld`），不用具名插值，避免语序差异；两侧语言的占位符必须同位置同类型。
+
+复数用 String Catalog 的 variations 表达（编译后落入 `.stringsdict`），例如：
 
 ```
 palette.result.count = "%1$ld task"
@@ -84,6 +118,17 @@ palette.result.count = "%1$ld task"
     en:  one → "%1$ld task" / other → "%1$ld tasks"
     zh-Hans: other → "%1$ld 个任务"
 ```
+
+**机器门禁**（`tools/i18n-lint.sh`，CI 与本地同跑，详见 §7；(d) 只在发版前置校验里启用）：
+
+| 检查 | 拦截对象 | 退出码 |
+|---|---|---|
+| (a) 硬编码中文 | `Apps/macos/Sources` 出现白名单（`tools/i18n-whitelist.txt`）外的中文字符串字面量（注释内中文不计） | 1 |
+| (b) 分层资源 | `KairoCore` / `KairoCommands` / `KairoPresentation` 出现 `Bundle.module` | 1 |
+| (c) 键完整性 | `en` 与 `zh-Hans` 两份 `.lproj` 的键集合不同，或同一键的占位符位置/类型不同 | 1 |
+| (d) 发布闸门 | 白名单仍有条目（仅 `--fail-if-whitelist-nonempty`，由 `tools/release.sh` 调用，不接 CI 常跑） | 1 |
+
+0 = 通过，2 = 用法错误或输入缺失（缺 Catalog、缺 `.lproj`、缺白名单）。**脚本没有「跳过某一项」的开关**：CI 用 `--require-catalog`，Catalog 源文件缺失即失败（`::error` + 红），不以跳过代替。
 
 ## 5. 语言切换
 
@@ -95,7 +140,7 @@ palette.result.count = "%1$ld task"
 
 | 面 | 策略 | 判据 |
 |---|---|---|
-| CLI 人类输出 | 默认跟随系统语言；`--lang <bcp47>` 与 `KAIRO_LANG` 可钉死；优先级：命令行 > 环境变量 > 系统 | 中英两种语言下回执与用法说明正确，退出码语义不变（0 成功 / 1 运行时 / 2 用法） |
+| CLI 人类输出 | 默认跟随系统语言；`--lang <bcp47>` 与 `KAIRO_LANG` 可钉死；优先级：命令行 > 环境变量 > 系统。**系统语言不可判定时回退 `zh-Hans`**——阶段一不得破坏既有中文脚本，英文用户显式传 `--lang en` 或设 `KAIRO_LANG=en`；`--lang` 值非法按用法错误退出 2 | 中英两种语言下回执与用法说明正确，退出码语义不变（0 成功 / 1 运行时 / 2 用法） |
 | CLI `--json` | 键与值均与语言无关 | 任意语言设置下输出字节一致 |
 | MCP 错误 | **两阶段**：阶段一补稳定 `code`、`message` 保持中文原样；阶段二把 `message` 切英文 | 阶段一：错误响应同时含 `code` 与原中文 `message`，既有文本匹配不被破坏；阶段二：`message` 为英文且 `code` 不变 |
 | MCP 工具描述 | 阶段二一次性切英文（当前 16 条全中文） | 任意宿主语言下描述字节一致 |
@@ -112,11 +157,59 @@ palette.result.count = "%1$ld task"
 
 ## 7. 打包、清单与资源加载
 
-- `tools/build.sh` 手写 `Info.plist`：`CFBundleDevelopmentRegion` 由 `zh_CN` 改为 `en`，新增 `CFBundleLocalizations` 声明 `en` 与 `zh-Hans`。
-- SwiftPM 资源默认进入 `.build` 下的 `.bundle`；自建 `.app` 必须拷进 `Contents/Resources`，否则 `Bundle.module` 在包内失效。全仓当前 `Bundle.module` 使用数为 0，此路径**尚无先例**。
-- 因此把「资源能否命中」提为第一个任务（F-0700）。
-- 资源必须在代码签名覆盖范围内；OTA 是整包替换，升级后仍需命中（风险 R4）。
-- 备选方案（若 F-0700 结论为否）：显式拷贝 `en.lproj` / `zh-Hans.lproj` 并用 `Bundle(url:)` 加载。该路径的通过判据为 `preferredLocalizations.first` 在两种系统语言下分别返回 `en` 与 `zh-Hans`，且 `CFBundleLocalizations` 仍生效。
+### 7.1 实测结论（F-0700，已定论）
+
+环境：macOS 26 / Swift 6.3.1 / tools-version 5.9。
+
+| # | 实测 | 后果 |
+|---|---|---|
+| E1 | `resources: [.process("Resources")]` 对 `.xcstrings` 只原样拷贝、不编译，产物 `localizations == []` | 「Catalog 进 target + `Bundle.module`」不通 |
+| E2 | SwiftPM 生成的 resource bundle 无 `Info.plist`，`preferredLocalizations` 恒为 `["en"]`，显式 `locale:` 也不生效 | 资源宿主必须是自建 `.app` |
+| E3 | `.app` + `Contents/Resources/{en,zh-Hans}.lproj` + 清单含 `CFBundleDevelopmentRegion=en` 与 `CFBundleLocalizations`：`preferredLocalizations`、`String(localized:)`、复数 `%1$ld` 全对，`-AppleLanguages` 可钉死 | 定为唯一路径 |
+
+**结论**：本文档上一版的默认假设「Catalog 进 target、按 `Bundle.module` 命中」**判否**（E1/E2），改用主路径 B。`.xcstrings` 不进任何 target 的 `resources` 声明，`Package.swift` 不需要改动。
+
+### 7.2 主路径 B（已实施）
+
+```
+Apps/macos/Resources/Localizable.xcstrings        # 唯一源文件
+  → tools/i18n-compile.sh <输出目录>              # xcrun xcstringstool compile
+  → <输出目录>/{en,zh-Hans}.lproj/{Localizable.strings, Localizable.stringsdict}
+  → tools/build.sh：codesign 之前拷进 Kairo.app/Contents/Resources/
+  → 运行期 Bundle.main 取词（§4），未命中时回退调用点写的英文
+```
+
+**表名约束**：`xcstringstool` 按 Catalog 文件名生成表名（`Localizable.xcstrings` → `Localizable.strings`），而运行期取词走 `Bundle.localizedString(forKey:value:table: nil)`，只读 `Localizable` 表。因此 `tools/i18n-compile.sh` 直接拒绝非 `Localizable.xcstrings` 的文件名——改名不会报错，只会让界面静默退回英文兜底。
+
+`tools/build.sh` 的四处改动：
+
+1. `CFBundleDevelopmentRegion` 由 `zh_CN` 改为 `en`；
+2. 新增 `CFBundleLocalizations` 数组，声明 `en` 与 `zh-Hans`；
+3. 拷可执行文件之后、`codesign` **之前**把两个 `.lproj` 拷进 `Contents/Resources/`——资源必须在签名覆盖范围内，OTA 是整包替换，升级后仍需命中（R4）；
+4. 缺 Catalog 或缺任一 `.lproj` 直接 `exit 1`，不静默回退成单语包。
+
+### 7.3 判据
+
+```bash
+bash tools/i18n-compile.sh /tmp/lproj                 # 产出 en / zh-Hans 两个 .lproj
+bash tools/build.sh                                   # 打包（内部会重新编译并拷入 .app）
+plutil -p dist/Kairo.app/Contents/Info.plist | grep -A3 CFBundleLocalizations
+ls dist/Kairo.app/Contents/Resources | grep lproj     # 应有 en.lproj 与 zh-Hans.lproj
+bash tools/i18n-lint.sh                               # (a)(b)(c) 全过
+```
+
+语言协商（两条各启动一次，界面文案随之切换；系统「语言与地区」不改也能判定）：
+
+```bash
+dist/Kairo.app/Contents/MacOS/Kairo -AppleLanguages '(en)'
+dist/Kairo.app/Contents/MacOS/Kairo -AppleLanguages '(zh-Hans)'
+```
+
+### 7.4 副作用与不做的事
+
+- `swift run` / `swift test` 下没有 `.lproj`（E1/E2），所以文案一律走 §4 的英文兜底取词函数，否则裸跑会显示裸键；
+- 不把编译后的 `.lproj` 提交进仓库：同一文案两个源，必然漂移；
+- CLI 不用 Catalog：`dist/KairoCLI` 是裸可执行文件、无 `Info.plist`，没有 `.lproj` 宿主（与 E2 同类结论），语言由 `--lang` / `KAIRO_LANG` / 系统语言决定（§6）。
 
 ## 8. 测试策略
 
@@ -160,8 +253,8 @@ F-0700 资源实验 → F-0701 键规范 → F-0713 断言分类（与后续并�
 
 | ID | 任务 | 依赖 | 验收判据 | 规模 |
 |---|---|---|---|---|
-| F-0700 | 资源加载前置实验 | — | `.xcstrings` 在 swift build 产物与自建 .app 两种形态下均命中；端到端验证：切系统语言后界面文案随之变化 | S |
-| F-0701 | 字符串清单与键命名规范 | F-0700 | 清单按 §1 五类位置分册；键规范抽样 20 条评审无歧义；产出 v0.8.5 的键-文案对照表（作为 §11 判据 2 的基线） | M |
+| F-0700 | 资源加载前置实验 | — | **已定论（见 §7.1，判据回填）**：原判据「Catalog 进 target、`Bundle.module` 可命中」**判否**（E1 只拷贝不编译 / E2 resource bundle 无 Info.plist）；实测通过的是 E3——`.xcstrings` 只作源，`xcstringstool` 编出 `.lproj` 装进 `.app` + 清单声明两语言，`preferredLocalizations`、`String(localized:)`、复数与 `-AppleLanguages` 全对 → 采用主路径 B（§7.2） | S |
+| F-0701 | 字符串清单与键命名规范 | F-0700 | 清单按 §1 五类位置分册；键规范抽样 20 条评审无歧义；产出 v0.8.5 的键-文案对照表（作为 §11 判据 2 的基线）。规约已落 §4：域清单（14 个）、`<域>.<对象>.<语义>`、位置参数占位符、唯一取词入口 `I18n.t(key, en)` 及其英文兜底理由；机器校验见 §4 的三道门禁 | M |
 | F-0702 | 核心层日期与数字格式化收敛 | F-0701 | 注入 `en_US` 时无「年月日」；`zh_CN` 下语义等价；Linux 编译通过 | M |
 | F-0712 | 视图层日期与单位格式化收敛 | F-0701（与 F-0702 可并行） | 改造清单：`Display` 的 `dateFormatter` 与 `shortDateFormatter` 改为按注入 `Locale` 走 `setLocalizedDateFormatFromTemplate`；`monthTitle` / `weekdaySymbols` / `dayLabel` / `duration` 四个拼接函数改用本地化 API；`TimelineView` 预览日期、`CommandRegistry` 两处时间戳、`WorkspaceStore` 的 `clockFormatter` 各自判定「展示格式（本地化）」还是「契约格式（保持）」。排除项：`isoDateFormatter`（`en_US_POSIX` + `yyyy-MM-dd`）保持不动并新增用例锁死输出 | M |
 | F-0703 | 核心、会话与更新模块错误语义化 | F-0701 | `ViolationEngine` 的 12 条消息模板、`KairoSession` 的 30 行、`KairoUpdater` 的 49 行 errorDescription 全部改为「码 + 参数」；无自然语言拼接；Linux 编译通过 | M |
@@ -175,12 +268,14 @@ F-0700 资源实验 → F-0701 键规范 → F-0713 断言分类（与后续并�
 | F-0710 | 测试改造 | F-0705、F-0712、F-0713 | 双 Locale 全绿；新增键完整性测试；白名单外无硬编码文案 | L |
 | F-0711 | 文档与 CI 门禁 | F-0710 | 术语表含英文列；CI 拦截白名单外新增中文；两侧零缺键检查在 CI 执行；**CI 断言三层无 `Bundle.module`** | S |
 | F-0713 | 断言分类盘点 | F-0700 | 327 条全部归类并附理由；抽样 20 条评审一致 | M |
-
+| F-0715 | D-022：任务晚于项目窗口时违例文案点明用户输入致因 | F-0703 | 违例码统一为 `schedule_start_after_project_window`（原写作 `window.startAfterProjectEnd`，与 §A 的 `<group>_<detail>` 文法不一致，冻结前改名）；参数含「任务开始日 / 项目窗口」；中文文案点明是输入导致；D-022 回归用例通过 | S |
+| F-0716 | D-023：时限窗口改用日历日而非 86 400 秒 | — | America/New_York 跨 DST 的时限冲突判定与期望一致；新增两条跨 DST 用例（春进 / 秋退） | M |
+| F-0717 | D-024：统一「无下界」哨兵口径 | — | `startDateLowerBound` 与排期内部哨兵使用同一常量；现有排期用例零变化 | S |
 ## 11. 验收判据（版本级）
 
 | # | 判据 | 检测方式 |
 |---|---|---|
-| 1 | 英文系统下遍历主窗口、检查器、命令面板、菜单、状态栏、更新面板、退出确认弹窗、保存失败弹窗，无中文残留 | F-0711 扫描脚本输出为空（系统提供部分除外，清单见 §8）+ 八个界面各存一张截图归档 |
+| 1 | 英文系统下遍历主窗口、检查器、命令面板、菜单、状态栏、更新面板、退出确认弹窗、保存失败弹窗，无中文残留 | `tools/i18n-lint.sh` 白名单清零（`tools/release.sh` 以 `--fail-if-whitelist-nonempty` 断言，系统提供部分除外，清单见 §8）+ 八个界面各存一张截图归档 |
 | 2 | 简体中文下文案语义与 v0.8.5 一致 | 以 F-0701 产出的键-文案对照表为基线逐条 diff，差异逐条记录在变更说明中 |
 | 3 | CLI 双语言输出正确、`--json` 字节一致、退出码不变 | 接口测试：同命令以 `--lang en` / `--lang zh-Hans` 各跑一次，比较 stdout 字节与退出码 |
 | 4a | 阶段一：MCP 错误含 `code` 且 `message` 仍是原中文 | 起进程、注入不同 `LANG` 发同一 JSON-RPC 请求，断言 `code` 存在且 `message` 与 v0.8.5 逐字一致 |
@@ -188,11 +283,20 @@ F-0700 资源实验 → F-0701 键规范 → F-0713 断言分类（与后续并�
 | 5 | 双 Locale 全量测试通过、键完整性通过 | `swift test` 矩阵加 `-AppleLanguages` 参数；键完整性为纯数据比对 |
 | 6 | 从零构建的应用在英文系统显示英文，OTA 升级后仍生效 | 构建产物断言（`plutil -p` 查清单、`Contents/Resources` 查 `.lproj` 存在）+ 启动后读 `Bundle.preferredLocalizations` 的半自动断言 |
 
+**F-0705 收口顺序（发布证据链）**：① 清零前先跑一次 `tools/i18n-lint.sh --require-catalog --lproj-dir <编译产物>` 留档（输出里的「白名单有 N 条已清理」）；若已被 `--write-whitelist` 覆盖，轨迹可用 git 无损重建，不依赖终端截图：
+
+```bash
+git show <清零前的提交>:tools/i18n-whitelist.txt | grep -v '^#' | grep -c '[^[:space:]]'   # 404
+git show <清零后的提交>:tools/i18n-whitelist.txt | grep -v '^#' | grep -c '[^[:space:]]'   # 0
+```
+
+② 清零与视图改动必须落在**同一个提交**里，否则「404 → 0」只存在于工作区，换分支即断链；③ 复核 `--fail-if-whitelist-nonempty` exit 0。发布闸门本身只认 `tools/release.sh` 里的 `--fail-if-whitelist-nonempty`，①②③ 是取证，不替代判定。
+
 ## 12. 风险与前置验证
 
 | 编号 | 事项 | 处置 |
 |---|---|---|
-| P1 | SwiftPM 资源在自建 `.app` 内的加载路径 | F-0700 先验；结论为否则走 §7 备选方案，判据为 `preferredLocalizations` 取值 |
+| P1 | SwiftPM 资源在自建 `.app` 内的加载路径 | **已定论**（§7.1）：SwiftPM 侧的「Catalog 进 target」判否，采用主路径 B（`.xcstrings` 只作源、编译进 `.app`）；剩余风险由 §7.3 的构建产物断言与 F-0711 门禁覆盖 |
 | P2 | 运行中切换语言的可行性与回归面 | 不影响本期；有结论后再评估 |
 | P3 | 327 处断言的分类比例 | F-0713 产出清单，作为 F-0710 估时依据 |
 | R1 | 键命名定得太晚导致返工 | F-0701 先于 F-0703 / F-0704 / F-0705 |
@@ -209,7 +313,8 @@ F-0700 资源实验 → F-0701 键规范 → F-0713 断言分类（与后续并�
 | CHANGELOG | 新特性 + 两次 MINOR：v0.9.0 记语言支持与 MCP `code`；v0.10.0 记 MCP 文案变更（显著标注破坏点） | 两条 MINOR 版本条目 |
 | 术语表 | 新增「更新面板（UpdateSheet）」等条目与英文列 | `04-glossary.md` 扩列 |
 | QUICKSTART | CLI 新增 `--lang` | 补参数说明与示例 |
-| `tools/build.sh` | 清单语言键 + 资源拷贝 | 资源缺失时构建失败，不静默回退 |
-| CI | 新增硬编码中文门禁、缺键检查、`Bundle.module` 守卫 | 白名单入库；Linux 任务不变 |
+| `tools/build.sh` + `tools/i18n-compile.sh` | 清单语言键 + 构建期编译 Catalog + 资源拷贝 | 资源缺失时构建失败，不静默回退（§7.2） |
+| `tools/release.sh` | 发版前置校验新增多语言闸门：编译 Catalog → 全量 lint → 断言白名单为空 | 白名单非空即发版失败（§11 判据 1）；开发期不受影响 |
+| CI | 新增硬编码中文门禁、缺键检查、`Bundle.module` 守卫，落在 `tools/i18n-lint.sh`（含白名单 `tools/i18n-whitelist.txt`），并跑 `tools/i18n-lint-selftest.sh` 自测 | 白名单入库；Linux 任务不变；**没有跳过模式**：CI 用 `--require-catalog`，Catalog 缺失即 `::error` + 失败（F-0705 合入前该步骤保持红色），不以跳过代替 |
 | 测试套件 | 327 处含中文断言 | F-0713 分类后由 F-0710 改造 |
 | 架构文档 | 分层职责新增「文案归属」 | `ARCHITECTURE.md` 补一条约束并指向本文 |

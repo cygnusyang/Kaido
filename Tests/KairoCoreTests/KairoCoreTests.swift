@@ -1,6 +1,13 @@
 import Foundation
 import Testing
+
 @testable import KairoCore
+
+// MARK: - 夹具数据（用户数据，不翻译；断言与构造共用同一常量）
+private let b0Fixture1 = "今日任务"
+private let b0Fixture2 = "完成任务"
+private let b0Fixture3 = "支付网关"
+private let b0Fixture4 = "逾期任务"
 
 // MARK: - Fixtures
 
@@ -129,12 +136,19 @@ private final class StubFindTarget: FindTarget {
     #expect(term?.matches(makeTask(title: "Onboarding flow")) == true)
 }
 
-@Test func explanationSummarizesClauses() {
-    let clauses = AIFilterTranslator.translate("overdue done")
-    let text = AIFilterTranslator.explanation(for: clauses)
-    #expect(text.contains("筛选"))
-    #expect(text.contains("逾期"))
-    #expect(text.contains("status=done"))
+@Test func filterSummaryCarriesSemanticPredicates() {
+    // F-0718：摘要只带码 + 参数，不含自然语言（渲染在 UI / CLI / MCP 各自做）。
+    let summary = AIFilterTranslator.summary(for: AIFilterTranslator.translate("overdue done"))
+
+    #expect(summary.predicates == [
+        .overdue,
+        .field(key: .status, match: .isValue, value: "done"),
+    ])
+    // 语义值里不得出现任何 CJK 字符（旧实现返回「筛选：逾期 + status=done」）。
+    let encoded = try? JSONEncoder().encode(summary)
+    let text = encoded.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+    #expect(!text.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) },
+            "筛选摘要的序列化结果含中文：\(text)")
 }
 
 @Test func applyFiltersFixtureTasks() {
@@ -146,38 +160,38 @@ private final class StubFindTarget: FindTarget {
     let todayEnd = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: now)!
 
     let tasks = [
-        makeTask(title: "逾期任务", dueDate: past, status: .pending),
-        makeTask(title: "完成任务", dueDate: past, status: .done),
-        makeTask(title: "今日任务", dueDate: todayEnd, status: .pending),
+        makeTask(title: b0Fixture4, dueDate: past, status: .pending),
+        makeTask(title: b0Fixture2, dueDate: past, status: .done),
+        makeTask(title: b0Fixture1, dueDate: todayEnd, status: .pending),
         makeTask(title: "未来任务", dueDate: future, status: .pending),
     ]
 
     let overdue = AIFilterTranslator.apply(clauses: [.overdue], to: tasks)
     #expect(overdue.count == 1)
-    #expect(overdue.first?.title == "逾期任务")
+    #expect(overdue.first?.title == b0Fixture4)
 
     let dueToday = AIFilterTranslator.apply(clauses: [.dueToday], to: tasks)
     #expect(dueToday.count == 1)
-    #expect(dueToday.first?.title == "今日任务")
+    #expect(dueToday.first?.title == b0Fixture1)
 
     let done = AIFilterTranslator.apply(
         clauses: [.term(SearchTerm(key: .status, matcher: .isValue("done")))],
         to: tasks
     )
     #expect(done.count == 1)
-    #expect(done.first?.title == "完成任务")
+    #expect(done.first?.title == b0Fixture2)
 }
 
 @Test func applyAndCombinesClauses() {
     let tasks = [
-        makeTask(title: "支付网关", status: .done, tags: ["backend"]),
-        makeTask(title: "支付网关", status: .pending, tags: ["backend"]),
+        makeTask(title: b0Fixture3, status: .done, tags: ["backend"]),
+        makeTask(title: b0Fixture3, status: .pending, tags: ["backend"]),
         makeTask(title: "登录页", status: .pending, tags: ["frontend"]),
     ]
     let clauses = AIFilterTranslator.translate("done tag:backend")
     let result = AIFilterTranslator.apply(clauses: clauses, to: tasks)
     #expect(result.count == 1)
-    #expect(result.first?.title == "支付网关")
+    #expect(result.first?.title == b0Fixture3)
     #expect(result.first?.status == .done)
 }
 

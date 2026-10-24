@@ -70,7 +70,7 @@ if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
   fail "本地已存在 tag $TAG"
 fi
 if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-  fail "远端已存在 tag $TAG（远端不可达时忽略此检查）"
+  fail "远端已存在 tag ${TAG}（远端不可达时忽略此检查）"
 fi
 
 # 版本必须比现有最大 tag 新，避免误发倒退版本
@@ -84,9 +84,21 @@ fi
 # changelog 章节：Release 说明的唯一来源，缺了就别发
 NOTES_FILE="${TMPDIR:-/tmp}/kairo-release-notes-${TAG}.md"
 if ! bash tools/release_notes.sh "$TAG" > "$NOTES_FILE" 2>/dev/null; then
-  fail "CHANGELOG.md 缺少「## $TAG」章节——先写好再发版"
+  fail "CHANGELOG.md 缺少「## ${TAG}」章节——先写好再发版"
 fi
 echo "    changelog 章节: $(wc -l < "$NOTES_FILE" | tr -d ' ') 行"
+
+# 多语言发布闸门（06-localization §11 判据 1 / §13）：视图层零中文 + 两侧键完整。
+# 白名单必须为空——开发期它是迁移基线，发版时它必须消失。
+echo "==> 校验多语言资源"
+LPROJ_TMP="$(mktemp -d)/lproj"
+if ! bash tools/i18n-compile.sh "$LPROJ_TMP" >/dev/null; then
+  fail "多语言: Catalog 编译失败（缺 Apps/macos/Resources/Localizable.xcstrings 或 xcstringstool？）"
+fi
+if ! bash tools/i18n-lint.sh --require-catalog --fail-if-whitelist-nonempty --lproj-dir "$LPROJ_TMP"; then
+  fail "多语言: 门禁未通过（白名单未清零或键/占位符不一致，见上方输出）"
+fi
+echo "    视图层无未登记中文，两侧键与占位符一致"
 
 # ---------- 2. 同步三处版本号 ----------
 echo "==> 版本号 → $VERSION"

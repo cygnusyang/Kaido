@@ -45,6 +45,23 @@ jobs:
       - name: 门禁 · 视图层不得直接引用核心模型（ADR-013）
         run: bash tools/gate-ui.sh
 
+      - name: 门禁 · 脚本变量不得紧跟全角字符（bash 3.2 会把全角并入变量名，#7）
+        run: bash tools/check-shell-fullwidth.sh
+
+      - name: 门禁 · 多语言（零硬编码中文 / 无 Bundle.module / 键完整 / 白名单为空）
+        run: |
+          set -euo pipefail
+          CATALOG="Apps/macos/Resources/Localizable.xcstrings"
+          if [[ ! -f "$CATALOG" ]]; then
+            echo "::error title=i18n::缺少 $CATALOG —— 键完整性无法校验。F-0705（视图接入 Catalog）未合入前本步骤保持红色，这是门禁的预期行为，不要加跳过开关。"
+            exit 1
+          fi
+          bash tools/i18n-compile.sh "$RUNNER_TEMP/kairo-lproj"
+          bash tools/i18n-lint.sh --require-catalog --fail-if-whitelist-nonempty --lproj-dir "$RUNNER_TEMP/kairo-lproj"
+
+      - name: 自测 · 多语言门禁自身（用例只增不减）
+        run: bash tools/i18n-lint-selftest.sh
+
   linux:
     name: test · Linux（核心与接口层）
     runs-on: ubuntu-latest

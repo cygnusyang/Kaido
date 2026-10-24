@@ -1,4 +1,5 @@
 import Foundation
+import KairoCore
 import KairoCommands
 
 /// MCP 服务核心：逐行 JSON-RPC 2.0 传输（ADR-010 零第三方依赖）。
@@ -21,7 +22,11 @@ final class MCPServer {
     func handle(requestJSON: String) -> String? {
         guard let request = try? JSONDecoder().decode(JSONRPCRequest.self, from: Data(requestJSON.utf8)) else {
             return encode(.failure(
-                JSONRPCErrorObject(code: JSONRPCErrorCode.parseError, message: "解析失败：无效的 JSON-RPC"),
+                JSONRPCErrorObject(
+                    code: JSONRPCErrorCode.parseError,
+                    reason: KairoErrorCode.mcpParseError.rawValue,
+                    message: "解析失败：无效的 JSON-RPC"
+                ),
                 id: extractID(from: requestJSON)
             ))
         }
@@ -44,7 +49,11 @@ final class MCPServer {
             return .ok(.object([:]), id: request.id)
         default:
             return .failure(
-                JSONRPCErrorObject(code: JSONRPCErrorCode.methodNotFound, message: "未知方法：\(request.method)"),
+                JSONRPCErrorObject(
+                    code: JSONRPCErrorCode.methodNotFound,
+                    reason: KairoErrorCode.mcpMethodNotFound.rawValue,
+                    message: "未知方法：\(request.method)"
+                ),
                 id: request.id
             )
         }
@@ -81,13 +90,21 @@ final class MCPServer {
         let params = request.params?.objectValue ?? [:]
         guard let name = params["name"]?.stringValue else {
             return .failure(
-                JSONRPCErrorObject(code: JSONRPCErrorCode.invalidParams, message: "tools/call 缺少 name"),
+                JSONRPCErrorObject(
+                    code: JSONRPCErrorCode.invalidParams,
+                    reason: KairoErrorCode.mcpMissingToolName.rawValue,
+                    message: "tools/call 缺少 name"
+                ),
                 id: request.id
             )
         }
         guard let tool = registry.find(name) else {
             return .failure(
-                JSONRPCErrorObject(code: JSONRPCErrorCode.methodNotFound, message: "未知工具：\(name)"),
+                JSONRPCErrorObject(
+                    code: JSONRPCErrorCode.methodNotFound,
+                    reason: KairoErrorCode.mcpUnknownTool.rawValue,
+                    message: "未知工具：\(name)"
+                ),
                 id: request.id
             )
         }
@@ -103,7 +120,7 @@ final class MCPServer {
             )
         } catch {
             let failure = self.failure(from: error)
-            let text = (try? encodeText(.json(failure))) ?? "{\"code\":\"internal_error\"}"
+            let text = (try? encodeText(.json(failure))) ?? "{\"code\":\"internal_error\",\"reason\":\"internal_error\"}"
             return .ok(
                 .object([
                     "content": .array([.object(["type": .string("text"), "text": .string(text)])]),
@@ -115,29 +132,55 @@ final class MCPServer {
     }
 
     /// 映射错误为结构化失败（架构 §3.1 错误契约）。
+    ///
+    /// `code` 是冻结的粗粒度分类（不改取值），`reason` 是本版新增的细粒度稳定码；
+    /// `message` 阶段一保持中文原样（设计 §6：先给码，v0.10.0 再切英文）。
     private func failure(from error: Error) -> ToolFailure {
         switch error {
         case let sessionError as SessionError:
             return ToolFailure(
                 code: sessionError.code.rawValue,
+                reason: sessionError.reason.rawValue,
                 message: sessionError.message,
                 taskID: sessionError.taskID?.uuidString
             )
         case let toolError as ToolError:
-            return ToolFailure(code: "invalid_argument", message: toolError.description, taskID: nil)
+            return ToolFailure(
+                code: "invalid_argument",
+                reason: toolError.reason.rawValue,
+                message: toolError.description,
+                taskID: nil
+            )
         default:
-            return ToolFailure(code: "internal_error", message: "\(error)", taskID: nil)
+            return ToolFailure(
+                code: "internal_error",
+                reason: KairoErrorCode.internalError.rawValue,
+                message: "\(error)",
+                taskID: nil
+            )
         }
     }
 
     private func encode(_ response: JSONRPCResponse) -> String? {
-        guard let data = try? JSONEncoder().encode(response) else { return nil }
+        guard let data = try? makeEncoder().encode(response) else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
     private func encodeText(_ value: JSONValue) throws -> String {
-        let data = try JSONEncoder().encode(value)
+        let data = try makeEncoder().encode(value)
         return String(data: data, encoding: .utf8) ?? "{}"
+    }
+
+    /// 统一的响应编码器：键序固定为字典序。
+    ///
+    /// 为什么必须排序：`JSONValue` 用 Swift `Dictionary` 承载对象，遍历顺序随进程种子变化，
+    /// 同一请求两次运行的字节可能不同——「任意 LANG 下输出逐字节一致」无法成立，
+    /// 日志 diff 与首轮提示词缓存也会无谓抖动。`.sortedKeys` 作用在 keyed container 的
+    /// 输出阶段，字典插入顺序被覆盖，`JSONValue.encode` 无需改动。
+    private func makeEncoder() -> JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        return encoder
     }
 
     /// 从无法反序列化的文本里尽力取出 id（parse error 响应用）。

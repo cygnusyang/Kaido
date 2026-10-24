@@ -1,7 +1,11 @@
 import Foundation
 import Testing
+
 @testable import KairoCore
 @testable import KairoCommands
+
+// MARK: - 夹具数据（用户数据，不翻译；断言与构造共用同一常量）
+private let b0Fixture1 = "测试机"
 
 // 资源模型与投入↔持续时间换算（US-E1-05 / F-22-03 / F-23-01）
 // 与状态回写（US-E3-01 / US-E3-02）。
@@ -85,14 +89,14 @@ struct ResourceModelTests {
 
     @Test func resourcesPersistThroughKairoFileRoundTrip() throws {
         let project = Project()
-        project.resources.append(Resource(name: "测试机", kind: .equipment, units: 1, efficiency: 1))
+        project.resources.append(Resource(name: b0Fixture1, kind: .equipment, units: 1, efficiency: 1))
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("kairo-res-\(UUID().uuidString).kairo")
         defer { try? FileManager.default.removeItem(at: url) }
         try KairoFile.save(project, to: url)
         let loaded = try KairoFile.load(from: url)
         #expect(loaded.resources.count == 1)
-        #expect(loaded.resources.first?.name == "测试机")
+        #expect(loaded.resources.first?.name == b0Fixture1)
     }
 
     @Test func legacyEnvelopeWithoutResourcesDefaultsEmpty() throws {

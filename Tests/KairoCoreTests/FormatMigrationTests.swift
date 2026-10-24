@@ -1,6 +1,13 @@
 import Foundation
 import Testing
+
 @testable import KairoCore
+
+// MARK: - 夹具数据（用户数据，不翻译；断言与构造共用同一常量）
+private let b0Fixture1 = "当前格式"
+private let b0Fixture2 = "端到端 v2 v3"
+/// 测试自造的迁移步骤拒绝语（测试数据，不是产品文案）：构造与断言共用同一常量。
+private let b0SyntheticRejectionReason = "合成迁移拒绝继续"
 
 // MARK: - 合成迁移（仅测试使用）
 
@@ -131,12 +138,12 @@ private func capturedError<T>(_ body: () throws -> T) -> Error? {
 @Test func fr_kairo_fmt_1_current_version_skips_migration() throws {
     // 若管线错误地对当前版本执行迁移，该步骤会抛错。
     let plan = FormatMigrationPlan([ThrowingMigration(toVersion: KairoFile.currentFormatVersion + 1)])
-    let data = try KairoFile.encode(project: makeProject(title: "当前格式"))
+    let data = try KairoFile.encode(project: makeProject(title: b0Fixture1))
 
     let decoded = try KairoFile.read(from: data, plan: plan)
 
     #expect(decoded.sourceFormatVersion == KairoFile.currentFormatVersion)
-    #expect(decoded.project.metadata.title == "当前格式")
+    #expect(decoded.project.metadata.title == b0Fixture1)
 }
 
 // MARK: - FR-KAIRO-FMT-2：顺序迁移
@@ -171,7 +178,7 @@ private func capturedError<T>(_ body: () throws -> T) -> Error? {
 
     #expect(decoded.sourceFormatVersion == 1)
     #expect(recorder.appliedVersions == [2, 3])
-    #expect(decoded.project.metadata.title == "端到端 v2 v3")
+    #expect(decoded.project.metadata.title == b0Fixture2)
     #expect(decoded.project.tasks.count == 1)
 }
 
@@ -294,7 +301,7 @@ private func capturedError<T>(_ body: () throws -> T) -> Error? {
     }
     #expect(from == 0)
     #expect(to == 1)
-    #expect(reason.contains("合成迁移拒绝继续"))
+    #expect(reason.contains(b0SyntheticRejectionReason))
 }
 
 @Test func fr_kairo_fmt_4_failed_migration_writes_nothing() throws {
@@ -318,7 +325,7 @@ private func capturedError<T>(_ body: () throws -> T) -> Error? {
     }
     #expect(from == 1)
     #expect(to == 2)
-    #expect(reason.contains("合成迁移拒绝继续"))
+    #expect(reason.contains(b0SyntheticRejectionReason))
     #expect(try Data(contentsOf: sourceURL) == sourceBytes)
     #expect(try modificationDate(of: sourceURL) == mtimeBefore)
     #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path) == ["source.kairo"])
