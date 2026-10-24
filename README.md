@@ -1,6 +1,17 @@
 # Kairo
 
-辅助 AI 编码智能体（Claude Code、Codex 等）开发复杂项目的项目管理软件：AI 负责执行，Kairo 负责 WBS 分解、排期、状态追踪与进度对照。
+[![Release](https://img.shields.io/github/v/release/cygnusyang/Kairo?color=blue)](https://github.com/cygnusyang/Kairo/releases/latest)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)](https://github.com/cygnusyang/Kairo/releases/latest)
+[![Swift](https://img.shields.io/badge/swift-5.9%2B-orange)](Package.swift)
+
+AI 编码智能体的项目管理软件。Claude Code、Codex 负责执行，Kairo 负责 WBS 分解、排期、依赖与进度对照 —— 让「AI 干到哪了、还剩什么、什么时候能完」有账可查。
+
+> Project management for AI coding agents: WBS breakdown, dependencies, scheduling and progress tracking. AI executes, you review.
+
+![Kairo 计划工作台：左侧大纲与右侧时间画布逐行对齐取证](docs/images/app-plan-workbench.png)
+
+**[下载 macOS 应用](https://github.com/cygnusyang/Kairo/releases/latest)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.md)** · **[产品与架构文档](docs/01-prd.md)**
 
 **状态：开发中。** 已完成 Sprint 0–3 与 ADR-013 计划工作台重设计（核心模型、`.kairo` 持久化、调度引擎与违例检查、状态回写、大纲与时间画布工作台、Claude Code 插件与深链）；669 项测试通过。更新：2026-10-18。
 
@@ -96,7 +107,7 @@ id() { "$BIN" task list --file demo.kairo --json \
 ```bash
 swift build                 # Debug 构建
 swift build -c release      # Release 构建
-swift test                  # 全量测试（335 项）
+swift test                  # 全量测试
 bash tools/gate-core.sh     # 核心门禁：KairoCore/KairoCommands/KairoPresentation 不得 import AppKit/SwiftUI/Cocoa/Combine
 bash tools/gate-ui.sh       # 视图门禁：视图不直接引用 Project/TaskItem/KairoSession
 bash tools/build.sh         # Release 构建并打包 dist/Kairo.app（另产出 KairoCLI / KairoMCP）
@@ -277,3 +288,7 @@ docs/                       需求、架构、设计系统、路线图与 Sprint
 - hook 与应用并发写同一 `.kairo` 不自动合并：应用检测到磁盘更新会提示「重新载入 / 保留本地」，回写期间仍建议关闭应用或回写后重新打开。
 - 拖条改期、拖拽建依赖、多选、基线与资源视图不在本期；依赖创建从检查器进入。
 - 非工作时段目前只按周六/周日着色，项目与资源工作日历属后续版本。
+
+## 许可证
+
+[MIT](LICENSE)。
