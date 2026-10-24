@@ -3,6 +3,21 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.8.5 — 2026-10-24
+
+### 新增
+
+- **发布附带 CLI / MCP 二进制**：Release 增加 `kairo-v0.8.5-macos-universal.tar.gz`（含 `kairo` 与 `kairo-mcp`，arm64 + x86_64 通用二进制）及 `.sha256` 校验文件。接入智能体不再需要装 Swift 工具链编译，解包即可用。
+- **持续集成**：新增 `.github/workflows/ci.yml`，push 与 PR 触发 macOS（测试 + 两道门禁）与 Linux（`swift:6.0-jammy`，验证 ADR-004 可移植性）双任务，README 挂 CI 徽章。
+- **可选签名与公证**：发布流水线支持 Developer ID 签名 + `notarytool` 公证 + staple；未配置证书时整段跳过，未签名发布照常进行。所需 secrets 见 `CONTRIBUTING.md`。
+- **英文文档**：新增 `QUICKSTART.md`、`ARCHITECTURE.md`、`CONTRIBUTING.md`、`SECURITY.md`、Issue / PR 模板；五张架构图改为中英双语生成（`tools/gen-arch-svg.py`，`KAIRO_SVG_LANG=en|zh`）。
+
+### 修复
+
+- **Linux 构建失败（#4）**：`Package.swift` 外层 `#if os(macOS)` 内嵌套同名条件，非 macOS 时 `updaterProduct` 未定义、清单编译失败。
+- **核心层依赖 CoreFoundation（#5）**：`FormatDocument.parseVersion` 用 `CFGetTypeID` 判 JSON 布尔，Linux 无此符号；改用 `objCType`，行为不变。
+- **测试目标硬依赖 Darwin / Process（#6）**：`InterfaceTests` 条件导入 Darwin/Glibc；`TaskHookTests` 依赖 `Process`，限定在 Darwin 主机执行。
+
 ## v0.8.4 — 2026-10-24
 
 ### 修复
