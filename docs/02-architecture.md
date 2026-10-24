@@ -8,7 +8,7 @@
 
 ### 1.1 分层图
 
-![Kairo 分层架构](architecture-layers.svg)
+![Kairo 分层架构](architecture-layers.zh-CN.svg)
 
 核心（KairoCore）承载全部业务逻辑：数据模型、调度引擎、存储、查询过滤；接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）互不依赖、能力对等，只复用核心。该结构对应 vision §4 与 G3 判据。
 
@@ -16,7 +16,7 @@ Sprint 4 起，UI 与命令层之间加入 `KairoPresentation`（Foundation-only
 
 ### 1.2 数据流（核心闭环，vision §3）
 
-![Kairo 核心闭环数据流](architecture-dataflow.svg)
+![Kairo 核心闭环数据流](architecture-dataflow.zh-CN.svg)
 
 ## 2. 核心技术选型
 
@@ -170,7 +170,7 @@ kairo version
 
 ### 4.1 实体关系
 
-![Kairo 项目实体关系](architecture-entities.svg)
+![Kairo 项目实体关系](architecture-entities.zh-CN.svg)
 
 要点：
 
@@ -222,7 +222,7 @@ kairo version
 
 现有 `Sources/Kairo/`（单 target）重构为「核心 + 产品」多 target。macOS 应用迁入 `Apps/macos/`。
 
-![Kairo 仓库目录结构](architecture-repo-layout.svg)
+![Kairo 仓库目录结构](architecture-repo-layout.zh-CN.svg)
 
 边界规则：KairoCore 不得反向依赖任何接口层或 UI；接口层只允许依赖 KairoCore 公开 API；`Plugins/claude-code` 为配置与提示词，不含核心逻辑。
 
@@ -248,7 +248,7 @@ kairo version
 
 分层：
 
-![ADR-013 呈现层与唯一写路径分层](architecture-adr013-layers.svg)
+![ADR-013 呈现层与唯一写路径分层](architecture-adr013-layers.zh-CN.svg)
 
 依赖方向单向。`KairoPresentation` 不得 import SwiftUI、AppKit 或 Combine。`KairoCore`、`KairoCommands`、`KairoPresentation` 必须能在 iOS 与 Linux 编译；macOS 应用仍是本期唯一 UI 壳。
 

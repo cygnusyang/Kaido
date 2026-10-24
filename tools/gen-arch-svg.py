@@ -10,6 +10,8 @@
 import io
 import os
 
+LANG = os.environ.get("KAIRO_SVG_LANG", "en")
+
 DOCS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs")
 
 STYLE = """  <style>
@@ -55,9 +57,135 @@ def esc(s):
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+# ------------------------------------------------------------------ 双语
+# KAIRO_SVG_LANG=zh 出中文图；默认 en。中文原文即键，缺键视为无需翻译。
+# 图内坐标按内容自动排布，英文比中文宽，译文长度需受控（见各图注释里的宽度上限）。
+EN = {
+    # ---- 1.1 分层图
+    "Kairo 分层架构": "Kairo layered architecture",
+    "等价接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）之下依次为 KairoPresentation "
+    "与 KairoCommands，底部为跨平台核心 KairoCore（数据模型、调度引擎、存储、查询过滤）。"
+    "箭头方向为依赖方向。":
+        "Four equivalent interfaces (macOS app, MCP server, CLI, Claude Code plugin) sit on top of "
+        "KairoPresentation and KairoCommands; the cross-platform core KairoCore (model, scheduler, "
+        "storage, queries) is at the bottom. Arrows point along the dependency direction.",
+    "等价接口层（能力对等）": "Equivalent interface layer (same capability)",
+    "macOS 应用": "macOS app",
+    "MCP 服务": "MCP server",
+    "Claude Code 插件": "Claude Code plugin",
+    "斜杠命令 + hooks": "slash commands + hooks",
+    "（经 MCP 服务 / CLI 接入）": "(via MCP server / CLI)",
+    "视图状态 → 平台中立快照 + 动作": "view state → snapshot + actions",
+    "KairoSession（唯一写入口）；MCP 服务与 CLI 共用同一命令语义":
+        "KairoSession (single write path); MCP server and CLI share one command semantics",
+    "跨平台核心 KairoCore（纯逻辑）": "Cross-platform core KairoCore (pure logic)",
+    "数据模型": "Data model",
+    "调度引擎": "Scheduler",
+    "存储": "Storage",
+    "查询过滤": "Query",
+    "箭头方向 = 依赖方向（上层依赖下层）。KairoCore / KairoCommands / KairoPresentation "
+    "均为 Foundation-only，":
+        "Arrows point along the dependency direction (upper depends on lower).",
+    "可在 iOS 与 Linux 编译。macOS 应用是本期唯一 UI 壳；MCP 服务与 CLI 经 KairoCommands "
+    "共享同一命令语义，接口层互不依赖。":
+        "KairoCore, KairoCommands, KairoPresentation are Foundation-only (iOS/Linux); the app is the "
+        "only UI shell, and interface layers are independent.",
+
+    # ---- 1.2 数据流
+    "Kairo 核心闭环数据流": "Kairo core loop: data flow",
+    "需求文档经 AI 读取得到 WBS 分解，MCP/CLI 建任务树后由 KairoCore 排期；"
+    "状态回写经 MCP/CLI 回到 AI 逐功能开发，人随时在 macOS 应用审阅与干预。":
+        "The AI reads the requirements document into a WBS; MCP/CLI build the task tree and "
+        "KairoCore schedules it. Status flows back through MCP/CLI to the AI, which builds feature "
+        "by feature while the human reviews in the macOS app.",
+    "需求文档": "Requirements",
+    "WBS 分解": "WBS breakdown",
+    "KairoCore 排期": "KairoCore scheduling",
+    "AI 读取": "read by AI",
+    "(MCP/CLI: 建任务树)": "(MCP/CLI: build task tree)",
+    "AI 逐功能开发": "AI implements",
+    "(MCP/CLI: 状态回写)": "(MCP/CLI: status write-back)",
+    "人随时在 macOS 应用审阅 / 干预": "Human reviews / intervenes in the app",
+    "实线为自动链路；回流段由 MCP/CLI 承接状态回写，形成「需求 → 计划 → 开发 → 回写」闭环。":
+        "Solid lines are automatic; MCP/CLI carry the status write-back, closing the loop "
+        "requirements → plan → build → write-back.",
+
+    # ---- 4.1 实体关系
+    "Kairo 项目实体关系": "Kairo project entity relations",
+    "Project 聚合设置、任务、相关性、资源、分配、工作日历、基线、变更历史与元数据；"
+    "Task、TaskDependency、Resource、TaskAssignment 各自展开字段。":
+        "Project aggregates settings, tasks, dependencies, resources, assignments, work calendar, "
+        "baselines, change history and metadata; Task, TaskDependency, Resource and TaskAssignment "
+        "are expanded field by field.",
+    "priority, tags, constraints(4 个可空时限日期),":
+        "priority, tags, constraints(4 nullable constraint dates),",
+    "快照名 + 时间 + 任务时间/进度": "snapshot name + time + task dates/progress",
+    "字段路径 + 旧值 + 新值 + 时间 + 来源": "field path + old value + new value + time + source",
+    "字段级草案：Task / TaskDependency / Resource / TaskAssignment 展开到字段，其余聚合项只列口径。":
+        "Field-level draft: Task / TaskDependency / Resource / TaskAssignment are expanded to fields; "
+        "the other aggregates state their shape only.",
+
+    # ---- 5 目录结构
+    "Kairo 仓库目录结构": "Kairo repository layout",
+    "monorepo 目录：Package.swift 根清单、Sources 跨平台核心、Apps/macOS 应用、"
+    "Interfaces（MCP / CLI）、Plugins/claude-code、Tests 与 docs。":
+        "Monorepo: Package.swift at the root, Sources for the cross-platform core, Apps/macOS for the "
+        "app, Interfaces (MCP / CLI), Plugins/claude-code, Tests and docs.",
+    "SwiftPM 根清单（core + 各产品 target 同仓）":
+        "SwiftPM manifest (core and product targets in one repo)",
+    "跨平台核心（纯逻辑；零 AppKit/SwiftUI import）":
+        "cross-platform core (pure logic; no AppKit/SwiftUI import)",
+    "调度引擎（相关性传播/重要路径/宽延/违例）":
+        "scheduler (dependency propagation, critical path, slack, violations)",
+    ".kairo 编解码 / 模板 / 导入导出": ".kairo codec / templates / import and export",
+    "AIFilter 迁移 + 查询/过滤接口": "AIFilter migration + query/filter interfaces",
+    "macOS SwiftUI 应用（import KairoCore）": "macOS SwiftUI app (imports KairoCore)",
+    "ContentView / 甘特 / 命令面板 / kairo:// 深链":
+        "ContentView / Gantt / command palette / kairo:// deep links",
+    "MCP 服务（复用 KairoCore）": "MCP server (reuses KairoCore)",
+    "CLI（复用 KairoCore；从 MCP 契约派生命令）":
+        "CLI (reuses KairoCore; commands derived from the MCP contract)",
+    "斜杠命令 + hooks + .mcp.json 模板": "slash commands + hooks + .mcp.json template",
+    "核心全量单测（Linux 亦编译；现有 17 项迁入）":
+        "full core unit tests (also build on Linux)",
+    "应用层测试（Store 交互 + ImageRenderer 离屏渲染）":
+        "app-layer tests (store interaction + offscreen ImageRenderer)",
+    "MCP/CLI 对等性契约测试（US-E5-05）": "MCP/CLI parity contract tests (US-E5-05)",
+    "本文档集（00-vision / 01-prd / 02-architecture / 03-roadmap / features）":
+        "this documentation set (00-vision / 01-prd / 02-architecture / 03-roadmap / features)",
+    "边界规则：KairoCore 不得反向依赖任何接口层或 UI；接口层只允许依赖 KairoCore 公开 API。":
+        "Boundary rule: KairoCore never depends on an interface layer or UI; interface layers may only "
+        "use the public KairoCore API.",
+
+    # ---- 6.1 ADR-013 分层
+    "ADR-013 呈现层与唯一写路径分层": "ADR-013 presentation layer and single write path",
+    "KairoMacApp 依赖 KairoPresentation，KairoPresentation 依赖 KairoCommands，"
+    "KairoCommands 依赖 KairoCore；KairoMCP 与 KairoCLI 经 KairoCommands 接入核心。":
+        "KairoMacApp depends on KairoPresentation, which depends on KairoCommands, which depends on "
+        "KairoCore; KairoMCP and KairoCLI reach the core through KairoCommands.",
+    "SwiftUI：WorkspaceStore 适配、壳层、绘制与手势":
+        "SwiftUI: WorkspaceStore adapter, shell, drawing and gestures",
+    "Foundation-only：视图状态 → 平台中立快照 + 动作":
+        "Foundation-only: view state → neutral snapshot + actions",
+    "Foundation-only：KairoSession（唯一写入口）":
+        "Foundation-only: KairoSession (single write path)",
+    "Foundation-only：模型、排期、违例、查询、布局几何":
+        "Foundation-only: model, scheduling, violations, queries, layout geometry",
+    "箭头指向被依赖层，依赖方向单向。KairoPresentation 不得 import SwiftUI、AppKit 或 Combine；":
+        "Arrows point at the depended-on layer; dependencies are one-way. KairoPresentation must not "
+        "import SwiftUI, AppKit or Combine;",
+    "三层 Foundation-only 模块必须能在 iOS 与 Linux 编译。":
+        "the three Foundation-only modules must build on iOS and Linux.",
+}
+
+
+def tr(s):
+    return s if LANG == "zh" else EN.get(s, s)
+
+
 def text(x, y, s, cls="t-sub", anchor=None):
     a = ' text-anchor="%s"' % anchor if anchor else ""
-    return '  <text class="%s" x="%s" y="%s"%s>%s</text>\n' % (cls, x, y, a, esc(s))
+    return '  <text class="%s" x="%s" y="%s"%s>%s</text>\n' % (cls, x, y, a, esc(tr(s)))
 
 
 def rect(x, y, w, h, cls="panel", rx=8):
@@ -89,7 +217,7 @@ def head(w, h, title, desc):
         '     role="img" aria-labelledby="kairo-fig-title kairo-fig-desc">\n'
         '  <title id="kairo-fig-title">%s</title>\n'
         '  <desc id="kairo-fig-desc">%s</desc>\n'
-        % (w, h, w, h, esc(title), esc(desc))
+        % (w, h, w, h, esc(tr(title)), esc(tr(desc)))
     ) + STYLE + DEFS + '  <rect class="canvas" x="0" y="0" width="%d" height="%d"/>\n' % (w, h)
 
 
@@ -152,9 +280,9 @@ def layers():
         s += text(x + 95, 514, sub, "t-sub", "middle")
 
     s += text(20, 588, "箭头方向 = 依赖方向（上层依赖下层）。KairoCore / KairoCommands / KairoPresentation "
-                       "均为 Foundation-only，可在 iOS 与 Linux 编译。", "t-note")
-    s += text(20, 606, "macOS 应用是本期唯一 UI 壳；MCP 服务与 CLI 经 KairoCommands 共享同一命令语义，"
-                       "接口层互不依赖。", "t-note")
+                       "均为 Foundation-only，", "t-note")
+    s += text(20, 606, "可在 iOS 与 Linux 编译。macOS 应用是本期唯一 UI 壳；MCP 服务与 CLI 经 KairoCommands "
+                       "共享同一命令语义，接口层互不依赖。", "t-note")
     return s + "</svg>\n"
 
 
@@ -335,7 +463,7 @@ def repo_layout():
         s += text(lx(e["depth"]), e["y"] + 14, e["name"], "t-name")
         if e["comment"]:
             cx2 = lx(e["depth"]) + label_w(e["name"]) + 16
-            s += text(cx2, e["y"] + 14, "# " + e["comment"], "t-sub")
+            s += text(cx2, e["y"] + 14, "# " + tr(e["comment"]), "t-sub")
 
     # 竖脊：根 → 一级，以及每组兄弟
     s += vline(cx(1), y_root + box_h, entries[top[0]]["y"])
@@ -382,15 +510,20 @@ def adr013_layers():
     s += text(bx + 16, by + 68, "→ KairoCore", "t-mono")
     s += path("M%d,%d L%d,%d" % (bx, by + bh2 // 2, x + w, by + bh2 // 2))
 
-    s += text(20, H - 16,
-              "箭头指向被依赖层，依赖方向单向。KairoPresentation 不得 import SwiftUI、AppKit 或 Combine；"
-              "三层 Foundation-only 模块必须能在 iOS 与 Linux 编译。", "t-note")
+    s += text(20, H - 32,
+              "箭头指向被依赖层，依赖方向单向。KairoPresentation 不得 import SwiftUI、AppKit 或 Combine；",
+              "t-note")
+    s += text(20, H - 15, "三层 Foundation-only 模块必须能在 iOS 与 Linux 编译。", "t-note")
     return s + "</svg>\n"
 
 
 if __name__ == "__main__":
-    write("architecture-layers.svg", layers())
-    write("architecture-dataflow.svg", dataflow())
-    write("architecture-entities.svg", entities())
-    write("architecture-repo-layout.svg", repo_layout())
-    write("architecture-adr013-layers.svg", adr013_layers())
+    # 默认出英文（仓库主语言），KAIRO_SVG_LANG=zh 出中文；中文文件名加 .zh-CN 后缀。
+    for lang in ("en", "zh"):
+        globals()["LANG"] = lang
+        suffix = "" if lang == "en" else ".zh-CN"
+        write("architecture-layers%s.svg" % suffix, layers())
+        write("architecture-dataflow%s.svg" % suffix, dataflow())
+        write("architecture-entities%s.svg" % suffix, entities())
+        write("architecture-repo-layout%s.svg" % suffix, repo_layout())
+        write("architecture-adr013-layers%s.svg" % suffix, adr013_layers())

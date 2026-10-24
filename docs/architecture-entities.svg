@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 597" width="920" height="597"
      role="img" aria-labelledby="kairo-fig-title kairo-fig-desc">
-  <title id="kairo-fig-title">Kairo 项目实体关系</title>
-  <desc id="kairo-fig-desc">Project 聚合设置、任务、相关性、资源、分配、工作日历、基线、变更历史与元数据；Task、TaskDependency、Resource、TaskAssignment 各自展开字段。</desc>
+  <title id="kairo-fig-title">Kairo project entity relations</title>
+  <desc id="kairo-fig-desc">Project aggregates settings, tasks, dependencies, resources, assignments, work calendar, baselines, change history and metadata; Task, TaskDependency, Resource and TaskAssignment are expanded field by field.</desc>
   <style>
     .canvas { fill: #FFFFFF; }
     .panel { fill: #FFFFFF; stroke: #D8DAE0; stroke-width: 1; }
@@ -51,7 +51,7 @@
   <text class="t-mono" x="106.0" y="149">: [Task]</text>
   <text class="t-sub" x="78" y="166">Task: id, title, notes, kind(task|group|milestone|hammock), parentID?</text>
   <text class="t-sub" x="78" y="183">startDate, dueDate, duration, effort, progress, status,</text>
-  <text class="t-sub" x="78" y="200">priority, tags, constraints(4 个可空时限日期),</text>
+  <text class="t-sub" x="78" y="200">priority, tags, constraints(4 nullable constraint dates),</text>
   <text class="t-sub" x="78" y="217">baselineStart/baselineEnd, customValues</text>
   <path class="tree" d="M38,238 L50,238"/>
   <text class="t-name" x="56" y="242">dependencies</text>
@@ -75,13 +75,13 @@
   <path class="tree" d="M38,457 L50,457"/>
   <text class="t-name" x="56" y="461">baselines</text>
   <text class="t-mono" x="136.4" y="461">: [Baseline]</text>
-  <text class="t-sub" x="78" y="478">快照名 + 时间 + 任务时间/进度</text>
+  <text class="t-sub" x="78" y="478">snapshot name + time + task dates/progress</text>
   <path class="tree" d="M38,499 L50,499"/>
   <text class="t-name" x="56" y="503">history</text>
   <text class="t-mono" x="121.2" y="503">: [ChangeRecord]</text>
-  <text class="t-sub" x="78" y="520">字段路径 + 旧值 + 新值 + 时间 + 来源</text>
+  <text class="t-sub" x="78" y="520">field path + old value + new value + time + source</text>
   <path class="tree" d="M38,541 L50,541"/>
   <text class="t-name" x="56" y="545">metadata</text>
   <text class="t-sub" x="78" y="562">title, fileVersion, createdAt, updatedAt</text>
-  <text class="t-note" x="20" y="591">字段级草案：Task / TaskDependency / Resource / TaskAssignment 展开到字段，其余聚合项只列口径。</text>
+  <text class="t-note" x="20" y="591">Field-level draft: Task / TaskDependency / Resource / TaskAssignment are expanded to fields; the other aggregates state their shape only.</text>
 </svg>

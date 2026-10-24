@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 320" width="880" height="320"
      role="img" aria-labelledby="kairo-fig-title kairo-fig-desc">
-  <title id="kairo-fig-title">Kairo 核心闭环数据流</title>
-  <desc id="kairo-fig-desc">需求文档经 AI 读取得到 WBS 分解，MCP/CLI 建任务树后由 KairoCore 排期；状态回写经 MCP/CLI 回到 AI 逐功能开发，人随时在 macOS 应用审阅与干预。</desc>
+  <title id="kairo-fig-title">Kairo core loop: data flow</title>
+  <desc id="kairo-fig-desc">The AI reads the requirements document into a WBS; MCP/CLI build the task tree and KairoCore schedules it. Status flows back through MCP/CLI to the AI, which builds feature by feature while the human reviews in the macOS app.</desc>
   <style>
     .canvas { fill: #FFFFFF; }
     .panel { fill: #FFFFFF; stroke: #D8DAE0; stroke-width: 1; }
@@ -38,22 +38,22 @@
   </defs>
   <rect class="canvas" x="0" y="0" width="880" height="320"/>
   <rect class="panel" x="40" y="44" width="150" height="56" rx="8"/>
-  <text class="t-title" x="115" y="77" text-anchor="middle">需求文档</text>
+  <text class="t-title" x="115" y="77" text-anchor="middle">Requirements</text>
   <rect class="panel" x="290" y="44" width="150" height="56" rx="8"/>
-  <text class="t-title" x="365" y="77" text-anchor="middle">WBS 分解</text>
+  <text class="t-title" x="365" y="77" text-anchor="middle">WBS breakdown</text>
   <rect class="core" x="610" y="44" width="210" height="56" rx="8"/>
-  <text class="t-title" x="715" y="77" text-anchor="middle">KairoCore 排期</text>
+  <text class="t-title" x="715" y="77" text-anchor="middle">KairoCore scheduling</text>
   <path class="line" d="M190,72 L290,72" marker-end="url(#kairo-arrow)"/>
-  <text class="t-sub" x="240" y="62" text-anchor="middle">AI 读取</text>
+  <text class="t-sub" x="240" y="62" text-anchor="middle">read by AI</text>
   <path class="line" d="M440,72 L610,72" marker-end="url(#kairo-arrow)"/>
-  <text class="t-sub" x="525" y="62" text-anchor="middle">(MCP/CLI: 建任务树)</text>
+  <text class="t-sub" x="525" y="62" text-anchor="middle">(MCP/CLI: build task tree)</text>
   <rect class="accent" x="330" y="142" width="170" height="52" rx="8"/>
-  <text class="t-title" x="415" y="174" text-anchor="middle">AI 逐功能开发</text>
+  <text class="t-title" x="415" y="174" text-anchor="middle">AI implements</text>
   <path class="line" d="M715,100 L715,168 L500,168" marker-end="url(#kairo-arrow)"/>
   <path class="line" d="M330,168 L115,168 L115,100" marker-end="url(#kairo-arrow)"/>
-  <text class="t-sub" x="222" y="158" text-anchor="middle">(MCP/CLI: 状态回写)</text>
+  <text class="t-sub" x="222" y="158" text-anchor="middle">(MCP/CLI: status write-back)</text>
   <rect class="soft" x="265" y="246" width="300" height="50" rx="8"/>
-  <text class="t-title" x="415" y="276" text-anchor="middle">人随时在 macOS 应用审阅 / 干预</text>
+  <text class="t-title" x="415" y="276" text-anchor="middle">Human reviews / intervenes in the app</text>
   <path class="line" d="M415,246 L415,194" marker-end="url(#kairo-arrow)"/>
-  <text class="t-note" x="20" y="310">实线为自动链路；回流段由 MCP/CLI 承接状态回写，形成「需求 → 计划 → 开发 → 回写」闭环。</text>
+  <text class="t-note" x="20" y="310">Solid lines are automatic; MCP/CLI carry the status write-back, closing the loop requirements → plan → build → write-back.</text>
 </svg>
