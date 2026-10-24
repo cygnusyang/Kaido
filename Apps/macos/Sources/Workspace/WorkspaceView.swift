@@ -726,7 +726,7 @@ private struct EmptyWorkspaceView: View {
     private var detail: String {
         switch reason {
         case .noTasks:
-            return "新建任务开始规划，或通过 MCP 工具导入现有 WBS。"
+            return "新建任务开始规划，或由 AI 智能体通过 MCP / CLI 导入现有 WBS。"
         case .noMatches:
             return "调整筛选条件，或清除筛选查看全部任务。"
         case .noSchedule:
@@ -738,15 +738,11 @@ private struct EmptyWorkspaceView: View {
     private var actions: some View {
         switch reason {
         case .noTasks:
-            HStack(spacing: 10) {
-                Button("新建任务") {
-                    store.dispatch(.createTask(parentID: nil, kind: .task))
-                }
-                Button("通过 MCP 导入…") {
-                    store.alertMessage = "使用 MCP 工具 create_project / add_task 导入 WBS，或在终端运行 kairo。"
-                }
-                .buttonStyle(.borderedProminent)
+            // MCP 是协议而非界面能力：导入由 AI 智能体在会话侧发起，界面只保留人工新建入口。
+            Button("新建任务") {
+                store.dispatch(.createTask(parentID: nil, kind: .task))
             }
+            .buttonStyle(.borderedProminent)
         case .noMatches:
             Button("清除筛选") {
                 store.dispatch(.setFilter(""))
