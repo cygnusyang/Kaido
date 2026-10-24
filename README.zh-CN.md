@@ -14,7 +14,7 @@ AI 编码智能体的项目管理软件。Claude Code、Codex 负责执行，Kai
 
 ![Kairo 计划工作台：左侧大纲与右侧时间画布逐行对齐取证](docs/images/app-plan-workbench.png)
 
-**[下载 macOS 应用](https://github.com/cygnusyang/Kairo/releases/latest)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.md)** · **[产品与架构文档](docs/01-prd.md)**
+**[下载 macOS 应用](https://github.com/cygnusyang/Kairo/releases/latest)** · **[五分钟上手（英文）](QUICKSTART.md)** · **[架构说明（英文）](ARCHITECTURE.md)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.md)**
 
 ```bash
 brew install --cask cygnusyang/kairo/kairo

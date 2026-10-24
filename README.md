@@ -12,7 +12,7 @@ Project management for AI coding agents. Claude Code and Codex do the work; Kair
 
 ![Schematic of the Kairo plan workbench: outline on the left, timeline bars aligned row by row, task inspector on the right](docs/images/workbench-overview.svg)
 
-**[Download the macOS app](https://github.com/cygnusyang/Kairo/releases/latest)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)** · **[Product & architecture docs](docs/01-prd.md)**
+**[Download the macOS app](https://github.com/cygnusyang/Kairo/releases/latest)** · **[5-minute quickstart](QUICKSTART.md)** · **[Architecture](ARCHITECTURE.md)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)**
 
 ```bash
 brew install --cask cygnusyang/kairo/kairo
@@ -271,6 +271,9 @@ docs/                       Requirements, architecture, design system, roadmap a
 
 | Document | Purpose |
 |---|---|
+| [QUICKSTART.md](QUICKSTART.md) | Five minutes from install to a scheduled project |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Layers, write path, data model, scheduling, interface contract (English) |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Build, test, boundaries and PR expectations |
 | [docs/00-vision.md](docs/00-vision.md) | Project charter, product form, G3 release bar |
 | [docs/01-prd.md](docs/01-prd.md) | User stories and acceptance criteria |
 | [docs/02-architecture.md](docs/02-architecture.md) | Technology choices, module boundaries, interface contracts |
