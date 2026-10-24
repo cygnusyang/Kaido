@@ -195,7 +195,8 @@ MENUBAR_SRC="$ROOT/design/icons/menubar"
 if [[ -d "$MENUBAR_SRC" ]]; then
   mkdir -p "$APP_BUNDLE/Contents/Resources"
   cp "$MENUBAR_SRC/kairo-menubarTemplate.png" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
-  cp "$MENUBAR_SRC/diana.k@example.org" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
+  # @2x 倍图一并入包（NSStatusItem 目前在代码里尚未启用，先备好资源不缺位）
+  cp "$MENUBAR_SRC/kairo-menubarTemplate@2x.png" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
 fi
 
 printf 'APPL????' > "$APP_BUNDLE/Contents/PkgInfo"
