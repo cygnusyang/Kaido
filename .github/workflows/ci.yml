@@ -48,7 +48,7 @@ jobs:
   linux:
     name: test · Linux（核心与接口层）
     runs-on: ubuntu-latest
-    container: swift:5.10-jammy
+    container: swift:6.0-jammy
     steps:
       - uses: actions/checkout@v4
 
@@ -62,8 +62,8 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('Package.swift', 'Package.resolved') }}
           restore-keys: ${{ runner.os }}-
 
+      - name: 门禁 · 核心层不得依赖 UI 框架（ADR-004）
+        run: bash tools/gate-core.sh
+
       - name: 测试（App / GUI target 在 Linux 不参与构建）
         run: swift test
-
-      - name: 门禁 · 核心层不得依赖 UI 框架
-        run: bash tools/gate-core.sh
