@@ -30,13 +30,10 @@ let macOSAppTargets: [Target] = [
 ]
 
 // KairoUpdater 产品仅在 Apple 平台导出（Security 框架依赖，Linux CI 不参与）。
-#if os(macOS)
 let updaterProduct: [Product] = [.library(name: "KairoUpdater", targets: ["KairoUpdater"])]
 #else
-let updaterProduct: [Product] = []
-#endif
-#else
 let macOSAppTargets: [Target] = []
+let updaterProduct: [Product] = []
 #endif
 
 let package = Package(
