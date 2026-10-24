@@ -12,6 +12,9 @@ permissions:
 jobs:
   release:
     runs-on: macos-14
+    env:
+      # 有 Developer ID 证书即启用签名与公证；缺省时整段跳过，发布照常进行（未签名）。
+      SIGNING_ENABLED: ${{ secrets.MACOS_CERT_P12 != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,12 +32,81 @@ jobs:
       - name: 编译打包
         run: bash tools/build.sh
 
+      - name: 导入 Developer ID 证书
+        if: env.SIGNING_ENABLED == 'true'
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN=build.keychain
+          security create-keychain -p actions "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security unlock-keychain -p actions "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          echo "$MACOS_CERT_P12" | base64 --decode > cert.p12
+          security import cert.p12 -k "$KEYCHAIN" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions "$KEYCHAIN"
+          rm -f cert.p12
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" \
+            | sed -n 's/.*"\(Developer ID Application[^"]*\)".*/\1/p' | head -1)"
+          if [[ -z "$IDENTITY" ]]; then
+            echo "ERROR: 未在 p12 中找到 Developer ID Application 证书" >&2
+            exit 1
+          fi
+          echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: 签名应用（Hardened Runtime）
+        if: env.SIGNING_ENABLED == 'true'
+        run: |
+          set -euo pipefail
+          codesign --force --deep --options runtime --timestamp \
+            --sign "$SIGN_IDENTITY" dist/Kairo.app
+          codesign --verify --deep --strict --verbose=2 dist/Kairo.app
+
       - name: 打包发布产物（DMG + OTA 载体 zip）
         run: |
           # 与本地 tools/release.sh 同源：一次产出 DMG（人装）与 zip（OTA 载体），
           # 并校验应用内版本号等于 tag，避免把旧版本装进新版本的附件。
           bash tools/package.sh "${GITHUB_REF_NAME}" --skip-build --out .
           echo "ZIP_SHA256=$(shasum -a 256 "Kairo-${GITHUB_REF_NAME}.zip" | awk '{print $1}')" >> "$GITHUB_ENV"
+
+      - name: 公证 DMG（notarytool）
+        if: env.SIGNING_ENABLED == 'true'
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          DMG="Kairo-${GITHUB_REF_NAME}.dmg"
+          codesign --force --sign "$SIGN_IDENTITY" --timestamp "$DMG"
+          xcrun notarytool submit "$DMG" \
+            --apple-id "$NOTARY_APPLE_ID" \
+            --password "$NOTARY_PASSWORD" \
+            --team-id "$NOTARY_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+
+      - name: 构建 CLI / MCP 通用二进制（一行安装用）
+        run: |
+          set -euo pipefail
+          # 双架构通用二进制：Intel 与 Apple Silicon 共用一份产物
+          for p in KairoCLI KairoMCP; do
+            swift build -c release --arch arm64 --arch x86_64 --product "$p"
+          done
+          BIN=".build/apple/Products/Release"
+          STAGE="kairo-${GITHUB_REF_NAME}-macos-universal"
+          rm -rf "$STAGE" "$STAGE.tar.gz"
+          mkdir -p "$STAGE/bin"
+          cp "$BIN/KairoCLI" "$STAGE/bin/kairo"
+          cp "$BIN/KairoMCP" "$STAGE/bin/kairo-mcp"
+          chmod +x "$STAGE"/bin/*
+          tar -czf "$STAGE.tar.gz" "$STAGE"
+          shasum -a 256 "$STAGE.tar.gz" | awk '{print $1}' > "$STAGE.tar.gz.sha256"
+          echo "CLI_TARBALL=$STAGE.tar.gz" >> "$GITHUB_ENV"
+          ls -lh "$STAGE.tar.gz"
 
       - name: 签名更新清单（update-manifest.json）
         env:
@@ -126,12 +198,14 @@ jobs:
           if [ "${{ steps.changelog.outputs.has_autonotes }}" = "true" ]; then
             gh release create "$GITHUB_REF_NAME" \
               "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" update-manifest.json \
+              "$CLI_TARBALL" "$CLI_TARBALL.sha256" \
               --title "Kairo ${GITHUB_REF_NAME}" \
               --notes-file release-notes.md \
               --generate-notes
           else
             gh release create "$GITHUB_REF_NAME" \
               "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" update-manifest.json \
+              "$CLI_TARBALL" "$CLI_TARBALL.sha256" \
               --title "Kairo ${GITHUB_REF_NAME}" \
               --notes-file release-notes.md
           fi
