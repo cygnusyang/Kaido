@@ -113,12 +113,10 @@ struct TimelineBody: View {
     @State private var dragSession: CanvasDragSession?
     /// 点选中的依赖线（视图交互态，不进持久化 view state）。
     @State private var selectedDependencyIndex: Int?
-    /// 横向平移上下文（F-14-18）：滚动监听长生命周期，几何必须走引用语义。
-    @State private var panContext = HorizontalPanContext()
+    /// 横向平移上下文（F-14-18）：全进程单例，避免视图重建后监听绑到已销毁的实例。
+    private var panContext: HorizontalPanContext { .shared }
     /// 横向平移：空白处拖拽状态机（引用语义，可单测）。
     @State private var panDrag = PanDragSession()
-    /// 横向滚动捕获（`NSEvent` 本地监听，见 HorizontalScrollMonitor）。
-    @State private var scrollMonitor: HorizontalScrollMonitor?
 
     private var contentHeight: CGFloat {
         CGFloat(rows.count) * DesignTokens.rowHeight
@@ -181,13 +179,11 @@ struct TimelineBody: View {
                             drag.finish()
                         }
                 )
-                // 记录画布视口矩形（窗口内容坐标），供横向滚动命中判断。
+                // 记录画布视口（AppKit 窗口坐标），供横向滚动命中判断。
+                // 不用 `.frame(in: .global)`：SwiftUI 全局空间与 NSEvent 窗口坐标不同源。
                 .background(
-                    GeometryReader { proxy in
-                        let rect = proxy.frame(in: .global)
-                        Color.clear
-                            .onAppear { panContext.viewportRect = rect }
-                            .onChange(of: rect) { _, newValue in panContext.viewportRect = newValue }
+                    CanvasViewportProbe { window, rect in
+                        panContext.attach(window: window, viewportInWindow: rect)
                     }
                 )
             }
@@ -208,9 +204,9 @@ struct TimelineBody: View {
         }
         .onAppear {
             panContext.sync(dayWidth: gantt.dayWidth, windowStart: gantt.windowStart)
+            panContext.attach(store: store)
             installScrollMonitorIfNeeded()
         }
-        .onDisappear { scrollMonitor?.stop() }
         .onChange(of: gantt.windowStart) { _, _ in
             panContext.sync(dayWidth: gantt.dayWidth, windowStart: gantt.windowStart)
         }
@@ -223,22 +219,9 @@ struct TimelineBody: View {
     }
 
     /// 横向滚动捕获（F-14-18）：光标在画布内时把横向滚动换算成窗口平移。
-    /// 闭包只捕获引用语义的 `panContext` 与 `store`，不锁定值型快照。
+    /// 单例监听重复 `start()` 幂等，不产生第二份事件源（D-027）。
     private func installScrollMonitorIfNeeded() {
-        guard scrollMonitor == nil else { return }
-        let context = panContext
-        let monitor = HorizontalScrollMonitor(
-            viewportRect: { context.viewportRect },
-            handler: { deltaX in
-                let days = context.consumeScroll(deltaX: deltaX)
-                guard days != 0 else { return }
-                // 内容跟手：向右滑（正位移）看更早日期 ⇒ 窗口起点减小。
-                let target = context.windowStart.addingTimeInterval(-Double(days) * 86_400)
-                store.dispatch(.panWindow(to: target))
-            }
-        )
-        monitor.start()
-        scrollMonitor = monitor
+        HorizontalScrollMonitor.shared.start()
     }
 
     private func handleTap(_ point: CGPoint, offset: CGFloat) {
