@@ -15,6 +15,11 @@ Project management for AI coding agents. Claude Code and Codex do the work; Kair
 
 **[Download the macOS app](https://github.com/cygnusyang/Kairo/releases/latest)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)** · **[Product & architecture docs](docs/01-prd.md)**
 
+```bash
+brew install --cask cygnusyang/kairo/kairo
+```
+
+
 **Status: in development.** Sprint 0–3 and the ADR-013 plan-workbench redesign are complete (core model, `.kairo` persistence, scheduling engine with violation checks, status write-back, outline + timeline workbench, Claude Code plugin and deep links); 669 tests passing. Updated 2026-10-18.
 
 ## The problem
