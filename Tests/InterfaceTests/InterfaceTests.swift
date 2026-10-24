@@ -396,8 +396,13 @@ func captureStdout(_ body: () throws -> Void) throws -> String {
     let json = try CLIOutput.taskListJSON([task])
     #expect(json.contains("\"assignee\":\"dev-coder-core\""))
     // task get 文本输出含负责人行（US-E1-02-A1 输出要求，HIGH-1）。
+    // 断言中文回执：显式钉死语言，避免 CI（英文系统语言）下 CLI 默认出英文而假红。
     let detail = try captureStdout {
-        try CLIRouter.execute(arguments: ["task", "get", task.id.uuidString, "--file", file.path])
+        try CLIRouter.execute(
+            arguments: ["task", "get", task.id.uuidString, "--file", file.path],
+            environment: ["KAIRO_LANG": "zh-Hans"],
+            preferredLanguages: []
+        )
     }
     #expect(detail.contains("负责人：dev-coder-core"))
 }

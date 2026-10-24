@@ -128,7 +128,8 @@ struct LocalizationTests {
 
     private func day(_ year: Int, _ month: Int, _ dayOfMonth: Int) -> Date {
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "Asia/Shanghai") ?? .current
+        // 必须与 Display 的格式化时区一致：写死 Asia/Shanghai 会在 UTC 的 CI runner 上差一天。
+        calendar.timeZone = .current
         return calendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth)) ?? Date()
     }
 
