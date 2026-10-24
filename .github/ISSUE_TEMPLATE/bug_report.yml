@@ -1,0 +1,72 @@
+name: Bug report
+description: Something broke — the app, the CLI, the MCP server or a .kairo file
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. The three fields that decide how fast this gets fixed:
+        exact command, expected result, actual result. If a `.kairo` file is involved,
+        a minimal one helps a lot.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The actual behaviour, including the full error text or a screenshot.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps, or the exact command line. A failing test is even better.
+      placeholder: |
+        1. kairo project create ... --file demo.kairo
+        2. kairo wbs import wbs.json --file demo.kairo
+        3. kairo schedule compute --file demo.kairo
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where does it happen
+      multiple: true
+      options:
+        - macOS app
+        - CLI
+        - MCP server
+        - Claude Code plugin
+        - .kairo file / migration
+        - Build or tests
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release tag, or the output of `git describe --tags --always` for a local build.
+      placeholder: v0.8.4
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: macOS version and chip; for Linux, the distribution and Swift version.
+      placeholder: macOS 15.2, Apple Silicon; Swift 6.0
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant stderr output. Please redact project paths if they are private.
+      render: shell
+    validations:
+      required: false

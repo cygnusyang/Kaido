@@ -1,0 +1,38 @@
+name: Feature request
+description: A capability that is missing, or a workflow that is awkward today
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: Describe the workflow that hurts, not only the solution you have in mind.
+      placeholder: When a task splits mid-sprint I have to delete and re-add it, which loses the change history.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like to happen
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you already tried, or other tools that solve this well.
+    validations:
+      required: false
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface
+      multiple: true
+      options:
+        - macOS app
+        - CLI
+        - MCP server
+        - Claude Code plugin
+        - Documentation
+    validations:
+      required: true

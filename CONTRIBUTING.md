@@ -1,0 +1,111 @@
+# Contributing to Kairo
+
+Thanks for taking a look. Kairo is a macOS workbench plus an MCP server and CLI for
+scheduling AI coding work. The fastest way to get oriented:
+
+- [README.md](README.md) — what it does, four entry points
+- [QUICKSTART.md](QUICKSTART.md) — five minutes from clone to first schedule
+- [ARCHITECTURE.md](ARCHITECTURE.md) — module boundaries and the contracts that must hold
+
+## Requirements
+
+- macOS 14+ and Xcode 16+ (Swift Testing needs it)
+- Swift 5.9+ toolchain via the Xcode command line tools
+- Linux contributors: the core, commands and presentation layers build and test on
+  Linux; the app and GUI tests are macOS-only
+
+## Build and test
+
+```bash
+swift build                 # debug
+swift test                  # full suite
+bash tools/gate-core.sh     # KairoCore / KairoCommands / KairoPresentation must not import AppKit, SwiftUI, Cocoa or Combine
+bash tools/gate-ui.sh       # views must not reference Project / TaskItem / KairoSession directly
+bash tools/build.sh         # release build, packages dist/Kairo.app
+```
+
+CI runs `swift test` plus both gates on macOS **and** on Linux (`swift:6.0-jammy`).
+A pull request that fails either job will not be merged.
+
+## Boundaries that cannot be crossed
+
+These are architecture decisions, not style preferences:
+
+1. **One write path.** Every mutation goes through `KairoSession` in `KairoCommands`.
+   Do not add a second way to write a `.kairo` file.
+2. **The core stays UI-free.** `KairoCore`, `KairoCommands` and `KairoPresentation`
+   are Foundation-only. No AppKit, SwiftUI, Cocoa or Combine imports; the gate scripts
+   enforce it.
+3. **Views read snapshots, not models.** Views in `Apps/macos/Sources/Workspace` talk to
+   the presentation layer through snapshots and actions.
+4. **The file format is versioned.** Any change to `.kairo` needs a migration step in
+   `FormatDocument`; never rewrite a document without bumping `formatVersion`.
+
+If a change seems to need breaking one of these, open an issue first — that is a design
+conversation, not a patch.
+
+## Pull requests
+
+1. Fork, branch from `main`, keep the branch short-lived.
+2. Write the test first: a failing case, then the change that makes it pass.
+3. Run `swift test` and both gates locally before pushing.
+4. Open the PR with the template; fill in what you tested and on which platform.
+5. Expect review on behaviour and boundaries, not on formatting.
+
+Commit messages follow `<type>(<scope>): <summary>` (`feat`, `fix`, `docs`, `test`,
+`refactor`, `chore`). One commit should map to one change; if the work is tracked as a
+work item, put its ID in the subject.
+
+## Reporting bugs
+
+Use the issue template. A useful bug report has: what you ran, what you expected, what
+happened, the version (`Kairo → About` or `git describe --tags`), your macOS version and
+the relevant log lines. If the app itself misbehaves, mention whether you installed it
+from the DMG, via Homebrew, or built it locally.
+
+## Translations
+
+`README.zh-CN.md` is the Chinese README; the diagrams under `docs/` are generated in both
+languages by `tools/gen-arch-svg.py` (`KAIRO_SVG_LANG=en|zh`). If you change a diagram,
+change the generator, not the SVG.
+
+## Releasing
+
+\`tools/release.sh <version>\` validates, bumps the version, runs the full suite, packages,
+commits, tags and pushes; the tag triggers \`.github/workflows/release.yml\`, which tests again,
+repackages, signs the update manifest, archives artifacts and creates the Release.
+
+Every Release ships:
+
+| Asset | For |
+|---|---|
+| `Kairo-vX.Y.Z.dmg` | installing the app by hand |
+| `Kairo-vX.Y.Z.zip` | the over-the-air updater payload |
+| `kairo-vX.Y.Z-macos-universal.tar.gz` | `kairo` and `kairo-mcp` binaries, arm64 + x86_64 in one file |
+| `…tar.gz.sha256` | checksum for the CLI tarball |
+| `update-manifest.json` | signed OTA feed |
+
+### Signing and notarization
+
+Signing is **optional and off by default**: the workflow checks whether the certificate
+secret exists and skips the whole signing chain when it does not, so an unsigned release
+still succeeds. To turn it on, add these repository secrets:
+
+| Secret | What it is |
+|---|---|
+| `MACOS_CERT_P12` | base64 of a Developer ID Application certificate + private key exported from Keychain as .p12 |
+| `MACOS_CERT_PASSWORD` | the password used for that .p12 |
+| `NOTARY_APPLE_ID` | Apple ID used for notarization |
+| `NOTARY_PASSWORD` | an app-specific password for that Apple ID |
+| `NOTARY_TEAM_ID` | the 10-character team identifier |
+
+Generate the base64 blob without leaking the file:
+
+```bash
+base64 -i DeveloperID.p12 | pbcopy
+```
+
+When the secrets are present the workflow imports the certificate into a temporary keychain,
+signs `Kairo.app` with the hardened runtime, signs and notarizes the DMG with
+`notarytool`, and staples the ticket. Unsigned builds keep working meanwhile — that is why
+this is a switch rather than a hard requirement.
