@@ -436,7 +436,7 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 | US-E4-02 | AI 过滤与查找 | E4 | P0 | 完成 | 基础已完成；可保存过滤器升级为 P1 待做 |
 | US-E4-03 | 层次树/大纲交互 | E4 | P1 | 进行中 | Sprint 3：缩进/出缩进/新建同级（Tab、Shift-Tab、Return 与 ⌘[ / ⌘] 菜单）已实现；待验收 Demo 确认 |
 | US-E4-04 | 甘特视图基础 | E4 | P1 | 进行中 | Sprint 3：任务条、日期标头、日/周/月缩放与「适合项目」、标头拖动平移、周末着色已实现；待人工视觉验收 |
-| US-E4-08 | 甘特图横向平移（触摸板/滚轮 + 画布拖拽） | E4 | P1 | 完成 | v0.6.0（2026-10-22）：双指横向滚动 / Shift+纵向 / 画布空白拖拽均可左右平移时间窗，内容跟手、整天归一（亚日余量累积），平移退出「适合项目」；见 docs/features/01-views-editing.md F-14-18 与 docs/archive/Sprint9-gantt-horizontal-pan/design.md |
+| US-E4-08 | 甘特图横向平移（触摸板/滚轮 + 画布拖拽） | E4 | P1 | 完成 | v0.6.0（2026-10-22）：双指横向滚动 / Shift+纵向 / 画布空白拖拽均可左右平移时间窗，内容跟手、整天归一（亚日余量累积），平移退出「适合项目」；见 docs/features/01-views-editing.md F-14-18 与 docs/archive/Sprint9-gantt-horizontal-pan/design.md。v0.8.4（2026-10-24）修复双指横滑无响应（D-027：滚动监听重复安装），见 docs/defects.md |
 | US-E4-10 | 大纲列宽可调 + 列显隐可配置 | E4 | P1 | 完成 | v0.8.0（2026-10-22）：表头右缘手柄拖拽调宽（双击复位、松手一次提交、误触阈值 2pt）；视图菜单与表头右键菜单可显隐列，序号/任务说明固定不可隐藏；列宽与显隐持久化到视图偏好且不产生撤销点；见 docs/features/01-views-editing.md F-14-20 与 docs/archive/Sprint11-outline-columns/design.md |
 | US-E4-09 | 大纲开始/结束日期列可编辑（日历弹层） | E4 | P1 | 完成 | v0.7.0（2026-10-22）：大纲「开始」「结束」两列由只读改为点击弹月历（复用 CalendarPopover）；开始写意图 `startDate`（可清除）、结束写 `durationDays`（排他端点，最小日=起点次日）；群组/里程碑/无排期按策略禁用并给出原因；写回与撤销粒度与检查器同源（`setTaskStart`/`setTaskFinish`）。见 docs/features/01-views-editing.md F-14-19 与 docs/archive/Sprint10-outline-date-cells/design.md |
 | US-E4-05 | 命令面板（⌘K） | E4 | P0 | 进行中 | Sprint 3：⌘K 面板与统一命令注册表（菜单栏同源）已实现；待验收 Demo 确认 |

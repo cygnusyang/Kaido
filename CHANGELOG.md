@@ -3,6 +3,16 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.8.4 — 2026-10-24
+
+### 修复
+
+- **甘特图双指横向平移无响应（D-027，F-14-18 回归）**：v0.6.0 交付的触摸板平移在真机上表现为「画布不动」。
+  - 根因：`TimelineBody` 的结构身份变化会让 SwiftUI 重复触发 `onAppear`，而旧实例的 `onDisappear` 不保证执行 —— 进入工作台时滚动监听被安装 **3** 次且从未卸载。多个监听同时存活时，先安装的实例持续抢占 `scrollWheel`，并用自己那份过期的窗口起点派发 `.panWindow`，净位移被抵消为 0。
+  - 修复：`HorizontalScrollMonitor.start()` 改为**接管语义**（新实例启动即停掉旧实例），`stop()` 只清理自身（迟到的 `onDisappear` 不再误杀活动实例），保证同一时刻只有一个监听消费事件。
+  - 回归防护：新增 `HorizontalScrollMonitorTests`（接管、迟到 stop 两例）；全量 744/744。
+  - 局限：监听层依赖真实窗口事件循环，离屏测试不覆盖真机命中，手感仍需人工手测。
+
 ## v0.8.3 — 2026-10-23
 
 ### 新增

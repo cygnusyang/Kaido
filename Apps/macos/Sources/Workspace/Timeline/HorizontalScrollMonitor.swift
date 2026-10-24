@@ -12,11 +12,25 @@ import Foundation
 /// - 离屏渲染测试无窗口事件循环，本层不进单测，行为由纯函数 + Store 用例覆盖。
 @MainActor
 final class HorizontalScrollMonitor {
+    /// 当前唯一活动的监听实例（D-027）。
+    ///
+    /// SwiftUI 在结构身份变化时会重复触发 `onAppear`，而旧实例的 `onDisappear`
+    /// 不保证执行；若放任多个实例同时 `start()`，先安装的实例会持续抢占事件，
+    /// 并用自己那份已经过期的窗口起点派发 `.panWindow`，表现为「双指横滑画布不动」。
+    /// 因此 `start()` 是接管语义：新实例启动即停掉旧实例。
+    private static weak var active: HorizontalScrollMonitor?
+
     /// 画布视口矩形（窗口内容坐标，左上原点）。
     private let viewportRect: () -> CGRect
     /// 横向位移回调（点）；正 = 内容右移。
     private let handler: (Double) -> Void
     private var token: Any?
+
+    /// 是否正在监听（单实例仲裁的可测口径）。
+    var isRunning: Bool { token != nil }
+
+    /// 当前活动实例（测试断言用）。
+    static var activeInstance: HorizontalScrollMonitor? { active }
 
     init(viewportRect: @escaping () -> CGRect, handler: @escaping (Double) -> Void) {
         self.viewportRect = viewportRect
@@ -24,11 +38,16 @@ final class HorizontalScrollMonitor {
     }
 
     func start() {
+        // 接管：先停掉可能残留的旧实例，保证同一时刻只有一个监听在消费事件。
+        if let previous = Self.active, previous !== self {
+            previous.stop()
+        }
         guard token == nil else { return }
         token = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
             guard let self else { return event }
             return self.handle(event)
         }
+        Self.active = self
     }
 
     func stop() {
@@ -36,6 +55,9 @@ final class HorizontalScrollMonitor {
             NSEvent.removeMonitor(token)
         }
         token = nil
+        if Self.active === self {
+            Self.active = nil
+        }
     }
 
     /// 命中则消费事件（返回 nil），否则原样放行。
