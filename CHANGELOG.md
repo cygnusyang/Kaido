@@ -7,11 +7,14 @@
 
 ### 修复
 
-- **甘特图双指横向平移无响应（D-027，F-14-18 回归）**：v0.6.0 交付的触摸板平移在真机上表现为「画布不动」。
-  - 根因：`TimelineBody` 的结构身份变化会让 SwiftUI 重复触发 `onAppear`，而旧实例的 `onDisappear` 不保证执行 —— 进入工作台时滚动监听被安装 **3** 次且从未卸载。多个监听同时存活时，先安装的实例持续抢占 `scrollWheel`，并用自己那份过期的窗口起点派发 `.panWindow`，净位移被抵消为 0。
-  - 修复：`HorizontalScrollMonitor.start()` 改为**接管语义**（新实例启动即停掉旧实例），`stop()` 只清理自身（迟到的 `onDisappear` 不再误杀活动实例），保证同一时刻只有一个监听消费事件。
-  - 回归防护：新增 `HorizontalScrollMonitorTests`（接管、迟到 stop 两例）；全量 744/744。
-  - 局限：监听层依赖真实窗口事件循环，离屏测试不覆盖真机命中，手感仍需人工手测。
+- **甘特图双指横向平移无响应（D-027，F-14-18 回归）**：v0.6.0 交付的触摸板平移在真机上表现为「画布不动」，两轮排查后确认是四处串联闸门，逐条拆除：
+  - **坐标同源**：视口改由 `CanvasViewportProbe`（NSView `convert(bounds, to: nil)`）上报 AppKit 窗口坐标，光标用 `window.convertPoint(fromScreen:)` 换算到同一空间；不再拿 SwiftUI `.global` 矩形比对 `locationInWindow`。
+  - **单实例**：监听与平移上下文收敛为全进程单例（`HorizontalScrollMonitor.shared` / `HorizontalPanContext.shared`），视图重建只重复 `start()`（接管语义）。此前 SwiftUI 重复 `onAppear` 会叠出多个监听，且可能绑在已销毁实例上（视口恒 nil）。
+  - **不按事件窗口身份判定**：`scrollWheel` 的 `event.window` 常为 nil、`keyWindow` 可能指向辅助窗口，改为「光标是否在画布视口内」定位。
+  - **「编辑中」按光标落点判定**：SwiftUI 工作台窗口在没有任何输入框获得焦点时，首响应者仍是窗口共用 field editor，原判据会把每条滚动当成编辑中放行 —— 这是最后一处、也是最隐蔽的一处。
+  - 判定抽为纯函数 `GanttScrollRouter`；连续滚动由 `advance(byDays:)` 就地推进窗口起点（不再反复派发同一目标），整天推进改用 `Calendar` 加法（跨 DST 安全）。
+  - 现场诊断：新增 `os.Logger`（subsystem `ai.kairo.app` / category `gantt-pan`）记录安装、首个滚动事件（含视口/光标/是否命中）、每种放行原因与每次平移提交，可用 `log stream --predicate 'subsystem == "ai.kairo.app"'` 定位。
+  - 验证：合成 `CGEvent` 横向滚动 + 光标定位跑通端到端（日志显示 8 次滚动 → 7 次整天提交，状态栏窗口区间由 10/23–… 移至 10/17–11/2）；新增 19 例用例，全量 761/761。
 
 ### 变更
 

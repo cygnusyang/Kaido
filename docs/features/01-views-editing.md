@@ -409,8 +409,9 @@
   - **触摸板/滚轮**：`NSEvent` 本地监听捕获 `scrollWheel`，光标在画布内且横向分量占优（或 Shift+纵向）时消费；`HorizontalPanAccumulator` 累积亚日余量、跨整天才提交（布局把窗口起点归一整天），慢速滑动不丢位移也不「一天天蹦」。
   - **画布空白拖拽**：复用 F-14-09 的拖拽手势槽位，起点命中 `.none` 且该行无条时进入 `PanDragSession`；条/端点/依赖线上的拖拽仍归 F-14-09。
   - 方向内容跟手（右移看更早日期）；任何平移退出「适合项目」；Escape 取消本段拖拽（已提交的平移不回滚，同表头拖拽）。
-  - **单实例接管（v0.8.4 · D-027）**：滚动监听是 App 级本地事件钩子，必须满足「同一时刻只有一个生效」——`HorizontalScrollMonitor.start()` 为接管语义（新实例启动即停掉旧实例），`stop()` 只清理自身。否则 SwiftUI 重复触发 `onAppear` 会叠出多个监听，先安装者抢占 `scrollWheel` 并用过期窗口起点派发 `.panWindow`，表现为「双指横滑画布不动」。
-  - **可测性边界**：监听层依赖真实窗口事件循环，离屏渲染测试不覆盖真机命中；不变量由 `HorizontalScrollMonitorTests`（接管 / 迟到 stop）锁定，交互手感靠人工手测。
+  - **命中四条硬约束（v0.8.4 · D-027 二次排查定型）**：① **坐标同源** —— 视口由 `CanvasViewportProbe`（NSView `convert(bounds, to: nil)`）上报 AppKit **窗口坐标**，光标用 `window.convertPoint(fromScreen:)` 换算，禁止拿 SwiftUI `.global` 矩形比对 `locationInWindow`；② **单实例** —— `HorizontalScrollMonitor.shared` / `HorizontalPanContext.shared` 全进程各一份，视图重建只重复 `start()`（接管语义），避免监听绑在已销毁实例上（视口恒 nil）；③ **不按事件窗口身份判定** —— `scrollWheel` 的 `event.window` 常为 nil、`keyWindow` 可能指向辅助窗口，改由「光标是否在画布视口内」定位；④ **「编辑中」按光标落点判定** —— 不能只看首响应者是不是 `NSTextView`（SwiftUI 工作台窗口在无输入焦点时首响应者仍是窗口共用 field editor，会把每条滚动误判为编辑中）。
+  - **判定可测**：规则抽为纯函数 `GanttScrollRouter`（方向 → 几何已知 → 编辑 → 视口命中 → 平移），事件层只采集窗口/光标/视口并执行结论；`advance(byDays:)` 就地推进窗口起点（连续事件不会反复派发同一目标），整天推进用 `Calendar` 加法（跨 DST 安全）。
+  - **可测性边界与现场诊断**：真机双指手势无法在离屏测试复现，故用 `os.Logger`（subsystem `ai.kairo.app` / category `gantt-pan`）记录「监听已安装 / 首个滚动事件（含视口、光标、inside）/ 每种放行原因（仅首次）/ 首次消费 / 每次平移提交」，现场可用 `log stream --predicate 'subsystem == "ai.kairo.app"'` 定位是哪道闸放行。
   - 不做：横向滚动条、子日粒度窗口（会破坏 A7 黄金基线）。
 - **优先级**：P1（v0.6.0 完成；v0.8.4 回归修复 D-027）
 
