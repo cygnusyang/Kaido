@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 720" role="img" aria-labelledby="t d">
+  <title id="t">Kairo plan workbench — schematic</title>
+  <desc id="d">Schematic of the Kairo plan workbench: an outline on the left, a timeline on the right with one bar per outline row, and a task inspector on the far right. A violation banner and the command palette sit below.</desc>
+  <style>
+  .win-title { font: 500 14px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #475569; }
+  .panel { font: 600 11px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #94a3b8; letter-spacing: .08em; }
+  .col { font: 600 10px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #a3aebd; letter-spacing: .06em; }
+  .row-task { font: 400 13.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0f172a; }
+  .row-group { font: 600 13.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0f172a; }
+  .row-meta { font: 400 11px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #94a3b8; }
+  .row-effort { font: 400 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #64748b; }
+  .warn { font: 700 9px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #ffffff; }
+  .today { font: 500 10px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #ef4444; }
+  .banner { font: 400 13px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #92400e; }
+  .palette { font: 600 13px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #e2e8f0; }
+  .palette-hint { font: 400 13px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #94a3b8; }
+  .insp-title { font: 600 16px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0f172a; }
+  .insp-sub { font: 400 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #64748b; }
+  .insp-key { font: 400 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #94a3b8; }
+  .insp-val { font: 400 12.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0f172a; }
+  .insp-chip { font: 500 12px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #1d4ed8; }
+  .status { font: 400 11.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #94a3b8; }
+</style>
+  <rect width="1600" height="720" fill="#f8fafc"/>
+  <rect x="20" y="20" width="1560" height="680" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  <path d="M 20 78 H 1580" stroke="#e2e8f0" stroke-width="1"/>
+  <circle cx="44" cy="49" r="6" fill="#f87171"/>
+  <circle cx="64" cy="49" r="6" fill="#fbbf24"/>
+  <circle cx="84" cy="49" r="6" fill="#4ade80"/>
+  <text x="800" y="54" text-anchor="middle" class="win-title">demo.kairo — plan workbench</text>
+  <path d="M 760 78 V 700" stroke="#e2e8f0" stroke-width="1"/>
+  <path d="M 1340 78 V 700" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="40" y="104" class="panel">OUTLINE</text>
+  <text x="784" y="104" class="panel">TIMELINE · NOVEMBER 2026</text>
+  <text x="1364" y="104" class="panel">INSPECTOR</text>
+  <path d="M 20 118 H 1580" stroke="#f1f5f9" stroke-width="1"/>
+  <text x="64" y="126" class="col">TASK</text>
+  <text x="736" y="126" text-anchor="end" class="col">EFFORT</text>
+  <rect x="902" y="118" width="36" height="334" fill="#f8fafc"/>
+  <path d="M 812 118 V 452" stroke="#eef2f7" stroke-width="1"/>
+  <text x="814" y="126" class="col">NOV 2</text>
+  <rect x="1028" y="118" width="36" height="334" fill="#f8fafc"/>
+  <path d="M 938 118 V 452" stroke="#eef2f7" stroke-width="1"/>
+  <text x="940" y="126" class="col">NOV 9</text>
+  <rect x="1154" y="118" width="36" height="334" fill="#f8fafc"/>
+  <path d="M 1064 118 V 452" stroke="#eef2f7" stroke-width="1"/>
+  <text x="1066" y="126" class="col">NOV 16</text>
+  <rect x="1280" y="118" width="36" height="334" fill="#f8fafc"/>
+  <path d="M 1190 118 V 452" stroke="#eef2f7" stroke-width="1"/>
+  <text x="1192" y="126" class="col">NOV 23</text>
+  <path d="M 1316 118 V 452" stroke="#eef2f7" stroke-width="1"/>
+  <rect x="20" y="132" width="1560" height="40" fill="#fcfdfe"/>
+  <path d="M 42 149 l 5 4 l -5 4" fill="none" stroke="#94a3b8" stroke-width="1.4"/>
+  <text x="56" y="157" class="row-task">Launch</text>
+  <text x="736" y="157" text-anchor="end" class="row-effort">—</text>
+  <path d="M 1288 143 L 1297 152 L 1288 161 L 1279 152 Z" fill="#1d4ed8"/>
+  <path d="M 20 172 H 1580" stroke="#f1f5f9" stroke-width="1"/>
+  <path d="M 62 189 l 5 4 l -5 4" fill="none" stroke="#94a3b8" stroke-width="1.4"/>
+  <text x="76" y="197" class="row-group">Payments</text>
+  <text x="736" y="197" text-anchor="end" class="row-effort">5d</text>
+  <rect x="812" y="187" width="198" height="10" rx="4" fill="#bfdbfe"/>
+  <path d="M 20 212 H 1580" stroke="#f1f5f9" stroke-width="1"/>
+  <rect x="20" y="212" width="1560" height="40" fill="#fcfdfe"/>
+  <text x="96" y="237" class="row-task">API design</text>
+  <text x="180" y="237" class="row-meta">@claude-code</text>
+  <text x="736" y="237" text-anchor="end" class="row-effort">16h</text>
+  <rect x="812" y="223" width="36" height="18" rx="4" fill="#3b82f6"/>
+  <path d="M 20 252 H 1580" stroke="#f1f5f9" stroke-width="1"/>
+  <text x="96" y="277" class="row-task">Server implementation</text>
+  <text x="263.6" y="277" class="row-meta">@codex</text>
+  <text x="736" y="277" text-anchor="end" class="row-effort">40h</text>
+  <rect x="848" y="263" width="108" height="18" rx="4" fill="#3b82f6"/>
+  <path d="M 20 292 H 1580" stroke="#f1f5f9" stroke-width="1"/>
+  <rect x="20" y="292" width="1560" height="40" fill="#fcfdfe"/>
+  <text x="96" y="317" class="row-task">Client integration</text>
+  <text x="240.79999999999998" y="317" class="row-meta">@claude-code</text>
+  <text x="736" y="317" text-anchor="end" class="row-effort">24h</text>
+  <rect x="974" y="303" width="54" height="18" rx="4" fill="#93c5fd"/>
+  <path d="M 20 332 H 1580" stroke="#f1f5f9" stroke-width="1"/>
+  <path d="M 62 349 l 5 4 l -5 4" fill="none" stroke="#94a3b8" stroke-width="1.4"/>
+  <text x="76" y="357" class="row-group">Reporting</text>
+  <text x="736" y="357" text-anchor="end" class="row-effort">4d</text>
+  <rect x="1064" y="347" width="90" height="10" rx="4" fill="#bfdbfe"/>
+  <path d="M 20 372 H 1580" stroke="#f1f5f9" stroke-width="1"/>
+  <rect x="20" y="372" width="1560" height="40" fill="#fcfdfe"/>
+  <text x="96" y="397" class="row-task">Dashboard</text>
+  <text x="736" y="397" text-anchor="end" class="row-effort">24h</text>
+  <rect x="1064" y="383" width="54" height="18" rx="4" fill="#93c5fd"/>
+  <path d="M 1128 384 L 1136 398 H 1120 Z" fill="#f59e0b"/>
+  <text x="1128" y="395" text-anchor="middle" class="warn">!</text>
+  <path d="M 20 412 H 1580" stroke="#f1f5f9" stroke-width="1"/>
+  <text x="96" y="437" class="row-task">Export</text>
+  <text x="736" y="437" text-anchor="end" class="row-effort">16h</text>
+  <rect x="1118" y="423" width="36" height="18" rx="4" fill="#93c5fd"/>
+  <path d="M 20 452 H 1580" stroke="#f1f5f9" stroke-width="1"/>
+  <path d="M 1127 118 V 452" stroke="#ef4444" stroke-width="1.4" stroke-dasharray="4 4"/>
+  <text x="1133" y="452" class="today">today</text>
+  <rect x="40" y="470" width="1284" height="44" rx="8" fill="#fffbeb" stroke="#fcd34d" stroke-width="1"/>
+  <text x="64" y="498" class="banner">1 violation · Dashboard ends after its group "Reporting" — adjust the date or the dependency</text>
+  <rect x="500" y="540" width="600" height="46" rx="10" fill="#0f172a"/>
+  <text x="524" y="569" class="palette">⌘K</text>
+  <text x="566" y="569" class="palette-hint">Commands · plan · status · violations</text>
+  <text x="1364" y="150" class="insp-title">Client integration</text>
+  <text x="1364" y="172" class="insp-sub">Leaf task · 24h · Nov 11 → Nov 13</text>
+  <text x="1364" y="212" class="insp-key">Assignee</text>
+  <text x="1364" y="230" class="insp-val">claude-code</text>
+  <text x="1364" y="258" class="insp-key">Depends on</text>
+  <text x="1364" y="276" class="insp-val">Server implementation (FS)</text>
+  <text x="1364" y="304" class="insp-key">Progress</text>
+  <text x="1364" y="322" class="insp-val">40%</text>
+  <rect x="1364" y="358" width="200" height="6" rx="3" fill="#e2e8f0"/>
+  <rect x="1364" y="358" width="80" height="6" rx="3" fill="#3b82f6"/>
+  <rect x="1364" y="394" width="216" height="40" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1"/>
+  <text x="1380" y="419" class="insp-chip">AI writes status back</text>
+  <path d="M 20 640 H 1580" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="40" y="670" class="status">8 tasks · 2 groups · 1 milestone · critical path 11d</text>
+  <text x="1540" y="670" text-anchor="end" class="status">.kairo = single JSON file</text>
+</svg>

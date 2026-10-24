@@ -11,7 +11,7 @@ Project management for AI coding agents. Claude Code and Codex do the work; Kair
 
 > 面向 AI 编码智能体的项目管理软件：WBS 分解、依赖与排期、进度对照。人看 macOS 甘特工作台，AI 走 MCP / CLI。
 
-![Kairo plan workbench: outline and timeline aligned row by row](docs/images/app-plan-workbench.png)
+![Schematic of the Kairo plan workbench: outline on the left, timeline bars aligned row by row, task inspector on the right](docs/images/workbench-overview.svg)
 
 **[Download the macOS app](https://github.com/cygnusyang/Kairo/releases/latest)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)** · **[Product & architecture docs](docs/01-prd.md)**
 
