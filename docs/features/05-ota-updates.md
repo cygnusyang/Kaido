@@ -15,6 +15,8 @@
 - 自动检查：启动后 5 秒静默检查一次；此后每 4 小时一次（`UpdaterConfiguration.autoCheck*`）。
 - 静默语义：自动检查的网络失败**不弹面板**（状态留在 `UpdaterManager`，手动检查可见）；仅「发现新版本且未被跳过」时自动展示更新面板，同版本一次运行只弹一次。
 - Feed：`https://github.com/cygnusyang/Kairo/releases/latest/download/update-manifest.json`（GitHub latest 永久链接，清单随每个 Release 重传即完成 feed 更新）。
+- **面板形态**（v0.8.4，沿 `docs/design/ui-redesign.md` 表面/字号 token）：固定宽 400pt，三段式 —— 头部（语义图标徽章 + 标题 + 一句说明）/ 详情（按状态给进度条与百分比、版本与更新说明、错误文案）/ 尾部（动作按钮右对齐，主按钮 `borderedProminent`）。不出现「一行文字 + 好」的裸对话框形态；`upToDate` / `downloaded` 不占详情区，避免空档。
+- 8 态文案与动作单一来源（`headline` / `subheadline` / `statusSymbol` / `statusTint` 与 `footer` 同处一文件），新增状态必须同时补这四处，编译期 switch 穷尽性即门禁。
 
 ### F-36-02 更新清单与验签
 
