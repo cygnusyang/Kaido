@@ -3,6 +3,20 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.9.1 — 2026-10-24
+
+### 新增
+
+- **关于面板显示版权与联系邮箱**：credits 第二行为 `Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>`；该声明不参与本地化，也不进 String Catalog（法律文本不翻译）。
+
+### 变更
+
+- **LICENSE 版权行补联系邮箱**：`Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>`。
+
+### 修复
+
+- **菜单栏图标误命名**：`design/icons/menubar` 下两个以邮箱命名的 PNG 实为 22pt / 18pt 的 @2x 倍图，改为 `kairo-menubarTemplate@2x.png` / `kairo-menubarTemplate-18@2x.png`；`tools/build.sh` 不再把这两个设计源文件当运行时资源拷进 `.app`。
+
 ## v0.9.0 — 2026-10-24
 
 ### 破坏性变更
