@@ -423,7 +423,10 @@ struct KairoMenuCommands: Commands {
     /// 应用版本号：发版前更新。
     static let appVersion = "0.9.0"
 
-    /// 「关于 Kairo」面板：版本号 + 编译时间。
+    /// 版权与联系邮箱：法律声明，不随界面语言变化，也不进 String Catalog。
+    static let copyrightNotice = "Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>"
+
+    /// 「关于 Kairo」面板：版本号 + 编译时间 + 版权。
     /// 打包应用读 Info.plist 的 CFBundleVersion（构建时写入的时间戳）；
     /// 开发态（swift run）取可执行文件的修改时间作为编译时间。
     static func showAboutPanel() {
@@ -431,7 +434,9 @@ struct KairoMenuCommands: Commands {
             .applicationName: "Kairo",
             .applicationVersion: appVersion,
             .credits: NSAttributedString(
-                string: I18n.t("menu.app.about.built_at", "Built %1$@", buildDescription),
+                // 首行是构建时间（随语言）；次行是版权与联系邮箱，法律声明不参与翻译。
+                string: I18n.t("menu.app.about.built_at", "Built %1$@", buildDescription)
+                    + "\n" + Self.copyrightNotice,
                 attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.secondaryLabelColor]
             ),
         ])
