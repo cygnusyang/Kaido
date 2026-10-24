@@ -3,6 +3,8 @@ import Testing
 
 /// 插件 TaskCompleted hook 契约测试（US-E5-03 验收 3）。
 /// 用假 CLI 替换真实 KairoCLI，只验证匹配、跳过与退出码，不读写真实项目。
+#if canImport(Darwin)
+// hook 用 Process 拉起 shell 脚本；Linux 的 Foundation 无 Process，整组用例只在 Darwin 主机跑。
 struct TaskHookTests {
     private var repoRoot: URL {
         URL(fileURLWithPath: #filePath)
@@ -181,3 +183,4 @@ struct TaskHookTests {
         #expect(!calls(fixture.dir).contains("status update"))
     }
 }
+#endif
