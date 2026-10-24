@@ -48,6 +48,11 @@ struct WorkspaceStoreTests {
         try #require(rows(store).first { $0.title == title })
     }
 
+    /// 按任务 ID 定位行：不依赖取词结果与默认语言（#8）。
+    private func row(_ store: WorkspaceStore, id: UUID) throws -> PlanRow {
+        try #require(rows(store).first { $0.id == id })
+    }
+
     private func task(_ store: WorkspaceStore, _ title: String) throws -> TaskItem {
         try #require(store.exportProject.tasks.first { $0.title == title })
     }
@@ -274,18 +279,19 @@ struct WorkspaceStoreTests {
         let groupID = try #require(store.selection)
         store.dispatch(.createTask(parentID: groupID, kind: .task))
         store.dispatch(.toggleExpanded(groupID))
-        #expect(try !row(store, I18n.t("outline.new_group.title", "New Group")).isExpanded)
+        // 按 ID 定位（#8）：标题取词受环境语言影响，用它定位会在并行跑时偶发找不到行。
+        #expect(try !row(store, id: groupID).isExpanded)
 
         // 注入 1ms 延迟：并行测试负载下 600ms 计时器可能长期得不到唤醒。
         // deadline 留足余量：CPU 密集用例（性能套件）会长时间垄断 MainActor，
         // 展开回调排在同一 actor 上被顺延；5s 墙钟在负载高峰会被排队时间耗尽。
         store.scheduleDropExpand(on: groupID, delayNanoseconds: 1_000_000)
         let deadline = Date().addingTimeInterval(30)
-        while try !row(store, I18n.t("outline.new_group.title", "New Group")).isExpanded && Date() < deadline {
+        while try !row(store, id: groupID).isExpanded && Date() < deadline {
             try await Task.sleep(nanoseconds: 50_000_000)
         }
 
-        #expect(try row(store, I18n.t("outline.new_group.title", "New Group")).isExpanded)
+        #expect(try row(store, id: groupID).isExpanded)
     }
 
     @Test func dropExitCancelsPendingExpand() async throws {
@@ -293,13 +299,17 @@ struct WorkspaceStoreTests {
         store.dispatch(.createTask(parentID: nil, kind: .group))
         let groupID = try #require(store.selection)
         store.dispatch(.toggleExpanded(groupID))
-        #expect(try !row(store, I18n.t("outline.new_group.title", "New Group")).isExpanded)
+        #expect(try !row(store, id: groupID).isExpanded)
 
         store.scheduleDropExpand(on: groupID)
         store.cancelDropExpand()
-        try await Task.sleep(nanoseconds: 800_000_000)
+        // 等待超过原定时长的 2 倍后仍不得展开；轮询而非单次 sleep，避免负载下检查时刻漂移（#8）。
+        let deadline = Date().addingTimeInterval(1.5)
+        while Date() < deadline {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
 
-        #expect(try !row(store, I18n.t("outline.new_group.title", "New Group")).isExpanded)
+        #expect(try !row(store, id: groupID).isExpanded)
     }
 
     @Test func dropExitOnAnotherRowKeepsPendingExpand() async throws {
