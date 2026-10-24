@@ -20,9 +20,21 @@ No Homebrew? Download `Kairo-vX.Y.Z.dmg` from the [latest release](https://githu
 Prebuilt universal binaries (Apple Silicon and Intel in one file):
 
 ```bash
-VER=$(curl -sS https://api.github.com/repos/cygnusyang/Kairo/releases/latest | sed -n 's/.*"tag_name": *"\(v[^"]*\)".*/\1/p')
-curl -sSL "https://github.com/cygnusyang/Kairo/releases/download/$VER/kairo-$VER-macos-universal.tar.gz" | tar xz
-sudo install -m 755 "kairo-$VER-macos-universal/bin/kairo" "kairo-$VER-macos-universal/bin/kairo-mcp" /usr/local/bin/
+VER=$(curl -sS https://api.github.com/repos/cygnusyang/Kairo/releases/latest \
+  | sed -n 's/.*"tag_name": *"\(v[^"]*\)".*/\1/p')
+BASE="https://github.com/cygnusyang/Kairo/releases/download/$VER"
+
+curl -sSL -O "$BASE/kairo-$VER-macos-universal.tar.gz"
+curl -sSL -O "$BASE/kairo-$VER-macos-universal.tar.gz.sha256"
+
+# verify before unpacking: a truncated download fails right here
+[ "$(cat kairo-$VER-macos-universal.tar.gz.sha256)" = \
+  "$(shasum -a 256 kairo-$VER-macos-universal.tar.gz | awk '{print $1}')" ] \
+  && echo "checksum ok"
+
+tar xzf "kairo-$VER-macos-universal.tar.gz"
+sudo install -m 755 "kairo-$VER-macos-universal/bin/kairo" \
+  "kairo-$VER-macos-universal/bin/kairo-mcp" /usr/local/bin/
 kairo
 ```
 
