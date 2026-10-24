@@ -26,7 +26,7 @@ brew install --cask cygnusyang/kairo/kairo
 
 AI 编码智能体擅长执行单个任务，但缺少调度侧的「对照物」：复杂项目需要的 WBS、依赖关系、排期与进度状态，目前散落在对话上下文和临时 Markdown 里。Kairo 把这部分独立出来，形成 AI 与人的分工闭环：
 
-![Kairo 分工闭环](docs/kairo-loop.svg)
+![Kairo 分工闭环](docs/kairo-loop.zh-CN.svg)
 
 - AI 通过 **MCP** 或 **CLI** 读写任务与排期（程序化接口是一等公民）；
 - 人通过 **macOS 应用** 审阅甘特、违例与全局进度并干预。
