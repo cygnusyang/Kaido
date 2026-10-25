@@ -511,13 +511,16 @@ private struct OutlineRowView: View {
         case .violation:
             violationCell
         case .number:
+            // 序号右对齐（数字列惯例）：左对齐时多级序号（1.1 / 10.12）会贴着列左缘
+            // 被行裁剪吃掉首位，用户看到的就是「序号显示不全」（v0.14.5）。
             Text(row.outlineNumber)
                 .font(.system(size: DesignTokens.captionFontSize))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .foregroundStyle(DesignTokens.textSecondary)
-                .padding(.horizontal, 4)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.trailing, 6)
         case .title:
             titleCell
         case .predecessors:
