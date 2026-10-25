@@ -1,6 +1,12 @@
 name: release
 
-# tag 推送触发：编译、测试、打包 Kairo.app 并发布 GitHub Release。
+# tag 推送触发：门禁 → 测试 → 打包 → 签名/公证（按凭据决定）→ 发布 GitHub Release。
+#
+# 签名策略（权威说明见 docs/release.md）：
+#   五个 secret 全空   → 未签名（ad-hoc）发布，产物、归档与 Release 说明都如实标注「未签名」；
+#   五个 secret 齐全   → Developer ID 签名 + Hardened Runtime + notarytool 公证 + staple 全链路；
+#   只配了一部分       → 直接失败。签了不公证的包在用户机器上照样被 Gatekeeper 拦，
+#                        「看起来签过」比明确未签名更危险。
 on:
   push:
     tags:
@@ -9,16 +15,18 @@ on:
 permissions:
   contents: write
 
+# 同一 tag 失败重跑时串行执行，避免两个 run 同时写 artifacts 分支。
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: macos-14
-    env:
-      # 有 Developer ID 证书即启用签名与公证；缺省时整段跳过，发布照常进行（未签名）。
-      SIGNING_ENABLED: ${{ secrets.MACOS_CERT_P12 != '' }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: 选择 Xcode 16+（Swift Testing 需要）
+      - name: 选择 Xcode 16+（Swift Testing / notarytool 需要）
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
@@ -26,53 +34,168 @@ jobs:
       - name: 检出 Swift 版本
         run: swift --version
 
+      # 发版不得绕过合入前门禁：tag 可能指向没走过 ci.yml 的提交。
+      - name: 门禁 · 与 ci.yml 同源
+        run: |
+          set -euo pipefail
+          bash tools/gate-core.sh
+          bash tools/gate-ui.sh
+          bash tools/check-shell-fullwidth.sh
+          bash tools/gate-i18n.sh
+
+      - name: 自测 · 多语言门禁自身
+        run: bash tools/i18n-lint-selftest.sh
+
+      # warnings-as-errors 由下一步的 build.sh 施加在产出目标上（release 构建），
+      # 这里只跑测试，避免测试代码的 unused 提示阻断发版。
       - name: 测试
         run: swift test
 
-      - name: 编译打包
+      # build.sh 内部先做 ad-hoc 签名（本地也能 open）；凭据齐全时下一步会用
+      # Developer ID 覆盖它，因此这里只是「有可用包」，不是最终签名。
+      - name: 编译打包（ad-hoc 中间产物）
         run: bash tools/build.sh
 
+      - name: 判定签名与公证方式
+        id: signing
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          missing=()
+          present=0
+          probe() {
+            if [ -n "$2" ]; then present=$((present + 1)); else missing+=("$1"); fi
+          }
+          probe MACOS_CERT_P12 "$MACOS_CERT_P12"
+          probe MACOS_CERT_PASSWORD "$MACOS_CERT_PASSWORD"
+          probe NOTARY_APPLE_ID "$NOTARY_APPLE_ID"
+          probe NOTARY_PASSWORD "$NOTARY_PASSWORD"
+          probe NOTARY_TEAM_ID "$NOTARY_TEAM_ID"
+
+          if [ "$present" -eq 0 ]; then
+            echo "SIGNING_MODE=adhoc" >> "$GITHUB_ENV"
+            echo "::warning title=未签名发布::未配置 Developer ID 凭据，本次产物为 ad-hoc 未签名、未公证；发布说明与 SIGNING.txt 会如实标注。"
+            {
+              echo "### 签名状态：未签名（ad-hoc）"
+              echo ""
+              # 单引号：这里的反引号是 Markdown 行内代码，不能被 shell 当命令替换执行
+              echo '未配置 `MACOS_CERT_P12` 等 secret，产物**未签名、未公证**。'
+              echo '用户首次打开需右键「打开」，或执行 `xattr -dr com.apple.quarantine /Applications/Kairo.app`。'
+            } >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${#missing[@]}" -eq 0 ]; then
+            echo "SIGNING_MODE=developer-id" >> "$GITHUB_ENV"
+            {
+              echo "### 签名状态：Developer ID 签名 + 公证"
+              echo ""
+              echo "App / DMG 已公证并装订票据；CLI 与 MCP 二进制已签名。"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ERROR: 签名/公证凭据不完整，缺失：${missing[*]}" >&2
+            echo "要么补齐全部 5 个 secret（docs/release.md），要么全部清空、按未签名发布。" >&2
+            echo "不允许只配一半：签了不公证的包在用户机器上仍会被 Gatekeeper 拦下。" >&2
+            exit 1
+          fi
+
       - name: 导入 Developer ID 证书
-        if: env.SIGNING_ENABLED == 'true'
+        if: env.SIGNING_MODE == 'developer-id'
         env:
           MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
           MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
         run: |
           set -euo pipefail
           KEYCHAIN=build.keychain
+          # 证书只经环境变量传入、只落到 runner 临时目录，不进工作区（避免被后续
+          # 「归档产物」步骤顺手 commit 进 artifacts 分支）。
+          CERT="${RUNNER_TEMP:-/tmp}/developer-id.p12"
+          printf '%s' "$MACOS_CERT_P12" | base64 --decode > "$CERT"
+          if [ ! -s "$CERT" ]; then
+            echo "ERROR: secret MACOS_CERT_P12 解码后为空（应为 base64 编码的 .p12）" >&2
+            exit 1
+          fi
           security create-keychain -p actions "$KEYCHAIN"
           security default-keychain -s "$KEYCHAIN"
           security unlock-keychain -p actions "$KEYCHAIN"
           security set-keychain-settings -lut 21600 "$KEYCHAIN"
-          echo "$MACOS_CERT_P12" | base64 --decode > cert.p12
-          security import cert.p12 -k "$KEYCHAIN" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions "$KEYCHAIN"
-          rm -f cert.p12
+          security import "$CERT" -k "$KEYCHAIN" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions "$KEYCHAIN" >/dev/null
+          rm -f "$CERT"
+          # find-identity -v 只列有效身份：证书过期或被吊销时这里就是空，必须失败退出。
           IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" \
             | sed -n 's/.*"\(Developer ID Application[^"]*\)".*/\1/p' | head -1)"
-          if [[ -z "$IDENTITY" ]]; then
-            echo "ERROR: 未在 p12 中找到 Developer ID Application 证书" >&2
+          if [ -z "$IDENTITY" ]; then
+            echo "ERROR: p12 中没有有效的 Developer ID Application 证书（可能为空包、密码错、证书过期或已吊销）：" >&2
+            security find-identity -v -p codesigning "$KEYCHAIN" >&2 || true
             exit 1
           fi
           echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "签名身份：${IDENTITY}"
 
-      - name: 签名应用（Hardened Runtime）
-        if: env.SIGNING_ENABLED == 'true'
+      - name: 签名应用（Hardened Runtime + 时间戳）
+        if: env.SIGNING_MODE == 'developer-id'
         run: |
           set -euo pipefail
-          codesign --force --deep --options runtime --timestamp \
+          # 不对签名用 --deep：Apple 已不推荐，逐层显式签名才能看清签了什么。
+          # 包内没有内嵌 frameworks（SwiftPM 静态链接），单层签名即覆盖全部内容。
+          codesign --force --options runtime --timestamp \
             --sign "$SIGN_IDENTITY" dist/Kairo.app
-          codesign --verify --deep --strict --verbose=2 dist/Kairo.app
+          codesign --verify --strict --verbose=2 dist/Kairo.app
+          # 硬断言：Hardened Runtime 与 Developer ID 都要真的生效。只签不开 runtime 的包
+          # 会被 notarytool 直接拒，先在这里红，错误信息更可行动。
+          DETAILS="$(codesign -dv --verbose=4 dist/Kairo.app 2>&1)"
+          if ! printf '%s\n' "$DETAILS" | grep -q 'flags=.*runtime'; then
+            echo "ERROR: 未启用 Hardened Runtime" >&2
+            printf '%s\n' "$DETAILS" >&2
+            exit 1
+          fi
+          if ! printf '%s\n' "$DETAILS" | grep -q 'Authority=Developer ID Application'; then
+            echo "ERROR: 签名证书不是 Developer ID Application（自签/Development 证书无法公证）" >&2
+            printf '%s\n' "$DETAILS" >&2
+            exit 1
+          fi
+
+      - name: 公证并装订 App（OTA zip 里的 App 必须自带票据）
+        if: env.SIGNING_MODE == 'developer-id'
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          NOTARY_TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          # 顺序有讲究：票据必须先进 App 再打包，OTA 的 zip 无法 staple。
+          # 否则更新包在离线首次启动时仍会被 Gatekeeper 拦（DMG 已装订救不了 OTA）。
+          SUBMIT_ZIP="${RUNNER_TEMP:-/tmp}/Kairo-notarize.zip"
+          ditto -c -k --keepParent dist/Kairo.app "$SUBMIT_ZIP"
+          xcrun notarytool submit "$SUBMIT_ZIP" \
+            --apple-id "$NOTARY_APPLE_ID" \
+            --password "$NOTARY_PASSWORD" \
+            --team-id "$NOTARY_TEAM_ID" \
+            --wait
+          rm -f "$SUBMIT_ZIP"
+          xcrun stapler staple dist/Kairo.app
+          xcrun stapler validate dist/Kairo.app
+          # spctl 是「用户机器视角」的终检：accepted + Notarized Developer ID 才算真的能装。
+          if ! spctl -a -vvv -t exec dist/Kairo.app > /tmp/spctl-app.log 2>&1; then
+            cat /tmp/spctl-app.log >&2
+            echo "ERROR: spctl 未接受 dist/Kairo.app——用户侧 Gatekeeper 同样会拒绝，先修签名再发版" >&2
+            exit 1
+          fi
+          cat /tmp/spctl-app.log
 
       - name: 打包发布产物（DMG + OTA 载体 zip）
         run: |
           # 与本地 tools/release.sh 同源：一次产出 DMG（人装）与 zip（OTA 载体），
           # 并校验应用内版本号等于 tag，避免把旧版本装进新版本的附件。
+          # 必须在签名/装订之后跑，否则打进去的是 ad-hoc 中间产物。
           bash tools/package.sh "${GITHUB_REF_NAME}" --skip-build --out .
           echo "ZIP_SHA256=$(shasum -a 256 "Kairo-${GITHUB_REF_NAME}.zip" | awk '{print $1}')" >> "$GITHUB_ENV"
 
-      - name: 公证 DMG（notarytool）
-        if: env.SIGNING_ENABLED == 'true'
+      - name: 签名并公证 DMG
+        if: env.SIGNING_MODE == 'developer-id'
         env:
           NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
           NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
@@ -80,7 +203,9 @@ jobs:
         run: |
           set -euo pipefail
           DMG="Kairo-${GITHUB_REF_NAME}.dmg"
-          codesign --force --sign "$SIGN_IDENTITY" --timestamp "$DMG"
+          # DMG 本身也签一层：附件被替换/篡改时能在下载侧直接看出来。
+          codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG"
+          codesign --verify --strict --verbose=2 "$DMG"
           xcrun notarytool submit "$DMG" \
             --apple-id "$NOTARY_APPLE_ID" \
             --password "$NOTARY_PASSWORD" \
@@ -88,25 +213,60 @@ jobs:
             --wait
           xcrun stapler staple "$DMG"
           xcrun stapler validate "$DMG"
+          spctl -a -t open --context context:primary-signature -v "$DMG"
 
       - name: 构建 CLI / MCP 通用二进制（一行安装用）
         run: |
           set -euo pipefail
           # 双架构通用二进制：Intel 与 Apple Silicon 共用一份产物
           for p in KairoCLI KairoMCP; do
-            swift build -c release --arch arm64 --arch x86_64 --product "$p"
+            swift build -c release --arch arm64 --arch x86_64 \
+              -Xswiftc -warnings-as-errors --product "$p"
           done
           BIN=".build/apple/Products/Release"
           STAGE="kairo-${GITHUB_REF_NAME}-macos-universal"
-          rm -rf "$STAGE" "$STAGE.tar.gz"
+          rm -rf "$STAGE" "$STAGE.tar.gz" "$STAGE.tar.gz.sha256"
           mkdir -p "$STAGE/bin"
           cp "$BIN/KairoCLI" "$STAGE/bin/kairo"
           cp "$BIN/KairoMCP" "$STAGE/bin/kairo-mcp"
           chmod +x "$STAGE"/bin/*
+          # 二进制同样要签：未签名的 CLI 在用户机器上会被 Gatekeeper 拦。
+          # tar.gz 不支持装订票据，因此只签名不 staple（在线校验，见 docs/release.md）。
+          if [ "${SIGNING_MODE:-adhoc}" = "developer-id" ]; then
+            for b in "$STAGE"/bin/*; do
+              codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$b"
+              codesign --verify --strict --verbose=2 "$b"
+            done
+          fi
           tar -czf "$STAGE.tar.gz" "$STAGE"
           shasum -a 256 "$STAGE.tar.gz" | awk '{print $1}' > "$STAGE.tar.gz.sha256"
           echo "CLI_TARBALL=$STAGE.tar.gz" >> "$GITHUB_ENV"
           ls -lh "$STAGE.tar.gz"
+
+      - name: 记录签名状态（SIGNING.txt）
+        run: |
+          set -euo pipefail
+          # 状态必须跟产物一起落盘：只写在 run 日志里，用户和几个月后的维护者都看不到。
+          SIG_SUMMARY="$(codesign -dv --verbose=4 dist/Kairo.app 2>&1 \
+            | grep -E '^(Identifier|Authority|TeamIdentifier|Signature|Timestamp)=' || true)"
+          if [ "${SIGNING_MODE:-adhoc}" = "developer-id" ]; then
+            STATE="Developer ID 签名 + 公证 + 已装订（stapler）"
+            NOTARY="App 与 DMG 均经 notarytool 公证并装订票据；CLI/MCP 二进制已签名，tar.gz 无法装订票据（Gatekeeper 走在线校验）"
+          else
+            STATE="未签名（ad-hoc），未公证"
+            NOTARY="无。首次打开请右键「打开」，或执行：xattr -dr com.apple.quarantine /Applications/Kairo.app"
+          fi
+          {
+            printf 'Kairo %s 签名状态\n' "${GITHUB_REF_NAME}"
+            printf '=========================\n'
+            printf '状态: %s\n' "$STATE"
+            printf '公证: %s\n' "$NOTARY"
+            printf '生成时间(UTC): %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf '\n应用签名摘要（codesign -dv --verbose=4 dist/Kairo.app）：\n'
+            printf '%s\n' "$SIG_SUMMARY"
+            printf '\n验证方法见 docs/release.md。\n'
+          } > SIGNING.txt
+          cat SIGNING.txt
 
       - name: 签名更新清单（update-manifest.json）
         env:
@@ -120,6 +280,7 @@ jobs:
           fi
           VERSION="${GITHUB_REF_NAME#v}"
           BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          # CDHash 必须在全部签名/装订动作之后提取（staple 不改签名，但顺序错了就无法自查）
           CDHASH="$(tools/extract_cdhash.sh)"
           UPDATE_SIGNING_KEY_BASE64="$UPDATE_SIGNING_KEY_BASE64" \
             MF_VERSION="$VERSION" \
@@ -145,6 +306,18 @@ jobs:
             # 章节缺失时回退：说明 + GitHub 自动生成的提交列表。
             echo "（CHANGELOG.md 中没有「## ${GITHUB_REF_NAME}」章节，以下为自动生成的提交列表。）" > release-notes.md
             echo "has_autonotes=true" >> "$GITHUB_OUTPUT"
+          fi
+          # 未签名就把「未签名」写在说明最前面：不能让用户以为下载的是已公证发行版。
+          if [ "${SIGNING_MODE:-adhoc}" != "developer-id" ]; then
+            {
+              # 同上：反引号只在 Markdown 里是语法，shell 里是命令替换，必须用单引号包住
+              echo '> **本版本未签名、未公证**（ad-hoc 构建），签名凭据未配置。'
+              echo '> 首次打开请右键「打开」，或执行 `xattr -dr com.apple.quarantine /Applications/Kairo.app`。'
+              echo '> 签名状态与验证方法见仓库 docs/release.md。'
+              echo ""
+              cat release-notes.md
+            } > release-notes.signed.md
+            mv release-notes.signed.md release-notes.md
           fi
 
       - name: 归档产物到 artifacts 分支（仓库内可追溯）
@@ -172,11 +345,11 @@ jobs:
           # latest/ 每次重建：只镜像当前版本，不残留历史产物（D-026）。
           rm -rf "$TAG" latest
           mkdir -p "$TAG" latest
-          cp "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" update-manifest.json "$TAG"/
-          cp "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" update-manifest.json latest/
+          cp "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" update-manifest.json SIGNING.txt "$TAG"/
+          cp "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" update-manifest.json SIGNING.txt latest/
           git add -Af "$TAG" latest
           if ! git diff --cached --quiet; then
-            git commit -m "artifacts: ${TAG}（DMG + OTA 载体 zip + 签名清单）"
+            git commit -m "artifacts: ${TAG}（DMG + OTA 载体 zip + 签名清单 + 签名状态）"
           fi
           for attempt in 1 2 3; do
             if git push origin artifacts; then
@@ -189,6 +362,10 @@ jobs:
           echo "ERROR: artifacts 推送连续 3 次失败" >&2
           exit 1
 
+      - name: 清理临时钥匙串
+        if: always() && env.SIGNING_MODE == 'developer-id'
+        run: security delete-keychain build.keychain 2>/dev/null || true
+
       - name: 创建 Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -197,14 +374,14 @@ jobs:
           # /releases/latest/download/ 永久链接随每个 release 重传即更新）
           if [ "${{ steps.changelog.outputs.has_autonotes }}" = "true" ]; then
             gh release create "$GITHUB_REF_NAME" \
-              "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" update-manifest.json \
+              "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" update-manifest.json SIGNING.txt \
               "$CLI_TARBALL" "$CLI_TARBALL.sha256" \
               --title "Kairo ${GITHUB_REF_NAME}" \
               --notes-file release-notes.md \
               --generate-notes
           else
             gh release create "$GITHUB_REF_NAME" \
-              "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" update-manifest.json \
+              "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" update-manifest.json SIGNING.txt \
               "$CLI_TARBALL" "$CLI_TARBALL.sha256" \
               --title "Kairo ${GITHUB_REF_NAME}" \
               --notes-file release-notes.md

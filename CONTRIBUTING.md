@@ -88,12 +88,21 @@ Every Release ships:
 | `kairo-vX.Y.Z-macos-universal.tar.gz` | `kairo` and `kairo-mcp` binaries, arm64 + x86_64 in one file |
 | `…tar.gz.sha256` | checksum for the CLI tarball |
 | `update-manifest.json` | signed OTA feed |
+| `SIGNING.txt` | what signing/notarization actually happened for this build (never inferred) |
 
 ### Signing and notarization
 
 Signing is **optional and off by default**: the workflow checks whether the certificate
 secret exists and skips the whole signing chain when it does not, so an unsigned release
-still succeeds. To turn it on, add these repository secrets:
+still succeeds — and says so: the Release notes get an "unsigned, not notarized" banner and
+`SIGNING.txt` is attached to the Release and archived under `artifacts/<tag>/`.
+Partial credentials are a hard failure (a signed-but-unnotarized build is still blocked by
+Gatekeeper, so "half signed" must never ship silently).
+
+Full operator guide, including how to verify the chain on a machine that has the
+certificate: [docs/release.md](docs/release.md).
+
+To turn signing on, add these repository secrets:
 
 | Secret | What it is |
 |---|---|
@@ -110,6 +119,12 @@ base64 -i DeveloperID.p12 | pbcopy
 ```
 
 When the secrets are present the workflow imports the certificate into a temporary keychain,
-signs `Kairo.app` with the hardened runtime, signs and notarizes the DMG with
-`notarytool`, and staples the ticket. Unsigned builds keep working meanwhile — that is why
-this is a switch rather than a hard requirement.
+signs `Kairo.app` with the hardened runtime, notarizes and staples **the app itself**
+(the OTA zip cannot be stapled, so the ticket has to be inside the bundle before packaging),
+then signs, notarizes and staples the DMG, and finally signs the CLI/MCP binaries in the
+universal tarball. Unsigned builds keep working meanwhile — that is why this is a switch
+rather than a hard requirement for 0.x.
+
+As of v0.16.0 no Developer ID secrets are configured, so every published artifact to date is
+ad-hoc signed and not notarized. Do not describe a release as signed or notarized unless its
+`SIGNING.txt` says so.

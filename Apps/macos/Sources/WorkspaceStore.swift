@@ -1695,15 +1695,21 @@ final class WorkspaceStore: ObservableObject {
         for task in seed.tasks { project.add(task) }
     }
 
+    /// 打开磁盘文件。
+    ///
+    /// - Parameter forgetOnFailure: 失败时是否把它移出最近列表。显式打开（双击 / 面板）
+    ///   传 true——打不开的文件不该在菜单里留一条永远失败的项；外部刷新传 false——
+    ///   那份项目此刻仍在编辑中，摘掉最近记录只会让用户下次找不到它。
     @discardableResult
-    func open(url: URL) -> Bool {
+    func open(url: URL, forgetOnFailure: Bool = true) -> Bool {
         do {
             _ = try session.openProject(at: url)
             finishOpen()
             return true
         } catch {
-            // 打不开的文件不进最近列表，否则菜单里会留一条永远失败的项。
-            forgetRecentProject(url)
+            if forgetOnFailure {
+                forgetRecentProject(url)
+            }
             report(error)
             return false
         }
@@ -1881,12 +1887,17 @@ final class WorkspaceStore: ObservableObject {
 
     func save(to url: URL? = nil) {
         let wasUpgrade = session.needsFormatUpgrade
+        // 横幅挂着 = 磁盘上还有一版外部改动。保存会把它覆盖掉，成功后必须说出来，
+        // 而不是让 recordDiskVersion 静默清横幅。
+        let overwroteExternal = externalUpdatePending
         do {
             _ = try session.saveProject(to: url)
             saveState = .saved
             needsFormatUpgrade = session.needsFormatUpgrade
-            // 每次保存至多提示一次：保存成功后来源版本即为当前版本。
-            if wasUpgrade {
+            if overwroteExternal {
+                notice = I18n.t("alert.kept_local", "Kept the local version")
+            } else if wasUpgrade {
+                // 每次保存至多提示一次：保存成功后来源版本即为当前版本。
                 notice = I18n.t("alert.upgraded_to", "Upgraded to v%1$ld", KairoFile.currentFormatVersion)
             }
             recordDiskVersion(at: session.projectURL)
@@ -1954,7 +1965,7 @@ final class WorkspaceStore: ObservableObject {
     func reloadExternal() {
         guard let url = session.projectURL else { return }
         let mtime = pendingExternalMtime ?? Self.modificationDate(of: url)
-        if open(url: url) {
+        if open(url: url, forgetOnFailure: false) {
             notice = mtime.map {
                 I18n.t("alert.external_update_loaded", "External update loaded at %1$@", Display.time($0))
             } ?? I18n.t("alert.external_update_loaded.plain", "External update loaded")
@@ -2131,6 +2142,9 @@ final class WorkspaceStore: ObservableObject {
 
     /// 比较磁盘 mtime（应用前台每 2 秒调用一次；测试可直接调用）。
     func checkExternalUpdate() {
+        // 异步打开进行中不做外部刷新：同步重载会让 revision 前进，进行中的载入被判成
+        // 「载入期间被编辑」，用户会收到一条假提示并被要求再确认一次。
+        guard !isLoading else { return }
         guard let url = session.projectURL,
               let mtime = Self.modificationDate(of: url) else { return }
         if let acknowledgedMtime, mtime <= acknowledgedMtime { return }
@@ -2140,7 +2154,7 @@ final class WorkspaceStore: ObservableObject {
         if session.hasUnsavedChanges {
             pendingExternalMtime = mtime
             externalUpdatePending = true
-        } else if open(url: url) {
+        } else if open(url: url, forgetOnFailure: false) {
             notice = I18n.t("alert.external_update_loaded", "External update loaded at %1$@", Display.time(mtime))
         } else {
             failedExternalMtime = mtime

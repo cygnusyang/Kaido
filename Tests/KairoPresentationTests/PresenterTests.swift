@@ -562,6 +562,11 @@ private let fixtureProjectTitle = "演示项目"
         try await Task.sleep(nanoseconds: 100_000_000)
     } while Date() < deadline
 
+    print(String(
+        format: "[presenter-perf] 1000 行（无基线）快照构造最快耗时 %.1f ms（样本窗口内最优）",
+        bestMilliseconds
+    ))
+
     #expect(snapshot.outline.rows.count == 1_000)
     #expect(bestMilliseconds < 1000, "1000 任务快照最快耗时 \(bestMilliseconds) ms（超出 sanity 上限，疑似数量级回归）")
 }

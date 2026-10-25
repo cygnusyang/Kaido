@@ -71,7 +71,7 @@ struct OutlineSelectionAcceptanceTests {
         let store = makeStore()
         let rows = store.snapshot.outline.rows
         #expect(rows.count >= 3, "夹具应有多行")
-        try #require(rows.first)
+        _ = try #require(rows.first)
 
         for row in rows.prefix(3) {
             clickRow(row, in: store)

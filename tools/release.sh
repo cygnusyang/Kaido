@@ -7,6 +7,10 @@
 # 前置：CHANGELOG.md 里已经写好「## vX.Y.Z — YYYY-MM-DD」章节（脚本不替你写 changelog，
 # 只负责把它放到 Release 上）。
 #
+# 签名：本脚本只做本机构建，产物是 tools/build.sh 的 ad-hoc 签名，**未公证**。
+# Developer ID 凭据只在 CI secret 里，正式签名/公证由 .github/workflows/release.yml 完成。
+# 产物的真实签名状态写到 dist/SIGNING.txt，对外分发以 CI 产物为准（docs/release.md）。
+#
 # 用法:
 #   tools/release.sh 0.8.3            # 完整发版
 #   tools/release.sh 0.8.3 --dry-run  # 只跑校验 + 改版本号 + 测试 + 打包，不提交不推送
@@ -124,11 +128,31 @@ DMG="dist/Kairo-${TAG}.dmg"
 ZIP="dist/Kairo-${TAG}.zip"
 [[ -f "$DMG" && -f "$ZIP" ]] || fail "打包产物缺失"
 
+# 签名状态如实记录：本地产物只经 build.sh 的 ad-hoc 签名，没有公证。
+# 不给产物贴「已签名」标签，也不假装本地能验证公证——凭据不在这台机器上。
+SIG_LINE="$(codesign -dv --verbose=4 "dist/Kairo.app" 2>&1 | grep -m1 '^Signature=' || true)"
+if printf '%s' "$SIG_LINE" | grep -q 'Signature=adhoc'; then
+  SIGN_STATE="未签名（ad-hoc），未公证"
+else
+  SIGN_STATE="非 ad-hoc 签名但未经本脚本公证：${SIG_LINE:-无签名信息}"
+fi
+{
+  printf 'Kairo %s 本地产物签名状态\n' "$TAG"
+  printf '================================\n'
+  printf '状态: %s\n' "$SIGN_STATE"
+  printf '说明: tools/release.sh 只做本机构建；Developer ID 签名与 notarytool 公证在 CI 完成。\n'
+  printf '分发: 对外只发 GitHub Release 上的 CI 产物，其状态见该 Release 附带的 SIGNING.txt。\n'
+  printf '验证: codesign -dv --verbose=4 dist/Kairo.app（ad-hoc 时 Signature=adhoc）\n'
+  printf '\n'
+} > dist/SIGNING.txt
+
 if [[ "$DRY_RUN" -eq 1 ]]; then
   echo "==> dry-run：产物与版本号已就绪，未提交、未打 tag、未推送"
   echo "    DMG: $DMG"
   echo "    ZIP: $ZIP"
   echo "    说明: $NOTES_FILE"
+  echo "==> 本地产物签名状态：${SIGN_STATE}"
+  echo "    对外分发请以 CI 产物为准，签名/公证验证见 docs/release.md"
   exit 0
 fi
 
@@ -150,6 +174,8 @@ if [[ "$PUSH" -eq 1 ]]; then
   echo "==> 推送 main 与 $TAG"
   git push origin main
   git push origin "refs/tags/$TAG"
+  echo "==> 本地产物签名状态：${SIGN_STATE}（记录在 dist/SIGNING.txt）"
+  echo "    CI 会按 secret 决定是否签名/公证，状态写进 Release 的 SIGNING.txt；验证见 docs/release.md"
   echo "==> 已触发发版流程，查看进度："
   echo "    gh run list --workflow=release.yml --limit 3"
 else

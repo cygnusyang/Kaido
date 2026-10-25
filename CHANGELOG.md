@@ -15,6 +15,46 @@
 
 - 可选列（实际开始 / 实际结束 / 基线四列）的位置改由列顺序决定，取代 v0.15 的「紧随 `finish`、找不到锚点就追加到末尾」：用户拖过之后位置必须稳定，不能随窗口宽窄在两个位置之间跳。默认顺序下的渲染结果与改动前逐列一致。
 
+### 构建与发布
+
+- **签名/公证链路修了三处真问题**：① OTA 的 zip 无法 staple，改为「先公证并装订 App，再打包 DMG/zip」，否则离线首次启动的更新包仍被 Gatekeeper 拦；② 证书只配一半（有 p12、缺公证凭据）过去会走到 notarytool 才失败，现在前置判定直接拒绝，并报出缺哪几个 secret；③ CLI/MCP 通用二进制此前完全未签名，现按同一证书签名（tar.gz 无法装订票据，属已知限制）。
+- **未签名不再含糊**：Release 说明顶部加「未签名、未公证」提示，Release 附件与 `artifacts/<tag>/` 都落一份 `SIGNING.txt`（签名身份 / 公证结论 / codesign 摘要），本地 `tools/release.sh` 也把本地产物的 ad-hoc 状态写进 `dist/SIGNING.txt` 并打印。**当前所有已发布产物仍是 ad-hoc 未签名、未公证**——文档如实描述，未声称已签名。
+- **发版门禁与合入前收敛**：`release.yml` 补跑 `gate-ui` / 全角检查 / 多语言门禁与自测（此前只有 `build.sh` 带的 `gate-core`）；多语言门禁抽成 `tools/gate-i18n.sh`，`ci.yml` 与 `release.yml` 共用一份，避免两处口径漂移。
+- **warnings-as-errors 两端一致**：`ci.yml` 的 macOS 与 Linux 两侧都新增 `swift build -Xswiftc -warnings-as-errors`（产物目标；此前只有发版构建开，Linux 完全没开），Linux 侧在 `swift:6.0-jammy` 容器实测 0 warning。该 flag 不施加到 `swift test`：测试代码现存一处 `[#no-usage]` 提示（`OutlineSelectionAcceptanceTests.swift:74`），修复属测试代码改动，已登记为待办，不在发布链路内夹带。
+- **新增 `docs/release.md`**：1.0 发版前置清单、5 个 secret 的生成方式、有证书机器上的逐步签名/公证验证命令与期望输出、Linux 与本地 macOS 的口径差异表。
+
+## v0.17.0 — 2026-10-25
+
+稳定化版本：不加新功能，只做性能取证、稳定性审计与发版链路整改。
+
+### 修复（稳定性审计，5 条）
+
+- 异步打开项目期间外部轮询仍在跑 → 会同步重载旧项目、清撤销栈、把目标文件降级成「再确认一次」并弹假提示。改为打开期间跳过轮询。
+- 外部刷新复用打开路径 → 刷新失败会把**仍在编辑**的项目从「最近打开」里摘掉。改为刷新失败不摘。
+- 有外部更新横幅时按 ⌘S → 静默覆盖磁盘版本并清横幅。改为保存后提示「已保留本地版本」。
+- 退出时保存失败 → 取消退出后主窗口会**第二次**弹同一错误；且保存后未复核脏标记。改为先取走文案清槽再弹、保存后复查脏标记。
+- 退出守卫无测试缝 → 抽出注入点（默认行为不变），补 5 条用例：未保存必拦、干净直接退、保存后退出、保存失败取消退出、无路径走保存面板。
+
+### 变更（发版链路）
+
+- **zip 也能 staple**：改为「签 App → 公证并装订 App → 打包 DMG/zip → 公证并装订 DMG」，CI 断言 App 与 DMG 都 `stapler validate` 通过；此前 OTA 的 zip 里没有票据，离线首启会被 Gatekeeper 拦。
+- **凭据三态前置**：全空=未签名发布、齐全=全链路、只配一半=直接失败并列出缺失项（不再跑到 notarytool 才报错）。
+- **未签名发布有标注**：Release 说明顶部加横幅，附件与 `artifacts/<tag>/` 落 `SIGNING.txt`（含 codesign 摘要），本地 `tools/release.sh` 同样写 `dist/SIGNING.txt`。
+- **CLI/MCP 二进制补签名**（此前完全未签）；证书落 `$RUNNER_TEMP` 不进工作区、签名后断言 hardened runtime 与 Authority、去掉 `--deep`、补钥匙串清理、加 concurrency。
+- **release 工作流补齐门禁**：gate-core 之外加上 gate-ui / 全角检查 / i18n；i18n 门禁抽成 `tools/gate-i18n.sh`，ci 与 release 共用。
+- **Linux CI 与本地同口径**：两侧都开 `-Xswiftc -warnings-as-errors`；顺带清掉 `OutlineSelectionAcceptanceTests` 的一处未使用返回值告警（现在 `swift build --build-tests -warnings-as-errors` 干净）。
+
+### 性能取证（docs/perf-1.0.md）
+
+- **NFR-1 达标**：5,000 任务 × 3 基线 release 版 encode 0.136 s / decode 0.155 s / variance 0.170 s，体积 5.10 MB（×5 基线 7.31 MB）；相对 1 s 门槛余量 4.7×。体积与 v0.13 逐字节一致。
+- **NFR-2 部分不达标**：1,000 行渲染的 6 项里 5 项达标（30–51 ms，预算 100 ms），**横向翻窗 37.6 ms 超过 60Hz 帧预算 16.7 ms**（D-038）。根因是翻窗走整表 refresh；修复方向已登记（增量重绘 + 逐帧成本钩子）。
+
+### 判据与证据
+
+- 全量 **1332 tests / 123 suites** 连续两次通过；`swift build --build-tests -Xswiftc -warnings-as-errors` 零 warning。
+- 文档：`docs/perf-1.0.md`（71 行）、`docs/stability-audit-0.17.md`（41 行）、`docs/release.md`（339 行，含 5 个 secret 的生成、逐步签名/公证验证命令与期望输出、下载侧判定表）。
+- **签名与公证链未实跑**：本机无 Developer ID 证书，`gh secret list` 只有 `UPDATE_SIGNING_KEY_BASE64`，已发产物全部是 ad-hoc 未签名未公证 —— 文档如实标注，未冒充已验证。
+
 ## v0.16.0 — 2026-10-25
 
 ### 新增
