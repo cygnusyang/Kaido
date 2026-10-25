@@ -178,6 +178,14 @@ struct WorkspaceView: View {
             } message: {
                 Text(I18n.t("alert.unsaved_changes.example_message", "Loading the example project will discard unsaved changes in the current project."))
             }
+            // 基线管理面板（v0.15）：入口在「基线」菜单底部与 ⌘K。展开状态挂在 store 上，
+            // 因为菜单栏命令拿不到视图 @State（与 BaselineRenamePrompt 同一个理由）。
+            .sheet(isPresented: Binding(
+                get: { store.isBaselinePanelPresented },
+                set: { if !$0 { store.dismissBaselinePanel() } }
+            )) {
+                BaselinePanel(store: store)
+            }
     }
 
     // MARK: - 工具栏

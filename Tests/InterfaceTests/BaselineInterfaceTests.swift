@@ -636,3 +636,411 @@ private func makeMultiBaselineFixture(names: [String]) throws -> (dir: URL, file
     let after = try String(contentsOf: fixture.file, encoding: .utf8)
     #expect(!after.contains("colorIndex"), "只读出口不得把派生颜色写回文件")
 }
+
+// MARK: - v0.15：CSV 导出与项目摘要（09-baseline-version-plan §4）
+
+/// CSV 列头（逐字；顺序即数据列顺序，与 `VarianceCSV.header` 契约一致）。
+private let csvHeaderColumns = [
+    "taskID", "title", "baselineStart", "baselineFinish",
+    "planStartVariance", "planFinishVariance",
+    "actualStartVariance", "actualFinishVariance",
+    "overdueDays", "hasBaseline", "isForecast",
+]
+
+/// 与 CSV 相同的时间表示（ISO 8601 / UTC），用于逐字比对。
+private func csvDate(_ date: Date) -> String {
+    ISO8601DateFormatter().string(from: date)
+}
+
+/// 最小 CSV 状态机（RFC 4180），独立于生产代码实现——复用生产解析器会「同错同过」。
+///
+/// 规则：引号**只在字段起始处**生效（与 python `csv` 一致），字段内含逗号/引号/换行时整体加引号，
+/// 内部引号写成两个引号。裸引号（字段中间出现、未包裹）按字面保留。
+private func csvFields(_ line: String) -> [String] {
+    var fields: [String] = []
+    var current = ""
+    var inQuotes = false
+    var fieldStarted = false
+    var index = line.startIndex
+    while index < line.endIndex {
+        let character = line[index]
+        if inQuotes {
+            if character == "\"" {
+                let next = line.index(after: index)
+                if next < line.endIndex, line[next] == "\"" {
+                    current.append("\"")
+                    index = line.index(after: next)
+                    continue
+                }
+                inQuotes = false
+            } else {
+                current.append(character)
+            }
+        } else if character == "\"" , !fieldStarted, current.isEmpty {
+            inQuotes = true
+            fieldStarted = true
+        } else if character == "," {
+            fields.append(current)
+            current = ""
+            fieldStarted = false
+        } else {
+            current.append(character)
+            fieldStarted = true
+        }
+        index = line.index(after: index)
+    }
+    fields.append(current)
+    return fields
+}
+
+/// CSV 形状不满足预期：**抛错而不是数组越界**。
+/// 越界会以 signal 5 炸掉整个测试进程，后面所有用例连跑都跑不到；红断言才定位得到问题。
+private struct CSVShapeViolation: Error, CustomStringConvertible {
+    var message: String
+    var description: String { message }
+}
+
+/// 断言列数恰为列头宽度（不满足即抛，后续下标才安全）。
+private func requireCSVWidth(_ fields: [String], _ context: String) throws {
+    guard fields.count == csvHeaderColumns.count else {
+        throw CSVShapeViolation(
+            message: "\(context)：列数 \(fields.count) ≠ \(csvHeaderColumns.count)，原始行 \(fields)"
+        )
+    }
+}
+
+/// 取第 index 节（缺节即抛，不越界）。
+private func requireCSVSection(_ sections: [[String]], _ index: Int, _ context: String) throws -> [String] {
+    guard sections.indices.contains(index) else {
+        throw CSVShapeViolation(message: "\(context)：缺少第 \(index + 1) 节（实得 \(sections.count) 节）")
+    }
+    return sections[index]
+}
+
+/// 取第 index 列（缺列即抛，不越界）。
+private func requireCSVField(_ fields: [String], _ index: Int, _ context: String) throws -> String {
+    guard fields.indices.contains(index) else {
+        throw CSVShapeViolation(message: "\(context)：缺少第 \(index + 1) 列（实得 \(fields.count) 列）")
+    }
+    return fields[index]
+}
+
+/// 读 CSV 并切成「列头 + 若干数据行」的分节：遇到逐字列头即开新节。
+/// 返回 (全部行, 各节数据行, 是否以 BOM 开头)。
+private func csvSections(_ url: URL) throws -> (lines: [String], sections: [[String]], hasBOM: Bool) {
+    let data = try Data(contentsOf: url)
+    let hasBOM = data.starts(with: [0xEF, 0xBB, 0xBF])
+    let raw = String(decoding: data, as: UTF8.self)
+    // BOM 是 U+FEFF 字符，不剥掉会让首行既不是 "#" 注释也不是列头。
+    let text = hasBOM ? String(raw.dropFirst()) : raw
+    let header = csvHeaderColumns.joined(separator: ",")
+    let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    var sections: [[String]] = []
+    for line in lines {
+        if line.isEmpty || line.hasPrefix("#") { continue }
+        if line == header {
+            sections.append([])
+        } else {
+            // 首行不是列头时按「无列头」容错收集：让断言红在明处，而不是数组越界炸掉整个测试进程。
+            if sections.isEmpty { sections.append([]) }
+            sections[sections.count - 1].append(line)
+        }
+    }
+    return (lines, sections, hasBOM)
+}
+
+/// 逐字段比对一行 CSV 与引擎给出的单任务偏差（缺值必须是空字段，不能是 0）。
+private func expectCSVRow(_ fields: [String], matches variance: TaskVariance, title: String) throws {
+    try requireCSVWidth(fields, "任务行")
+    #expect(try requireCSVField(fields, 0, "任务行") == variance.taskID.uuidString)
+    #expect(try requireCSVField(fields, 1, "任务行") == title)
+    #expect(try requireCSVField(fields, 2, "任务行") == (variance.baselineStart.map(csvDate) ?? ""))
+    #expect(try requireCSVField(fields, 3, "任务行") == (variance.baselineFinish.map(csvDate) ?? ""))
+    let intFields = [
+        variance.planStartVariance, variance.planFinishVariance,
+        variance.actualStartVariance, variance.actualFinishVariance, variance.overdueDays,
+    ]
+    for (offset, value) in intFields.enumerated() {
+        let expected = value.map { String($0) } ?? ""
+        let actual = try requireCSVField(fields, 4 + offset, "任务行")
+        #expect(actual == expected, "\(csvHeaderColumns[4 + offset]) 期望 \(expected)，实际 \(actual)")
+    }
+    #expect(try requireCSVField(fields, 9, "任务行") == (variance.hasBaseline ? "true" : "false"))
+    #expect(try requireCSVField(fields, 10, "任务行") == (variance.isForecast ? "true" : "false"))
+}
+
+@Test func baselineVarianceCSVHeaderIsVerbatimAndRowsMatchEngine() throws {
+    let fixture = try makeFixture()
+    defer { try? FileManager.default.removeItem(at: fixture.dir) }
+    let expected = try engineReport(fixture)
+    let titles = Dictionary(uniqueKeysWithValues: try KairoFile.load(from: fixture.file).tasks.map { ($0.id, $0.title) })
+    let csvURL = fixture.dir.appendingPathComponent("variance.csv")
+
+    let receipt = try runCLI(["baseline", "variance", "--csv", csvURL.path, "--file", fixture.file.path])
+    #expect(receipt.contains("已导出 CSV"))
+
+    let parsed = try csvSections(csvURL)
+    #expect(parsed.hasBOM, "UTF-8 文件必须带 BOM，否则 Excel 打开中文乱码")
+    // 身份三字段（§4.5）：文件脱离终端单独流转时必须自带标识。
+    #expect(parsed.lines.contains("# baselineID," + expected.baselineID.uuidString))
+    #expect(parsed.lines.contains("# baselineCreatedAt," + csvDate(expected.baselineCreatedAt)))
+    #expect(parsed.lines.contains { $0.hasPrefix("# baselineName,") })
+    // 列头逐字 + 主表行数 = 报告任务数，孤儿单独一节。
+    let main = try requireCSVSection(parsed.sections, 0, "主表")
+    let orphans = try requireCSVSection(parsed.sections, 1, "孤儿节")
+    #expect(parsed.sections.count == 2)
+    #expect(main.count == expected.tasks.count)
+    #expect(orphans.count == expected.orphans.count)
+
+    // 列头逐字：拆出来必须与契约数组逐项相等（不是 startsWith，也不是「前三列对」）。
+    let headerLine = try #require(parsed.lines.first { !$0.isEmpty && !$0.hasPrefix("#") })
+    #expect(csvFields(headerLine) == csvHeaderColumns)
+
+    for line in parsed.sections.flatMap({ $0 }) {
+        try requireCSVWidth(csvFields(line), "数据行")
+    }
+    for line in main {
+        let fields = csvFields(line)
+        let taskID = try #require(UUID(uuidString: try requireCSVField(fields, 0, "任务行")))
+        let variance = try #require(expected.tasks[taskID])
+        try expectCSVRow(fields, matches: variance, title: try #require(titles[taskID]))
+    }
+}
+
+@Test func baselineVarianceCSVKeepsSignsAndLeavesEmptyCellsEmpty() throws {
+    let fixture = try makeFixture()
+    defer { try? FileManager.default.removeItem(at: fixture.dir) }
+    let expected = try engineReport(fixture)
+    let csvURL = fixture.dir.appendingPathComponent("variance.csv")
+    _ = try runCLI(["baseline", "variance", "--csv", csvURL.path, "--file", fixture.file.path])
+
+    let sections = try csvSections(csvURL).sections
+    let main = try requireCSVSection(sections, 0, "主表")
+    var rowsByID: [String: [String]] = [:]
+    for line in main {
+        let fields = csvFields(line)
+        try requireCSVWidth(fields, "任务行")
+        rowsByID[try requireCSVField(fields, 0, "任务行")] = fields
+    }
+
+    // 计划推迟 3 天、实际提前 1 天：符号必须保留（不写 +，- 不能丢）。
+    let rescheduled = try #require(rowsByID[fixture.rescheduledTaskID.uuidString])
+    #expect(try requireCSVField(rescheduled, 5, "任务甲") == "3")
+    #expect(try requireCSVField(rescheduled, 7, "任务甲") == "-1")
+    #expect(!rescheduled.joined().contains("+-"))
+
+    // 基线之后新增：基线起止与四类偏差全部留空（不写 0，§4.1）。
+    let added = try #require(rowsByID[fixture.addedTaskID.uuidString])
+    #expect(try requireCSVField(added, 1, "任务丁") == "任务丁")
+    for index in [2, 3, 4, 5, 6, 7, 8] {
+        let actual = try requireCSVField(added, index, "任务丁")
+        #expect(actual == "", "\(csvHeaderColumns[index]) 无数据时必须留空")
+    }
+    #expect(try requireCSVField(added, 9, "任务丁") == "false")
+
+    // 已基线但未完成：overdueDays 有值（远期基线恒 0），实际偏差留空。
+    let open = try #require(rowsByID[fixture.openTaskID.uuidString])
+    #expect(try requireCSVField(open, 6, "任务乙") == "")
+    #expect(try requireCSVField(open, 7, "任务乙") == "")
+    #expect(try requireCSVField(open, 8, "任务乙") != "")
+    #expect(try requireCSVField(open, 10, "任务乙") == "true")
+    #expect(expected.tasks.count == rowsByID.count)
+}
+
+@Test func baselineVarianceCSVOrphanSectionIsReproducible() throws {
+    let fixture = try makeFixture()
+    defer { try? FileManager.default.removeItem(at: fixture.dir) }
+    let expected = try engineReport(fixture)
+    let first = fixture.dir.appendingPathComponent("first.csv")
+    let second = fixture.dir.appendingPathComponent("second.csv")
+
+    _ = try runCLI(["baseline", "variance", "--csv", first.path, "--file", fixture.file.path])
+    _ = try runCLI(["baseline", "variance", "--csv", second.path, "--file", fixture.file.path])
+    #expect(try Data(contentsOf: first) == (try Data(contentsOf: second)), "同一份文件两次导出必须逐字节一致")
+
+    let sections = try csvSections(first).sections
+    let main = try requireCSVSection(sections, 0, "主表")
+    let orphanRows = try requireCSVSection(sections, 1, "孤儿节")
+    #expect(sections.count == 2)
+    #expect(orphanRows.count == 1)
+    let orphan = try #require(expected.orphans.first)
+    let fields = csvFields(try #require(orphanRows.first))
+    try requireCSVWidth(fields, "孤儿行")
+    #expect(try requireCSVField(fields, 0, "孤儿行") == fixture.orphanTaskID.uuidString)
+    #expect(try requireCSVField(fields, 0, "孤儿行") == orphan.taskID.uuidString)
+    #expect(try requireCSVField(fields, 1, "孤儿行") == "", "孤儿没有标题（任务已删），标题留空")
+    #expect(try requireCSVField(fields, 2, "孤儿行") == csvDate(orphan.start))
+    #expect(try requireCSVField(fields, 3, "孤儿行") == csvDate(orphan.finish))
+    for index in [4, 5, 6, 7, 8] {
+        let actual = try requireCSVField(fields, index, "孤儿行")
+        #expect(actual == "", "\(csvHeaderColumns[index]) 孤儿无偏差数据，必须留空")
+    }
+    #expect(try requireCSVField(fields, 9, "孤儿行") == "true")
+    #expect(try requireCSVField(fields, 10, "孤儿行") == "false")
+    // 孤儿不得混进主表（主表按任务行渲染）。
+    #expect(!main.contains { csvFields($0).first == fixture.orphanTaskID.uuidString })
+}
+
+/// CSV 状态机自身的用例：解析绝不能是「按逗号切」（那正是越界崩溃的来源）。
+@Test func csvParserStateMachineHandlesQuotesCommasAndEmptyFields() {
+    #expect(csvFields("plain") == ["plain"])
+    #expect(csvFields("") == [""])
+    #expect(csvFields("a,,c") == ["a", "", "c"], "空字段必须保留占位，不能塌成 2 列")
+    #expect(csvFields("甲,带逗号") == ["甲", "带逗号"], "未加引号的逗号按分隔符切")
+    #expect(csvFields("\"甲,带逗号\",x") == ["甲,带逗号", "x"], "引号内的逗号不分隔")
+    #expect(csvFields("他说\"hi\",x") == ["他说\"hi\"", "x"], "字段中间的裸引号按字面保留")
+    #expect(csvFields("\"他说\"\"hi\"\"\",x") == ["他说\"hi\"", "x"], "翻倍引号还原为一个")
+    #expect(csvFields("a,\"b\"\"c\",") == ["a", "b\"c", ""])
+}
+
+/// 判据 3（RFC 4180）：标题为 `甲,带逗号` 与 `他说"hi"` 时——
+/// 每行列数与列头一致、取回值原样；基线名同样走转义。
+@Test func baselineVarianceCSVQuotesCommasAndQuotesRoundTrip() throws {
+    let scratch = try makeScratch()
+    defer { try? FileManager.default.removeItem(at: scratch.dir) }
+    let file = scratch.kairo
+    try CLIRouter.execute(arguments: [
+        "project", "create", "逗号项目", "--start", "2030-01-01", "--end", "2030-02-01",
+        "--file", file.path,
+    ])
+    let titles = ["甲,带逗号", "他说\"hi\"", "丙 普通"]
+    for title in titles {
+        try CLIRouter.execute(arguments: ["task", "add", title, "--duration", "1", "--file", file.path])
+    }
+    let baselineName = "基线\"甲\", 逗号"
+    try CLIRouter.execute(arguments: ["baseline", "create", "--name", baselineName, "--file", file.path])
+
+    let csvURL = scratch.dir.appendingPathComponent("quoted.csv")
+    _ = try runCLI(["baseline", "variance", "--csv", csvURL.path, "--file", file.path])
+    let parsed = try csvSections(csvURL)
+
+    // 列头逐字解析回来仍是 11 列（「列数与列头一致」的第一道关）。
+    let headerLine = try #require(parsed.lines.first { !$0.isEmpty && !$0.hasPrefix("#") })
+    let headerFields = csvFields(headerLine)
+    #expect(headerFields == csvHeaderColumns)
+    try requireCSVWidth(headerFields, "列头")
+
+    let main = try requireCSVSection(parsed.sections, 0, "主表")
+    #expect(main.count == titles.count)
+    var exportedTitles: [String] = []
+    for line in main {
+        let fields = csvFields(line)
+        try requireCSVWidth(fields, "含逗号/引号的标题行")
+        exportedTitles.append(try requireCSVField(fields, 1, "标题列"))
+    }
+    #expect(exportedTitles == titles, "标题必须原样取回（引号/逗号不得被吞或被切列）")
+
+    // 基线名同样转义：含引号与逗号时写成 "基线""甲"", 逗号"。
+    let escapedName = "\"基线\"\"甲\"\", 逗号\""
+    #expect(parsed.lines.contains("# baselineName," + escapedName))
+
+    // 第二种解析器交叉验证（python csv）：同一份文件列数必须恒为 11。
+    if let widths = try pythonCSVColumnWidths(csvURL.path) {
+        #expect(Set(widths) == [csvHeaderColumns.count], "python 解析列数应恒为 \(csvHeaderColumns.count)，实际 \(Set(widths))")
+    }
+}
+
+@Test func baselineVarianceCSVIsParsedByPythonCSV() throws {
+    let fixture = try makeFixture()
+    defer { try? FileManager.default.removeItem(at: fixture.dir) }
+    let csvURL = fixture.dir.appendingPathComponent("python.csv")
+    _ = try runCLI(["baseline", "variance", "--csv", csvURL.path, "--file", fixture.file.path])
+
+    guard let widths = try pythonCSVColumnWidths(csvURL.path) else { return }
+    #expect(!widths.isEmpty, "python csv 必须能读出数据行")
+    #expect(Set(widths) == [csvHeaderColumns.count], "全部行必须是 \(csvHeaderColumns.count) 列，实际 \(Set(widths))")
+}
+
+@Test func baselineVarianceCSVRejectsJSONCombinationAndMissingPath() throws {
+    let fixture = try makeFixture()
+    defer { try? FileManager.default.removeItem(at: fixture.dir) }
+    #expect(throws: UsageError.self) {
+        try runCLI([
+            "baseline", "variance", "--json", "--csv", fixture.dir.appendingPathComponent("x.csv").path,
+            "--file", fixture.file.path,
+        ])
+    }
+    #expect(throws: UsageError.self) {
+        try runCLI(["baseline", "variance", "--csv", "--file", fixture.file.path])
+    }
+}
+
+@Test func projectSummaryCarriesVarianceBlockSameAsBaselineVariance() throws {
+    let fixture = try makeFixture()
+    defer { try? FileManager.default.removeItem(at: fixture.dir) }
+
+    let summary = try runCLIJSON(["project", "summary", "--json", "--file", fixture.file.path])
+    let variance = try #require(summary.objectValue?["variance"]?.objectValue)
+    let report = try runCLIJSON(["baseline", "variance", "--json", "--file", fixture.file.path])
+    let reportObject = try #require(report.objectValue)
+
+    // 同源：项目级字段逐字同值（口径漂移会在这里红）。
+    for key in [
+        "baselineID", "baselineName", "colorIndex", "baselineCreatedAt",
+        "projectFinishVariance", "lateTaskCount", "overdueOpenCount",
+        "tasksWithoutBaseline", "predictedTaskCount",
+    ] {
+        #expect(variance[key] == reportObject[key], "\(key) 必须与 baseline variance 同源")
+    }
+    #expect(variance["orphanCount"]?.doubleValue == Double(reportObject["orphans"]?.arrayValue?.count ?? -1))
+
+    // 项目字段与文件同源：直接按落盘内容算期望值，避免把夹具数字写死。
+    let loaded = try KairoFile.load(from: fixture.file)
+    let project = try #require(summary.objectValue?["project"]?.objectValue)
+    #expect(project["taskCount"]?.doubleValue == Double(loaded.tasks.count))
+    #expect(project["groupCount"]?.doubleValue == Double(loaded.tasks.filter { $0.kind == .group }.count))
+    #expect(
+        project["statusCounts"]?.objectValue?["done"]?.doubleValue
+            == Double(loaded.tasks.filter { $0.status == .done }.count)
+    )
+
+    let text = try runCLI(["project", "summary", "--file", fixture.file.path])
+    #expect(text.contains("项目结束偏差："))
+    #expect(text.contains("晚完成"))
+    #expect(text.contains("孤儿：1 条"))
+    #expect(text.contains(fixture.baseline.id.uuidString))
+}
+
+@Test func projectSummaryWithoutBaselineShowsNoVarianceBlock() throws {
+    let scratch = try makeScratch()
+    defer { try? FileManager.default.removeItem(at: scratch.dir) }
+    let file = scratch.kairo
+    try CLIRouter.execute(arguments: [
+        "project", "create", "无基线项目", "--start", "2030-01-01", "--end", "2030-02-01",
+        "--file", file.path,
+    ])
+    try CLIRouter.execute(arguments: ["task", "add", "任务甲", "--duration", "1", "--file", file.path])
+
+    let text = try runCLI(["project", "summary", "--file", file.path])
+    #expect(text.contains("尚未创建基线"))
+    #expect(!text.contains("项目结束偏差"), "无基线不得把缺少比较基准渲染成「0 天」")
+
+    let json = try runCLIJSON(["project", "summary", "--json", "--file", file.path])
+    #expect(json.objectValue?["variance"] == nil)
+    #expect(json.objectValue?["project"]?.objectValue?["taskCount"]?.doubleValue == 1)
+}
+
+/// 用系统 python3 的 csv 模块解析导出文件，返回每行的列数（含列头行）。
+/// 返回 `nil` 表示本机没有 python3（精简 CI 镜像），调用方跳过该断言。
+private func pythonCSVColumnWidths(_ path: String) throws -> [Int]? {
+    guard FileManager.default.isExecutableFile(atPath: "/usr/bin/python3") else { return nil }
+    let script = """
+    import csv, sys
+    with open(sys.argv[1], newline='', encoding='utf-8-sig') as handle:
+        rows = [row for row in csv.reader(handle) if row and not row[0].startswith('#')]
+    print(' '.join(str(len(row)) for row in rows))
+    """
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+    process.arguments = ["-c", script, path]
+    let output = Pipe()
+    process.standardOutput = output
+    process.standardError = Pipe()
+    try process.run()
+    let data = output.fileHandleForReading.readDataToEndOfFile()
+    process.waitUntilExit()
+    return String(decoding: data, as: UTF8.self)
+        .split(separator: " ")
+        .compactMap { Int($0) }
+}
+

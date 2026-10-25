@@ -100,6 +100,7 @@ struct CLIRouter {
         case ("project", "create"): try projectCreate(options)
         case ("project", "open"): try projectOpen(options)
         case ("project", "save"): try projectSave(options)
+        case ("project", "summary"): try projectSummary(options)
         case ("task", "add"): try taskAdd(options)
         case ("task", "list"): try taskList(options)
         case ("task", "get"): try taskGet(options)
@@ -191,6 +192,68 @@ struct CLIRouter {
     /// 来源早于当前版本时追加「，保存后升级」。
     static func sourceVersionLine(source: Int, current: Int, language: CLILanguage = .current) -> String {
         CLIStrings(language: language).sourceVersionLine(source: source, current: current)
+    }
+
+    /// kairo project summary [--baseline <基线ID>] [--json] [--file <路径>]：项目级摘要 + 偏差块。
+    ///
+    /// 偏差块与 `baseline variance` **同源**（同一份 `BaselineVarianceReport`，同一套项目级口径），
+    /// 只是不重复列任务行——逐任务明细仍走 `baseline variance`。
+    /// 项目还没有基线时整块换成「尚未创建基线」：无基线可比较不等于「偏差为 0」（§4.1）。
+    private static func projectSummary(_ o: Options) throws {
+        let s = o.strings
+        try o.rejectUnknown(["--baseline", "--json", "--file"])
+        let session = KairoSession()
+        let meta = try session.openProject(at: fileURL(o.value(for: "--file")))
+        let tasks = try session.listTasks()
+        let baselines = try session.baselines()
+
+        // 显式指定基线但不存在 → 报错（用户指了名却被静默换成最新基线会更糟）。
+        let report: BaselineVarianceReport?
+        if let raw = o.value(for: "--baseline") {
+            let target = try resolveBaseline(raw, in: session, strings: s)
+            report = try session.baselineVariance(baselineID: target.id)
+        } else if baselines.isEmpty {
+            report = nil
+        } else {
+            report = try session.baselineVariance()
+        }
+
+        if o.flag("--json") {
+            o.emit(try CLIOutput.projectSummaryJSON(meta, tasks: tasks, report: report, baselines: baselines))
+            return
+        }
+
+        o.emit(s.projectLine(meta.title))
+        o.emit(s.projectIDLine(meta.id.uuidString))
+        o.emit(s.summaryTaskLine(
+            tasks: tasks.filter { $0.kind == .task }.count,
+            groups: tasks.filter { $0.kind == .group }.count,
+            milestones: tasks.filter { $0.kind == .milestone }.count
+        ))
+        o.emit(s.summaryStatusLine(
+            pending: tasks.filter { $0.status == .pending }.count,
+            inProgress: tasks.filter { $0.status == .inProgress }.count,
+            done: tasks.filter { $0.status == .done }.count,
+            blocked: tasks.filter { $0.status == .blocked }.count
+        ))
+        guard let report else {
+            o.emit(s.noBaselines)
+            return
+        }
+        o.emit(s.varianceBaselineLine(
+            name: report.baselineName,
+            id: report.baselineID.uuidString,
+            colorIndex: CLIOutput.resolvedColorIndex(of: report.baselineID, in: baselines),
+            createdAt: formatDate(report.baselineCreatedAt)
+        ))
+        o.emit(s.varianceProjectLine(s.varianceDays(report.projectFinishVariance)))
+        o.emit(s.varianceSummary(
+            late: report.lateTaskCount,
+            overdue: report.overdueOpenCount,
+            withoutBaseline: report.tasksWithoutBaseline,
+            forecast: report.predictedTaskCount
+        ))
+        o.emit(s.summaryOrphanLine(report.orphans.count))
     }
 
     // MARK: - task
@@ -688,14 +751,15 @@ struct CLIRouter {
         ))
     }
 
-    /// kairo baseline variance [--baseline <基线ID>] [--task <任务ID>] [--json] [--file <路径>]。
+    /// kairo baseline variance [--baseline <基线ID>] [--task <任务ID>] [--json | --csv <路径>] [--file <路径>]。
     ///
     /// - 省略 `--baseline` 时比较**最新**一条基线（与 MCP `baseline_variance` 同口径）；
     /// - `--task` 只收窄任务行，项目级聚合仍按全项目计算（聚合口径不随过滤漂移）；
-    /// - 文本与 `--json` 都必须带基线标识（§4.5），否则报表跨版本不可比。
+    /// - 文本、`--json`、`--csv` 都必须带基线标识（§4.5），否则报表跨版本不可比；
+    /// - `--csv` 与 `--json` 互斥（两个机器出口同时给会产出半份混合内容）。
     private static func baselineVariance(_ o: Options) throws {
         let s = o.strings
-        try o.rejectUnknown(["--baseline", "--task", "--json", "--file"])
+        try o.rejectUnknown(["--baseline", "--task", "--json", "--csv", "--file"])
         let session = KairoSession()
         _ = try session.openProject(at: fileURL(o.value(for: "--file")))
         let baselineID = try o.value(for: "--baseline").map {
@@ -710,6 +774,44 @@ struct CLIRouter {
         var taskIDs = CLIOutput.orderedTaskIDs(report, projectOrder: projectOrder)
         if let taskID {
             taskIDs = taskIDs.filter { $0 == taskID }
+        }
+
+        // 两个机器出口互斥：同时给出时报用法错误，不让其中一个静默胜出。
+        if o.flag("--csv"), o.flag("--json") {
+            throw UsageError(message: s.csvConflictsWithJSON)
+        }
+
+        if o.flag("--csv") {
+            // 紧跟的 token 若以 -- 开头，说明 --csv 没给值（如 "--csv --file p.kairo"）：
+            // 直接取会把它当成路径，静默写出一个名为 --file 的垃圾文件。
+            let rawPath = o.value(for: "--csv")
+            guard let rawPath, !rawPath.hasPrefix("--") else {
+                throw UsageError(message: s.missingOperand(s.operandCSVPath))
+            }
+            let url = URL(fileURLWithPath: rawPath)
+            let document = VarianceCSV.document(
+                report: report,
+                taskIDs: taskIDs,
+                titles: (session.project?.tasksByID ?? [:]).mapValues(\.title),
+                // --task 收窄到单个任务时不带孤儿节：孤儿属于项目级清单，不是这个任务的明细。
+                includeOrphans: taskID == nil
+            )
+            do {
+                try Data(document.utf8).write(to: url, options: .atomic)
+            } catch {
+                throw CSVWriteFailure(message: s.csvWriteFailed(
+                    path: url.path,
+                    reason: (error as NSError).localizedDescription
+                ))
+            }
+            o.emit(s.csvExported(
+                path: url.path,
+                baselineName: report.baselineName,
+                baselineID: report.baselineID.uuidString,
+                rows: taskIDs.count,
+                orphans: taskID == nil ? report.orphans.count : 0
+            ))
+            return
         }
 
         if o.flag("--json") {

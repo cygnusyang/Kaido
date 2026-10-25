@@ -92,6 +92,51 @@ public struct BaselinePanel: Hashable, Sendable {
     }
 }
 
+/// 项目页「与基线对比」区块（v0.15 / 09-baseline-version-plan §4）。
+///
+/// 与 `BaselineVarianceReport` 逐字段对应，只做字段改名与收口（孤儿明细不进这里，
+/// 仍在 `BaselinePanel.orphans`），保证同一份报表在检查器与 CLI/MCP 上口径一致。
+/// 正数 = 比承诺晚，负数 = 提前；空缺一律 nil，**不写 0**——0 是「准时」，与「没有数据」不是一回事。
+public struct ProjectBaselineSummary: Hashable, Sendable {
+    public var baselineID: UUID
+    public var name: String
+    public var createdAt: Date
+    /// 项目结束偏差 = 最晚计划结束 − 最晚基线结束；任一侧无数据即 nil。
+    public var finishVariance: Int?
+    /// 已实际完成且晚于基线结束的任务数。
+    public var lateTaskCount: Int
+    /// 未完成且已过基线结束日的任务数。
+    public var overdueOpenCount: Int
+    /// 无基线条目数 = 基线之后新增（含基线时未排期）的任务数。
+    public var tasksWithoutBaseline: Int
+    /// 缺实际结束的已基线任务数：结束偏差按计划参与汇总时，这些是预测项而不是事实。
+    public var predictedTaskCount: Int
+    /// 已删除任务对应的条目数（明细见 `BaselinePanel.orphans`）。
+    public var orphanCount: Int
+
+    public init(
+        baselineID: UUID,
+        name: String,
+        createdAt: Date,
+        finishVariance: Int? = nil,
+        lateTaskCount: Int = 0,
+        overdueOpenCount: Int = 0,
+        tasksWithoutBaseline: Int = 0,
+        predictedTaskCount: Int = 0,
+        orphanCount: Int = 0
+    ) {
+        self.baselineID = baselineID
+        self.name = name
+        self.createdAt = createdAt
+        self.finishVariance = finishVariance
+        self.lateTaskCount = lateTaskCount
+        self.overdueOpenCount = overdueOpenCount
+        self.tasksWithoutBaseline = tasksWithoutBaseline
+        self.predictedTaskCount = predictedTaskCount
+        self.orphanCount = orphanCount
+    }
+}
+
 /// 项目页内容。
 public struct ProjectInspector: Hashable, Sendable {
     public var title: String
@@ -101,8 +146,13 @@ public struct ProjectInspector: Hashable, Sendable {
     public var summary: ProjectSummary
     public var recentCompletions: [CompletedTask]
     public var saveState: SaveState
-    /// 基线面板（v0.13）：未选基线时为 nil，整段不显示。
+    /// 基线面板（v0.13）：未选基线时为 nil，整段不显示。孤儿明细在 `orphans`。
     public var baseline: BaselinePanel?
+    /// 与基线对比（v0.15）：未选基线时为 nil，整段不显示。
+    ///
+    /// 与 `baseline` 同源同生命周期——两者都由同一份偏差报表派生，
+    /// 后者只负责孤儿明细，数字一律以本字段为准。
+    public var baselineSummary: ProjectBaselineSummary?
 
     public init(
         title: String,
@@ -112,7 +162,8 @@ public struct ProjectInspector: Hashable, Sendable {
         summary: ProjectSummary,
         recentCompletions: [CompletedTask] = [],
         saveState: SaveState,
-        baseline: BaselinePanel? = nil
+        baseline: BaselinePanel? = nil,
+        baselineSummary: ProjectBaselineSummary? = nil
     ) {
         self.title = title
         self.projectStart = projectStart
@@ -122,6 +173,7 @@ public struct ProjectInspector: Hashable, Sendable {
         self.recentCompletions = recentCompletions
         self.saveState = saveState
         self.baseline = baseline
+        self.baselineSummary = baselineSummary
     }
 }
 

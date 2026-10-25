@@ -736,7 +736,8 @@ public enum WorkspacePresenter {
             summary: summary,
             recentCompletions: recentCompletions(tasks: tasks),
             saveState: saveState,
-            baseline: baselinePanel(report: baselineReport)
+            baseline: baselinePanel(report: baselineReport),
+            baselineSummary: baselineSummary(report: baselineReport)
         )
         return InspectorSnapshot(
             content: .project(project),
@@ -953,6 +954,25 @@ public enum WorkspacePresenter {
             lateTaskCount: report.lateTaskCount,
             overdueOpenCount: report.overdueOpenCount,
             projectFinishVariance: report.projectFinishVariance
+        )
+    }
+
+    /// 项目页「与基线对比」（v0.15 / 09 §4）：报表字段一一对应，不做二次计算。
+    ///
+    /// 未选基线（report 为 nil）时整块为 nil——空报表与「没选基线」必须能区分，
+    /// 否则视图会显示一排 0，把「没有对比对象」伪装成「一切准时」。
+    private static func baselineSummary(report: BaselineVarianceReport?) -> ProjectBaselineSummary? {
+        guard let report else { return nil }
+        return ProjectBaselineSummary(
+            baselineID: report.baselineID,
+            name: report.baselineName,
+            createdAt: report.baselineCreatedAt,
+            finishVariance: report.projectFinishVariance,
+            lateTaskCount: report.lateTaskCount,
+            overdueOpenCount: report.overdueOpenCount,
+            tasksWithoutBaseline: report.tasksWithoutBaseline,
+            predictedTaskCount: report.predictedTaskCount,
+            orphanCount: report.orphans.count
         )
     }
 

@@ -667,35 +667,16 @@ private struct ProjectInspectorContent: View {
             }
         }
 
-        // 基线面板（v0.13 / 08 §5）：孤儿与基线后新增集中在这里，不为它们插大纲行。
-        if let baseline = project.baseline {
-            section(I18n.t("inspector.section.baseline", "Baseline")) {
-                summaryLine(
-                    I18n.t("inspector.baseline.panel.name", "Comparing"),
-                    baseline.name
-                )
-                summaryLine(
-                    I18n.t("inspector.baseline.panel.finish_variance", "Project finish variance"),
-                    Display.varianceDays(baseline.projectFinishVariance)
-                )
-                summaryLine(
-                    I18n.t("inspector.baseline.panel.without_entry", "Added after baseline"),
-                    "\(baseline.tasksWithoutBaseline)"
-                )
-                summaryLine(
-                    I18n.t("inspector.baseline.panel.late", "Finished later"),
-                    "\(baseline.lateTaskCount)"
-                )
-                summaryLine(
-                    I18n.t("inspector.baseline.panel.overdue_open", "Overdue open"),
-                    "\(baseline.overdueOpenCount)"
-                )
-                summaryLine(
-                    I18n.t("inspector.baseline.panel.orphans", "Deleted baseline tasks"),
-                    "\(baseline.orphans.count)"
-                )
+        // 与基线对比（v0.15 / 09 §4）：未选基线 → 行集为空 → 整段不显示。
+        // 数字全部作用于快照，视图只排版；孤儿明细仍来自 v0.13 的基线面板（§5），同一段内展开。
+        let baselineRows = BaselineSummaryRows.rows(for: project.baselineSummary)
+        if !baselineRows.isEmpty {
+            section(I18n.t("inspector.section.baseline_compare", "Compared with baseline")) {
+                ForEach(baselineRows) { row in
+                    summaryLine(I18n.t(row.labelKey, row.labelFallback), row.value)
+                }
                 // 孤儿条目只读展开：让「承诺对应的任务已不存在」可见，而不是静默消失（§5）。
-                ForEach(baseline.orphans) { orphan in
+                ForEach(project.baseline?.orphans ?? []) { orphan in
                     Text(I18n.t(
                         "inspector.baseline.panel.orphan_row",
                         "%1$@ → %2$@ (task deleted)",

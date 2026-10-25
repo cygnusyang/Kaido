@@ -422,6 +422,8 @@ final class WorkspaceStore: ObservableObject {
         if viewState.inspectorLocked, let title = selectedTaskTitle {
             snapshot.statusBar.selectionSummary = title
         }
+        // 面板打开时才重建（关着就是空操作）：改名 / 改色 / 删任务 / 切对比都即时反映。
+        rebuildBaselinePanel()
         savePreferences()
     }
 
@@ -1044,6 +1046,48 @@ final class WorkspaceStore: ObservableObject {
             report(error)
         }
         refresh()
+    }
+
+    // MARK: - 基线面板（v0.15 / 08-baselines §5、10-multi-baseline-gantt §5）
+
+    /// 基线管理面板是否展开（纯视图状态：不进撤销栈、不置脏、不写文件）。
+    @Published private(set) var isBaselinePanelPresented = false
+
+    /// 面板数据；nil = 面板未打开。打开期间随每次 `refresh()` 重建，
+    /// 改名 / 改色 / 删除基线 / 删除任务之后都不需要重开面板。
+    @Published private(set) var baselinePanel: BaselinePanelModel?
+
+    /// 打开面板（「管理基线…」入口）。重复触发只重建数据，不叠出第二个面板。
+    func presentBaselinePanel() {
+        isBaselinePanelPresented = true
+        rebuildBaselinePanel()
+    }
+
+    /// 关闭面板并释放数据：面板非常驻，关掉就不再为它计算偏差。
+    func dismissBaselinePanel() {
+        isBaselinePanelPresented = false
+        if baselinePanel != nil { baselinePanel = nil }
+    }
+
+    /// 重建面板数据：焦点基线 = 主对比 ?? 最新一条，只为它算一次偏差。
+    ///
+    /// 失败口径：`baselineVariance` 只会在「会话未打开」或「基线已不存在」时抛错，
+    /// 而焦点 id 取自现存基线，故失败等价于「这次没有统计可显示」——孤儿与新增计数
+    /// 是补充信息，不该让整个面板打不开。
+    private func rebuildBaselinePanel() {
+        guard isBaselinePanelPresented else { return }
+        let baselines = self.baselines
+        let focusID = viewState.normalizedBaselineID(in: baselines) ?? baselines.last?.id
+        var report: BaselineVarianceReport?
+        if let focusID { report = try? session.baselineVariance(baselineID: focusID) }
+        let model = BaselinePanelModel(
+            baselines: baselines,
+            viewState: viewState,
+            report: report
+        )
+        // 同值时不动 @Published：refresh 在滚动 / 筛选等纯视图动作里也会走，
+        // 每次都发 objectWillChange 会让面板白重绘一遍。
+        if baselinePanel != model { baselinePanel = model }
     }
 
     private func mutateView(_ change: (inout WorkspaceViewState) -> Void) {

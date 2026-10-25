@@ -91,6 +91,55 @@ enum CLIOutput {
         return try encode(payload)
     }
 
+    /// `project summary --json`：项目元信息 + 偏差块（v0.15 · 09 §4）。
+    ///
+    /// 同源要求：`variance` 内的字段名与 `baseline variance --json` 的项目级字段逐字相同
+    /// （baselineID / baselineName / colorIndex / baselineCreatedAt / projectFinishVariance /
+    /// lateTaskCount / overdueOpenCount / tasksWithoutBaseline / predictedTaskCount），
+    /// 只多一个 `orphanCount`。两边都由同一份 `BaselineVarianceReport` 渲染，数值不会漂移。
+    ///
+    /// - 无基线时 `variance` 写 `null`：不写零值（0 = 准时 ≠ 没有数据，§4.1）；
+    /// - `statusCounts` 四档恒写（含 0），脚本可按固定键取值，不必判缺失。
+    static func projectSummaryJSON(
+        _ meta: ProjectMetadata,
+        tasks: [TaskItem],
+        report: BaselineVarianceReport?,
+        baselines: [Baseline]
+    ) throws -> String {
+        let payload = ProjectSummaryPayload(
+            project: ProjectSummaryPayload.ProjectFields(
+                id: meta.id.uuidString,
+                title: meta.title,
+                projectStart: meta.projectStart,
+                projectEnd: meta.projectEnd,
+                taskCount: tasks.count,
+                groupCount: tasks.filter { $0.kind == .group }.count,
+                milestoneCount: tasks.filter { $0.kind == .milestone }.count,
+                statusCounts: ProjectSummaryPayload.StatusCounts(
+                    pending: tasks.filter { $0.status == .pending }.count,
+                    inProgress: tasks.filter { $0.status == .inProgress }.count,
+                    done: tasks.filter { $0.status == .done }.count,
+                    blocked: tasks.filter { $0.status == .blocked }.count
+                )
+            ),
+            variance: report.map { report in
+                ProjectSummaryPayload.Variance(
+                    baselineID: report.baselineID.uuidString,
+                    baselineName: report.baselineName,
+                    colorIndex: resolvedColorIndex(of: report.baselineID, in: baselines),
+                    baselineCreatedAt: report.baselineCreatedAt,
+                    projectFinishVariance: report.projectFinishVariance,
+                    lateTaskCount: report.lateTaskCount,
+                    overdueOpenCount: report.overdueOpenCount,
+                    tasksWithoutBaseline: report.tasksWithoutBaseline,
+                    predictedTaskCount: report.predictedTaskCount,
+                    orphanCount: report.orphans.count
+                )
+            }
+        )
+        return try encode(payload)
+    }
+
     /// 偏差行的稳定顺序：先按项目大纲顺序，报告里多出的任务按 UUID 排序兜底。
     static func orderedTaskIDs(_ report: BaselineVarianceReport, projectOrder: [UUID]) -> [UUID] {
         var seen: Set<UUID> = []
@@ -122,6 +171,47 @@ private struct BaselineListPayload: Encodable {
     }
 
     var baselines: [Row]
+}
+
+/// `project summary --json` 的载荷：项目元信息 + 偏差块。
+///
+/// 为什么 `variance` 单独放一个可空子对象而不是平铺：无基线时整块缺席（`null`），
+/// 平铺会把「项目字段」和「偏差字段」混在同一层，缺基线时无法整体区分。
+private struct ProjectSummaryPayload: Encodable {
+    struct StatusCounts: Encodable {
+        var pending: Int
+        var inProgress: Int
+        var done: Int
+        var blocked: Int
+    }
+
+    struct ProjectFields: Encodable {
+        var id: String
+        var title: String
+        var projectStart: Date?
+        var projectEnd: Date?
+        var taskCount: Int
+        var groupCount: Int
+        var milestoneCount: Int
+        var statusCounts: StatusCounts
+    }
+
+    /// 字段名与 `BaselineVariancePayload` 的项目级字段逐字相同（对等性门禁）。
+    struct Variance: Encodable {
+        var baselineID: String
+        var baselineName: String
+        var colorIndex: Int
+        var baselineCreatedAt: Date
+        var projectFinishVariance: Int?
+        var lateTaskCount: Int
+        var overdueOpenCount: Int
+        var tasksWithoutBaseline: Int
+        var predictedTaskCount: Int
+        var orphanCount: Int
+    }
+
+    var project: ProjectFields
+    var variance: Variance?
 }
 
 /// `baseline variance --json` 的载荷：字段名与 `BaselineVarianceReport` 同源。

@@ -580,6 +580,59 @@ struct CLIStrings: Sendable {
         )
     }
 
+    // MARK: - project summary / CSV 导出（v0.15 · 09 §4）
+
+    /// 项目摘要的任务构成行：任务 / 群组 / 里程碑分开计数（群组与里程碑不算「任务」）。
+    func summaryTaskLine(tasks: Int, groups: Int, milestones: Int) -> String {
+        t(
+            "任务：\(tasks) 个 · 群组 \(groups) 个 · 里程碑 \(milestones) 个",
+            "tasks: \(tasks) · groups: \(groups) · milestones: \(milestones)"
+        )
+    }
+
+    /// 项目摘要的状态分布行（四档恒出，含 0——缺档会让读者以为漏算）。
+    func summaryStatusLine(pending: Int, inProgress: Int, done: Int, blocked: Int) -> String {
+        t(
+            "状态：待办 \(pending) · 进行中 \(inProgress) · 已完成 \(done) · 阻塞 \(blocked)",
+            "status: pending \(pending) · in progress \(inProgress) · done \(done) · blocked \(blocked)"
+        )
+    }
+
+    /// 孤儿计数（§5）：条目在、任务已删；与 CSV 孤儿节、基线面板同口径。
+    func summaryOrphanLine(_ count: Int) -> String {
+        t("孤儿：\(count) 条（基线条目在、任务已删）", "orphans: \(count) (baseline entry kept, task deleted)")
+    }
+
+    /// `--csv` 的路径取值名（缺值时报「缺少参数：<CSV 路径>」）。
+    var operandCSVPath: String { t("CSV 路径", "CSV path") }
+
+    /// `--csv` 与 `--json` 同时给出：两个机器出口互斥，避免半份 JSON 混进 CSV。
+    var csvConflictsWithJSON: String {
+        t(
+            "--csv 与 --json 不能同时使用（二选一）",
+            "--csv and --json are mutually exclusive"
+        )
+    }
+
+    /// CSV 导出回执：路径 + 基线身份三字段（§4.5）+ 行数与孤儿数（据此核对导全了没）。
+    func csvExported(
+        path: String,
+        baselineName: String,
+        baselineID: String,
+        rows: Int,
+        orphans: Int
+    ) -> String {
+        t(
+            "已导出 CSV：\(path)（基线：\(baselineName)（\(baselineID)）· 行 \(rows) · 孤儿 \(orphans)）",
+            "CSV exported: \(path) (baseline: \(baselineName) (\(baselineID)) · rows \(rows) · orphans \(orphans))"
+        )
+    }
+
+    /// CSV 写盘失败：路径不可写属运行时错误（退出码 1），文案给出路径与系统原因。
+    func csvWriteFailed(path: String, reason: String) -> String {
+        t("CSV 写入失败：\(path)（\(reason)）", "failed to write CSV: \(path) (\(reason))")
+    }
+
     /// 偏差行：`计划偏差 开始/结束`、`实际偏差 开始/结束`（顺序固定，与检查器同口径）。
     ///
     /// - Parameters:

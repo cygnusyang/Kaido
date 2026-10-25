@@ -285,6 +285,15 @@ enum KairoCommandCatalog {
                 group: .baseline,
                 action: { store.dispatch(.setBaseline(nil)) }
             ),
+            // 面板入口（v0.15）：逐条基线的完整管理（条目数 / 孤儿 / 基线后新增）。
+            // 静态命令：⌘K 里必须找得到（D-035），但不给快捷键——这是低频的管理动作。
+            KairoCommand(
+                id: "baseline.manage",
+                title: I18n.t("menu.baseline.manage", "Manage Baselines…"),
+                group: .baseline,
+                aliases: [I18n.t("menu.baseline.manage.alias", "Open the baselines panel")],
+                action: { store.presentBaselinePanel() }
+            ),
             KairoCommand(
                 id: "view.criticalPath",
                 title: I18n.t("menu.view.critical_path", "Show/Hide Critical Path"),
@@ -618,7 +627,7 @@ struct KairoMenuCommands: Commands {
     // MARK: - 关于面板
 
     /// 应用版本号：发版前更新。
-    static let appVersion = "0.14.5"
+    static let appVersion = "0.15.0"
 
     /// 版权与联系邮箱：法律声明，不随界面语言变化，也不进 String Catalog。
     static let copyrightNotice = "Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>"

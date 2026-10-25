@@ -60,10 +60,10 @@ struct BaselineMenuTests {
 
     // MARK: - 菜单结构
 
-    /// 无基线时命令总数仍是 44：基线两条静态命令是从视图组迁来的，不是新增。
+    /// 无基线时命令总数 45：v0.14 的 44 条之外，v0.15 增加面板入口「管理基线…」。
     @Test func catalogKeepsLegacyCountWithoutBaselines() {
         let commands = makeCatalog(makeStore())
-        #expect(commands.count == 44)
+        #expect(commands.count == 45)
         #expect(Set(commands.map(\.id)).count == commands.count)
         // 新增分组必须至少有一条命令，否则分组集合与菜单对不上。
         #expect(Set(commands.map(\.group)) == Set(KairoCommandGroup.allCases))
@@ -76,6 +76,17 @@ struct BaselineMenuTests {
         let baselineGroup = commands.filter { $0.group == .baseline }
         #expect(baselineGroup.first?.id == "baseline.create")
         #expect(try command(commands, "baseline.create").shortcut?.label == "⌥⌘B")
+        // 管理入口排在静态命令末尾（菜单里也排在图例之后），但不抢快捷键。
+        let staticBaselineIDs = commands
+            .filter { $0.group == .baseline && !$0.id.hasPrefix("baseline.visibility.")
+                && !$0.id.hasPrefix("baseline.compare.")
+                && !$0.id.hasPrefix("baseline.color.")
+                && !$0.id.hasPrefix("baseline.rename.")
+                && !$0.id.hasPrefix("baseline.delete.")
+            }
+            .map(\.id)
+        #expect(staticBaselineIDs == ["baseline.create", "baseline.compareClear", "baseline.manage"])
+        #expect(try command(commands, "baseline.manage").shortcut == nil)
 
         // 菜单栏分组标题与面板分组标签同源。
         #expect(KairoCommandGroup.baseline.title == I18n.t("menu.group.baseline", "Baseline"))
@@ -87,7 +98,7 @@ struct BaselineMenuTests {
         let ids = createBaselines(4, in: store)
         let commands = makeCatalog(store)
 
-        #expect(commands.count == 44 + 12 * 4)
+        #expect(commands.count == 45 + 12 * 4)
         #expect(Set(commands.map(\.id)).count == commands.count)
 
         for baseline in store.baselines {
@@ -106,14 +117,15 @@ struct BaselineMenuTests {
         #expect(Set(ids.map(\.uuidString)).count == ids.count)
     }
 
-    /// 颜色项只进菜单、不进 ⌘K：每条基线的面板可见项是 4 条（显示 / 对比 / 改名 / 删除）+ 2 条静态。
+    /// 颜色项只进菜单、不进 ⌘K：每条基线的面板可见项是 4 条（显示 / 对比 / 改名 / 删除）
+    /// + 3 条静态（新建 / 不对比 / 管理基线）——面板入口漏进 ⌘K 才算漏，颜色挤进去才算多。
     @Test func colorCommandsAreHiddenFromPalette() {
         let store = makeStore()
         createBaselines(2, in: store)
         let commands = makeCatalog(store)
 
         let paletteVisible = visibleBaselineIDs(commands)
-        #expect(paletteVisible.count == 2 + 4 * 2)
+        #expect(paletteVisible.count == 3 + 4 * 2)
         #expect(!paletteVisible.contains { $0.id.hasPrefix("baseline.color.") })
         #expect(commands.contains { $0.id.hasPrefix("baseline.color.") && $0.isPaletteHidden })
     }

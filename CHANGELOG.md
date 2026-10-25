@@ -3,6 +3,26 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.15.0 — 2026-10-25
+
+### 新增
+
+- **基线面板**：菜单栏「基线 → 管理基线…」打开的清单，逐条显示颜色块、名称、创建时间、条目数、甘特显隐与主对比状态；行内可直接设为主对比、切换甘特显示、改色、重命名、删除（沿用二次确认）。底部固定两块：**孤儿条目**（任务已删除，只读，显示基线上的原始起止）与**基线之后新增**计数。
+- **项目摘要偏差块**：检查器「项目」页新增「与基线对比」，一次看到结束偏差、晚完成数、逾期未完成、无基线条目、基线后新增、已删除条目；未选基线时整段不出现，不做「缺省比最新」的静默回落。
+- **偏差 CSV 导出**：`kairo baseline variance --csv <路径>`，UTF-8 带 BOM 便于 Excel 直接打开；前三行是基线身份（id / 名称 / 创建时间），第四行起 11 列固定表头（taskID,title,baselineStart,baselineFinish,planStartVariance,planFinishVariance,actualStartVariance,actualFinishVariance,overdueDays,hasBaseline,isForecast）；空值留空不写 0，负数保留符号，孤儿条目单独分节且列数不变。`kairo project summary` 同步输出同一份偏差块。
+
+### 修复
+
+- **CSV 解析崩溃**：导出文件带 BOM，解析助手按 `hasPrefix("#")` 判注释时被 BOM 挡掉，落到空分节的下标 -1，进程直接 `Fatal error`。现已改为剔除 BOM 后按行种类分派，并把分节/取列收敛到 `requireCSVSection` / `requireCSVField` / `requireCSVWidth`，结构性异常变成一条红用例而不是中断整轮测试。
+- CSV 字段按 RFC 4180 转义（逗号、双引号、换行），测试端用状态机解析器 + python `csv` 模块双向交叉验证。
+- `--csv` 与 `--json` 互斥；`--csv` 后缺路径不再把 `--file` 的值当文件名写垃圾文件。
+
+### 判据与证据
+
+- 全量 **1251 tests / 112 suites** 通过；debug 零 warning。
+- 新增 33 例：项目摘要 13、基线面板 12、CSV 与 project summary 8。
+- 真机验证：在 36 项路线图上创建基线并导出 CSV，列头 11 项、行 36、孤儿 0，Excel 可直接打开。
+
 ## v0.14.5 — 2026-10-25
 
 ### 修复

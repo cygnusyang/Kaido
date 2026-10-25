@@ -13,6 +13,7 @@ import KairoPresentation
 /// 3. 另有 N 条未显示（被上限截断时）
 /// 4. 不对比
 /// 5. 图例：色块 + 名称 + 创建日期，顺序 = 甘特轨道顺序
+/// 6. 管理基线…（恒最底：逐条管理的收口入口 → 基线面板）
 ///
 /// 图例放**底部**而不是顶部：第一项必须留给「新建基线」，图例是参考信息，
 /// 放顶部会把唯一且必要的入口挤下去。
@@ -45,6 +46,10 @@ struct BaselineMenuContent: View {
         Divider()
         item("baseline.compareClear", marked: model.isCompareCleared)
         legend(model.legend)
+        // 管理入口放最底（v0.15）：新建永远第 1 项，面板是逐条管理后的延伸动作，
+        // 放上面会把「新建基线」挤下去（§5 顶部的理由同样适用于底部收口）。
+        Divider()
+        item("baseline.manage")
     }
 
     // MARK: - 逐条基线
