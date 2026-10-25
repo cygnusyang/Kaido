@@ -113,8 +113,6 @@ struct TimelineBody: View {
     @State private var dragSession: CanvasDragSession?
     /// 点选中的依赖线（视图交互态，不进持久化 view state）。
     @State private var selectedDependencyIndex: Int?
-    /// 横向平移上下文（F-14-18）：全进程单例，避免视图重建后监听绑到已销毁的实例。
-    private var panContext: HorizontalPanContext { .shared }
     /// 横向平移：空白处拖拽状态机（引用语义，可单测）。
     @State private var panDrag = PanDragSession()
 
@@ -179,11 +177,11 @@ struct TimelineBody: View {
                             drag.finish()
                         }
                 )
-                // 记录画布视口（AppKit 窗口坐标），供横向滚动命中判断。
-                // 不用 `.frame(in: .global)`：SwiftUI 全局空间与 NSEvent 窗口坐标不同源。
+                // 横向滚动承接层（F-14-18）：监听随本视图的窗口生命周期装卸，命中
+                // 用自己的 bounds 现场换算；不再有进程级单例与缓存的视口矩形（D-028）。
                 .background(
-                    CanvasViewportProbe { window, rect in
-                        panContext.attach(window: window, viewportInWindow: rect)
+                    GanttScrollSurface(dayWidth: gantt.dayWidth) { days in
+                        store.panWindow(byDays: days)
                     }
                 )
             }
@@ -202,26 +200,7 @@ struct TimelineBody: View {
             // 快照刷新后索引语义失效，清空点选（内容未变时 Equatable 不触发）。
             selectedDependencyIndex = nil
         }
-        .onAppear {
-            panContext.sync(dayWidth: gantt.dayWidth, windowStart: gantt.windowStart)
-            panContext.attach(store: store)
-            installScrollMonitorIfNeeded()
-        }
-        .onChange(of: gantt.windowStart) { _, _ in
-            panContext.sync(dayWidth: gantt.dayWidth, windowStart: gantt.windowStart)
-        }
-        .onChange(of: gantt.dayWidth) { _, _ in
-            // 尺度变化后旧余量失去意义，清空避免跳变。
-            panContext.resetAccumulator()
-            panContext.sync(dayWidth: gantt.dayWidth, windowStart: gantt.windowStart)
-        }
         .frame(width: width, alignment: .topLeading)
-    }
-
-    /// 横向滚动捕获（F-14-18）：光标在画布内时把横向滚动换算成窗口平移。
-    /// 单例监听重复 `start()` 幂等，不产生第二份事件源（D-027）。
-    private func installScrollMonitorIfNeeded() {
-        HorizontalScrollMonitor.shared.start()
     }
 
     private func handleTap(_ point: CGPoint, offset: CGFloat) {

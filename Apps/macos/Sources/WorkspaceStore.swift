@@ -364,6 +364,21 @@ final class WorkspaceStore: ObservableObject {
         notice = nil
     }
 
+    /// 横向平移：按整天推进窗口起点（正数 = 内容右移 / 看更早日期）。
+    ///
+    /// 唯一真源是 `viewState.windowStart`：连续滚动事件都以当前已提交的起点为基准，
+    /// 视图层不再自行推进（D-028 —— 旧实现在上下文里乐观 `advance`，store 一旦
+    /// 不认这次提交就会越滑越偏）。`usesFitZoom` 关闭，与「适合项目」互斥。
+    func panWindow(byDays days: Int) {
+        guard days != 0 else { return }
+        let base = viewState.windowStart ?? snapshot.gantt.windowStart
+        let shifted = calendar.date(byAdding: .day, value: -days, to: base) ?? base
+        mutateView {
+            $0.windowStart = calendar.startOfDay(for: shifted)
+            $0.usesFitZoom = false
+        }
+    }
+
     // MARK: - 动作路由
 
     func dispatch(_ action: WorkspaceAction) {

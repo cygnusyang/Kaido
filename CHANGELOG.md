@@ -3,6 +3,14 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.10.1 — 2026-10-25
+
+### 修复
+
+- **甘特图双指横向平移在长会话中失效（D-028，F-14-18 第三次回归）**：左右两个方向都不再响应，退出重启才恢复。根因不在判定规则（纯函数单测一直全绿），而在架构：平移链路横跨 `HorizontalScrollMonitor.shared` / `HorizontalPanContext.shared` / `CanvasViewportProbe` 三个常驻全局件，缓存的视口矩形与 `weak window` / `weak store` 在视图重建或画布纵向滚动位移后变旧且无人刷新，命中判定随即恒为「光标不在画布内」，事件全部被放行。
+- 改为 **视图自持** 的 `GanttScrollSurface`（`NSViewRepresentable`）：监听随视图进出窗口装卸，命中用自身 `bounds` 现场换算，派发目标每次渲染注入，窗口起点只由 `WorkspaceStore.panWindow(byDays:)` 推进（`viewState.windowStart` 为唯一真源）。删除三个全局件与「首响应者是否 `NSTextView`」的编辑判据。
+- 回归防护补到真正会失效的层级：`GanttScrollSurfaceTests` 13 例覆盖 controller（累积/放行/日宽）、视图层（`handle` 消费与放行）、store 层双向整天推进。
+
 ## v0.10.0 — 2026-10-25
 
 ### 新增

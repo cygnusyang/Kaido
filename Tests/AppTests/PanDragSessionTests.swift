@@ -54,25 +54,6 @@ import KairoPresentation
         #expect(session.update(translationX: 1) == makePanDate(2025, 3, 13))
     }
 
-    // MARK: - 滚动上下文（引用语义，长生命周期监听用）
-
-    @Test func contextUsesLatestGeometry() {
-        let context = HorizontalPanContext()
-        context.sync(dayWidth: 10, windowStart: base)
-        // 切档到日宽 5：同一像素位移换算出的天数翻倍。
-        context.sync(dayWidth: 5, windowStart: base)
-        #expect(context.consumeScroll(deltaX: 10) == 2)
-        #expect(context.windowStart == base)
-    }
-
-    @Test func contextClampsDayWidthAndResetsRemainder() {
-        let context = HorizontalPanContext()
-        context.sync(dayWidth: 0, windowStart: base)
-        // 兜底 0.5：1pt = 2 天。
-        #expect(context.consumeScroll(deltaX: 1) == 2)
-        context.resetAccumulator()
-        #expect(context.consumeScroll(deltaX: 0.2) == 0)
-    }
 }
 
 private func makePanDate(_ year: Int, _ month: Int, _ day: Int) -> Date {
