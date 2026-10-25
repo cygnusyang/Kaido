@@ -5696,6 +5696,23 @@
         }
       }
     },
+    "outline.reorder_grip.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag to reorder; click to select"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动调整顺序，单击选中"
+          }
+        }
+      }
+    },
     "outline.status.blocked": {
       "extractionState": "manual",
       "localizations": {

@@ -13,6 +13,11 @@ struct OutlineRowsList: View {
     let rows: [PlanRow]
     let layout: OutlineColumnLayout
     @Binding var editingTaskID: UUID?
+    /// 行区域列交界拖宽（D-033）：与表头手柄共用同一条回调链。
+    /// 缺省空实现：只读渲染（测试、截图）不接也能跑，行为与引入本机制前一致。
+    var onResizeChanged: (OutlineColumn, CGFloat) -> Void = { _, _ in }
+    var onResizeEnded: (Bool) -> Void = { _ in }
+    var onResizeReset: (OutlineColumn) -> Void = { _ in }
 
     var body: some View {
         LazyVStack(spacing: 0) {
@@ -32,6 +37,16 @@ struct OutlineRowsList: View {
         .frame(width: layout.totalWidth, alignment: .topLeading)
         .clipped()
         .background(DesignTokens.surfaceBase)
+        // 交界命中带盖在行之上：表头手柄只有 44pt 高，用户在行上抓交界必须也能调宽（D-033）。
+        // 覆盖层用 offset 定位、不占布局：行节距仍严格等于 rowHeight（与画布对齐）。
+        .overlay(alignment: .topLeading) {
+            OutlineColumnResizeOverlay(
+                layout: layout,
+                onResizeChanged: onResizeChanged,
+                onResizeEnded: onResizeEnded,
+                onResizeReset: onResizeReset
+            )
+        }
     }
 }
 
@@ -69,6 +84,66 @@ struct OutlineColumnLayout {
     private var fixedWidthTotal: CGFloat {
         columns.filter { $0 != .title }.reduce(0) { $0 + width(of: $1) }
     }
+
+    /// 可拖宽列的交界（D-033）：行区域据此铺命中带，表头手柄也按同一右缘定位。
+    ///
+    /// 三条边界规则：弹性列（任务说明）不参与；聚焦标签栏整体不提供调宽；
+    /// 列宽合计溢出大纲宽时，落在视口外（`x > totalWidth`）的交界直接丢弃——
+    /// 那里已被裁切，铺出来的命中带用户点不到，只会挡住行点击。
+    func resizeBoundaries() -> [OutlineColumnBoundary] {
+        guard !focused else { return [] }
+        var boundaries: [OutlineColumnBoundary] = []
+        var edge: CGFloat = 0
+        for column in columns {
+            edge += width(of: column)
+            guard OutlineColumnPreferences.isResizable(column), edge <= totalWidth else { continue }
+            boundaries.append(
+                OutlineColumnBoundary(column: column, x: edge, isLast: columns.last == column)
+            )
+        }
+        return boundaries
+    }
+
+    /// 行首重排握把的左缘（点，相对大纲左缘）：优先序号列——该格无交互，单击即选中，
+    /// 覆盖它不损失任何操作；聚焦标签栏没有序号列时退到违例列（图标列同样无交互）。
+    /// 状态列只有 18pt 且有菜单，任何情况下都不做握把宿主。
+    var dragGripOffset: CGFloat {
+        for host in [OutlineColumn.number, .violation] {
+            guard let index = columns.firstIndex(of: host) else { continue }
+            return columns[..<index].reduce(0) { $0 + width(of: $1) }
+        }
+        return 0
+    }
+}
+
+/// 列交界（D-033）：`x` 是列右缘，`band` 是行区域命中带。
+///
+/// 命中带内缩进列内（`x - hotZone ... x`），与表头手柄同一口径，光标落在同一位置；
+/// 末列右缘就是大纲/画布分界手柄，整带再内缩一个热区，两种拖拽不互相抢。
+struct OutlineColumnBoundary: Equatable {
+    let column: OutlineColumn
+    let x: CGFloat
+    let isLast: Bool
+
+    var band: ClosedRange<CGFloat> {
+        let hot = OutlineColumnResizeMetrics.hotZone
+        return isLast ? (x - 2 * hot)...(x - hot) : (x - hot)...x
+    }
+}
+
+/// 列交界手势口径（D-033）：表头手柄与行区域命中带必须取同一组数值，
+/// 否则同一列在表头与行上手感不一致（历史上表头 6pt、行上无命中区）。
+enum OutlineColumnResizeMetrics {
+    /// 交界命中带宽度（点）：6pt 实测抓不住，统一放宽到 8pt。
+    static let hotZone: CGFloat = 8
+    /// 提交阈值（点）：小于该位移视为抖动，避免单击交界写入粘滞覆盖值。
+    static let commitThreshold: CGFloat = 2
+}
+
+/// 重排握把口径（D-033）。
+enum OutlineReorderMetrics {
+    /// 握把宽度（点）：窄于 12pt 按不住，宽于 16pt 会吃掉序号列的可读宽度。
+    static let gripWidth: CGFloat = 12
 }
 
 /// 大纲表头：列标题 + 每列右缘的调宽手柄 + 右键列显隐菜单（F-14-20）。
@@ -95,7 +170,7 @@ struct OutlineHeaderView: View {
                     .padding(.horizontal, 4)
                     .frame(width: layout.width(of: column), alignment: .leading)
                     .overlay(alignment: .trailing) {
-                        // 聚焦标签栏不提供调宽；末列手柄内缩 6pt，避开大纲右边界手柄的热区。
+                        // 聚焦标签栏不提供调宽；末列手柄内缩一个热区，避开大纲右边界手柄。
                         if OutlineColumnPreferences.isResizable(column), !layout.focused {
                             OutlineColumnResizeHandle(
                                 baseWidth: layout.width(of: column),
@@ -152,7 +227,10 @@ struct OutlineHeaderView: View {
     }
 }
 
-/// 表头列宽手柄：叠在列右缘的 6pt 热区。
+/// 表头列宽手柄：叠在列右缘的 8pt 热区（口径见 `OutlineColumnResizeMetrics`）。
+///
+/// 行区域另有整列高度的同类命中带（`OutlineColumnResizeOverlay`），两者共用同一组
+/// 宽度与提交阈值，保证表头与行上手感一致（D-033）。
 ///
 /// - hover 切左右调整光标并显示 1pt 高亮（设计 §2）；
 /// - 拖拽以手势开始时的列宽为基准，避免与已回写的预览草稿重复累加；
@@ -170,10 +248,10 @@ private struct OutlineColumnResizeHandle: View {
     @State private var dragBase: CGFloat?
     @State private var hovering = false
 
-    /// 右缘热区宽度（点）：窄到不挡住相邻列标题，又足够抓取。
-    private static let hotZoneWidth: CGFloat = 6
-    /// 提交阈值（点）：小于该位移视为抖动，避免单击手柄写入粘滞覆盖值。
-    private static let commitThreshold: CGFloat = 2
+    /// 右缘热区：与行区域命中带同值，避免「表头抓得住、行上抓不住」。
+    private static let hotZoneWidth = OutlineColumnResizeMetrics.hotZone
+    /// 提交阈值：与行区域同值。
+    private static let commitThreshold = OutlineColumnResizeMetrics.commitThreshold
 
     var body: some View {
         Color.clear
@@ -225,6 +303,94 @@ private struct OutlineColumnResizeHandle: View {
     }
 }
 
+/// 行区域列交界命中带（D-033）：把表头那 8pt 热区沿整列高度铺下来。
+///
+/// 表头手柄只有 44pt 高，用户在行上把光标放到列交界处左右拖过去没有任何响应——
+/// 既没调宽，也没选中（指针移动让行 tap 失效），这正是 D-033 的「拖了半天没反应」。
+/// 这里按 `layout.resizeBoundaries()` 铺命中带，回调、阈值、双击复位与表头完全同一套。
+struct OutlineColumnResizeOverlay: View {
+    let layout: OutlineColumnLayout
+    let onResizeChanged: (OutlineColumn, CGFloat) -> Void
+    let onResizeEnded: (Bool) -> Void
+    let onResizeReset: (OutlineColumn) -> Void
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(layout.resizeBoundaries(), id: \.column) { boundary in
+                OutlineColumnResizeBand(
+                    baseWidth: layout.width(of: boundary.column),
+                    onChanged: { onResizeChanged(boundary.column, $0) },
+                    onEnded: onResizeEnded,
+                    onReset: { onResizeReset(boundary.column) }
+                )
+                .frame(width: OutlineColumnResizeMetrics.hotZone)
+                .offset(x: boundary.band.lowerBound)
+            }
+        }
+        // 只有命中带参与命中：带外的行点击、右键菜单、拖拽重排照常穿透到行。
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+/// 单条交界命中带：hover 变左右调整光标 + 1pt 高亮，拖动改预览宽，双击复位。
+private struct OutlineColumnResizeBand: View {
+    /// 手势开始时的列宽（点）：以起点为基准，不回读已回写的预览草稿。
+    let baseWidth: CGFloat
+    let onChanged: (CGFloat) -> Void
+    /// 松手：参数为「是否应提交」（<2pt 视为误触，只清草稿）。
+    let onEnded: (Bool) -> Void
+    let onReset: () -> Void
+
+    @State private var dragBase: CGFloat?
+    @State private var hovering = false
+
+    var body: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .overlay(alignment: .trailing) {
+                Rectangle()
+                    .fill(DesignTokens.accentStrong)
+                    .frame(width: 1)
+                    .opacity(hovering || dragBase != nil ? 1 : 0)
+            }
+            .onHover { inside in
+                hovering = inside
+                if inside {
+                    NSCursor.resizeLeftRight.set()
+                } else {
+                    NSCursor.arrow.set()
+                }
+            }
+            // 覆盖层位于行之上：highPriorityGesture 保证按下即进调宽，不被行 tap 抢走。
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        if dragBase == nil { dragBase = baseWidth }
+                        guard let base = dragBase else { return }
+                        onChanged(base + value.translation.width)
+                    }
+                    .onEnded { value in
+                        dragBase = nil
+                        onEnded(abs(value.translation.width) >= OutlineColumnResizeMetrics.commitThreshold)
+                    }
+            )
+            .onTapGesture(count: 2) { onReset() }
+            // 拖拽被系统中断（切模式/换项目/窗口失焦）时 onEnded 不保证触发：兜底清草稿。
+            .onDisappear {
+                if dragBase != nil {
+                    dragBase = nil
+                    onEnded(false)
+                }
+                if hovering {
+                    hovering = false
+                    NSCursor.arrow.set()
+                }
+            }
+            .help(I18n.t("outline.column_width.help", "Drag to resize the column; double-click to reset"))
+            .accessibilityHidden(true)
+    }
+}
+
 private struct OutlineRowView: View {
     @ObservedObject var store: WorkspaceStore
     let row: PlanRow
@@ -249,12 +415,21 @@ private struct OutlineRowView: View {
         .contentShape(Rectangle())
         .onTapGesture { store.dispatch(.select(row.id)) }
         .onHover { hovering = $0 }
-        .modifier(DragReorderModifier(
+        // 重排只挂本 modifier 的 onDrop：拖拽源在行首握把（见下），行本身不再注册 onDrag，
+        // 否则指针一抖就被拖拽会话接管，单击选中会丢失（D-033）。
+        .modifier(ReorderDropModifier(
             enabled: store.allowsDragReorder,
             taskID: row.id,
             store: store,
             isTargeted: $dropTargeted
         ))
+        .overlay(alignment: .leading) {
+            // 行首握把：显式拖拽入口，单击握把同样是选中（序号格本来无交互）。
+            if store.allowsDragReorder {
+                OutlineReorderGrip(store: store, taskID: row.id)
+                    .offset(x: layout.dragGripOffset)
+            }
+        }
         .overlay(alignment: .bottom) {
             // 行分隔线画进行内底部，不占布局空间，保证行列表节距 = rowHeight。
             Rectangle()
@@ -632,8 +807,11 @@ private struct OutlineRowView: View {
     }
 }
 
-/// 筛选激活时不注册拖拽手势，避免「可拖但目标不可见」的半成品交互。
-private struct DragReorderModifier: ViewModifier {
+/// 行只做落点，不做拖拽源：筛选激活时不注册任何拖拽，避免「可拖但目标不可见」的半成品交互。
+///
+/// 拖拽源（`onDrag`）在行首握把 `OutlineReorderGrip` 上。整行挂 `onDrag` 会在指针
+/// 按下并轻微移动时启动拖拽会话，把单击选中吃掉（D-033：用户报「选不中」）。
+private struct ReorderDropModifier: ViewModifier {
     let enabled: Bool
     let taskID: UUID
     let store: WorkspaceStore
@@ -642,22 +820,67 @@ private struct DragReorderModifier: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         if enabled {
-            content
-                .onDrag {
-                    store.dispatch(.select(taskID))
-                    return NSItemProvider(object: taskID.uuidString as NSString)
-                }
-                .onDrop(
-                    of: [.plainText],
-                    delegate: OutlineRowDropDelegate(
-                        targetID: taskID,
-                        store: store,
-                        isTargeted: $isTargeted
-                    )
+            content.onDrop(
+                of: [.plainText],
+                delegate: OutlineRowDropDelegate(
+                    targetID: taskID,
+                    store: store,
+                    isTargeted: $isTargeted
                 )
+            )
         } else {
             content
         }
+    }
+}
+
+/// 行首拖拽握把（D-033）：重排的唯一拖拽入口。
+///
+/// 位置取序号列（`layout.dragGripOffset`）：该格无交互，单击握把同样派发选中，
+/// 所以这 12pt 不损失任何操作；状态列只有 18pt 且带菜单，覆盖它会让状态菜单点不到。
+/// 悬停握把本身才显示三颗竖排小点，行悬停不遮挡序号读数。
+private struct OutlineReorderGrip: View {
+    @ObservedObject var store: WorkspaceStore
+    let taskID: UUID
+
+    @State private var hovering = false
+
+    private static let help = I18n.t(
+        "outline.reorder_grip.help",
+        "Drag to reorder; click to select"
+    )
+
+    var body: some View {
+        Color.clear
+            .frame(width: OutlineReorderMetrics.gripWidth)
+            .contentShape(Rectangle())
+            .overlay {
+                VStack(spacing: 2) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        Circle()
+                            .fill(DesignTokens.textSecondary)
+                            .frame(width: 2, height: 2)
+                    }
+                }
+                .opacity(hovering ? 1 : 0)
+            }
+            .onHover { inside in
+                hovering = inside
+                if inside {
+                    NSCursor.openHand.set()
+                } else {
+                    NSCursor.arrow.set()
+                }
+            }
+            .onDrag {
+                // 拖拽起手即选中：与整行点击的语义一致，重排过程中检查器跟着走。
+                store.dispatch(.select(taskID))
+                return NSItemProvider(object: taskID.uuidString as NSString)
+            }
+            // 单击握把仍然是「选中这一行」：手势挂在 onDrag 之外，普通点击不会被吃掉。
+            .onTapGesture { store.dispatch(.select(taskID)) }
+            .help(Self.help)
+            .accessibilityLabel(Self.help)
     }
 }
 

@@ -516,7 +516,17 @@ struct WorkspaceView: View {
                                 store: store,
                                 rows: rows,
                                 layout: layout,
-                                editingTaskID: $editingTaskID
+                                editingTaskID: $editingTaskID,
+                                // 行区域交界拖宽（D-033）：与表头同一套草稿/提交/复位回调，
+                                // 否则在行上拖完停在草稿，宽度不落盘。
+                                onResizeChanged: { column, width in
+                                    liveColumnResize = (column, clampedColumnWidth(width, for: column))
+                                },
+                                onResizeEnded: { shouldCommit in commitLiveColumnResize(shouldCommit) },
+                                onResizeReset: { column in
+                                    liveColumnResize = nil
+                                    store.dispatch(.setOutlineColumnWidth(column, nil))
+                                }
                             )
                             .frame(width: sizes.outlineWidth)
                         }
