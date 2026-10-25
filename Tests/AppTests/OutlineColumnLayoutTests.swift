@@ -35,15 +35,16 @@ struct OutlineColumnLayoutTests {
 
         #expect(layout.width(of: .status) == 18)
         #expect(layout.width(of: .violation) == 18)
-        #expect(layout.width(of: .number) == 30)
+        // v0.14.4：序号列 30 → 44（容纳「10.12」这类三级序号）。
+        #expect(layout.width(of: .number) == 44)
         #expect(layout.width(of: .predecessors) == 96)
         #expect(layout.width(of: .start) == 78)
         #expect(layout.width(of: .finish) == 78)
         #expect(layout.width(of: .duration) == 56)
         #expect(layout.width(of: .assignee) == 76)
         #expect(layout.width(of: .progress) == 72)
-        // 固定列合计 522pt：600 − 522 = 78 < 120 下限 → 标题取 120（总宽 642 溢出，右侧裁切）。
-        #expect(fixedSum(layout) == 522)
+        // 固定列合计 536pt：600 − 536 = 64 < 120 下限 → 标题取 120（总宽溢出，右侧裁切）。
+        #expect(fixedSum(layout) == 536)
         #expect(layout.width(of: .title) == 120)
     }
 
@@ -55,13 +56,13 @@ struct OutlineColumnLayoutTests {
 
         #expect(layout.width(of: .status) == 18 * 0.6)
         #expect(layout.width(of: .violation) == 18 * 0.6)
-        #expect(layout.width(of: .number) == 30 * 0.6)
+        #expect(layout.width(of: .number) == 44 * 0.6)
         #expect(layout.width(of: .progress) == 72 * 0.6)
 
         let fixed = fixedSum(layout)
-        #expect(abs(fixed - 82.8) < 0.001)
+        #expect(abs(fixed - 91.2) < 0.001)
         #expect(abs(layout.width(of: .title) - (360 - fixed)) < 0.001)
-        #expect(abs(layout.width(of: .title) - 277.2) < 0.001)
+        #expect(abs(layout.width(of: .title) - 268.8) < 0.001)
         #expect(layout.width(of: .title) >= 120, "标题下限 120pt")
         #expect(abs(layout.width(of: .title) + fixed - 360) < 0.001, "未溢出时总宽正好等于大纲宽度")
     }
@@ -81,9 +82,9 @@ struct OutlineColumnLayoutTests {
         #expect(layout.width(of: .start) == 120)
         #expect(layout.width(of: .start) != 78 * 0.6)
         // 未覆盖的列继续走压缩口径（用户改动只影响被拖的那一列）。
-        #expect(layout.width(of: .number) == 30 * 0.6)
+        #expect(layout.width(of: .number) == 44 * 0.6)
         // 标题吃余量：360 − (18 + 120) = 222，且不低于 120。
-        #expect(layout.width(of: .title) == 222)
+        #expect(layout.width(of: .title) == 213.6)
         #expect(layout.width(of: .title) >= 120)
     }
 
@@ -125,7 +126,7 @@ struct OutlineColumnLayoutTests {
             liveResize: (column: .start, width: 90)
         )
         #expect(layout.width(of: .start) == 90, "拖动中的草稿优先于已提交的覆盖值")
-        #expect(layout.width(of: .title) == 252, "标题按草稿宽度让位：360 − (18 + 90)")
+        #expect(layout.width(of: .title) == 243.6, "标题按草稿宽度让位：360 − (18 + 90)")
     }
 
     /// 草稿只作用于自己那一列；草稿为负时夹到 0（不留负宽度给 SwiftUI 布局）。
@@ -146,8 +147,8 @@ struct OutlineColumnLayoutTests {
             liveResize: (column: .start, width: -30)
         )
         #expect(negative.width(of: .start) == 0, "负宽度夹到 0，不把负值传给 SwiftUI 布局")
-        // 草稿夹到 0 后标题吃余量：360 − (18 + 0) = 342。
-        let expectedTitle: CGFloat = 342
+        // 草稿夹到 0 后标题吃余量：360 − (26.4 + 0) = 333.6（序号列 44 × 0.6）。
+        let expectedTitle: CGFloat = 333.6
         #expect(negative.width(of: .title) == expectedTitle)
     }
 

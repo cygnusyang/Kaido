@@ -475,6 +475,8 @@ enum KairoCommandCatalog {
 /// 由注册表生成菜单栏（US-E4-05 验收 3：菜单命令与面板同源）。
 struct KairoMenuCommands: Commands {
     let commands: [KairoCommand]
+    /// 语言偏好的可观察镜像：写偏好不会触发 SwiftUI 重算，勾选态需要它才会立刻更新。
+    @AppStorage(AppLanguage.defaultsKey) private var languageRaw = AppLanguage.system.rawValue
     /// 工作台状态：顶级「基线」菜单要按当前基线渲染子菜单与图例。
     ///
     /// 与 `commands` 同源：菜单只排布，动作与文案仍由注册表提供。
@@ -524,20 +526,44 @@ struct KairoMenuCommands: Commands {
     ///
     /// 不做运行中热切换：菜单栏常驻应用的视图重建路径分散（主窗口、面板、弹窗、菜单），
     /// 需要为全链路注入 locale 并强制重建（设计 §5，P2 未验证）。
+    /// 用 `@AppStorage` 观察同一偏好键：选完立刻刷新勾选态，并弹出「已保存，重启生效」提示。
+    /// 之前只写 UserDefaults 不触发 SwiftUI 重算，菜单关掉就再无任何反馈（用户以为没生效）。
     @ViewBuilder
     private var languageMenu: some View {
-        let selected = AppLanguage.selected
         Menu(I18n.t("menu.language.title", "Language")) {
             ForEach(AppLanguage.allCases, id: \.self) { language in
                 Button {
                     AppLanguage.selected = language
+                    Self.confirmLanguageChange(language)
                 } label: {
-                    Text(selected == language ? "✓ \(language.displayName)" : language.displayName)
+                    Text(selectedLanguage == language ? "✓ \(language.displayName)" : language.displayName)
                 }
             }
             Divider()
             Text(I18n.t("menu.language.restart_hint", "Takes effect after restarting Kairo"))
         }
+    }
+
+    /// 当前选择：读偏好键对应字段（`@AppStorage` 变化会触发菜单重建）。
+    private var selectedLanguage: AppLanguage {
+        AppLanguage(rawValue: languageRaw) ?? .system
+    }
+
+    /// 选完语言给一次明确反馈：菜单关闭后不再有任何可见变化，用户会以为「没反应」。
+    static func confirmLanguageChange(_ language: AppLanguage) {
+        let alert = NSAlert()
+        alert.messageText = I18n.t(
+            "alert.language.changed.title",
+            "Language saved: %1$@",
+            language.displayName
+        )
+        alert.informativeText = I18n.t(
+            "alert.language.changed.message",
+            "Quit and reopen Kairo to apply it — the window title bar, menus and system dialogs switch together."
+        )
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: I18n.t("action.ok", "OK"))
+        alert.runModal()
     }
 
     @ViewBuilder
@@ -592,7 +618,7 @@ struct KairoMenuCommands: Commands {
     // MARK: - 关于面板
 
     /// 应用版本号：发版前更新。
-    static let appVersion = "0.14.3"
+    static let appVersion = "0.14.4"
 
     /// 版权与联系邮箱：法律声明，不随界面语言变化，也不进 String Catalog。
     static let copyrightNotice = "Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>"

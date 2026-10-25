@@ -514,6 +514,8 @@ private struct OutlineRowView: View {
             Text(row.outlineNumber)
                 .font(.system(size: DesignTokens.captionFontSize))
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .foregroundStyle(DesignTokens.textSecondary)
                 .padding(.horizontal, 4)
         case .title:

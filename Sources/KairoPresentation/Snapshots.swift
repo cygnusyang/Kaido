@@ -34,7 +34,8 @@ public enum OutlineColumn: String, Codable, Hashable, CaseIterable, Sendable {
         let scale = max(bodyFontSize, 13) / 13
         switch self {
         case .status, .violation: return 18
-        case .number: return 30
+        // 44：要放下「10.12」这类三级序号（30pt 会被截断成「10…」或换行）。
+        case .number: return 44
         case .title: return 160 * scale
         case .predecessors: return 96 * scale
         case .start, .finish, .actualStart, .actualFinish,

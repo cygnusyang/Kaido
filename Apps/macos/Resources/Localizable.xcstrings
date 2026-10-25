@@ -596,6 +596,20 @@
         }
       }
     },
+    "alert.language.changed.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Language saved: %1$@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已切换语言：%1$@" } }
+      }
+    },
+    "alert.language.changed.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Quit and reopen Kairo to apply it — the title bar, menus and system dialogs switch together." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "退出并重新打开 Kairo 后生效 —— 标题栏、菜单与系统对话框会一起切换。" } }
+      }
+    },
     "alert.action_failed.title": {
       "extractionState": "manual",
       "localizations": {

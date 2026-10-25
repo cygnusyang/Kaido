@@ -17,7 +17,8 @@ struct OutlineColumnPreferencesTests {
     private static let expectedDefaultWidths: [OutlineColumn: Double] = [
         .status: 18,
         .violation: 18,
-        .number: 30,
+        // 44：容纳「10.12」这类三级序号，30 会截断（v0.14.4）。
+        .number: 44,
         .title: 160,
         .predecessors: 96,
         .start: 78,
