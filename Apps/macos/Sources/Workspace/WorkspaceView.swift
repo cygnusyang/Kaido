@@ -23,6 +23,47 @@ struct WorkspaceView: View {
     @State private var baselineRenameDraft = ""
 
     var body: some View {
+        dialogsWithUnsaved
+            .onAppear {
+                findAdapter.onReveal = { store.reveal($0) }
+                findAdapter.rows = store.snapshot.outline.rows
+                store.find.attach(target: findAdapter)
+            }
+            .onChange(of: store.snapshot.outline.rows) { _, rows in
+                findAdapter.rows = rows
+                store.find.rescan()
+            }
+    }
+
+    // 视图体按「框架 / 浮层 / 弹窗」拆成三段，各自是独立表达式。
+    // CI（macOS runner）曾报 WorkspaceView.swift:25 "unable to type-check this
+    // expression in reasonable time" —— 单个 body 里叠了 3 个 overlay + 6 个
+    // alert/confirmationDialog，类型推导规模超出上限；拆分后每段都远小于阈值。
+    // 逻辑与拆分前逐位一致，不改变任何弹窗的触发条件与回调。
+
+    /// 主框架 + 浮层（不含弹窗）。
+    private var shellWithOverlays: some View {
+        shell
+            .overlay {
+                if store.showCommandPalette {
+                    CommandPalette(commands: commands) {
+                        store.showCommandPalette = false
+                    }
+                }
+            }
+            .overlay {
+                if store.showsLoadingSkeleton {
+                    LoadingSkeletonView()
+                }
+            }
+            .overlay(alignment: .bottomLeading) {
+                if let notice = store.notice {
+                    noticeToast(notice)
+                }
+            }
+    }
+
+    private var shell: some View {
         VStack(spacing: 0) {
             if store.filterBarVisible {
                 FilterBar(store: store)
@@ -37,137 +78,120 @@ struct WorkspaceView: View {
         }
         .background(DesignTokens.surfaceBase)
         .toolbar { toolbarContent }
-        .overlay {
-            if store.showCommandPalette {
-                CommandPalette(commands: commands) {
-                    store.showCommandPalette = false
+    }
+
+    /// 弹窗第一段：错误提示 + 群组删除 + 基线删除。
+    private var dialogs: some View {
+        shellWithOverlays
+            .alert(
+                I18n.t("alert.action_failed.title", "The action could not be completed"),
+                isPresented: Binding(
+                    get: { store.alertMessage != nil },
+                    set: { if !$0 { store.alertMessage = nil } }
+                )
+            ) {
+                Button(I18n.t("action.ok", "OK"), role: .cancel) {
+                    store.alertMessage = nil
                 }
+            } message: {
+                Text(store.alertMessage ?? "")
             }
-        }
-        .overlay {
-            if store.showsLoadingSkeleton {
-                LoadingSkeletonView()
-            }
-        }
-        .overlay(alignment: .bottomLeading) {
-            if let notice = store.notice {
-                noticeToast(notice)
-            }
-        }
-        .alert(
-            I18n.t("alert.action_failed.title", "The action could not be completed"),
-            isPresented: Binding(
-                get: { store.alertMessage != nil },
-                set: { if !$0 { store.alertMessage = nil } }
-            )
-        ) {
-            Button(I18n.t("action.ok", "OK"), role: .cancel) {
-                store.alertMessage = nil
-            }
-        } message: {
-            Text(store.alertMessage ?? "")
-        }
-        .confirmationDialog(
-            store.pendingDeletion.map { I18n.t("alert.delete_group.title", "Delete the group “%1$@”?", $0.title) } ?? I18n.t("alert.delete.title", "Delete?"),
-            isPresented: Binding(
-                get: { store.pendingDeletion != nil },
-                set: { if !$0 { store.pendingDeletion = nil } }
-            ),
-            presenting: store.pendingDeletion
-        ) { pending in
-            Button(I18n.t("alert.delete.confirm", "Delete %1$ld tasks", pending.affectedCount), role: .destructive) {
-                store.confirmPendingDeletion()
-            }
-            Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {
-                store.pendingDeletion = nil
-            }
-        } message: { pending in
-            Text(I18n.t("alert.delete.message", "“%1$@” contains %2$ld subtasks, which will be deleted too. This can be undone.", pending.title, max(pending.affectedCount - 1, 0)))
-        }
-        // 基线删除（v0.13 / 08 §11）：必须二次确认——基线删掉不可重建，误删无救。
-        .confirmationDialog(
-            store.pendingBaselineDeletion.map {
-                I18n.t("alert.baseline.delete.title", "Delete the baseline “%1$@”?", $0.name)
-            } ?? I18n.t("alert.baseline.delete.title_plain", "Delete this baseline?"),
-            isPresented: Binding(
-                get: { store.pendingBaselineDeletion != nil },
-                set: { if !$0 { store.cancelPendingBaselineDeletion() } }
-            ),
-            presenting: store.pendingBaselineDeletion
-        ) { pending in
-            Button(I18n.t("alert.baseline.delete.confirm", "Delete Baseline"), role: .destructive) {
-                store.confirmPendingBaselineDeletion()
-            }
-            Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {
-                store.cancelPendingBaselineDeletion()
-            }
-        } message: { pending in
-            Text(I18n.t(
-                "alert.baseline.delete.message",
-                "“%1$@” will be deleted permanently. Scheduled tasks are not affected.",
-                pending.name
-            ))
-        }
-        .alert(
-            I18n.t("alert.baseline.rename.title", "Rename Baseline"),
-            isPresented: $showsBaselineRename
-        ) {
-            TextField(
-                I18n.t("alert.baseline.rename.placeholder", "Baseline name"),
-                text: $baselineRenameDraft
-            )
-            Button(I18n.t("action.ok", "OK")) {
-                guard let id = store.selectedBaseline?.id else { return }
-                store.dispatch(.renameBaseline(id, baselineRenameDraft))
-            }
-            Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {}
-        }
-        .confirmationDialog(
-            I18n.t("alert.unsaved_changes.title", "The current project has unsaved changes"),
-            isPresented: Binding(
-                get: { store.pendingOpenURL != nil },
-                set: { if !$0 { store.cancelPendingOpen() } }
-            )
-        ) {
-            Button(I18n.t("action.discard_and_open", "Discard Changes and Open"), role: .destructive) {
-                store.discardChangesAndOpenPending()
-            }
-            if store.canSavePendingOpen {
-                Button(I18n.t("action.save_and_open", "Save and Open")) {
-                    store.saveAndOpenPending()
+            .confirmationDialog(
+                store.pendingDeletion.map { I18n.t("alert.delete_group.title", "Delete the group “%1$@”?", $0.title) } ?? I18n.t("alert.delete.title", "Delete?"),
+                isPresented: Binding(
+                    get: { store.pendingDeletion != nil },
+                    set: { if !$0 { store.pendingDeletion = nil } }
+                ),
+                presenting: store.pendingDeletion
+            ) { pending in
+                Button(I18n.t("alert.delete.confirm", "Delete %1$ld tasks", pending.affectedCount), role: .destructive) {
+                    store.confirmPendingDeletion()
                 }
+                Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {
+                    store.pendingDeletion = nil
+                }
+            } message: { pending in
+                Text(I18n.t("alert.delete.message", "“%1$@” contains %2$ld subtasks, which will be deleted too. This can be undone.", pending.title, max(pending.affectedCount - 1, 0)))
             }
-            Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {
-                store.cancelPendingOpen()
+            .confirmationDialog(
+                store.pendingBaselineDeletion.map {
+                    I18n.t("alert.baseline.delete.title", "Delete the baseline “%1$@”?", $0.name)
+                } ?? I18n.t("alert.baseline.delete.title_plain", "Delete this baseline?"),
+                isPresented: Binding(
+                    get: { store.pendingBaselineDeletion != nil },
+                    set: { if !$0 { store.cancelPendingBaselineDeletion() } }
+                ),
+                presenting: store.pendingBaselineDeletion
+            ) { pending in
+                Button(I18n.t("alert.baseline.delete.confirm", "Delete Baseline"), role: .destructive) {
+                    store.confirmPendingBaselineDeletion()
+                }
+                Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {
+                    store.cancelPendingBaselineDeletion()
+                }
+            } message: { pending in
+                Text(I18n.t(
+                    "alert.baseline.delete.message",
+                    "“%1$@” will be deleted permanently. Scheduled tasks are not affected.",
+                    pending.name
+                ))
             }
-        } message: {
-            Text(I18n.t("alert.unsaved_changes.open_message", "Opening another project will discard unsaved changes in the current project."))
-        }
-        .confirmationDialog(
-            I18n.t("alert.unsaved_changes.title", "The current project has unsaved changes"),
-            isPresented: Binding(
-                get: { store.pendingLoadExample },
-                set: { if !$0 { store.cancelPendingLoadExample() } }
-            )
-        ) {
-            Button(I18n.t("action.discard_and_load", "Discard Changes and Load"), role: .destructive) {
-                store.confirmPendingLoadExample()
+    }
+
+    /// 弹窗第二段：基线改名 + 两处未保存确认。
+    private var dialogsWithUnsaved: some View {
+        dialogs
+            .alert(
+                I18n.t("alert.baseline.rename.title", "Rename Baseline"),
+                isPresented: $showsBaselineRename
+            ) {
+                TextField(
+                    I18n.t("alert.baseline.rename.placeholder", "Baseline name"),
+                    text: $baselineRenameDraft
+                )
+                Button(I18n.t("action.ok", "OK")) {
+                    guard let id = store.selectedBaseline?.id else { return }
+                    store.dispatch(.renameBaseline(id, baselineRenameDraft))
+                }
+                Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {}
             }
-            Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {
-                store.cancelPendingLoadExample()
+            .confirmationDialog(
+                I18n.t("alert.unsaved_changes.title", "The current project has unsaved changes"),
+                isPresented: Binding(
+                    get: { store.pendingOpenURL != nil },
+                    set: { if !$0 { store.cancelPendingOpen() } }
+                )
+            ) {
+                Button(I18n.t("action.discard_and_open", "Discard Changes and Open"), role: .destructive) {
+                    store.discardChangesAndOpenPending()
+                }
+                if store.canSavePendingOpen {
+                    Button(I18n.t("action.save_and_open", "Save and Open")) {
+                        store.saveAndOpenPending()
+                    }
+                }
+                Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {
+                    store.cancelPendingOpen()
+                }
+            } message: {
+                Text(I18n.t("alert.unsaved_changes.open_message", "Opening another project will discard unsaved changes in the current project."))
             }
-        } message: {
-            Text(I18n.t("alert.unsaved_changes.example_message", "Loading the example project will discard unsaved changes in the current project."))
-        }
-        .onAppear {
-            findAdapter.onReveal = { store.reveal($0) }
-            findAdapter.rows = store.snapshot.outline.rows
-            store.find.attach(target: findAdapter)
-        }
-        .onChange(of: store.snapshot.outline.rows) { _, rows in
-            findAdapter.rows = rows
-            store.find.rescan()
-        }
+            .confirmationDialog(
+                I18n.t("alert.unsaved_changes.title", "The current project has unsaved changes"),
+                isPresented: Binding(
+                    get: { store.pendingLoadExample },
+                    set: { if !$0 { store.cancelPendingLoadExample() } }
+                )
+            ) {
+                Button(I18n.t("action.discard_and_load", "Discard Changes and Load"), role: .destructive) {
+                    store.confirmPendingLoadExample()
+                }
+                Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {
+                    store.cancelPendingLoadExample()
+                }
+            } message: {
+                Text(I18n.t("alert.unsaved_changes.example_message", "Loading the example project will discard unsaved changes in the current project."))
+            }
     }
 
     // MARK: - 工具栏

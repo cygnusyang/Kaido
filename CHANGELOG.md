@@ -24,6 +24,8 @@
 
 ### 修复
 
+- **D-031**：`WorkspaceView` 的 body 单表达式在 CI runner 上类型检查超时（`unable to type-check this expression in reasonable time`），按「框架 / 浮层 / 弹窗两段」拆成四个计算属性，逻辑不变；本地不复现、只在 runner 复现，故本轮以 CI 为验证依据。
+- **D-032**：「载入示例项目」的未保存确认绑定写成 `pendingLoadExample != nil`（该值是 `Bool`，比较恒真），弹窗语义失效；拆 body 后编译器告警暴露，改为直接取布尔值。
 - **D-030**：`RecentProjectsTests.launchOpensTheMostRecentProject` 改为「完成回执」等待（`awaitPendingOpenForTesting`，`CheckedContinuation` 挂起、打开收尾统一 resume），去掉墙钟 sleep 轮询 —— 并行全量下的偶发超时假红消除。
 
 ### 判据与证据
