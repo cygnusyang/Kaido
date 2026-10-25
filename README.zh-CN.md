@@ -2,6 +2,8 @@
 
 [English](README.md) · **简体中文**
 
+> **发音** · /ˈkaɪ.roʊ/（美）· /ˈkaɪ.rəʊ/（英）—— 读作「凯罗」，与城市「开罗」同音；不是「卡伊罗」，也不读「KAY-ee-roh」。
+
 [![Release](https://img.shields.io/github/v/release/cygnusyang/Kairo?color=blue)](https://github.com/cygnusyang/Kairo/releases/latest)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![CI](https://github.com/cygnusyang/Kairo/actions/workflows/ci.yml/badge.svg)](https://github.com/cygnusyang/Kairo/actions/workflows/ci.yml)
