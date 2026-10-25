@@ -328,7 +328,7 @@ enum KairoCommandCatalog {
                 shortcut: KairoShortcut(key: "k", modifiers: .command),
                 action: { store.showCommandPalette = true }
             )
-        ] + OutlineColumnPreferences.configurable.map { column in
+        ] + recentCommands(store: store) + OutlineColumnPreferences.configurable.map { column in
             // 大纲列显隐（F-14-20）：与表头右键菜单同源动作；
             // 序号/任务说明固定显示，故由 `configurable` 派生，不手写 8 条以免两处漂移。
             KairoCommand(
@@ -338,6 +338,34 @@ enum KairoCommandCatalog {
                 action: { store.dispatch(.toggleOutlineColumn(column)) }
             )
         }
+    }
+
+    /// 「最近打开」命令：每条最近文件一条（菜单子项与 ⌘K 面板同源），列表非空时再给一条清除。
+    ///
+    /// id 用序号而不是路径：路径可能含空格、斜杠与变音符，当 SwiftUI 标识或菜单键都不稳；
+    /// 顺序即列表顺序，action 已捕获 URL。
+    private static func recentCommands(store: WorkspaceStore) -> [KairoCommand] {
+        let urls = store.recentProjects
+        let names = RecentProjects.displayNames(for: urls)
+        let items = zip(urls, names).enumerated().map { index, pair in
+            KairoCommand(
+                id: "file.openRecent.item.\(index)",
+                title: pair.1,
+                group: .file,
+                aliases: [I18n.t("menu.file.open_recent", "Open Recent"), pair.0.path],
+                action: { store.openRecentProject(pair.0) }
+            )
+        }
+        guard !items.isEmpty else { return [] }
+        return items + [
+            KairoCommand(
+                id: "file.openRecent.clear",
+                title: I18n.t("menu.file.open_recent.clear", "Clear Menu"),
+                group: .file,
+                aliases: [I18n.t("menu.file.open_recent.clear.alias", "Clear recent projects")],
+                action: { store.clearRecentProjects() }
+            )
+        ]
     }
 }
 
@@ -403,8 +431,40 @@ struct KairoMenuCommands: Commands {
 
     @ViewBuilder
     private func items(group: KairoCommandGroup) -> some View {
-        ForEach(commands.filter { $0.group == group }) { command in
-            commandButton(command)
+        if group == .file {
+            ForEach(commands.filter { $0.group == .file && !Self.isRecent($0) }) { command in
+                commandButton(command)
+                // macOS 惯例：「最近打开」紧跟「打开…」。
+                if command.id == "file.open" {
+                    openRecentMenu
+                }
+            }
+        } else {
+            ForEach(commands.filter { $0.group == group }) { commandButton($0) }
+        }
+    }
+
+    /// 该命令是否承载「最近打开」（菜单子项 + ⌘K 面板条目），这类项不直接平铺到文件菜单。
+    private static func isRecent(_ command: KairoCommand) -> Bool {
+        command.id.hasPrefix("file.openRecent.")
+    }
+
+    /// 「最近打开」子菜单：项从注册表取，菜单与 ⌘K 面板因此只有一个来源。
+    @ViewBuilder
+    private var openRecentMenu: some View {
+        let recents = commands.filter { $0.id.hasPrefix("file.openRecent.item.") }
+        let clear = commands.first { $0.id == "file.openRecent.clear" }
+        Menu(I18n.t("menu.file.open_recent", "Open Recent")) {
+            if recents.isEmpty {
+                Button(I18n.t("menu.file.open_recent.empty", "No Recent Projects")) {}
+                    .disabled(true)
+            } else {
+                ForEach(recents) { commandButton($0) }
+                if let clear {
+                    Divider()
+                    commandButton(clear)
+                }
+            }
         }
     }
 
@@ -421,7 +481,7 @@ struct KairoMenuCommands: Commands {
     // MARK: - 关于面板
 
     /// 应用版本号：发版前更新。
-    static let appVersion = "0.9.1"
+    static let appVersion = "0.10.0"
 
     /// 版权与联系邮箱：法律声明，不随界面语言变化，也不进 String Catalog。
     static let copyrightNotice = "Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>"

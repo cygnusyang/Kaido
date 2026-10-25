@@ -56,9 +56,18 @@ final class WorkspaceStore: ObservableObject {
     /// 被「揭示目标」临时挂起的筛选文本。
     private var suspendedFilterText: String?
 
+    /// 最近打开的项目文件（最新在前，最多 5 条）；「最近打开」菜单与命令面板消费。
+    @Published private(set) var recentProjects: [URL] = []
+
     private let session: KairoSession
     private let calendar: Calendar
     private let defaults: UserDefaults
+    private let recentStore: RecentProjects
+    /// 本次启动是否已收到显式打开请求（双击 `.kairo`、深链、菜单选择）。
+    /// 置位后启动时的「默认打开最近项目」让位，避免抢走用户明确要打开的文件。
+    private var didReceiveExplicitOpen = false
+    /// 启动默认打开只尝试一次：文件不可用后不再反复试探。
+    private var didAttemptLaunchOpen = false
     /// 项目文件解码入口；测试可注入受控加载以覆盖载入期间的编辑竞争。
     private let projectLoader: @Sendable (URL) throws -> DecodedProject
     private var monitorTimer: Timer?
@@ -183,6 +192,7 @@ final class WorkspaceStore: ObservableObject {
         calendar.timeZone = .current
         self.calendar = calendar
         self.defaults = defaults
+        self.recentStore = RecentProjects(defaults: defaults)
         self.projectLoader = projectLoader
 
         let session = KairoSession()
@@ -233,6 +243,8 @@ final class WorkspaceStore: ObservableObject {
             now: now
         )
         self.saveState = session.hasUnsavedChanges ? .unsaved : .saved
+        // 最近列表只读一次：之后由 noteRecentProject / clearRecentProjects 维护。
+        self.recentProjects = recentStore.urls
 
         let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -1278,9 +1290,59 @@ final class WorkspaceStore: ObservableObject {
             finishOpen()
             return true
         } catch {
+            // 打不开的文件不进最近列表，否则菜单里会留一条永远失败的项。
+            forgetRecentProject(url)
             report(error)
             return false
         }
+    }
+
+    // MARK: - 最近打开
+
+    /// 显式打开请求（双击文件、深链、菜单选择）：启动时的默认打开不再抢占。
+    func noteExplicitOpenRequest() {
+        didReceiveExplicitOpen = true
+    }
+
+    /// 菜单/命令面板入口：打开最近列表中的文件，走与文件选择器相同的未保存确认。
+    func openRecentProject(_ url: URL) {
+        noteExplicitOpenRequest()
+        openAsync(url: url)
+    }
+
+    /// 启动默认打开最近一次使用的项目（产品要求：默认打开最后一个）。
+    ///
+    /// 三个前提缺一不打开：只尝试一次、本次启动没有更明确的打开请求、当前没有项目路径。
+    /// 返回是否发起了打开（测试观测缝）。
+    @discardableResult
+    func openMostRecentProjectOnLaunch() -> Bool {
+        guard !didAttemptLaunchOpen else { return false }
+        didAttemptLaunchOpen = true
+        guard !didReceiveExplicitOpen, session.projectURL == nil, !isLoading else { return false }
+        guard let url = recentStore.mostRecentExisting() else {
+            // 顺手剔除失效条目：菜单里不留打不开的死链。
+            recentProjects = recentStore.urls
+            return false
+        }
+        openAsync(url: url)
+        return true
+    }
+
+    /// 「清除菜单」：清空最近列表，不动当前已打开的项目。
+    func clearRecentProjects() {
+        recentStore.clear()
+        recentProjects = []
+    }
+
+    private func noteRecentProject(_ url: URL?) {
+        guard let url else { return }
+        recentStore.note(url)
+        recentProjects = recentStore.urls
+    }
+
+    private func forgetRecentProject(_ url: URL) {
+        recentStore.remove(url)
+        recentProjects = recentStore.urls
     }
 
     /// 文件选择器入口：有未保存修改时先询问，避免静默丢弃工作。
@@ -1361,6 +1423,7 @@ final class WorkspaceStore: ObservableObject {
                 self.notice = I18n.t("alert.changed_while_loading", "The project changed while loading; local content was kept. Confirm opening again.")
             case .failure(let error):
                 self.pendingUpgradeNoticeAfterOpen = nil
+                self.forgetRecentProject(url)
                 self.report(error)
             }
             self.isLoading = false
@@ -1388,6 +1451,8 @@ final class WorkspaceStore: ObservableObject {
         } else {
             notice = upgradeNotice ?? warningText
         }
+        // 打开成功才进最近列表：失败路径在各自 catch 里剔除。
+        noteRecentProject(session.projectURL)
         refresh()
     }
 
@@ -1402,6 +1467,7 @@ final class WorkspaceStore: ObservableObject {
                 notice = I18n.t("alert.upgraded_to", "Upgraded to v%1$ld", KairoFile.currentFormatVersion)
             }
             recordDiskVersion(at: session.projectURL)
+            noteRecentProject(session.projectURL)
             refresh()
         } catch {
             saveState = .failed
@@ -1457,6 +1523,7 @@ final class WorkspaceStore: ObservableObject {
             notice = I18n.t("alert.saved_as_upgraded", "Saved as a new file and upgraded to v%1$ld", KairoFile.currentFormatVersion)
         }
         recordDiskVersion(at: url)
+        noteRecentProject(url)
         refresh()
     }
 

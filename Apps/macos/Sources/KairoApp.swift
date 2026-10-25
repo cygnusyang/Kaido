@@ -24,6 +24,7 @@ struct KairoApp: App {
                     // 首启消费上次 OTA 安装结果（幂等；无 pending 则 no-op）。
                     updater.consumePendingInstallResult()
                     scheduleAutoUpdateChecks()
+                    scheduleLaunchOpen()
                 }
                 .onOpenURL { handleDeepLink($0) }
                 .sheet(isPresented: $showUpdateSheet) {
@@ -159,7 +160,21 @@ struct KairoApp: App {
     // MARK: - 文件操作
 
     private func openFile(_ url: URL) {
+        // 显式打开优先于「默认打开最近项目」：置位后启动自动打开放弃。
+        store.noteExplicitOpenRequest()
         store.openAsync(url: url)
+    }
+
+    /// 启动默认打开最近一次使用的项目。
+    ///
+    /// 延后一拍再判定：双击 `.kairo` 冷启动时，打开事件与窗口 `onAppear` 的先后
+    /// 顺序由 LaunchServices 决定，先到者若是文件打开事件，`noteExplicitOpenRequest`
+    /// 已置位，这里就放弃自动打开，不会出现「打开了别的文件又把用户文件顶掉」。
+    private func scheduleLaunchOpen() {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            store.openMostRecentProjectOnLaunch()
+        }
     }
 
     private func saveDocument() {
