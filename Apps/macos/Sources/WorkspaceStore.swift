@@ -2028,6 +2028,50 @@ final class WorkspaceStore: ObservableObject {
         defaults.set(data, forKey: Self.preferencesKey)
     }
 
+    // MARK: - 偏差 CSV 导出（v0.15.1）
+
+    /// 把当前对比基线的偏差写成 CSV（与 CLI 共用 VarianceCSV，列头与转义规则同源）。
+    func exportVarianceCSV(to url: URL) throws {
+        let focusID = viewState.selectedBaselineID ?? (try? session.baselines())?.last?.id
+        guard let focusID else {
+            throw CSVWriteFailure(message: I18n.t("alert.csv.no_baseline", "No baseline to export yet."))
+        }
+        let report = try session.baselineVariance(baselineID: focusID)
+        let rows = snapshot.outline.rows
+        let order = rows.map(\.id)
+        let titles = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0.title) })
+        let ids = VarianceCSV.orderedTaskIDs(report, projectOrder: order)
+        let text = VarianceCSV.document(report: report, taskIDs: ids, titles: titles)
+        guard let data = text.data(using: .utf8) else {
+            throw CSVWriteFailure(message: I18n.t("alert.csv.encode_failed", "The CSV could not be encoded."))
+        }
+        do {
+            try data.write(to: url, options: .atomic)
+        } catch {
+            throw CSVWriteFailure(message: error.localizedDescription)
+        }
+    }
+
+    /// 菜单入口：弹保存面板 → 写盘 → 失败时用应用内提示。
+    @MainActor
+    func presentVarianceCSVExport() {
+        guard (try? session.baselines())?.isEmpty == false else {
+            alertMessage = I18n.t("alert.csv.no_baseline", "No baseline to export yet.")
+            return
+        }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.commaSeparatedText]
+        panel.nameFieldStringValue = "kairo-variance.csv"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try exportVarianceCSV(to: url)
+            notice = I18n.t("notice.csv.exported", "Variance CSV exported: %1$@", url.lastPathComponent)
+        } catch {
+            alertMessage = (error as? CSVWriteFailure)?.message ?? error.localizedDescription
+        }
+    }
+
+
     // MARK: - 外部更新检测
 
     /// 比较磁盘 mtime（应用前台每 2 秒调用一次；测试可直接调用）。

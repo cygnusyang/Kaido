@@ -3,6 +3,18 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.15.1 — 2026-10-25
+
+### 修复
+
+- **界面上找不到 CSV 导出（用户实测反馈）**：v0.15.0 的偏差 CSV 只有 CLI 入口（`baseline variance --csv`），应用里没有任何按钮或菜单项 —— 等于这个功能对 GUI 用户不存在。
+- 修复：把 CSV 组装从 CLI 目标搬到 **KairoCommands**（`VarianceCSV`），CLI 与 App 共用同一份实现（列头、BOM、RFC 4180 转义、孤儿分节全部同源，不可能漂移）；应用侧新增「基线 → 导出偏差 CSV…」菜单项与 ⌘K 命令，走 NSSavePanel 保存，成功后状态栏提示、失败弹应用内提示。
+
+### 判据与证据
+
+- 新增 2 例（`VarianceCSVExportTests`）：导出文件按字节带 BOM（EF BB BF）、第 4 行恒为 11 列固定表头、任务行逐行 11 列；无基线时抛 `CSVWriteFailure` 而不是写出空文件。
+- 全量 **1253 tests / 112 suites** 通过。
+
 ## v0.15.0 — 2026-10-25
 
 ### 新增

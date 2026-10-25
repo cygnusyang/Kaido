@@ -694,7 +694,11 @@ private func csvFields(_ line: String) -> [String] {
 }
 
 /// CSV 形状不满足预期：**抛错而不是数组越界**。
-/// 越界会以 signal 5 炸掉整个测试进程，后面所有用例连跑都跑不到；红断言才定位得到问题。
+///
+/// 越界会以 signal 5 炸掉整个测试进程，同轮其它用例的结果一并被吞掉，且没有 backtrace
+/// 指向具体用例——只能靠「最后打印了哪行」反推。真实事故：首行带 BOM（U+FEFF）时
+/// `hasPrefix("#")` 漏判，注释行既非注释也非列头，落到「追加到最后一节」而节列表为空 → 负下标。
+/// 结论：解析器的每一处下标都必须先校验形状，失败只能是一条红用例。
 private struct CSVShapeViolation: Error, CustomStringConvertible {
     var message: String
     var description: String { message }

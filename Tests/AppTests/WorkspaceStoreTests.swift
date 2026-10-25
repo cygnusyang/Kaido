@@ -127,7 +127,7 @@ struct WorkspaceStoreTests {
         // + 大纲列显隐 14 条（F-14-20 的 8 列 + F-0719 两个实际列 + v0.13 四个基线列）。
         // v0.14 G8：两条基线静态命令（新建 / 不对比）从视图组迁到「基线」组，总数不变；
         // 逐条基线的 12 条动态命令（显示 / 对比 / 8 色 / 改名 / 删除）随基线数量增长。
-        #expect(commands.count == 45)
+        #expect(commands.count == 46)
         #expect(Set(commands.map(\.id)).count == commands.count)
         #expect(Set(commands.map(\.group)) == Set(KairoCommandGroup.allCases))
         #expect(commands.allSatisfy { !$0.title.isEmpty })

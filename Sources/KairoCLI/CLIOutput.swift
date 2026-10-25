@@ -1,5 +1,6 @@
 import Foundation
 import KairoCore
+import KairoCommands
 
 /// 机器可读输出（US-E5-02 验收 2）：供脚本与插件 hook 直接解析。
 /// 字段与 `.kairo` 模型一致（camelCase、ISO 8601 日期），不做二次裁剪。
@@ -142,13 +143,8 @@ enum CLIOutput {
 
     /// 偏差行的稳定顺序：先按项目大纲顺序，报告里多出的任务按 UUID 排序兜底。
     static func orderedTaskIDs(_ report: BaselineVarianceReport, projectOrder: [UUID]) -> [UUID] {
-        var seen: Set<UUID> = []
-        var result: [UUID] = []
-        for id in projectOrder where report.tasks[id] != nil {
-            if seen.insert(id).inserted { result.append(id) }
-        }
-        result.append(contentsOf: report.tasks.keys.filter { !seen.contains($0) }.sorted { $0.uuidString < $1.uuidString })
-        return result
+        // 与 App 共用同一实现（KairoCommands.VarianceCSV），避免两处顺序规则漂移。
+        VarianceCSV.orderedTaskIDs(report, projectOrder: projectOrder)
     }
 
     private static func encode(_ value: some Encodable) throws -> String {

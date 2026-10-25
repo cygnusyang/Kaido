@@ -771,7 +771,7 @@ struct CLIRouter {
         let report = try session.baselineVariance(baselineID: baselineID)
         let colorIndex = CLIOutput.resolvedColorIndex(of: report.baselineID, in: try session.baselines())
         let projectOrder = (session.project?.tasks ?? []).map(\.id)
-        var taskIDs = CLIOutput.orderedTaskIDs(report, projectOrder: projectOrder)
+        var taskIDs = VarianceCSV.orderedTaskIDs(report, projectOrder: projectOrder)
         if let taskID {
             taskIDs = taskIDs.filter { $0 == taskID }
         }

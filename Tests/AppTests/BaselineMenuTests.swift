@@ -60,10 +60,10 @@ struct BaselineMenuTests {
 
     // MARK: - 菜单结构
 
-    /// 无基线时命令总数 45：v0.14 的 44 条之外，v0.15 增加面板入口「管理基线…」。
+    /// 无基线时命令总数 46：v0.14 的 44 条之外，v0.15 增加「管理基线…」与「导出偏差 CSV…」。
     @Test func catalogKeepsLegacyCountWithoutBaselines() {
         let commands = makeCatalog(makeStore())
-        #expect(commands.count == 45)
+        #expect(commands.count == 46)
         #expect(Set(commands.map(\.id)).count == commands.count)
         // 新增分组必须至少有一条命令，否则分组集合与菜单对不上。
         #expect(Set(commands.map(\.group)) == Set(KairoCommandGroup.allCases))
@@ -85,7 +85,7 @@ struct BaselineMenuTests {
                 && !$0.id.hasPrefix("baseline.delete.")
             }
             .map(\.id)
-        #expect(staticBaselineIDs == ["baseline.create", "baseline.compareClear", "baseline.manage"])
+        #expect(staticBaselineIDs == ["baseline.create", "baseline.compareClear", "baseline.manage", "baseline.exportCSV"])
         #expect(try command(commands, "baseline.manage").shortcut == nil)
 
         // 菜单栏分组标题与面板分组标签同源。
@@ -98,7 +98,7 @@ struct BaselineMenuTests {
         let ids = createBaselines(4, in: store)
         let commands = makeCatalog(store)
 
-        #expect(commands.count == 45 + 12 * 4)
+        #expect(commands.count == 46 + 12 * 4)
         #expect(Set(commands.map(\.id)).count == commands.count)
 
         for baseline in store.baselines {
@@ -125,7 +125,7 @@ struct BaselineMenuTests {
         let commands = makeCatalog(store)
 
         let paletteVisible = visibleBaselineIDs(commands)
-        #expect(paletteVisible.count == 3 + 4 * 2)
+        #expect(paletteVisible.count == 4 + 4 * 2)
         #expect(!paletteVisible.contains { $0.id.hasPrefix("baseline.color.") })
         #expect(commands.contains { $0.id.hasPrefix("baseline.color.") && $0.isPaletteHidden })
     }

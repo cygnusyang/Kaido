@@ -8277,6 +8277,41 @@
         }
       }
     },
+    "menu.baseline.export_csv": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Export Variance CSV…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "导出偏差 CSV…" } }
+      }
+    },
+    "menu.baseline.export_csv.alias": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Save baseline variance as a spreadsheet" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "把基线偏差保存为表格文件" } }
+      }
+    },
+    "alert.csv.no_baseline": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No baseline to export yet." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "还没有可导出的基线。" } }
+      }
+    },
+    "alert.csv.encode_failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The CSV could not be encoded." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "CSV 编码失败。" } }
+      }
+    },
+    "notice.csv.exported": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Variance CSV exported: %1$@" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "偏差 CSV 已导出：%1$@" } }
+      }
+    },
     "menu.baseline.manage": {
       "extractionState": "manual",
       "localizations": {

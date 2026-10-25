@@ -50,6 +50,8 @@ struct BaselineMenuContent: View {
         // 放上面会把「新建基线」挤下去（§5 顶部的理由同样适用于底部收口）。
         Divider()
         item("baseline.manage")
+        // v0.15.1：CSV 导出此前只有 CLI 入口，界面里找不到（用户实测反馈）。
+        item("baseline.exportCSV")
     }
 
     // MARK: - 逐条基线

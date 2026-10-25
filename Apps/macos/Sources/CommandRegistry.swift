@@ -294,6 +294,14 @@ enum KairoCommandCatalog {
                 aliases: [I18n.t("menu.baseline.manage.alias", "Open the baselines panel")],
                 action: { store.presentBaselinePanel() }
             ),
+            // v0.15.1：CSV 导出此前只在 CLI 有入口，界面里找不到（用户实测）。
+            KairoCommand(
+                id: "baseline.exportCSV",
+                title: I18n.t("menu.baseline.export_csv", "Export Variance CSV…"),
+                group: .baseline,
+                aliases: [I18n.t("menu.baseline.export_csv.alias", "Save baseline variance as a spreadsheet")],
+                action: { store.presentVarianceCSVExport() }
+            ),
             KairoCommand(
                 id: "view.criticalPath",
                 title: I18n.t("menu.view.critical_path", "Show/Hide Critical Path"),
@@ -627,7 +635,7 @@ struct KairoMenuCommands: Commands {
     // MARK: - 关于面板
 
     /// 应用版本号：发版前更新。
-    static let appVersion = "0.15.0"
+    static let appVersion = "0.15.1"
 
     /// 版权与联系邮箱：法律声明，不随界面语言变化，也不进 String Catalog。
     static let copyrightNotice = "Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>"
