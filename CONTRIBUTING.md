@@ -69,6 +69,10 @@ from the DMG, via Homebrew, or built it locally.
 languages by `tools/gen-arch-svg.py` (`KAIRO_SVG_LANG=en|zh`). If you change a diagram,
 change the generator, not the SVG.
 
+The AI collaboration guide is bilingual the same way: `Plugins/README.md` (English) and
+`Plugins/README.zh-CN.md` (Chinese). They are section-for-section translations — a change to
+one lands in both, and sample command output must be re-run, never paraphrased.
+
 ## Releasing
 
 \`tools/release.sh <version>\` validates, bumps the version, runs the full suite, packages,

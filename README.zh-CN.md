@@ -14,7 +14,7 @@ AI 编码智能体的项目管理软件。Claude Code、Codex 负责执行，Kai
 
 ![Kairo 计划工作台：左侧大纲与右侧时间画布逐行对齐取证](docs/images/app-plan-workbench.png)
 
-**[下载 macOS 应用](https://github.com/cygnusyang/Kairo/releases/latest)** · **[五分钟上手（英文）](QUICKSTART.md)** · **[架构说明（英文）](ARCHITECTURE.md)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.md)**
+**[下载 macOS 应用](https://github.com/cygnusyang/Kairo/releases/latest)** · **[五分钟上手（英文）](QUICKSTART.md)** · **[架构说明（英文）](ARCHITECTURE.md)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.zh-CN.md)**
 
 ```bash
 brew install --cask cygnusyang/kairo/kairo
@@ -43,7 +43,7 @@ AI 编码智能体擅长执行单个任务，但缺少调度侧的「对照物�
 | CLI | AI 智能体 / 脚本 / 终端 | 与 MCP 能力对等的命令行 |
 | Claude Code 插件 | Claude Code | 斜杠命令 `/kairo plan|done|status` + `TaskCompleted` 自动回写 hook |
 
-> Codex 与 CodeBuddy 不装插件：直接用 MCP + 一段写进 `AGENTS.md` / `CODEBUDDY.md` 的约定。三个宿主怎么接、WBS 怎么拆、每条命令怎么复制，见 **[Plugins/README.md](Plugins/README.md)**。
+> Codex 与 CodeBuddy 不装插件：直接用 MCP + 一段写进 `AGENTS.md` / `CODEBUDDY.md` 的约定。三个宿主怎么接、WBS 怎么拆、每条命令怎么复制，见 **[Plugins/README.zh-CN.md](Plugins/README.zh-CN.md)**。
 
 ## 语言
 
@@ -232,7 +232,7 @@ command = "/absolute/path/to/Kairo/.build/release/KairoMCP"
 args = []
 ```
 
-再在项目根放 `AGENTS.md`（CodeBuddy 用 `CODEBUDDY.md`、Claude Code 用 `CLAUDE.md`），写明：项目文件路径、拆解顺序与叶子判据、完成必须 `status_update`、ID 用 ≥4 位前缀。这段约定的原文可直接复制自 [Plugins/README.md §3](Plugins/README.md)。
+再在项目根放 `AGENTS.md`（CodeBuddy 用 `CODEBUDDY.md`、Claude Code 用 `CLAUDE.md`），写明：项目文件路径、拆解顺序与叶子判据、完成必须 `status_update`、ID 用 ≥4 位前缀。这段约定的原文可直接复制自 [Plugins/README.zh-CN.md §3](Plugins/README.zh-CN.md)。
 
 ### 深链
 
@@ -274,7 +274,7 @@ Sources/KairoPresentation/  平台中立呈现层：快照、视图状态与动�
 Sources/KairoMCP/           MCP 服务（stdio JSON-RPC）
 Sources/KairoCLI/           CLI
 Apps/macos/Sources/         macOS SwiftUI 工作台（WorkspaceStore 适配层 + 视图）
-Plugins/README.md           AI 协作指南：Claude Code / CodeBuddy / Codex 接法与 WBS 拆解规程
+Plugins/README.zh-CN.md  AI 协作指南（中文）：Claude Code / CodeBuddy / Codex 接法与 WBS 拆解规程
 Plugins/claude-code/        Claude Code 插件（斜杠命令 + hooks）
 Tests/                      KairoCoreTests / KairoPresentationTests / InterfaceTests / AppTests
 tools/gate-core.sh          核心与呈现层门禁

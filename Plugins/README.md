@@ -1,64 +1,72 @@
-# 用 AI 智能体做项目：Kairo 接入指南
+# Kairo for AI agents
 
-> 面向两种人：① 想让 AI 帮忙拆 WBS、排期、盯进度的人；② 要给某个智能体（Claude Code / CodeBuddy / Codex）接上 Kairo 的人。
-> 本文命令在 Kairo v0.8.0（2026-10-23）用 release 产物实测通过；宿主侧配置按官方格式给出，边界见文末「验证范围」。
+**English** · [简体中文](README.zh-CN.md)
 
-## 0. 一句话说清分工
+> Two audiences: ① you want an AI to break down a WBS, produce a schedule and track progress; ② you want to wire Kairo into an agent (Claude Code / CodeBuddy / Codex).
+> Every command below was run against Kairo v0.9.1 release binaries on macOS (2026-10-25). Host-side configuration follows each vendor's documented format — see "Scope of verification" at the end.
 
-| 角色 | 干什么 | 不干什么 |
+## 0. Division of labour, in one table
+
+| Role | Does | Does not |
 |---|---|---|
-| AI 智能体 | 读需求、拆任务、估投入、写代码、完成后回写状态 | 不做长期记忆，不维护进度账本 |
-| Kairo | 存 WBS 与依赖、算排期、查违例与重要路径、聚合完成度 | 不写代码、不替 AI 做技术判断 |
-| 人 | 定边界（起止日期、验收口径）、看甘特与违例、干预 | 不逐条盯任务 |
+| AI agent | Reads the requirement, breaks it down, estimates, writes code, writes status back | No long-term memory, does not keep the ledger |
+| Kairo | Stores the WBS and dependencies, computes the schedule, lists violations and the critical path, aggregates progress | Does not write code, does not make technical calls for the AI |
+| Human | Sets the boundaries (dates, acceptance criteria), reviews the Gantt and violations, intervenes | Does not babysit individual tasks |
 
-Kairo 的三个入口同源（共用同一套写路径 `KairoSession`）：**MCP 工具 16 个**、**CLI 命令**、**macOS 应用**。数据只有一个落点：`.kairo` 单文件（JSON）。AI 走前两个，人走第三个。
+Kairo's three entry points share one write path (`KairoSession`): **16 MCP tools**, the **CLI**, and the **macOS app**. There is exactly one store: a single `.kairo` file (JSON). Agents use the first two, humans use the third.
 
-## 1. 为什么只有 Claude Code 有插件
+## 1. Why only Claude Code gets a plugin
 
-插件不是能力，是**桥**。四件套里三件能被 MCP/CLI 取代，只有 hook 不能：
+A plugin is not a capability, it is a **bridge**. Three of the four pieces can be replaced by MCP/CLI; only the hook cannot:
 
-| 组件 | 能否用通用接口替代 | 结论 |
+| Component | Replaceable by a generic interface? | Verdict |
 |---|---|---|
-| `.mcp.json` | 能（项目级 MCP 配置） | 只省一步手工配置 |
-| 斜杠命令 | 能（规则文件里的一段约定） | 便利，非必需 |
-| `TaskCompleted` hook | **不能** | 唯一真正值钱的部分 |
-| 清单 / 市场分发 | 不能 | 只在对外分发时值钱 |
+| `.mcp.json` | Yes (project-level MCP config) | Saves one manual step |
+| Slash commands | Yes (a convention inside the rules file) | Convenient, not required |
+| `TaskCompleted` hook | **No** | The only part that is actually worth it |
+| Manifest / marketplace distribution | No | Only pays off when publishing externally |
 
-而 hook 的用途是**桥接 Claude Code 自己的任务系统**（TaskCreate / TaskCompleted）到 Kairo。Codex 没有等价事件；CodeBuddy 的插件格式是 Claude 格式的分叉（清单目录、根变量名都改了）。给它们各做一个壳，收益是「省一次配置」，成本是「永远跟着对方格式改」。
+The hook exists to **bridge Claude Code's own task system** (TaskCreate / TaskCompleted) into Kairo. Codex has no equivalent event; CodeBuddy's plugin format is a fork of Claude's (different manifest directory, different root variable names). Shipping a shell for each of them buys you "one less config step" and costs "chasing someone else's format forever".
 
-所以本仓库的取舍：
+So this repository chooses:
 
-- **Claude Code**：保留完整插件（斜杠命令 + 自动回写 hook），已实测；
-- **CodeBuddy / Codex**：不装插件，一份 MCP 配置 + 一段写进规则文件的约定，零维护。
+- **Claude Code**: full plugin kept (slash commands + automatic write-back hook), tested;
+- **CodeBuddy / Codex**: no plugin — one MCP config plus a convention written into the rules file, zero maintenance.
 
-三种接法里，前两步（§2、§3）通用，做完再挑宿主。
+Of the three wirings, the first two steps (§2, §3) are shared; do those, then pick a host.
 
-## 2. 共用前置：构建 + 建项目
+## 2. Shared prerequisites: build + create a project
 
 ```bash
-# 1) 改这一行：指向你的 Kairo 仓库
+# 1) change this line: point at your Kairo checkout
 export KAIRO="$HOME/work/opc/04-开发项目/Kairo"
 
-# 2) 构建（MCP 与 CLI 两个产物一次出来）
+# 2) build (MCP and CLI both come out of this one command)
 cd "$KAIRO" && swift build -c release
 
-# 3) 建工作目录和项目文件
+# 3) create the working directory and the project file
 mkdir -p "$HOME/Projects/demo" && cd "$HOME/Projects/demo"
-"$KAIRO/.build/release/KairoCLI" project create "示例项目" \
+"$KAIRO/.build/release/KairoCLI" project create "Demo Project" \
   --start 2026-11-02 --end 2026-11-20 --file demo.kairo
 ```
 
-成功输出：
+The CLI picks its language from `--lang <bcp47>` → `KAIRO_LANG` → the system locale, falling back to Simplified Chinese when it cannot tell. The sample output in this page is English, so export the variable once before running along:
 
-```
-已创建项目：52F28B11「示例项目」
-已保存：/Users/you/Projects/demo/demo.kairo
-格式版本：v1
+```bash
+export KAIRO_LANG=en   # or append --lang en to any single command; --json is language-independent
 ```
 
-> `--start` / `--end` 是排期引擎的默认边界，超出会报违例。日期一律 `YYYY-MM-DD`。
+Successful output:
 
-可选：验证 MCP 服务本身（两行，看到 serverInfo 与 tools 即通）：
+```
+project created: B2D0A3C3 "Demo Project"
+saved: /Users/you/Projects/demo/demo.kairo
+format version: v1
+```
+
+> `--start` / `--end` are the scheduling engine's default boundaries; anything scheduled outside them is reported as a violation. Dates are always `YYYY-MM-DD`.
+
+Optional: verify the MCP server itself (two lines; you are through when you see serverInfo and tools):
 
 ```bash
 printf '%s\n%s\n' \
@@ -67,29 +75,30 @@ printf '%s\n%s\n' \
  | "$KAIRO/.build/release/KairoMCP" | head -c 400
 ```
 
-## 3. 共用约定：把这段放进宿主的规则文件
+## 3. Shared convention: put this into the host's rules file
 
-Codex 放 `AGENTS.md`，CodeBuddy 放 `CODEBUDDY.md`，Claude Code 放 `CLAUDE.md`（都在**项目根目录**）。把路径换成你的真实路径：
+Codex reads `AGENTS.md`, CodeBuddy reads `CODEBUDDY.md`, Claude Code reads `CLAUDE.md` — all at the **project root**. Replace the path with your real one:
 
 ```markdown
-## Kairo 项目管理
+## Kairo project management
 
-本项目用 Kairo 管理 WBS 与排期，项目文件固定为：/Users/you/Projects/demo/demo.kairo
+This project keeps its WBS and schedule in Kairo. The project file is fixed at:
+/Users/you/Projects/demo/demo.kairo
 
-- 开工前先 task_list 读现状，已有任务不要重复创建。
-- 拆解顺序：里程碑 → 群组 → 叶子。叶子必须给 effortHours（按 8 小时/人日估），群组与里程碑不给投入。
-- 一个叶子 = 一次可交付、可独立验收的改动；预计超过 3 人日就继续拆。
-- 拆完立刻 wbs_import，然后 schedule_compute；violations_list 有输出先报告，不要擅自改期限或依赖。
-- 每完成一个任务，必须调用 status_update 把状态置 done（进度自动 100%），不要只改进度数字。
-- 任务 ID 接受完整 UUID 或 ≥4 位唯一前缀；前缀不唯一时先列候选让用户选，禁止猜。
-- 只建计划不写代码时，明确声明「本次只更新 Kairo 计划」。
+- Before starting, call task_list to read the current state; do not re-create tasks that already exist.
+- Breakdown order: milestone → group → leaf. Leaves must carry effortHours (estimate at 8 hours per person-day); groups and milestones carry no effort.
+- One leaf = one change that is deliverable and acceptable on its own; if it looks bigger than 3 person-days, break it further.
+- Right after breaking down: wbs_import, then schedule_compute. If violations_list returns anything, report it first — do not silently change deadlines or dependencies.
+- Whenever a task is finished, call status_update to set status to done (progress becomes 100% automatically). Do not just edit the progress number.
+- Task IDs accept a full UUID or a unique prefix of at least 4 characters; when a prefix is ambiguous, list the candidates and let the user choose. Never guess.
+- If you are only planning and not writing code, say so explicitly: "this turn only updates the Kairo plan".
 ```
 
-这段约定是三个宿主**唯一**共用的智能层。要改，只改这里，不要在别处再抄一份。
+This block is the **only** shared intelligence layer across the three hosts. If it must change, change it here and nowhere else — never keep a second copy.
 
 ## 4. Claude Code
 
-### 接法 A：只接 MCP（最简，30 秒）
+### Option A: MCP only (simplest, 30 seconds)
 
 ```bash
 cd "$HOME/Projects/demo"
@@ -102,53 +111,53 @@ cat > .mcp.json <<EOF
 EOF
 ```
 
-然后 `claude`，首次会提示是否信任该项目的 MCP 服务，同意即可。**这份 `.mcp.json` 与 CodeBuddy 通用**（见 §5），一份配置两个宿主。
+Then run `claude`; the first time it asks whether to trust this project's MCP server — accept. **This `.mcp.json` is shared with CodeBuddy** (§5): one config, two hosts.
 
-### 接法 B：完整插件（斜杠命令 + 自动回写）
+### Option B: the full plugin (slash commands + automatic write-back)
 
 ```bash
 export KAIRO_PROJECT="$HOME/Projects/demo/demo.kairo"
 claude --plugin-dir "$KAIRO/Plugins/claude-code"
 ```
 
-| 命令 | 作用 |
+| Command | What it does |
 |---|---|
-| `/kairo plan <需求文档路径或需求描述>` | 读需求 → 建 WBS → 排期 → 列违例 |
-| `/kairo done <任务ID 或前缀>` | 标记完成并回报群组完成度 |
-| `/kairo status` | 任务表、重要路径、违例汇总 |
+| `/kairo plan <path to a requirements doc, or a description>` | read requirement → build WBS → schedule → list violations |
+| `/kairo done <task ID or prefix>` | mark it done and report the group's progress |
+| `/kairo status` | task table, critical path, violation summary |
 
-插件还注册 `TaskCompleted` hook：Claude Code 任务完成时按**标题精确匹配**找到同名 Kairo 任务并回写 `done`。因此参与回写的标题必须项目内唯一，否则跳过（重名）或误标（跨任务同名）。hook 直写文件，与应用并发编辑会互相覆盖，回写期间建议关掉应用。
+The plugin also registers a `TaskCompleted` hook: when a Claude Code task completes, it finds the Kairo task with the **exact same title** and writes back `done`. Titles that take part in write-back must therefore be unique within the project, otherwise the hook skips (duplicate names) or marks the wrong one (same name across different work items). The hook writes the file directly, so it and the app will overwrite each other if both are open — close the app during write-back.
 
 ## 5. CodeBuddy
 
-**不做插件壳**（格式分叉，收益只是省一次配置）。两步：
+**No plugin shell** (the format is a fork; the only gain would be skipping one config step). Two steps:
 
 ```bash
-# 方式一：项目级（推荐，与 Claude Code 共用同一份）
+# Option 1: project level (recommended, shares the file with Claude Code)
 cd "$HOME/Projects/demo"
-# §4 已建过 .mcp.json 可跳过
+# skip if §4 already created .mcp.json
 cat > .mcp.json <<EOF
 { "mcpServers": { "kairo": { "command": "$KAIRO/.build/release/KairoMCP" } } }
 EOF
 
-# 方式二：用户级（所有项目可见）
+# Option 2: user level (visible in every project)
 codebuddy mcp add --scope user kairo -- "$KAIRO/.build/release/KairoMCP"
 ```
 
-项目根放 `CODEBUDDY.md`，内容用 §3 那段。启动 `codebuddy` 后首次连接项目级 MCP 需批准；非交互模式加 `--settings '{"enableAllProjectMcpServers": true}'`。
+Put `CODEBUDDY.md` at the project root with the §3 block as its content. After starting `codebuddy`, the first connection to a project-level MCP server needs approval; in non-interactive mode add `--settings '{"enableAllProjectMcpServers": true}'`.
 
-验证：
+Verify:
 
 ```bash
-codebuddy -p "用 kairo 的 task_list 列出 demo.kairo 的任务，只输出标题和状态"
+codebuddy -p "use kairo's task_list to list the tasks in demo.kairo, output titles and statuses only"
 ```
 
 ## 6. Codex
 
-Codex 没有斜杠命令、没有可挂的任务完成事件，只有 `config.toml` 和 `AGENTS.md`。所以回写靠**约定**（§3 最后两条），不靠 hook。
+Codex has no slash commands and no task-completed event to hook; it only has `config.toml` and `AGENTS.md`. So write-back relies on the **convention** (the last two bullets of §3), not on a hook.
 
 ```bash
-# 1) 注册 MCP → 写入 ~/.codex/config.toml
+# 1) register MCP → ~/.codex/config.toml
 cat >> ~/.codex/config.toml <<EOF
 
 [mcp_servers.kairo]
@@ -156,182 +165,204 @@ command = "$KAIRO/.build/release/KairoMCP"
 args = []
 EOF
 
-# 2) 项目根放 AGENTS.md，内容用 §3 那段
-# 3) 在项目目录启动
+# 2) put AGENTS.md at the project root with the §3 block as its content
+# 3) start in the project directory
 cd "$HOME/Projects/demo" && codex
 ```
 
-Codex 里没有 `/kairo plan`，用一句话触发同样流程：
+There is no `/kairo plan` in Codex; one sentence triggers the same flow:
 
 ```
-按 AGENTS.md 的 Kairo 流程，把 docs/需求.md 拆成 WBS 导入 demo.kairo，
-估算投入，然后排期并列出违例。只更新计划，不写代码。
+Follow the Kairo flow in AGENTS.md: break docs/requirements.md into a WBS, import it into
+demo.kairo, estimate the effort, then schedule and list violations. Update the plan only,
+do not write code.
 ```
 
-任务完成时让它走 CLI（比走 MCP 更可控，也方便终端复核）：
+When a task is done, let it use the CLI (more controllable than MCP, and easier to double-check in a terminal):
 
 ```bash
 "$KAIRO/.build/release/KairoCLI" status update 3AE8 --status done \
   --file "$HOME/Projects/demo/demo.kairo"
 ```
 
-> 本机 `codex` CLI 不在 PATH（装的是桌面版），上述 `config.toml` 按其现有 `[mcp_servers.*]` 结构给出；首次使用请确认 `codex` 能列出 kairo 工具。
+> The `codex` CLI is not on PATH on this machine (the desktop app is installed instead); the `config.toml` snippet above follows its existing `[mcp_servers.*]` structure. On first use, confirm that `codex` lists the kairo tools.
 
-## 7. WBS 怎么拆（重点）
+## 7. How to break down a WBS (the important part)
 
-### 7.1 三层结构
+### 7.1 Three levels
 
 ```
-里程碑（kind=milestone，零工期，对齐外部事件：提测 / 上线 / 评审）
-└── 群组（kind=group，只装子节点，不设投入）
-    └── 叶子（kind=task，必须有 effortHours，排期与回写的单元）
+milestone (kind=milestone, zero duration, aligned to an external event: test hand-off / release / review)
+└── group (kind=group, holds children only, no effort)
+    └── leaf (kind=task, must carry effortHours; the unit of scheduling and write-back)
 ```
 
-### 7.2 叶子判据（四条全中才是叶子）
+### 7.2 Leaf criteria (a leaf only counts if all four hold)
 
-1. **可独立验收**：一句话说清「做完的标准」，不需要等别的任务一起看；
-2. **单人单责**：一个负责人，不需要并行协商；
-3. **0.5–3 人日**：低于半天说明拆过头（合并成本 > 管理成本），高于 3 天说明还没拆清；
-4. **有明确产出物**：文件、接口、文档、可运行行为之一。
+1. **Acceptable on its own**: one sentence states "what done means"; nothing else has to be finished first to judge it;
+2. **One owner, one responsibility**: a single person accountable, no parallel negotiation needed;
+3. **0.5–3 person-days**: under half a day means you over-split (merge cost exceeds management cost); over 3 days means it is not broken down yet;
+4. **A concrete output**: a file, an interface, a document, or an observable behaviour.
 
-### 7.3 投入与工期
+### 7.3 Effort and duration
 
-- 只填 `effortHours`（人时），排期引擎按 8 小时/人日折算持续时间；
-- 群组与里程碑不填投入，完成度由子任务**按投入加权**聚合；
-- 不给投入 = 排期不可信、违例检查退化。
+- Fill in `effortHours` only (person-hours); the engine converts at 8 hours per person-day;
+- Groups and milestones carry no effort; their progress is **effort-weighted** from their children;
+- No effort means the schedule cannot be trusted and violation checking degrades.
 
-### 7.4 依赖
+### 7.4 Dependencies
 
-只在叶子之间连，格式 `前置ID:类型[:lag]`：
+Connect leaves only, in the form `predecessorID:type[:lag]`:
 
-| 类型 | 语义 | 用在哪 |
+| Type | Meaning | Where it is used |
 |---|---|---|
-| `fs` | 前置完成后才能开始（默认） | 95% 的场景 |
-| `ss` | 与前置同时开始 | 两条并行开发线 |
-| `ff` | 与前置同时结束 | 收尾对齐 |
-| `sf` | 前置开始后才能结束 | 极少用 |
+| `fs` | successor starts after the predecessor finishes (default) | 95% of cases |
+| `ss` | both start together | two parallel development lines |
+| `ff` | both finish together | aligning wrap-up work |
+| `sf` | successor finishes only after the predecessor starts | rarely used |
 
-`lag` 是前导天数，用于「接口冻结后等 2 天才联调」这类现实间隔。
+`lag` is a lead time in days, for real gaps like "integration starts 2 days after the API freezes".
 
-### 7.5 反例
+### 7.5 Anti-patterns
 
-| 写法 | 问题 |
+| What people write | Why it is wrong |
 |---|---|
-| 「开发支付模块」当叶子、投入 80 小时 | 不可验收、无法并行；拆成接口 / 服务端 / 客户端 / 联调 |
-| 群组上填投入 | 完成度会双算 |
-| 里程碑填 2 天工期 | 里程碑是时间点，不是工作 |
-| 依赖连到群组 | 排期只认叶子，连群组语义不明 |
-| 两个任务同名 | Claude Code hook 会跳过或误标 |
+| "Build the payment module" as a leaf with 80 hours | Not acceptable, not parallelisable; split into API / server / client / integration |
+| Effort on a group | Progress gets counted twice |
+| A milestone with a 2-day duration | A milestone is a point in time, not work |
+| A dependency pointing at a group | The engine only honours leaves; group dependencies are ambiguous |
+| Two tasks with the same title | The Claude Code hook will skip or mis-mark |
 
-## 8. 一次完整走查（可直接照抄）
+## 8. One full walkthrough (copy as-is)
 
 ```bash
 cd "$HOME/Projects/demo"
 BIN="$KAIRO/.build/release/KairoCLI"
+export KAIRO_LANG=en   # English output; omit it for the default language
 
-# ⓪ 没有项目就先建一个（已有则跳过，不会覆盖）
-[ -f demo.kairo ] || "$BIN" project create "示例项目" \
+# ⓪ create the project if it is missing (skipped if present, never overwritten)
+[ -f demo.kairo ] || "$BIN" project create "Demo Project" \
   --start 2026-11-02 --end 2026-11-20 --file demo.kairo
 
-# ① 写一份 WBS（嵌套 JSON，叶子省略 children 也合法）
+# ① write a WBS (nested JSON; omitting children on a leaf is legal)
 cat > wbs.json <<'EOF'
 [
-  {"title": "支付模块", "kind": "group", "children": [
-    {"title": "接口设计", "effortHours": 16},
-    {"title": "服务端实现", "effortHours": 40},
-    {"title": "客户端接入", "effortHours": 24},
-    {"title": "联调验收", "kind": "milestone"}
+  {"title": "Payment module", "kind": "group", "children": [
+    {"title": "API design", "effortHours": 16},
+    {"title": "Server implementation", "effortHours": 40},
+    {"title": "Client integration", "effortHours": 24},
+    {"title": "Integration sign-off", "kind": "milestone"}
   ]}
 ]
 EOF
 
-# ② 导入（整棵树一次成型）
+# ② import (the whole tree at once)
 "$BIN" wbs import wbs.json --file demo.kairo
 
-# ③ 看清单（跳过也行，④ 用标题自动取前缀）
+# ③ look at the list (optional; ④ resolves prefixes from titles)
 "$BIN" task list --file demo.kairo
 ```
 
-输出（前缀以本地为准）：
+Output (prefixes are local to your project):
 
 ```
-A02505F9 支付模块 [群组] 待办
-AFD19693 接口设计 待办 · 投入 16 小时
-18352A76 服务端实现 待办 · 投入 40 小时
-EF44782F 客户端接入 待办 · 投入 24 小时
-33EC0593 联调验收 [里程碑] 待办 · 投入 0 小时 · 持续 0 天
+imported 5 tasks
+  560E37A9 Payment module
+```
+
+```
+560E37A9 Payment module [group] pending
+8113CA26 API design pending · effort 16 h
+6E47F1F3 Server implementation pending · effort 40 h
+F7507B0F Client integration pending · effort 24 h
+3E82456D Integration sign-off [milestone] pending · effort 0 h · duration 0 days
 ```
 
 ```bash
-# ④ 连依赖：用标题取前缀，不用手抄 ID
+# ④ wire dependencies: resolve prefixes by title instead of copying IDs by hand
 id() { "$BIN" task list --file demo.kairo --json \
   | python3 -c "import json,sys;print([t['id'][:4] for t in json.load(sys.stdin) if t['title']=='$1'][0])"; }
 
-"$BIN" task update "$(id 服务端实现)" --dep "$(id 接口设计):fs" --file demo.kairo
-"$BIN" task update "$(id 客户端接入)" --dep "$(id 服务端实现):fs" --file demo.kairo
-"$BIN" task update "$(id 联调验收)" --dep "$(id 客户端接入):fs" --file demo.kairo
+"$BIN" task update "$(id 'Server implementation')" --dep "$(id 'API design'):fs" --file demo.kairo
+"$BIN" task update "$(id 'Client integration')" --dep "$(id 'Server implementation'):fs" --file demo.kairo
+"$BIN" task update "$(id 'Integration sign-off')" --dep "$(id 'Client integration'):fs" --file demo.kairo
 
-# ⑤ 排期
+# ⑤ schedule
 "$BIN" schedule compute --file demo.kairo
 
-# ⑥ 重要路径（宽延为 0 的任务链）
+# ⑥ critical path (the chain with zero slack)
 "$BIN" schedule path --file demo.kairo
 
-# ⑦ 违例（环、越界、时限冲突）
+# ⑦ violations (cycles, out-of-bounds, deadline conflicts)
 "$BIN" violations --file demo.kairo
 
-# ⑧ 回写（AI 每完成一个任务做一次）
-"$BIN" status update "$(id 接口设计)" --status done --file demo.kairo
+# ⑧ write-back (the AI does this once per finished task)
+"$BIN" status update "$(id 'API design')" --status done --file demo.kairo
 ```
 
-实测输出要点：
+What the real run printed:
 
 ```
-已导入 5 个任务
-已计算排期：5 个任务
-  <前缀> 接口设计  2026-11-01T16:00:00Z → 2026-11-03T16:00:00Z（2 天，ASAP）
-  <前缀> 服务端实现 …（依赖生效，紧接接口设计之后）
-  <前缀> 客户端接入 …（紧接服务端实现之后）
-  <前缀> 联调验收  …（里程碑，零工期，落在链路末端）
-重要路径：0 个任务（宽延限制 0 天）
-无违例
-已回写：<前缀> 接口设计（已完成，进度 100%）
-完成度聚合：100%
+task updated: 6E47F1F3 Server implementation
+task updated: F7507B0F Client integration
+task updated: 3E82456D Integration sign-off
+---
+schedule computed: 5 tasks
+  560E37A9 Payment module  2026-11-01T16:00:00Z → 2026-11-02T16:00:00Z (1 day, ASAP)
+  8113CA26 API design  2026-11-01T16:00:00Z → 2026-11-03T16:00:00Z (2 days, ASAP)
+  6E47F1F3 Server implementation  2026-11-03T16:00:00Z → 2026-11-08T16:00:00Z (5 days, ASAP)
+  F7507B0F Client integration  2026-11-08T16:00:00Z → 2026-11-11T16:00:00Z (3 days, ASAP)
+  3E82456D Integration sign-off  2026-11-11T16:00:00Z → 2026-11-11T16:00:00Z (0 days, ASAP)
+---
+critical path: 0 tasks (slack limit 0 days)
+  560E37A9 Payment module  total slack 17 days / free slack 17 days
+  8113CA26 API design  total slack 8 days / free slack 0 days
+  6E47F1F3 Server implementation  total slack 8 days / free slack 0 days
+  F7507B0F Client integration  total slack 8 days / free slack 0 days
+  3E82456D Integration sign-off  total slack 8 days / free slack 8 days
+---
+no violations
+---
+status written: 8113CA26 API design (done, progress 100%)
+completed at: 2026-10-25T03:23:58Z
+group progress: 100%
 ```
 
-> 排期输出是 ISO8601 **UTC**：本地午夜会显示成前一天 16:00Z（东八区）。看日期以 macOS 应用或 `--json` 为准，别拿终端里的 UTC 直接对日历。
+> `group progress` aggregates the subtree the task belongs to — for a leaf that is the task itself, so 100% here means "this leaf is done", not "the whole group is done".
+> Schedule output is ISO8601 **UTC**: local midnight shows up as 16:00Z the previous day (UTC+8). Trust the macOS app or `--json` for calendar dates; do not read the terminal's UTC straight onto a calendar.
 
-## 9. 协作循环
+## 9. Collaboration loop
 
 ```
-人：定边界（起止日期、验收口径）
+Human: set boundaries (start/end dates, acceptance criteria)
   ↓
-AI：task_list 看现状 → 拆 WBS → wbs_import → schedule_compute → 报违例
+AI: task_list to read the state → break down the WBS → wbs_import → schedule_compute → report violations
   ↓
-人：审甘特与违例（macOS 应用），批准或改期限 / 依赖
+Human: review the Gantt and violations (macOS app), approve or change deadlines / dependencies
   ↓
-AI：逐任务实现 → status_update done → 群组完成度自动聚合
+AI: implement task by task → status_update done → group progress aggregates automatically
   ↓
-人：看进度与偏差，决定加塞或缩范围
+Human: watch progress and drift, decide to insert work or cut scope
 ```
 
-两条协作纪律：
+Two collaboration rules:
 
-- **先看后写**：AI 每次动手前 `task_list`，否则会重复建树；
-- **完成即回写**：只改 `progress` 不改 `status`，群组完成度不会动，人看到的进度是假的。
+- **Read before writing**: the AI calls `task_list` before every change, otherwise it rebuilds the same tree;
+- **Write back on completion**: changing `progress` without `status` leaves group progress untouched, and the human then looks at a fake number.
 
-## 10. 排错
+## 10. Troubleshooting
 
-| 现象 | 原因 | 处理 |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `command not found` / 找不到 KairoMCP | 未构建或路径写错 | `swift build -c release`，配置里用绝对路径 |
-| MCP 连上但工具报「未打开项目」 | 工具不会读环境变量，需显式路径 | 先 `project_open`，或在规则文件里写死路径 |
-| `kairo-mcp: 未找到 KairoMCP 构建产物` | 用了插件启动脚本但没构建 | 构建，或设 `KAIRO_MCP_BIN` |
-| Claude Code 任务完成但没回写 | 标题不唯一 / 缺 `KAIRO_PROJECT` / 找不到 CLI | 看 stderr 的 `kairo-hook:` 行；设 `KAIRO_CLI_BIN` |
-| 应用与 AI 同时改同一个 `.kairo` | 无自动合并 | 应用会提示重新载入；回写期间关应用 |
-| 排期日期差一天 | 输出是 UTC，应用显示本地 | 以应用或 `--json` 的本地日期为准 |
+| `command not found` / KairoMCP not found | Not built, or the path is wrong | `swift build -c release`, and use absolute paths in the config |
+| MCP connected but tools say "no project open" | Tools do not read environment variables; they need an explicit path | Call `project_open` first, or hard-code the path in the rules file |
+| `kairo-mcp: KairoMCP build product not found` | The plugin launch script ran without a build | Build, or set `KAIRO_MCP_BIN` |
+| A Claude Code task completed but nothing was written back | Title not unique / `KAIRO_PROJECT` missing / CLI not found | Read the `kairo-hook:` lines on stderr; set `KAIRO_CLI_BIN` |
+| App and AI editing the same `.kairo` | No automatic merge | The app offers to reload; close the app during write-back |
+| Scheduled dates off by one day | Output is UTC, the app shows local time | Trust the app or the local dates in `--json` |
 
-## 11. 验证范围
+## 11. Scope of verification
 
-- **实测通过**（macOS，Kairo v0.8.0 release 产物，2026-10-23）：§2、§4A、§4B、§5 的 Kairo 侧命令，§8 全流程，插件 hook 回写。
-- **未实测**：Codex 桌面版加载 `[mcp_servers.kairo]` 后工具是否即时可见（本机 `codex` CLI 不在 PATH）；CodeBuddy 的 `TaskCompleted` 事件 payload 字段（文档只列事件名未列字段，故未做 CodeBuddy 版 hook）。
+- **Verified** (macOS, Kairo v0.9.1 release binaries, 2026-10-25): §2 including the MCP probe, §8 end to end with English CLI output.
+- **Verified earlier** (Kairo v0.8.0, 2026-10-23, re-checked against the current tree but not re-run): §4A / §4B / §5 Kairo-side commands and the plugin hook write-back.
+- **Not verified**: whether Codex desktop exposes the `[mcp_servers.kairo]` tools immediately (no `codex` CLI on PATH here); CodeBuddy's `TaskCompleted` event payload fields (its docs list the event name but not the fields, so no CodeBuddy hook exists).
