@@ -53,6 +53,27 @@ enum AppLanguage: String, CaseIterable, Sendable {
     /// 写入用户选择（重启后生效）。
     static func store(_ language: AppLanguage, in defaults: UserDefaults = .standard) {
         defaults.set(language.rawValue, forKey: defaultsKey)
+        applyProcessLocalization(choice: language, in: defaults)
+    }
+
+    /// 把应用内语言同步到进程级 `AppleLanguages`（#15）。
+    ///
+    /// 为什么必须有这一步：`I18n` 只决定**我们自己**的字符串（读 `.lproj`），
+    /// 而 AppKit 提供的标准菜单（文件 / 编辑 / 显示 / 窗口 / 帮助）与系统面板
+    /// 走的是进程级本地化，默认跟 macOS 系统语言 —— 于是出现「自定义菜单已是
+    /// 英文、系统菜单仍是中文」的中英混排。写入该键后，下次启动 CFBundle 会按
+    /// 它解析，两套来源重新对齐；`.system` 则移除该键，交还给系统。
+    ///
+    /// 与既有「切换语言后重启生效」同一时机，不引入新的生效规则。
+    static func applyProcessLocalization(choice: AppLanguage, in defaults: UserDefaults = .standard) {
+        switch choice {
+        case .system:
+            defaults.removeObject(forKey: "AppleLanguages")
+        case .english:
+            defaults.set(["en"], forKey: "AppleLanguages")
+        case .simplifiedChinese:
+            defaults.set(["zh-Hans"], forKey: "AppleLanguages")
+        }
     }
 
     /// 持久化的用户选择（生产入口）。

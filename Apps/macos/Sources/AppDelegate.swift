@@ -6,6 +6,15 @@ import UniformTypeIdentifiers
 final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var store: WorkspaceStore?
 
+    /// 启动即把应用内语言同步到进程级本地化（#15）。
+    ///
+    /// 修的是历史安装：早前只写了 `KairoLanguage`，没写 `AppleLanguages`，
+    /// 这类用户升级后若不重选语言，系统菜单会一直停在系统语言。这里每次启动
+    /// 幂等重写一次，保证两套语言来源一致。
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        AppLanguage.applyProcessLocalization(choice: AppLanguage.stored())
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let store, store.hasUnsavedChanges else { return .terminateNow }
         let alert = NSAlert()

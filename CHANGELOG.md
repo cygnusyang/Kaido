@@ -3,6 +3,18 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.14.1 — 2026-10-25
+
+### 修复
+
+- **切换英文后菜单栏残留中文（#15）**：`文件 / 编辑 / 显示 / 窗口 / 帮助` 这些 AppKit 标准菜单跟随的是**进程级**语言（`AppleLanguages`），而应用内文案走的是自己的 `.lproj` 选择 —— 两套来源互不影响，于是出现「自定义菜单已英文、系统菜单仍中文」的中英混排。
+- 修复：`AppLanguage.store(_:)` 与启动时（`applicationWillFinishLaunching`）都把当前语言同步写入 `AppleLanguages`（English → `["en"]`、简体中文 → `["zh-Hans"]`、跟随系统 → 移除该键）。与既有「切换语言后重启生效」同一时机；同时修复历史安装（早前只写了 `KairoLanguage`，系统菜单会一直停在系统语言）。
+
+### 判据与证据
+
+- 新增 2 例：`processLocalizationFollowsAppLanguage`（en / zh-Hans / system 三档映射）、`storingLanguageAlsoWritesProcessLocalization`（`store` 是唯一写入口，两个键同步落盘，杜绝半更新状态）。
+- 全量 **1203 tests / 107 suites** 通过。真机核验：`KairoLanguage = en` 重启后菜单栏全部为英文（含 File / Edit / View / Window / Help 及其系统项）。
+
 ## v0.14.0 — 2026-10-25
 
 ### 新增

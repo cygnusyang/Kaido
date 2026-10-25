@@ -176,4 +176,42 @@ struct LocalizationTests {
         #expect(Display.shortMonthDay(day(2026, 11, 6), locale: Locale(identifier: "en_US")) == "Nov 6")
         #expect(!Display.time(day(2026, 11, 6), locale: Locale(identifier: "en_US")).isEmpty)
     }
+
+    // MARK: - 系统菜单语言（#15）
+
+    /// 应用内语言必须同步到进程级 AppleLanguages：AppKit 的标准菜单
+    /// （文件/编辑/显示/窗口/帮助）只认它，不认我们的 .lproj 选择。
+    @Test func processLocalizationFollowsAppLanguage() {
+        let suite = "kairo.tests.appleLanguages.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
+        defaults.removePersistentDomain(forName: suite)
+
+        AppLanguage.applyProcessLocalization(choice: .english, in: defaults)
+        #expect(defaults.stringArray(forKey: "AppleLanguages") == ["en"])
+
+        AppLanguage.applyProcessLocalization(choice: .simplifiedChinese, in: defaults)
+        #expect(defaults.stringArray(forKey: "AppleLanguages") == ["zh-Hans"])
+
+        // 跟随系统：移除该键，交还给 macOS。
+        AppLanguage.applyProcessLocalization(choice: .system, in: defaults)
+        // 用本 suite 的持久域判断：object(forKey:) 会回落到全局域（系统自带 AppleLanguages），恒非 nil。
+        #expect(defaults.persistentDomain(forName: suite)?["AppleLanguages"] == nil)
+    }
+
+    /// store 是唯一写入口：切换语言即同时落 KairoLanguage 与 AppleLanguages，
+    /// 避免出现「应用内语言变了、系统菜单没变」的半更新状态。
+    @Test func storingLanguageAlsoWritesProcessLocalization() {
+        let suite = "kairo.tests.appleLanguages.store.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite) ?? .standard
+        defaults.removePersistentDomain(forName: suite)
+
+        AppLanguage.store(.english, in: defaults)
+        #expect(defaults.string(forKey: AppLanguage.defaultsKey) == "en")
+        #expect(defaults.stringArray(forKey: "AppleLanguages") == ["en"])
+
+        AppLanguage.store(.system, in: defaults)
+        #expect(defaults.string(forKey: AppLanguage.defaultsKey) == "system")
+        // 用本 suite 的持久域判断：object(forKey:) 会回落到全局域（系统自带 AppleLanguages），恒非 nil。
+        #expect(defaults.persistentDomain(forName: suite)?["AppleLanguages"] == nil)
+    }
 }
