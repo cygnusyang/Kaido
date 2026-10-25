@@ -372,6 +372,7 @@ public enum WorkspacePresenter {
                 direction: result.direction,
                 cycleTaskIDs: result.cycleTaskIDs,
                 projectStartDerived: result.projectStartDerived,
+                projectStartSource: result.projectStartSource,
                 unscheduledTaskIDs: result.unscheduledTaskIDs
             )
         }
@@ -498,6 +499,7 @@ public enum WorkspacePresenter {
             bands: bands,
             emptyReason: emptyReason,
             projectStartDerived: schedule?.projectStartDerived ?? false,
+            projectStartSource: schedule?.projectStartSource ?? .projectStart,
             showsCriticalPath: viewState.showCriticalPath,
             showsBarLabels: viewState.showBarLabels,
             tickGranularity: engineZoom

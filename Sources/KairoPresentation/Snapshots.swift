@@ -316,6 +316,8 @@ public struct GanttSnapshot: Hashable, Sendable {
     public var bands: [GanttBand]
     public var emptyReason: EmptyReason?
     public var projectStartDerived: Bool
+    /// 推导来源（决定提示措辞）：项目开始日期 / 最早任务 / 项目创建日期 / 今天。
+    public var projectStartSource: ScheduleAnchor.Source
     public var showsCriticalPath: Bool
     public var showsBarLabels: Bool
 
@@ -338,6 +340,7 @@ public struct GanttSnapshot: Hashable, Sendable {
         bands: [GanttBand] = [],
         emptyReason: EmptyReason? = nil,
         projectStartDerived: Bool = false,
+        projectStartSource: ScheduleAnchor.Source = .projectStart,
         showsCriticalPath: Bool = false,
         showsBarLabels: Bool = true,
         tickGranularity: GanttZoom? = nil
@@ -359,6 +362,7 @@ public struct GanttSnapshot: Hashable, Sendable {
         self.bands = bands
         self.emptyReason = emptyReason
         self.projectStartDerived = projectStartDerived
+        self.projectStartSource = projectStartSource
         self.showsCriticalPath = showsCriticalPath
         self.showsBarLabels = showsBarLabels
     }

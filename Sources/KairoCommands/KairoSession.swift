@@ -728,7 +728,9 @@ public final class KairoSession {
             resources: project.resources,
             projectStart: projectStart ?? project.metadata.projectStart,
             projectEnd: projectEnd ?? project.metadata.projectEnd,
-            direction: project.metadata.direction
+            direction: project.metadata.direction,
+            // 无日期任务以项目创建日期为锚（D-029）：不随「今天」漂移。
+            createdAt: project.metadata.createdAt
         )
         lastSchedule = result
         return result

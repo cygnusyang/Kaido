@@ -364,7 +364,7 @@ struct WorkspaceView: View {
 
         return VStack(spacing: 0) {
             if gantt.projectStartDerived && sizes.showsTimeline {
-                projectStartBanner
+                projectStartBanner(gantt.projectStartSource)
             }
             HStack(spacing: 0) {
                 if sizes.showsOutline {
@@ -477,12 +477,33 @@ struct WorkspaceView: View {
         store.dispatch(.setOutlineColumnWidth(live.column, Double(live.width)))
     }
 
-    private var projectStartBanner: some View {
+    /// 起点推导提示：措辞按实际来源选，避免把「按创建日期推导」说成「按最早任务推导」。
+    private func projectStartBannerText(_ source: ScheduleAnchor.Source) -> String {
+        switch source {
+        case .projectCreated:
+            return I18n.t(
+                "inspector.project.start_derived_created",
+                "No project start date is set; it was derived from the project creation date."
+            )
+        case .today:
+            return I18n.t(
+                "inspector.project.start_derived_today",
+                "No project start date is set; it was derived from today."
+            )
+        case .projectStart, .earliestTaskStart:
+            return I18n.t(
+                "inspector.project.start_derived",
+                "No project start date is set; it was derived from the earliest task start date."
+            )
+        }
+    }
+
+    private func projectStartBanner(_ source: ScheduleAnchor.Source) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "info.circle")
                 .font(.system(size: 11))
                 .foregroundStyle(DesignTokens.textSecondary)
-            Text(I18n.t("inspector.project.start_derived", "No project start date is set; it was derived from the earliest task start date."))
+            Text(projectStartBannerText(source))
                 .font(.system(size: DesignTokens.captionFontSize))
                 .foregroundStyle(DesignTokens.textSecondary)
             Spacer(minLength: 0)

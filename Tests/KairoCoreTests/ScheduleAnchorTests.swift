@@ -83,4 +83,59 @@ struct ScheduleAnchorTests {
 
         #expect(anchor.date == day(2026, 12, 1))
     }
+
+    // MARK: - 项目创建日期（D-029）
+
+    @Test func projectCreationDateIsUsedWhenNoProjectOrTaskDate() {
+        // 无日期的 WBS 应在「计划开始那天」起步，而不是随每次打开漂到今天。
+        let anchor = ScheduleAnchor.derive(
+            tasks: [TaskItem(title: "A"), TaskItem(title: "B")],
+            projectStart: nil,
+            now: now,
+            calendar: utc,
+            createdAt: day(2026, 10, 21)
+        )
+
+        #expect(anchor.date == day(2026, 10, 21))
+        #expect(anchor.source == .projectCreated)
+        #expect(anchor.isDerived)
+    }
+
+    @Test func earliestTaskStartBeatsCreationDate() {
+        let anchor = ScheduleAnchor.derive(
+            tasks: [TaskItem(title: "A", startDate: day(2026, 11, 2))],
+            projectStart: nil,
+            now: now,
+            calendar: utc,
+            createdAt: day(2026, 10, 21)
+        )
+
+        #expect(anchor.date == day(2026, 11, 2))
+        #expect(anchor.source == .earliestTaskStart)
+    }
+
+    @Test func projectStartBeatsCreationDate() {
+        let anchor = ScheduleAnchor.derive(
+            tasks: [],
+            projectStart: day(2026, 12, 1),
+            now: now,
+            calendar: utc,
+            createdAt: day(2026, 10, 21)
+        )
+
+        #expect(anchor.date == day(2026, 12, 1))
+        #expect(anchor.source == .projectStart)
+    }
+
+    @Test func todayIsStillFallbackWithoutCreationDate() {
+        let anchor = ScheduleAnchor.derive(
+            tasks: [TaskItem(title: "A")],
+            projectStart: nil,
+            now: now,
+            calendar: utc,
+            createdAt: nil
+        )
+
+        #expect(anchor.source == .today)
+    }
 }

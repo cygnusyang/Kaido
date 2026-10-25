@@ -63,6 +63,8 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
     public var cycleTaskIDs: [UUID]
     /// `projectStart` 是否由任务数据推导（ADR-013 / D-003）；显式设置时为 false。
     public var projectStartDerived: Bool
+    /// 推导来源（项目开始日期 / 最早任务 / 项目创建日期 / 今天），决定界面提示措辞。
+    public var projectStartSource: ScheduleAnchor.Source
     /// 无法排期的任务 ID（依赖环、空群组）；其 `tasks` 条目不代表有效安排。
     public var unscheduledTaskIDs: [UUID]
 
@@ -73,6 +75,7 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
         direction: ScheduleDirection = .forward,
         cycleTaskIDs: [UUID] = [],
         projectStartDerived: Bool = false,
+        projectStartSource: ScheduleAnchor.Source = .projectStart,
         unscheduledTaskIDs: [UUID] = []
     ) {
         self.tasks = tasks
@@ -81,6 +84,7 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
         self.direction = direction
         self.cycleTaskIDs = cycleTaskIDs
         self.projectStartDerived = projectStartDerived
+        self.projectStartSource = projectStartSource
         self.unscheduledTaskIDs = unscheduledTaskIDs
     }
 
@@ -88,7 +92,7 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case tasks, projectStart, projectEnd, direction, cycleTaskIDs
-        case projectStartDerived, unscheduledTaskIDs
+        case projectStartDerived, projectStartSource, unscheduledTaskIDs
     }
 
     public init(from decoder: Decoder) throws {
@@ -100,6 +104,10 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
         cycleTaskIDs = try c.decodeIfPresent([UUID].self, forKey: .cycleTaskIDs) ?? []
         // 新增字段缺失给默认值（旧数据前向兼容）。
         projectStartDerived = try c.decodeIfPresent(Bool.self, forKey: .projectStartDerived) ?? false
+        // 旧数据没有来源字段：推导过的一律按「最早任务」措辞回落（与当时唯一实现一致）。
+        projectStartSource = try c.decodeIfPresent(
+            ScheduleAnchor.Source.self, forKey: .projectStartSource
+        ) ?? (projectStartDerived ? .earliestTaskStart : .projectStart)
         unscheduledTaskIDs = try c.decodeIfPresent([UUID].self, forKey: .unscheduledTaskIDs) ?? []
     }
 
@@ -111,6 +119,7 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
         try c.encode(direction, forKey: .direction)
         try c.encode(cycleTaskIDs, forKey: .cycleTaskIDs)
         try c.encode(projectStartDerived, forKey: .projectStartDerived)
+        try c.encode(projectStartSource, forKey: .projectStartSource)
         try c.encode(unscheduledTaskIDs, forKey: .unscheduledTaskIDs)
     }
 

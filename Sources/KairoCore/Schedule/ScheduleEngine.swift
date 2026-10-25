@@ -24,13 +24,15 @@ public enum ScheduleEngine {
         projectEnd: Date? = nil,
         direction: ScheduleDirection = .forward,
         calendar: Calendar = Calendar(identifier: .gregorian),
-        now: Date = Date()
+        now: Date = Date(),
+        createdAt: Date? = nil
     ) -> ScheduleResult {
         let byID = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
         let resourceByID = Dictionary(uniqueKeysWithValues: resources.map { ($0.id, $0) })
         // 未设项目开始日期时按「最早任务 startDate → 今天」推导，禁止 1970 起排（D-003）。
         let scheduleAnchor = ScheduleAnchor.derive(
-            tasks: tasks, projectStart: projectStart, now: now, calendar: calendar
+            tasks: tasks, projectStart: projectStart, now: now,
+            calendar: calendar, createdAt: createdAt
         )
         let startAnchor: Date? = scheduleAnchor.date
         let endAnchor = projectEnd.map { calendar.startOfDay(for: $0) }
@@ -72,6 +74,7 @@ public enum ScheduleEngine {
             direction: direction,
             cycleTaskIDs: cycleIDs,
             projectStartDerived: scheduleAnchor.isDerived,
+            projectStartSource: scheduleAnchor.source,
             unscheduledTaskIDs: unscheduledIDs
         )
     }

@@ -3061,6 +3061,40 @@
         }
       }
     },
+    "inspector.project.start_derived_created": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No project start date is set; it was derived from the project creation date."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未设置项目开始日期，已按项目创建日期推导。"
+          }
+        }
+      }
+    },
+    "inspector.project.start_derived_today": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No project start date is set; it was derived from today."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未设置项目开始日期，已按今天推导。"
+          }
+        }
+      }
+    },
     "inspector.project.start_derived": {
       "extractionState": "manual",
       "localizations": {
