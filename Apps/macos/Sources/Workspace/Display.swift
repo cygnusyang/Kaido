@@ -184,6 +184,7 @@ enum Display {
         case .inProgress: return I18n.t("outline.status.in_progress", "In progress")
         case .blocked: return I18n.t("outline.status.blocked", "Blocked")
         case .done: return I18n.t("outline.status.done", "Done")
+        case .cancelled: return I18n.t("outline.status.cancelled", "Cancelled")
         }
     }
 
@@ -193,6 +194,7 @@ enum Display {
         case .inProgress: return "circle.lefthalf.filled"
         case .blocked: return "pause.circle"
         case .done: return "checkmark.circle.fill"
+        case .cancelled: return "xmark.circle"
         }
     }
 

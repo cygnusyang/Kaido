@@ -123,6 +123,8 @@ final class WorkspaceStore: ObservableObject {
         var hiddenOutlineColumns: [String]?
         /// 显式打开的可选列（列 rawValue，F-0719）；旧数据缺省时为 nil，可选列全隐藏。
         var visibleOptionalColumns: [String]?
+        /// 列顺序（列 rawValue，v0.16 / #12）；旧数据缺省时为 nil，回落 `allCases` 顺序。
+        var outlineColumnOrder: [String]?
         /// 是否标出非工作日；旧数据缺省 → false（一周 7 天，与排期口径一致）。
         var showsNonWorkingDays: Bool?
         /// 当前对比基线（v0.13）；旧数据缺省 → nil（不比较，基线列隐藏）。
@@ -144,6 +146,7 @@ final class WorkspaceStore: ObservableObject {
             outlineColumnWidths: [String: Double]?,
             hiddenOutlineColumns: [String]?,
             visibleOptionalColumns: [String]?,
+            outlineColumnOrder: [String]?,
             showsNonWorkingDays: Bool?,
             selectedBaselineID: UUID?,
             visibleBaselineIDs: [UUID]?
@@ -160,6 +163,7 @@ final class WorkspaceStore: ObservableObject {
             self.outlineColumnWidths = outlineColumnWidths
             self.hiddenOutlineColumns = hiddenOutlineColumns
             self.visibleOptionalColumns = visibleOptionalColumns
+            self.outlineColumnOrder = outlineColumnOrder
             self.showsNonWorkingDays = showsNonWorkingDays
             self.selectedBaselineID = selectedBaselineID
             self.visibleBaselineIDs = visibleBaselineIDs
@@ -192,6 +196,9 @@ final class WorkspaceStore: ObservableObject {
             )
             visibleOptionalColumns = try? container.decodeIfPresent(
                 [String].self, forKey: .visibleOptionalColumns
+            )
+            outlineColumnOrder = try? container.decodeIfPresent(
+                [String].self, forKey: .outlineColumnOrder
             )
             showsNonWorkingDays = try? container.decodeIfPresent(
                 Bool.self, forKey: .showsNonWorkingDays
@@ -296,6 +303,7 @@ final class WorkspaceStore: ObservableObject {
             state.outlineColumnWidths = Self.loadedColumnWidths(stored.outlineColumnWidths)
             state.hiddenOutlineColumns = Self.loadedHiddenColumns(stored.hiddenOutlineColumns)
             state.visibleOptionalColumns = Self.loadedOptionalColumns(stored.visibleOptionalColumns)
+            state.columnOrder = Self.loadedColumnOrder(stored.outlineColumnOrder)
             // 基线选择是应用级视图偏好：存的是 ID，打开的项目没有这条基线时
             // 由 `selectedBaseline` 解析失败回落成「不比较」，不会指向别的项目的数据。
             state.selectedBaselineID = stored.selectedBaselineID
@@ -672,6 +680,9 @@ final class WorkspaceStore: ObservableObject {
         case .toggleOutlineColumn(let column):
             toggleOutlineColumn(column)
 
+        case .setOutlineColumnOrder(let order):
+            setOutlineColumnOrder(order)
+
         case .setBaseline(let id):
             setBaseline(id)
 
@@ -722,6 +733,9 @@ final class WorkspaceStore: ObservableObject {
                 try self.session.statusUpdate(id: id, status: status)
             }
 
+        case .cancelTask(let id, let reason):
+            cancelTask(id: id, reason: reason)
+
         case .setProgress(let id, let progress):
             update(id: id, mergeKey: "progress-\(id)") {
                 try self.session.statusUpdate(id: id, progress: min(max(progress, 0), 1))
@@ -761,12 +775,12 @@ final class WorkspaceStore: ObservableObject {
 
         case .setActualStart(let id, let date):
             // 实际开始不加日粒度归一：快照显示到日，模型保留完整时间戳（设计 §5「日期口径」）。
-            updateActual(mergeKey: "actual-start-\(id)") {
+            updateAfterSuccess(mergeKey: "actual-start-\(id)") {
                 try self.session.setActualStart(id: id, date: date)
             }
 
         case .setActualFinish(let id, let date):
-            updateActual(mergeKey: "actual-finish-\(id)") {
+            updateAfterSuccess(mergeKey: "actual-finish-\(id)") {
                 try self.session.setActualFinish(id: id, date: date)
             }
 
@@ -942,6 +956,17 @@ final class WorkspaceStore: ObservableObject {
         }
     }
 
+    /// 列顺序（v0.16 / #12）：应用级视图偏好，与列宽 / 显隐同域——走 `mutateView`，
+    /// 不进撤销栈、不置脏、不写 `.kairo`。
+    ///
+    /// 归一化在写入口一次做完（去重 + 补齐缺失列）：视图只负责把「拖到哪」翻译成数组，
+    /// 不必各自判重。与当前顺序相同时直接返回——拖回原位不该留下一份看起来改过的偏好。
+    private func setOutlineColumnOrder(_ order: [OutlineColumn]) {
+        let normalized = OutlineColumnPreferences.normalizedOrder(order)
+        guard normalized != OutlineColumnPreferences.normalizedOrder(viewState.columnOrder) else { return }
+        mutateView { $0.columnOrder = normalized }
+    }
+
     // MARK: - 基线（v0.13 / 08-baselines）
 
     /// 切换对比基线（§9-10）：纯视图状态——不进撤销栈、不置脏、不写文件。
@@ -989,7 +1014,7 @@ final class WorkspaceStore: ObservableObject {
 
     /// 拍一次基线快照：成功后记撤销点，并选中新基线（点「新建基线」的意图就是拿它做对比）。
     ///
-    /// 与 `updateActual` 同序：先拿前置快照，成功后再压栈——失败不应留下空撤销步。
+    /// 与 `updateAfterSuccess` 同序：先拿前置快照，成功后再压栈——失败不应留下空撤销步。
     private func createBaseline(name: String?) {
         let entry = captureUndoEntry()
         do {
@@ -1157,12 +1182,26 @@ final class WorkspaceStore: ObservableObject {
         refresh()
     }
 
-    /// 写实际时间（F-0719）：**成功后才记撤销点**。
+    /// 转入「已取消」（v0.16 D）：原因必须是去空白后的非空文本。
     ///
-    /// 与 `update(id:mergeKey:)` 的差异只有顺序：后者先压撤销点再执行，而实际时间的
-    /// 顺序校验在会话里（早于实际开始 → 抛错不写库），失败请求会在撤销栈里留下一个
-    /// 「撤销后毫无变化」的空步（设计 §4 判据 9「不产生撤销点」）。
-    private func updateActual(mergeKey: String, _ body: () throws -> Void) {
+    /// 空白原因在应用层就拦下（提示「请填写取消原因」），不进会话、不写库、不留撤销步；
+    /// 非空原因经 `updateAfterSuccess` 提交，会话层仍会再校验一次（双保险不重复提示）。
+    private func cancelTask(id: UUID, reason: String) {
+        guard let trimmed = CancelReasonInput.normalized(reason) else {
+            alertMessage = I18n.t("alert.cancel_reason_required", "Enter a reason for cancelling")
+            return
+        }
+        updateAfterSuccess(mergeKey: "status-\(id)") {
+            try self.session.statusUpdate(id: id, status: .cancelled, cancelReason: trimmed)
+        }
+    }
+
+    /// **成功后才记撤销点**的写入外壳。
+    ///
+    /// 与 `update(id:mergeKey:)` 的差异只有顺序：后者先压撤销点再执行，而本路径的
+    /// 校验在会话里（实际时间先后、取消原因必填 → 抛错不写库），失败请求会在撤销栈里
+    /// 留下一个「撤销后毫无变化」的空步（设计 §4 判据 9「不产生撤销点」）。
+    private func updateAfterSuccess(mergeKey: String, _ body: () throws -> Void) {
         let entry = captureUndoEntry()
         do {
             try body()
@@ -1944,7 +1983,9 @@ final class WorkspaceStore: ObservableObject {
             selectedBaselineID: viewState.selectedBaselineID,
             // 显示集合同为应用级偏好（v0.14 §6）：解析不到的 ID 由读取侧归一化剔除，
             // 不因为换项目就清空「我在图上想看哪几条」。
-            visibleBaselineIDs: viewState.visibleBaselineIDs
+            visibleBaselineIDs: viewState.visibleBaselineIDs,
+            // 列顺序同为应用级偏好（v0.16 / #12）：换项目保留用户排好的顺序，不悄悄打回默认。
+            columnOrder: viewState.columnOrder
         )
         lockedTaskID = nil
         lockedTaskTitle = nil
@@ -1987,6 +2028,15 @@ final class WorkspaceStore: ObservableObject {
         })
     }
 
+    /// 载入列顺序：丢弃未知 rawValue，缺失的列按 `allCases` 顺序追加到末尾（**不丢列**）。
+    ///
+    /// 旧数据没有该字段 → 默认顺序，与改动前逐列一致；损坏数据（未知列 / 重复列）
+    /// 由归一化就地修好，不回写脏值、不影响其余偏好（D-016 逐字段容错）。
+    private static func loadedColumnOrder(_ stored: [String]?) -> [OutlineColumn] {
+        guard let stored else { return OutlineColumnPreferences.defaultOrder }
+        return OutlineColumnPreferences.normalizedOrder(stored.compactMap(OutlineColumn.init(rawValue:)))
+    }
+
     /// 载入可选列：只保留可选列集合内的 rawValue，未知列与普通列静默丢弃。
     private static func loadedOptionalColumns(_ stored: [String]?) -> Set<String> {
         guard let stored else { return [] }
@@ -1998,6 +2048,7 @@ final class WorkspaceStore: ObservableObject {
     }
 
     private func savePreferences() {
+        let columnOrder = OutlineColumnPreferences.normalizedOrder(viewState.columnOrder)
         let stored = StoredPreferences(
             outlineWidth: viewState.outlineWidth,
             outlineVisible: viewState.outlineVisible,
@@ -2016,6 +2067,10 @@ final class WorkspaceStore: ObservableObject {
             visibleOptionalColumns: viewState.visibleOptionalColumns.isEmpty
                 ? nil
                 : viewState.visibleOptionalColumns.sorted(),
+            // 默认顺序写 nil：JSON 不为「没动过」的状态多长一个键，旧版本读回同一语义。
+            outlineColumnOrder: columnOrder == OutlineColumnPreferences.defaultOrder
+                ? nil
+                : columnOrder.map(\.rawValue),
             showsNonWorkingDays: viewState.showsNonWorkingDays,
             // 基线选择是应用级视图偏好：换项目保留（解析不到时等价于「不比较」）。
             selectedBaselineID: viewState.selectedBaselineID,

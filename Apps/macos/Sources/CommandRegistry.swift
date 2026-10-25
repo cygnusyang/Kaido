@@ -273,14 +273,14 @@ enum KairoCommandCatalog {
             // 基线入口（v0.13.3 → v0.14）：工具栏那颗棋盘旗在窄窗口会被系统收进溢出菜单，
             // 单独设一个顶级「基线」菜单后，新建入口恒为该项第 1 条（D-035）。
             KairoCommand(
-                id: "baseline.create",
+                id: BaselineMenuID.create,
                 title: I18n.t("menu.baseline.create", "New Baseline"),
                 group: .baseline,
                 shortcut: KairoShortcut(key: "b", modifiers: [.command, .option]),
                 action: { store.dispatch(.createBaseline(nil)) }
             ),
             KairoCommand(
-                id: "baseline.compareClear",
+                id: BaselineMenuID.compareClear,
                 title: I18n.t("menu.baseline.none", "Stop Comparing Baseline"),
                 group: .baseline,
                 action: { store.dispatch(.setBaseline(nil)) }
@@ -288,7 +288,7 @@ enum KairoCommandCatalog {
             // 面板入口（v0.15）：逐条基线的完整管理（条目数 / 孤儿 / 基线后新增）。
             // 静态命令：⌘K 里必须找得到（D-035），但不给快捷键——这是低频的管理动作。
             KairoCommand(
-                id: "baseline.manage",
+                id: BaselineMenuID.manage,
                 title: I18n.t("menu.baseline.manage", "Manage Baselines…"),
                 group: .baseline,
                 aliases: [I18n.t("menu.baseline.manage.alias", "Open the baselines panel")],
@@ -296,7 +296,7 @@ enum KairoCommandCatalog {
             ),
             // v0.15.1：CSV 导出此前只在 CLI 有入口，界面里找不到（用户实测）。
             KairoCommand(
-                id: "baseline.exportCSV",
+                id: BaselineMenuID.exportCSV,
                 title: I18n.t("menu.baseline.export_csv", "Export Variance CSV…"),
                 group: .baseline,
                 aliases: [I18n.t("menu.baseline.export_csv.alias", "Save baseline variance as a spreadsheet")],
@@ -397,10 +397,9 @@ enum KairoCommandCatalog {
     /// 颜色项标 isPaletteHidden——8 色 × N 条进 ⌘K 会把面板挤成色卡（§5）。
     private static func baselineCommands(store: WorkspaceStore) -> [KairoCommand] {
         store.baselines.flatMap { baseline -> [KairoCommand] in
-            let key = baseline.id.uuidString
             var items: [KairoCommand] = [
                 KairoCommand(
-                    id: "baseline.visibility.\(key)",
+                    id: BaselineMenuID.visibility(baseline.id),
                     title: I18n.t("menu.baseline.show_in_gantt", "Show in Gantt"),
                     group: .baseline,
                     // 菜单里父级子菜单已经是基线名，面板里没有上下文，故把名称放进别名可搜。
@@ -419,7 +418,7 @@ enum KairoCommandCatalog {
                     }
                 ),
                 KairoCommand(
-                    id: "baseline.compare.\(key)",
+                    id: BaselineMenuID.compare(baseline.id),
                     title: I18n.t("menu.baseline.set_compared", "Compare Against This Baseline"),
                     group: .baseline,
                     aliases: [
@@ -431,7 +430,7 @@ enum KairoCommandCatalog {
             ]
             items += (0 ..< BaselineColorNames.count).map { colorIndex in
                 KairoCommand(
-                    id: "baseline.color.\(key).\(colorIndex)",
+                    id: BaselineMenuID.color(baseline.id, colorIndex),
                     title: BaselineColorNames.title(colorIndex),
                     group: .baseline,
                     isPaletteHidden: true,
@@ -439,7 +438,7 @@ enum KairoCommandCatalog {
                 )
             }
             items.append(KairoCommand(
-                id: "baseline.rename.\(key)",
+                id: BaselineMenuID.rename(baseline.id),
                 title: I18n.t("menu.baseline.rename", "Rename Baseline…"),
                 group: .baseline,
                 action: {
@@ -449,7 +448,7 @@ enum KairoCommandCatalog {
                 }
             ))
             items.append(KairoCommand(
-                id: "baseline.delete.\(key)",
+                id: BaselineMenuID.delete(baseline.id),
                 title: I18n.t("menu.baseline.delete", "Delete Baseline…"),
                 group: .baseline,
                 isDestructive: true,
@@ -635,7 +634,7 @@ struct KairoMenuCommands: Commands {
     // MARK: - 关于面板
 
     /// 应用版本号：发版前更新。
-    static let appVersion = "0.15.1"
+    static let appVersion = "0.16.0"
 
     /// 版权与联系邮箱：法律声明，不随界面语言变化，也不进 String Catalog。
     static let copyrightNotice = "Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>"

@@ -320,7 +320,9 @@ public enum WorkspacePresenter {
                 // 可选列（F-0719 / v0.13）：默认隐藏，只有用户显式打开才出现在列集合里；
                 // 基线四列还要求已选定对比基线（未选时整体隐藏，08 §5）。
                 shownOptional: Set(viewState.visibleOptionalColumns.compactMap(OutlineColumn.init(rawValue:))),
-                hasSelectedBaseline: selectedBaseline != nil
+                hasSelectedBaseline: selectedBaseline != nil,
+                // 列顺序（v0.16 / #12）：用户拖拽后的表头顺序，缺省 allCases → 与改动前逐列一致。
+                order: viewState.columnOrder
             ),
             filterExplanation: filterActive ? AIFilterTranslator.summary(for: clauses) : nil,
             emptyReason: outlineEmptyReason,
@@ -861,7 +863,9 @@ public enum WorkspacePresenter {
             assignmentNames: assignmentNames,
             startDate: isGroup ? nil : task.startDate,
             actualStart: isGroup ? nil : task.actualStart,
-            baseline: baselineSection(for: task, report: baselineReport)
+            baseline: baselineSection(for: task, report: baselineReport),
+            // 原因只属于该终态；群组也取自身值（聚合状态由 aggregateStatus 表达）。
+            cancelReason: task.cancelReason
         )
     }
 

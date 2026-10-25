@@ -132,9 +132,11 @@ public struct OutlineTree: Hashable, Sendable {
         func ownViolations(_ id: UUID) -> Int { violationCountByTask[id] ?? 0 }
 
         // 后代叶子任务的加权进度；无叶子返回 nil。
+        // 已取消的叶子不进加权（v0.16）：终态「决定不做」不拖低群组完成度。
         func leafProgress(_ id: UUID, seen: inout Set<UUID>) -> (weighted: Double, weight: Double)? {
             guard seen.insert(id).inserted, let task = byID[id] else { return nil }
             if task.kind != .group && (childrenByParent[id] ?? []).isEmpty {
+                guard task.status != .cancelled else { return nil }
                 let weight = max(task.effortHours ?? 1, 0)
                 return (weight * task.progress, weight)
             }
@@ -166,13 +168,15 @@ public struct OutlineTree: Hashable, Sendable {
                 let childAggregates = children.map(aggregate)
                 let starts = childAggregates.compactMap(\.start)
                 let finishes = childAggregates.compactMap(\.finish)
+                // 已取消的子任务不参与群组状态判定（v0.16）：否则「其余都做完」永远聚合不成 done。
+                let considered = children.filter { byID[$0]?.status != .cancelled }.map(aggregate)
                 var status = TaskStatus.pending
-                if !children.isEmpty {
-                    if childAggregates.allSatisfy({ $0.status == .done }) {
+                if !considered.isEmpty {
+                    if considered.allSatisfy({ $0.status == .done }) {
                         status = .done
-                    } else if childAggregates.contains(where: { $0.status == .inProgress }) {
+                    } else if considered.contains(where: { $0.status == .inProgress }) {
                         status = .inProgress
-                    } else if childAggregates.contains(where: { $0.status == .blocked }) {
+                    } else if considered.contains(where: { $0.status == .blocked }) {
                         status = .blocked
                     }
                 }

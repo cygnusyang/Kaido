@@ -11,6 +11,9 @@ import Foundation
 /// 仍落在本地零点，不按 86 400 秒折算）；工作周日历（US-E2-04）不在本 Sprint 范围，
 /// 代码注释保留该口径。
 ///
+/// 已取消任务（`status == .cancelled`）不参与排期：终态「决定不做」既不占工期，
+/// 也不该把后继或群组窗口顶到后面（v0.16）。
+///
 /// 相关性传播（F-22-07）：FS/FF/SS/SF 四型不等式 + lagDays（天，可正负）：
 ///   FS：后继开始 ≥ 前驱结束 + lag
 ///   FF：后继结束 ≥ 前驱结束 + lag
@@ -18,7 +21,7 @@ import Foundation
 ///   SF：后继结束 ≥ 前驱开始 + lag
 public enum ScheduleEngine {
     public static func compute(
-        tasks: [TaskItem],
+        tasks inputTasks: [TaskItem],
         resources: [Resource] = [],
         projectStart: Date? = nil,
         projectEnd: Date? = nil,
@@ -27,6 +30,10 @@ public enum ScheduleEngine {
         now: Date = Date(),
         createdAt: Date? = nil
     ) -> ScheduleResult {
+        // 已取消（v0.16）是「决定不做」的终态：不占工期、不参与前后向传播、
+        // 不聚合进群组窗口，也不出排期条目（因此不出甘特条、不进关键路径）。
+        // 一处过滤即覆盖全部派生：以它为前驱的相关性自然成为悬空边而被忽略。
+        let tasks = inputTasks.filter { $0.status != .cancelled }
         let byID = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
         let resourceByID = Dictionary(uniqueKeysWithValues: resources.map { ($0.id, $0) })
         // 未设项目开始日期时按「最早任务 startDate → 今天」推导，禁止 1970 起排（D-003）。

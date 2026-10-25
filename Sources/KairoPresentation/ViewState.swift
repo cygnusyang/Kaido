@@ -62,6 +62,12 @@ public struct WorkspaceViewState: Hashable, Sendable {
     /// 缺省空集 = 实际列全部隐藏；与 `hiddenOutlineColumns` 是两条独立的偏好，
     /// 因为可选列的缺省态是「不存在」，不能靠隐藏集合表达。
     public var visibleOptionalColumns: Set<String> = []
+    /// 大纲列的显示顺序（v0.16 / #12）：用户可拖拽表头重排，缺省 = `allCases`，与改动前逐列一致。
+    ///
+    /// 与列宽 / 显隐同域的应用级视图偏好：换项目保留、不进撤销栈、不置脏。
+    /// 存枚举而非 rawValue 字符串——未知值在载入层就被剔除，这里只剩已知列；
+    /// 归一化（去重 + 补齐缺失列）由 `OutlineColumnPreferences` 在读取侧完成。
+    public var columnOrder: [OutlineColumn] = OutlineColumnPreferences.defaultOrder
     /// 当前对比基线（v0.13 / 08-baselines §8）：`nil` = 不比较，基线四列与检查器基线段整体隐藏。
     ///
     /// 纯视图状态：不进撤销栈、不进基线快照、不写 `.kairo`；应用层持久化到 UserDefaults。
@@ -103,7 +109,9 @@ public struct WorkspaceViewState: Hashable, Sendable {
         hiddenOutlineColumns: Set<String> = [],
         visibleOptionalColumns: Set<String> = [],
         selectedBaselineID: UUID? = nil,
-        visibleBaselineIDs: Set<UUID> = []
+        visibleBaselineIDs: Set<UUID> = [],
+        /// 列顺序（v0.16 / #12）；追加在末尾并带默认值，既有构造点无需改动。
+        columnOrder: [OutlineColumn] = OutlineColumnPreferences.defaultOrder
     ) {
         self.mode = mode
         self.chartFocused = chartFocused
@@ -130,6 +138,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
         self.visibleOptionalColumns = visibleOptionalColumns
         self.selectedBaselineID = selectedBaselineID
         self.visibleBaselineIDs = visibleBaselineIDs
+        self.columnOrder = columnOrder
     }
 }
 

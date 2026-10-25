@@ -9,9 +9,11 @@ struct UsageError: Error, CustomStringConvertible {
 }
 
 /// \`status batch\` 的 JSON 条目：taskID 接受完整 UUID 或唯一前缀。
+/// \`cancelReason\`（v0.16）只在 status 为 cancelled 时使用；缺原因由会话层逐条拒（不中断其余条目）。
 private struct StatusBatchItem: Decodable {
     let taskID: String
     let status: String?
+    let cancelReason: String?
     let progress: Double?
 }
 
@@ -351,6 +353,8 @@ struct CLIRouter {
         let notes = o.value(for: "--notes")
         let priority = try CLIEnums.priority(o.value(for: "--priority"), language: o.language)
         let status = try CLIEnums.status(o.value(for: "--status"), language: o.language)
+        // 取消只能走 status update：task update 的写入口不落取消原因，放过就成了「无理由终态」。
+        if status == .cancelled { throw UsageError(message: s.cancelViaStatusUpdate()) }
         let progress = o.double(for: "--progress")
         let tags = o.value(for: "--tags").map(splitTags)
         let constraint = try CLIEnums.constraint(o.value(for: "--constraint"), language: o.language)
@@ -511,16 +515,25 @@ struct CLIRouter {
 
     // MARK: - status（US-E3-01 / US-E3-02）
 
-    /// kairo status update <ID> [--status] [--progress] [--file <路径>]。
+    /// kairo status update <ID> [--status] [--reason] [--progress] [--file <路径>]。
+    ///
+    /// `cancelled`（v0.16）必须配 `--reason`：缺原因或纯空白在打开文件之前就报用法错误（2），
+    /// 用户不必等 IO 才发现漏了理由。
     private static func statusUpdate(_ o: Options) throws {
         let s = o.strings
+        try o.rejectUnknown(["--status", "--reason", "--progress", "--file"])
         let rawID = try o.operand(0, name: s.operandTaskID)
         let status = try CLIEnums.status(o.value(for: "--status"), language: o.language)
+        let cancelReason = try CLIEnums.cancelReason(
+            status: status, raw: o.value(for: "--reason"), language: o.language
+        )
         let progress = o.double(for: "--progress")
         let session = KairoSession()
         try openForEdit(session, o)
         let id = try resolveTaskID(rawID, in: session, strings: s)
-        let task = try session.statusUpdate(id: id, status: status, progress: progress)
+        let task = try session.statusUpdate(
+            id: id, status: status, cancelReason: cancelReason, progress: progress
+        )
         try session.saveProject()
         o.emit(s.statusWritten(
             id: shortID(task.id),
@@ -528,6 +541,10 @@ struct CLIRouter {
             status: s.statusLabel(task.status),
             progress: Int(task.progress * 100)
         ))
+        // 回执带原因：取消之后用户要能确认「砍掉的理由」确实写进去了。
+        if let reason = task.cancelReason {
+            o.emit(s.cancelReasonLine(reason))
+        }
         if let completed = task.completedAt {
             o.emit(s.actualFinish(formatDate(completed)))
         }
@@ -568,7 +585,13 @@ struct CLIRouter {
                 let id = try resolveTaskID(item.taskID, in: session, strings: s)
                 pending.append(Pending(
                     index: index,
-                    input: .init(taskID: id, status: status, progress: item.progress),
+                    // cancelReason 原样交给会话层：批次里缺原因只拒该条，不打断其余条目。
+                    input: .init(
+                        taskID: id,
+                        status: status,
+                        cancelReason: item.cancelReason,
+                        progress: item.progress
+                    ),
                     label: shortID(id),
                     error: nil
                 ))
@@ -601,6 +624,7 @@ struct CLIRouter {
                     status: s.statusLabel(task.status),
                     progress: Int(task.progress * 100)
                 ))
+                if let reason = task.cancelReason { o.emit(s.cancelReasonLine(reason)) }
             } else {
                 failed += 1
                 o.emit(s.batchEntryFailed(
@@ -947,7 +971,8 @@ struct CLIRouter {
             priority: task.priority != .normal ? s.priorityLabel(task.priority) : nil,
             effort: task.effortHours.map(formatNumber),
             duration: task.durationDays.map(formatNumber),
-            tags: task.tags
+            tags: task.tags,
+            cancelReason: task.cancelReason
         )
     }
 
@@ -958,6 +983,8 @@ struct CLIRouter {
         lines.append(s.detailID + task.id.uuidString)
         lines.append(s.detailKind + s.kindLabel(task.kind))
         lines.append(s.detailStatus + s.statusLabel(task.status))
+        // 取消原因紧跟状态（v0.16）：有值才输出，与其它可选行同口径。
+        if let reason = task.cancelReason { lines.append(s.cancelReasonLine(reason)) }
         if let assignee = task.assignee, !assignee.isEmpty { lines.append(s.detailAssignee + assignee) }
         if task.priority != .normal { lines.append(s.detailPriority + s.priorityLabel(task.priority)) }
         if let effort = task.effortHours { lines.append(s.detailEffort + s.hoursUnit(formatNumber(effort))) }

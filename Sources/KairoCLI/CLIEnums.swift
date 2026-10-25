@@ -31,6 +31,24 @@ enum CLIEnums {
         return v
     }
 
+    /// 取消原因解析（v0.16）：转 `cancelled` 时必须给出非空白原因。
+    ///
+    /// 为什么在 CLI 侧再校验一次：终态缺原因的拒绝若等到会话层才发现，用户要先找到
+    /// 项目文件、跑完 IO 才看到「缺 --reason」，退出码也从用法错误（2）退化为运行期（1）。
+    /// 只有 `cancelled` 用得上原因，其余状态忽略该参数（原因只属于终态）。
+    static func cancelReason(
+        status: TaskStatus?,
+        raw: String?,
+        language: CLILanguage = .current
+    ) throws -> String? {
+        guard status == .cancelled else { return nil }
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else {
+            throw UsageError(message: CLIStrings(language: language).cancelReasonRequired())
+        }
+        return trimmed
+    }
+
     /// 调度策略解析（F-22-04：asap/alap）。
     static func schedulingPolicy(_ raw: String?, language: CLILanguage = .current) throws -> SchedulingPolicy? {
         guard let raw else { return nil }

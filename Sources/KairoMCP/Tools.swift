@@ -240,6 +240,14 @@ struct ToolRegistry {
         )
     ) { args, session in
         let a = try ToolArgs(args)
+        let status = try a.optionalStatus("status")
+        // 取消只能走 status_update：task_update 这条写入口不落取消原因，放过就成了「无理由终态」。
+        if status == .cancelled {
+            throw ToolError.invalidArgument(
+                reason: .cancelReasonRequired,
+                message: "task_update 不能置为 cancelled：请用 status_update 并给出 cancelReason"
+            )
+        }
         let task = try session.updateTask(
             id: a.uuid("taskID"),
             title: a.optionalString("title"),
@@ -249,7 +257,7 @@ struct ToolRegistry {
             durationDays: a.optionalDouble("durationDays"),
             notes: a.optionalString("notes"),
             priority: a.optionalPriority("priority"),
-            status: a.optionalStatus("status"),
+            status: status,
             progress: a.optionalDouble("progress"),
             tags: a.optionalStringArray("tags"),
             dependencies: try a.optionalDependencies("dependencies"),
@@ -340,20 +348,25 @@ struct ToolRegistry {
 
     private static let statusUpdate = MCPTool(
         name: "status_update",
-        description: "单任务状态/进度回写（US-E3-01/02）；状态置 done 记录完成时间，返回群组聚合完成度",
+        description: "单任务状态/进度回写（US-E3-01/02）；状态置 done 记录完成时间，"
+            + "置 cancelled（v0.16）必须给非空 cancelReason，返回群组聚合完成度",
         inputSchema: Schema.object(
             properties: [
                 "taskID": Schema.string(),
-                "status": Schema.string(enumValues: ["pending", "in_progress", "done", "blocked"]),
+                "status": Schema.string(enumValues: ["pending", "in_progress", "done", "blocked", "cancelled"]),
+                // 取消原因：status == cancelled 时必填（终态必须可回溯），其余状态忽略。
+                "cancelReason": Schema.string(),
                 "progress": Schema.number(),
             ],
             required: ["taskID"]
         )
     ) { args, session in
         let a = try ToolArgs(args)
+        let status = try a.optionalStatus("status")
         let task = try session.statusUpdate(
             id: a.uuid("taskID"),
-            status: a.optionalStatus("status"),
+            status: status,
+            cancelReason: try a.cancelReason(status: status),
             progress: a.optionalDouble("progress")
         )
         let group = try session.groupProgress(id: task.id)
@@ -369,7 +382,9 @@ struct ToolRegistry {
             properties: [
                 "tasks": Schema.arrayOf(Schema.object(properties: [
                     "taskID": Schema.string(),
-                    "status": Schema.string(enumValues: ["pending", "in_progress", "done", "blocked"]),
+                    "status": Schema.string(enumValues: ["pending", "in_progress", "done", "blocked", "cancelled"]),
+                    // 逐条取消原因：status == cancelled 的条目必填。
+                    "cancelReason": Schema.string(),
                     "progress": Schema.number(),
                 ], required: ["taskID"])),
             ],
@@ -873,12 +888,31 @@ private struct ToolArgs {
         return priority
     }
 
+    /// 状态解析。提示串保持 v0.8.5 冻结文案（Tests/Fixtures/mcp-errors-v085.json 逐字比对）；
+    /// 新增取值只进 schema 的 enum（`tools/list` 是有效值的机器可读来源），不改这条提示。
     func optionalStatus(_ key: String) throws -> TaskStatus? {
         guard let raw = dict[key]?.stringValue else { return nil }
         guard let status = TaskStatus(rawValue: raw) else {
             throw ToolError.invalidArgument(reason: .mcpInvalidEnum, message: "参数 \(key) 非法：\(raw)（pending/in_progress/done/blocked）")
         }
         return status
+    }
+
+    /// 取消原因：`status == .cancelled` 时必须非空白，其余状态忽略（原因只属于终态）。
+    ///
+    /// 单条工具靠会话层拦（SessionError 的细码原样透出）；
+    /// 批次条目没有码位，只能在解析期拒——与「条目格式非法即整请求失败」同一档。
+    func cancelReason(status: TaskStatus?, key: String = "cancelReason") throws -> String? {
+        guard status == .cancelled else { return nil }
+        let raw = dict[key]?.stringValue
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else {
+            throw ToolError.invalidArgument(
+                reason: .cancelReasonRequired,
+                message: "状态置为 cancelled 时必须提供非空 \(key)"
+            )
+        }
+        return trimmed
     }
 
     func optionalResourceKind(_ key: String) throws -> ResourceKind? {
@@ -915,9 +949,11 @@ private struct ToolArgs {
             } else {
                 status = nil
             }
+            // 批次条目没有错误码位：cancelled 缺原因在此拒绝，细码与单条工具一致。
             return KairoSession.StatusUpdateInput(
                 taskID: uuid,
                 status: status,
+                cancelReason: try ToolArgs(item).cancelReason(status: status),
                 progress: obj["progress"]?.doubleValue
             )
         }

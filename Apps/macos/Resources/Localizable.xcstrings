@@ -103,6 +103,23 @@
         }
       }
     },
+    "action.confirm_cancel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark Cancelled"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标记为已取消"
+          }
+        }
+      }
+    },
     "action.copy_task_link": {
       "extractionState": "manual",
       "localizations": {
@@ -545,6 +562,23 @@
         }
       }
     },
+    "action.restore_pending": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore to Pending"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复为待办"
+          }
+        }
+      }
+    },
     "action.save_and_open": {
       "extractionState": "manual",
       "localizations": {
@@ -592,6 +626,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "切换"
+          }
+        }
+      }
+    },
+    "alert.cancel_reason_required": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a reason for cancelling"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请填写取消原因"
           }
         }
       }
@@ -2837,6 +2888,74 @@
         }
       }
     },
+    "inspector.cancel_reason.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please enter a reason for cancelling"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请填写取消原因"
+          }
+        }
+      }
+    },
+    "inspector.cancel_reason.message": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ will be marked as cancelled and removed from the schedule. A reason is required."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ 将标记为已取消并从排期中移除。取消原因必填。"
+          }
+        }
+      }
+    },
+    "inspector.cancel_reason.placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Why is this task cancelled?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "填写取消原因（必填）"
+          }
+        }
+      }
+    },
+    "inspector.cancel_reason.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel task"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消任务"
+          }
+        }
+      }
+    },
     "inspector.dependency.ff": {
       "extractionState": "manual",
       "localizations": {
@@ -3054,6 +3173,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "尽快开始（ASAP）"
+          }
+        }
+      }
+    },
+    "inspector.field.cancel_reason": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel reason"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消原因"
           }
         }
       }
@@ -5574,6 +5710,40 @@
         }
       }
     },
+    "outline.column_order.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag the column header to reorder columns"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拖动列头可调整列顺序"
+          }
+        }
+      }
+    },
+    "outline.column_order.reset": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset Column Order"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置列顺序"
+          }
+        }
+      }
+    },
     "outline.column_toggle.label": {
       "extractionState": "manual",
       "localizations": {
@@ -6148,6 +6318,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "阻塞"
+          }
+        }
+      }
+    },
+    "outline.status.cancelled": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelled"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已取消"
           }
         }
       }

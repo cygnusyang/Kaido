@@ -34,6 +34,8 @@ public enum KairoErrorCode: String, Codable, Hashable, Sendable, CaseIterable {
     case baselineNameEmpty = "model_baseline_name_empty"
     /// v0.14 / 10-multi-baseline-gantt §4：颜色索引越界（合法范围 0…BaselinePalette.count-1）。
     case baselineColorIndexInvalid = "model_baseline_color_index_invalid"
+    /// v0.16 / 已取消终态：转 `cancelled` 未给非空原因（终态必须可回溯）。
+    case cancelReasonRequired = "model_cancel_reason_required"
 
     // MARK: - schedule（排期、时限与违例）
 

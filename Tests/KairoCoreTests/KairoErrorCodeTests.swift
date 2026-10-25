@@ -50,15 +50,17 @@ struct KairoErrorCodeTests {
     /// 「资源不存在」原先无码可落，硬塞单位/效率码会错误归因；
     /// 含 v0.12 新增的 model_actual_date_order_invalid：实际时间顺序非法；
     /// 含 v0.13 新增的 model_baseline_not_found / model_baseline_name_empty：基线查找与命名；
-    /// 含 v0.14 新增的 model_baseline_color_index_invalid：基线改色的索引越界）。
+    /// 含 v0.14 新增的 model_baseline_color_index_invalid：基线改色的索引越界；
+    /// 含 v0.16 新增的 model_cancel_reason_required：转已取消未给原因）。
     @Test func modelCodesCoverSessionValidationSites() {
         let modelCodes = KairoErrorCode.allCases.filter { $0.rawValue.hasPrefix("model_") }
-        #expect(modelCodes.count == 15, "model 码应为 15 个，实际 \(modelCodes.count)")
+        #expect(modelCodes.count == 16, "model 码应为 16 个，实际 \(modelCodes.count)")
         #expect(KairoErrorCode.resourceNotFound.rawValue == "model_resource_not_found")
         #expect(KairoErrorCode.actualDateOrderInvalid.rawValue == "model_actual_date_order_invalid")
         #expect(KairoErrorCode.baselineNotFound.rawValue == "model_baseline_not_found")
         #expect(KairoErrorCode.baselineNameEmpty.rawValue == "model_baseline_name_empty")
         #expect(KairoErrorCode.baselineColorIndexInvalid.rawValue == "model_baseline_color_index_invalid")
+        #expect(KairoErrorCode.cancelReasonRequired.rawValue == "model_cancel_reason_required")
     }
 
     /// 违例相关 8 个码齐全（F-0704 / F-0715 的判据前置）。

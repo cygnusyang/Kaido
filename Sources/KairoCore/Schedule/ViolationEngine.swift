@@ -45,6 +45,8 @@ public enum ViolationEngine {
         .init(code: "task_starts_outside_project_window", severity: .error)
     ]
 
+    /// 已取消任务不会出现在 `result.tasks`（`ScheduleEngine` 在入口就滤掉它们），
+    /// 因此本引擎对它们天然零违例——「决定不做」不该持续挂红（v0.16）。
     public static func check(
         result: ScheduleResult,
         tasks: [TaskItem],

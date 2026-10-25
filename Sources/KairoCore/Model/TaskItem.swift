@@ -1,8 +1,15 @@
 import Foundation
 
 /// Task status in a Kairo project.
+///
+/// `cancelled` 是「决定不做」的终态（v0.16）：任务留在项目里可追溯，但不占排期、
+/// 不进进度分母、不产生违例。用 `blocked` 冒充会让逾期与关键路径一直报错，
+/// 所以它是独立取值而不是 blocked 的修饰。新用例一律追加在末尾——`allCases` 顺序
+/// 就是界面状态菜单顺序。
 public enum TaskStatus: String, Codable, CaseIterable, Sendable {
     case pending, inProgress = "in_progress", done, blocked
+    /// 已取消（终态）：任务不再推进；取消原因见 `TaskItem.cancelReason`。
+    case cancelled
 }
 
 /// Priority of a task.
@@ -45,6 +52,9 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     public var actualStart: Date?
     /// 资源分配（F-22-08 / ADR-009）：任务↔资源分配列表；供投入↔持续时间换算。
     public var assignments: [TaskAssignment]
+    /// 取消原因（v0.16）：仅在 `status == .cancelled` 时非 nil，离开该状态即清空。
+    /// 「决定不做」必须留理由，否则终态无法回溯是谁、为什么砍掉。
+    public var cancelReason: String?
 
     public init(
         id: UUID = UUID(),
@@ -66,7 +76,8 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         schedulingPolicy: SchedulingPolicy = .asap,
         completedAt: Date? = nil,
         assignments: [TaskAssignment] = [],
-        actualStart: Date? = nil
+        actualStart: Date? = nil,
+        cancelReason: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -88,10 +99,13 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         self.completedAt = completedAt
         self.assignments = assignments
         self.actualStart = actualStart
+        self.cancelReason = cancelReason
     }
 
+    /// 逾期判据：有截止日期、且既未完成也未取消。
+    /// 已取消的任务决定不做，不存在「赶不上」的语义（v0.16）。
     public var isOverdue: Bool {
-        guard let due = dueDate, status != .done else { return false }
+        guard let due = dueDate, status != .done, status != .cancelled else { return false }
         return due < Date()
     }
 
@@ -101,6 +115,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         case id, title, notes, startDate, dueDate, priority, status, tags, assignee
         case kind, parentID, effortHours, durationDays, dependencies, progress
         case constraint, schedulingPolicy, completedAt, assignments, actualStart
+        case cancelReason
     }
 
     public init(from decoder: Decoder) throws {
@@ -135,6 +150,8 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         assignments = try c.decodeIfPresent([TaskAssignment].self, forKey: .assignments) ?? []
         // v0.12 新增：旧文件缺键 → nil，格式版本不变（ADR-011）。
         actualStart = try c.decodeIfPresent(Date.self, forKey: .actualStart)
+        // v0.16 新增：同上，不升 formatVersion。
+        cancelReason = try c.decodeIfPresent(String.self, forKey: .cancelReason)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -159,5 +176,6 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         try c.encodeIfPresent(completedAt, forKey: .completedAt)
         try c.encode(assignments, forKey: .assignments)
         try c.encodeIfPresent(actualStart, forKey: .actualStart)
+        try c.encodeIfPresent(cancelReason, forKey: .cancelReason)
     }
 }

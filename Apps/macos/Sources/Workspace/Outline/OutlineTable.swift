@@ -104,6 +104,19 @@ struct OutlineColumnLayout {
         return boundaries
     }
 
+    /// 各列中点（点，相对大纲左缘）与列顺序一一对应：表头拖拽重排的落点判定用。
+    ///
+    /// 中点而非边界：落点在左半区就排到该列之前、右半区排到之后，
+    /// 与 Excel / 表格类应用的拖拽手感一致；边界判定在列窄时（18pt 图标列）会过于灵敏。
+    func columnMidpoints() -> [(column: OutlineColumn, midX: CGFloat)] {
+        var edge: CGFloat = 0
+        return columns.map { column in
+            let width = width(of: column)
+            defer { edge += width }
+            return (column, edge + width / 2)
+        }
+    }
+
     /// 行首重排握把的左缘（点，相对大纲左缘）：优先序号列——该格无交互，单击即选中，
     /// 覆盖它不损失任何操作；聚焦标签栏没有序号列时退到违例列（图标列同样无交互）。
     /// 状态列只有 18pt 且有菜单，任何情况下都不做握把宿主。
@@ -144,6 +157,20 @@ enum OutlineColumnResizeMetrics {
 enum OutlineReorderMetrics {
     /// 握把宽度（点）：窄于 12pt 按不住，宽于 16pt 会吃掉序号列的可读宽度。
     static let gripWidth: CGFloat = 12
+
+    /// 表头拖拽重排的启动位移（点）：与列交界热区同值 8pt（D-033）。
+    ///
+    /// 小于该值的按下松手仍按单击处理——否则「点了下列头」会被当成一次 0 位移重排。
+    static let minimumDrag: CGFloat = 8
+
+    /// 插入位置竖线宽度（点）。
+    static let insertionLineWidth: CGFloat = 2
+}
+
+/// 表头拖拽重排的坐标空间（v0.16 / #12）：落点要换算成「相对大纲左缘的 x」，
+/// 只能是表头自身命名空间——手势挂在单元格上，用 .local 会得到单元格内的相对坐标。
+enum OutlineHeaderSpace {
+    static let name = "kairo.outline.header"
 }
 
 /// 大纲表头：列标题 + 每列右缘的调宽手柄 + 右键列显隐菜单（F-14-20）。
@@ -159,6 +186,16 @@ struct OutlineHeaderView: View {
     let onResizeEnded: (Bool) -> Void
     let onResizeReset: (OutlineColumn) -> Void
     let onToggleColumn: (OutlineColumn) -> Void
+    /// 拖拽重排落点（v0.16 / #12）：参数为（被拖列，插入下标）。
+    /// 下标语义见 `OutlineColumnPreferences.movedOrder(_:visible:moving:toInsertionIndex:)`。
+    let onMoveColumn: (OutlineColumn, Int) -> Void
+    /// 右键「重置列顺序」：回到 `OutlineColumnPreferences.defaultOrder`。
+    let onResetColumnOrder: () -> Void
+
+    /// 正在被拖的列（nil = 未在重排）：拖动时置灰自身、显示插入位置竖线。
+    @State private var dragging: OutlineColumn?
+    /// 拖动中的落点 x（点，相对大纲左缘）。
+    @State private var dropX: CGFloat?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -169,6 +206,14 @@ struct OutlineHeaderView: View {
                     .lineLimit(1)
                     .padding(.horizontal, 4)
                     .frame(width: layout.width(of: column), alignment: .leading)
+                    // 分界：列头中部拖 = 重排（v0.16），右缘 8pt 拖 = 调宽（overlay 在上层，
+                    // highPriorityGesture 先拿到命中，两套手势不抢）。
+                    .contentShape(Rectangle())
+                    .opacity(dragging == column ? 0.45 : 1)
+                    // 聚焦标签栏不提供重排：那里列集合恒为三列、不受用户顺序影响，
+                    // 拖动只会改到看不见的全局偏好（拖了没反应，却悄悄改了别的标签页）。
+                    .gesture(reorderGesture(column), including: layout.focused ? .none : .all)
+                    .help(I18n.t("outline.column_order.help", "Drag the column header to reorder columns"))
                     .overlay(alignment: .trailing) {
                         // 聚焦标签栏不提供调宽；末列手柄内缩一个热区，避开大纲右边界手柄。
                         if OutlineColumnPreferences.isResizable(column), !layout.focused {
@@ -183,16 +228,68 @@ struct OutlineHeaderView: View {
                     }
             }
         }
+        // 手势落点要相对大纲左缘，命名空间只能挂在表头自身（见 `OutlineHeaderSpace`）。
+        .coordinateSpace(name: OutlineHeaderSpace.name)
         .frame(maxHeight: .infinity, alignment: .bottom)
         .padding(.bottom, 4)
         // leading 锚定 + 裁切：列宽总和超过大纲宽时从右侧裁切，与行列表的 topLeading 一致。
         .frame(width: layout.totalWidth, alignment: .topLeading)
         .clipped()
+        .overlay(alignment: .topLeading) { insertionLine }
         .background(DesignTokens.surfaceChrome)
         .contextMenu { columnMenu }
     }
 
+    /// 插入位置竖线：拖动中显示，落在「松手后该列会占据的左缘」。
+    @ViewBuilder
+    private var insertionLine: some View {
+        if dragging != nil, let dropX {
+            Rectangle()
+                .fill(DesignTokens.accentStrong)
+                .frame(width: OutlineReorderMetrics.insertionLineWidth)
+                .offset(x: clampedDropX(dropX))
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// 竖线夹取到表头范围内（半宽内缩），避免贴边时被 `.clipped()` 裁掉半条。
+    private func clampedDropX(_ x: CGFloat) -> CGFloat {
+        let half = OutlineReorderMetrics.insertionLineWidth / 2
+        return min(max(x - half, 0), max(layout.totalWidth - OutlineReorderMetrics.insertionLineWidth, 0))
+    }
+
+    /// 表头中部拖拽 = 重排：位移不足 `minimumDrag` 不启动（仍是单击语义）。
+    private func reorderGesture(_ column: OutlineColumn) -> some Gesture {
+        DragGesture(
+            minimumDistance: OutlineReorderMetrics.minimumDrag,
+            coordinateSpace: .named(OutlineHeaderSpace.name)
+        )
+        .onChanged { value in
+            dragging = column
+            dropX = value.location.x
+        }
+        .onEnded { value in
+            let index = insertionIndex(at: value.location.x, excluding: column)
+            let moved = dragging
+            dragging = nil
+            dropX = nil
+            guard let moved else { return }
+            onMoveColumn(moved, index)
+        }
+    }
+
+    /// 落点 → 插入下标：中点为分界，且**不含被拖列**（拖动期间列宽不变，位置可直接复用）。
+    private func insertionIndex(at x: CGFloat, excluding column: OutlineColumn) -> Int {
+        let midpoints = layout.columnMidpoints()
+            .filter { $0.column != column }
+            .map { Double($0.midX) }
+        return OutlineColumnPreferences.insertionIndex(dropX: Double(x), midpoints: midpoints)
+    }
+
     /// 列显隐菜单：序号/任务说明固定显示，不出现在开关列表（`configurable` 已排除）。
+    ///
+    /// 末尾固定一条「重置列顺序」：拖乱之后必须有出口，否则只能逐列往回拖（且拖不回被隐藏列的槽位）。
+    @ViewBuilder
     private var columnMenu: some View {
         ForEach(OutlineColumnPreferences.toggleable, id: \.self) { column in
             Toggle(isOn: Binding(
@@ -202,6 +299,10 @@ struct OutlineHeaderView: View {
                 // 标签只写列名：勾选态本身表达显示/隐藏。
                 Text(I18n.t("outline.column_toggle.label", "%1$@ column", Display.outlineColumnTitle(column)))
             }
+        }
+        Divider()
+        Button(I18n.t("outline.column_order.reset", "Reset Column Order")) {
+            onResetColumnOrder()
         }
     }
 
@@ -596,7 +697,10 @@ private struct OutlineRowView: View {
 
     private var statusCell: some View {
         Menu {
-            ForEach(TaskStatus.allCases, id: \.self) { status in
+            // 「已取消」需要填原因，检查器里有专门的弹层；行内菜单是「一点即改」的快速通道，
+            // 在这里直接提交会被会话以 model_cancel_reason_required 拒绝（点了报错）。先不在行内
+            // 提供该项，取消统一走检查器（v0.16.0 已知限制，见 defects D-037）。
+            ForEach(TaskStatus.allCases.filter { $0 != .cancelled }, id: \.self) { status in
                 Button {
                     store.dispatch(.setStatus(row.id, status))
                 } label: {
@@ -627,6 +731,7 @@ private struct OutlineRowView: View {
         case .inProgress: return DesignTokens.accentStrong
         case .blocked: return DesignTokens.violationWarning
         case .done: return DesignTokens.statusSuccess
+        case .cancelled: return DesignTokens.textSecondary
         }
     }
 

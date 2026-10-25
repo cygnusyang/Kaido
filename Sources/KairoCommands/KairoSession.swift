@@ -69,6 +69,8 @@ public struct TaskPatch: Sendable {
     public var notes: String?
     public var priority: TaskPriority?
     public var status: TaskStatus?
+    /// 取消原因：仅当 `status == .cancelled` 时使用，缺失即拒绝该次补丁。
+    public var cancelReason: String?
     public var progress: Double?
     public var tags: [String]?
     public var kind: TaskKind?
@@ -323,6 +325,13 @@ public final class KairoSession {
         if let parentID, project.tasksByID[parentID] == nil {
             throw SessionError(code: .invalidArgument, reason: .parentNotFound, message: "父任务不存在", taskID: parentID)
         }
+        // 终态只能由状态回写进入：新建即 cancelled 必然缺原因，拒绝而不是落一条不可回溯的记录。
+        if status == .cancelled {
+            throw Self.cancelReasonRequired(
+                taskID: nil,
+                message: "新建任务不能直接为已取消（请先建任务，再以原因回写状态）"
+            )
+        }
         promoteToGroupIfNeeded(parentID, in: project)
         try validate(assignments: assignments, in: project)
         let task = TaskItem(
@@ -432,6 +441,15 @@ public final class KairoSession {
         if let progress = patch.progress, !(0...1).contains(progress) {
             throw SessionError(code: .invalidArgument, reason: .progressOutOfRange, message: "进度必须介于 0 与 1 之间", taskID: id)
         }
+        // 与 statusUpdate 同一约束：补丁把状态改成 cancelled 时也必须给原因，
+        // 校验放在任何字段写入之前——失败即返回，不留半改记录。
+        var cancelReason: String?
+        if patch.status == .cancelled {
+            guard let trimmed = Self.normalizedCancelReason(patch.cancelReason) else {
+                throw Self.cancelReasonRequired(taskID: id)
+            }
+            cancelReason = trimmed
+        }
         var task = project.tasks[index]
         if let title = patch.title { task.title = title }
         if let notes = patch.notes { task.notes = notes }
@@ -455,7 +473,10 @@ public final class KairoSession {
         Self.apply(patch.effortHours, to: &task.effortHours)
         Self.apply(patch.durationDays, to: &task.durationDays)
         Self.apply(patch.constraint, to: &task.constraint)
-        Self.applyStatus(status: patch.status, progress: patch.progress, now: Date(), to: &task)
+        Self.applyStatus(
+            status: patch.status, progress: patch.progress,
+            cancelReason: cancelReason, now: Date(), to: &task
+        )
         // 仅父级实际变更时校验与提升，避免逐键更新做全量子树遍历。
         if case .set = patch.parentID {
             try validateParent(of: task, id: id, in: project)
@@ -766,11 +787,16 @@ public final class KairoSession {
     /// 首次开工（并入 in_progress 或进度 > 0）记录实际开始；
     /// 进度超出 0...1 拒绝并返回参数错误（US-E3-01 验收）。
     ///
+    /// 已取消终态（v0.16）：转入 `cancelled` 必须给非空 `cancelReason`——缺省或纯空白
+    /// 一律拒绝（`model_cancel_reason_required`），任务不被修改；写入前按首尾去空白归一。
+    /// 转入 `cancelled` 清空实际结束；离开 `cancelled` 清空原因；原因只属于该状态。
+    ///
     /// - Parameter now: 实际时间戳来源（默认当前时刻）。测试一律注入，不读墙钟。
     @discardableResult
     public func statusUpdate(
         id: UUID,
         status: TaskStatus? = nil,
+        cancelReason: String? = nil,
         progress: Double? = nil,
         now: Date = Date()
     ) throws -> TaskItem {
@@ -781,8 +807,16 @@ public final class KairoSession {
         if let progress, !(0...1).contains(progress) {
             throw SessionError(code: .invalidArgument, reason: .progressOutOfRange, message: "进度必须介于 0 与 1 之间", taskID: id)
         }
+        // 取消原因只为终态而存在：进入 cancelled 先校验，失败即返回、不落库。
+        var reason: String?
+        if status == .cancelled {
+            guard let trimmed = Self.normalizedCancelReason(cancelReason) else {
+                throw Self.cancelReasonRequired(taskID: id)
+            }
+            reason = trimmed
+        }
         var task = project.tasks[index]
-        Self.applyStatus(status: status, progress: progress, now: now, to: &task)
+        Self.applyStatus(status: status, progress: progress, cancelReason: reason, now: now, to: &task)
         project.tasks[index] = task
         markChanged()
         return task
@@ -821,6 +855,8 @@ public final class KairoSession {
             task.completedAt = date
             task.status = .done
             task.progress = 1
+            // 与 statusUpdate 同语义：离开 cancelled 即清原因（实际结束是完成而非取消）。
+            task.cancelReason = nil
         }
     }
 
@@ -851,25 +887,60 @@ public final class KairoSession {
         return task
     }
 
+    /// 取消原因归一：去首尾空白后仍非空才算填了理由（纯空白等于没写）。
+    private static func normalizedCancelReason(_ raw: String?) -> String? {
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else { return nil }
+        return trimmed
+    }
+
+    /// 缺取消原因的拒绝（终态必须可回溯，否则无法回答「为什么不做」）。
+    private static func cancelReasonRequired(
+        taskID: UUID?,
+        message: String = "转为已取消时必须填写取消原因"
+    ) -> SessionError {
+        SessionError(
+            code: .invalidArgument,
+            reason: .cancelReasonRequired,
+            message: message,
+            taskID: taskID
+        )
+    }
+
     /// 统一状态回写入口（07-actual-dates §3 的唯一触发点）：
     /// - `done`（含进度达 1）→ 实际结束 = now、进度 1；离开 `done` 清空实际结束；
+    /// - `cancelled` → 清空实际结束、写入取消原因（非空由调用方先校验），离开即清原因；
     /// - 并入 `.inProgress` 或进度 > 0 且尚无实际开始 → 实际开始 = now；
     /// - 实际开始只在 nil 时写（首次为准），回退状态不清空；
-    /// - 从 pending/blocked 直跳 `done` 不补实际开始（不臆造未观测到的开工时刻）。
-    private static func applyStatus(status: TaskStatus?, progress: Double?, now: Date, to task: inout TaskItem) {
+    /// - 从 pending/blocked 直跳 `done` 不补实际开始（不臆造未观测到的开工时刻）；
+    /// - 已取消任务忽略进度回写：终态不会因 progress 达 1 悄悄变成 done。
+    private static func applyStatus(
+        status: TaskStatus?,
+        progress: Double?,
+        cancelReason: String?,
+        now: Date,
+        to task: inout TaskItem
+    ) {
         if let status {
             task.status = status
-            if status == .done {
+            switch status {
+            case .done:
                 task.progress = 1
                 if task.completedAt == nil { task.completedAt = now }
-            } else {
+            case .cancelled:
+                // 没做完就没有完成时刻；实际开始不清（已发生的开工是历史事实）。
                 task.completedAt = nil
-                if status == .inProgress, task.actualStart == nil {
-                    task.actualStart = now
-                }
+                task.cancelReason = cancelReason
+            case .inProgress:
+                task.completedAt = nil
+                if task.actualStart == nil { task.actualStart = now }
+            case .pending, .blocked:
+                task.completedAt = nil
             }
+            // 原因只属于 cancelled：离开时清空，避免半改状态残留。
+            if status != .cancelled { task.cancelReason = nil }
         }
-        if let progress, task.status != .done {
+        if let progress, task.status != .done, task.status != .cancelled {
             task.progress = min(max(progress, 0), 1)
             if task.progress >= 1 {
                 task.progress = 1
@@ -888,11 +959,19 @@ public final class KairoSession {
     public struct StatusUpdateInput: Sendable {
         public var taskID: UUID
         public var status: TaskStatus?
+        /// 取消原因（转 `cancelled` 时必填，其余状态忽略）。
+        public var cancelReason: String?
         public var progress: Double?
 
-        public init(taskID: UUID, status: TaskStatus? = nil, progress: Double? = nil) {
+        public init(
+            taskID: UUID,
+            status: TaskStatus? = nil,
+            cancelReason: String? = nil,
+            progress: Double? = nil
+        ) {
             self.taskID = taskID
             self.status = status
+            self.cancelReason = cancelReason
             self.progress = progress
         }
     }
@@ -933,6 +1012,7 @@ public final class KairoSession {
                 let task = try statusUpdate(
                     id: update.taskID,
                     status: update.status,
+                    cancelReason: update.cancelReason,
                     progress: update.progress
                 )
                 entries.append(.init(taskID: update.taskID, ok: true, task: task))
@@ -952,7 +1032,8 @@ public final class KairoSession {
         guard let task = project.tasksByID[id] else {
             throw SessionError(code: .taskNotFound, reason: .taskNotFound, message: "任务不存在", taskID: id)
         }
-        let leaves = leafDescendants(of: id, in: project)
+        // 已取消的叶子不进加权分母（终态不参与完成度）：整棵子树都取消时回退群组自身进度。
+        let leaves = leafDescendants(of: id, in: project).filter { $0.status != .cancelled }
         guard !leaves.isEmpty else { return task.progress }
         let total = leaves.reduce(0.0) { $0 + ($1.effortHours ?? 1) }
         let done = leaves.reduce(0.0) { $0 + ($1.effortHours ?? 1) * $1.progress }

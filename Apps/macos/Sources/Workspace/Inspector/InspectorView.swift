@@ -178,6 +178,8 @@ private struct TaskInspectorContent: View {
     let task: TaskInspector
 
     @State private var showingDependencyPicker = false
+    /// 取消原因弹层：选「已取消」时先填原因，确认后才提交（v0.16 D）。
+    @State private var showingCancelReason = false
 
     var body: some View {
         if task.isAggregate {
@@ -204,7 +206,7 @@ private struct TaskInspectorContent: View {
                 Menu {
                     ForEach(TaskStatus.allCases, id: \.self) { status in
                         Button {
-                            store.dispatch(.setStatus(task.taskID, status))
+                            select(status)
                         } label: {
                             Label(Display.statusTitle(status), systemImage: Display.statusSymbol(status))
                         }
@@ -214,6 +216,22 @@ private struct TaskInspectorContent: View {
                 }
                 .menuStyle(.borderlessButton)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            // 已取消终态：原因只读展示 + 一键恢复待办（离开该状态即清原因）。
+            if task.status == .cancelled {
+                FieldRow(label: I18n.t("inspector.field.cancel_reason", "Cancel reason")) {
+                    readOnly(task.cancelReason ?? "—")
+                }
+                Button {
+                    store.dispatch(.setStatus(task.taskID, .pending))
+                } label: {
+                    Label(
+                        I18n.t("action.restore_pending", "Restore to Pending"),
+                        systemImage: "arrow.uturn.backward"
+                    )
+                    .font(.system(size: DesignTokens.captionFontSize))
+                }
+                .buttonStyle(.link)
             }
             FieldRow(label: I18n.t("inspector.field.priority", "Priority")) {
                 Menu {
@@ -514,6 +532,24 @@ private struct TaskInspectorContent: View {
                 showingDependencyPicker = false
             }
         }
+        .sheet(isPresented: $showingCancelReason) {
+            CancelReasonDialog(taskTitle: task.title) { reason in
+                // 原因非空由弹层保证；应用层再校验一次（同一口径，不重复提示）。
+                store.dispatch(.cancelTask(task.taskID, reason: reason))
+                showingCancelReason = false
+            }
+        }
+    }
+
+    /// 状态选择：转「已取消」必须先填原因（v0.16 D），其余状态一次点击直写。
+    ///
+    /// 已在已取消状态再选已取消不重复弹层——原因已经存在，无需重填。
+    private func select(_ status: TaskStatus) {
+        guard status == .cancelled, task.status != .cancelled else {
+            store.dispatch(.setStatus(task.taskID, status))
+            return
+        }
+        showingCancelReason = true
     }
 
     // MARK: - 日期字段

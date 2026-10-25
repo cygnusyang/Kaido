@@ -99,10 +99,30 @@ struct CLIStrings: Sendable {
         )
     }
 
+    /// 无效状态的提示列出全部取值（v0.16 起含 cancelled）。
+    ///
+    /// CLI 是人类出口，提示缺一个合法取值就等于把人引到错路上；MCP 侧同一提示串被
+    /// v0.8.5 基线逐字冻结，只在新 schema 的 enum 里加值，故两边文案不追求逐字相同。
     func invalidStatus(_ raw: String) -> String {
         t(
-            "无效状态：\(raw)（可选 pending/in_progress/done/blocked）",
-            "invalid status: \(raw) (expected pending/in_progress/done/blocked)"
+            "无效状态：\(raw)（可选 pending/in_progress/done/blocked/cancelled）",
+            "invalid status: \(raw) (expected pending/in_progress/done/blocked/cancelled)"
+        )
+    }
+
+    /// 转「已取消」却没给理由（v0.16）：终态必须可回溯，缺原因在用法层就拦下。
+    func cancelReasonRequired() -> String {
+        t(
+            "转为已取消时必须用 --reason 给出取消原因（不能为空）",
+            "cancelling a task requires a non-empty --reason"
+        )
+    }
+
+    /// `task update` 不能置为已取消：那条路径不记录原因，指向唯一正确的入口。
+    func cancelViaStatusUpdate() -> String {
+        t(
+            "取消任务请用 status update <任务 ID> --status cancelled --reason <原因>",
+            "use status update <task ID> --status cancelled --reason <reason> to cancel a task"
         )
     }
 
@@ -403,6 +423,12 @@ struct CLIStrings: Sendable {
         )
     }
 
+    /// 取消原因行（v0.16）：回执与详情共用同一措辞，避免两处口径漂移。
+    /// 任务不是「已取消」时不输出该行——原因只属于终态。
+    func cancelReasonLine(_ reason: String) -> String {
+        t("取消原因：\(reason)", "cancel reason: \(reason)")
+    }
+
     /// 实际开始（07-actual-dates §8）：与「实际结束」成对出现，措辞统一为「实际」。
     func actualStart(_ timestamp: String) -> String {
         t("实际开始：\(timestamp)", "actual start: \(timestamp)")
@@ -456,11 +482,14 @@ struct CLIStrings: Sendable {
         priority: String?,
         effort: String?,
         duration: String?,
-        tags: [String]
+        tags: [String],
+        cancelReason: String? = nil
     ) -> String {
         var parts: [String] = [id, title]
         if let kind { parts.append("[\(kind)]") }
         var extras: [String] = [status]
+        // 原因紧跟状态：读到「已取消」就能立刻看到为什么（v0.16）。
+        if let cancelReason { extras.append(t("原因：\(cancelReason)", "reason: \(cancelReason)")) }
         if let priority { extras.append(priority) }
         if let effort { extras.append(t("投入 \(effort) 小时", "effort \(effort) h")) }
         if let duration {
@@ -697,6 +726,7 @@ struct CLIStrings: Sendable {
         case .inProgress: return t("进行中", "in progress")
         case .done: return t("已完成", "done")
         case .blocked: return t("阻塞", "blocked")
+        case .cancelled: return t("已取消", "cancelled")
         }
     }
 

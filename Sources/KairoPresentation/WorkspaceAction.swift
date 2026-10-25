@@ -43,6 +43,11 @@ public enum WorkspaceAction: Equatable, Sendable {
     case setOutlineColumnWidth(OutlineColumn, Double?)
     /// 大纲列显隐切换（F-14-20）：序号/任务说明直接忽略；不产生撤销点。
     case toggleOutlineColumn(OutlineColumn)
+    /// 大纲列顺序（v0.16 / #12）：拖拽表头重排后的完整顺序，或「重置列顺序」传入默认顺序。
+    ///
+    /// 固定列（序号 / 任务说明）不参与显隐但**可以**换位置；写入前由应用层归一化
+    /// （去重 + 补齐缺失列），不产生撤销点、不置脏。
+    case setOutlineColumnOrder([OutlineColumn])
 
     // 基线（v0.13 / 08-baselines §8）
     /// 切换对比基线：`nil` = 不比较；纯视图状态（不产生撤销点、不置脏、不写文件）。
@@ -65,6 +70,12 @@ public enum WorkspaceAction: Equatable, Sendable {
     case createSibling(after: UUID)
     case rename(UUID, String)
     case setStatus(UUID, TaskStatus)
+    /// 状态改为「已取消」（v0.16 D）：`reason` 必须是非空白文本。
+    ///
+    /// 与 `setStatus` 分开的原因：原因只属于该终态，请求必须带着它一起提交。
+    /// 空白原因由应用层先拦（提示、不写库），会话层再兜一次
+    /// `model_cancel_reason_required`；成功写入时按首尾去空白归一。
+    case cancelTask(UUID, reason: String)
     case setPriority(UUID, TaskPriority)
     case setNotes(UUID, String)
     case setProgress(UUID, Double)

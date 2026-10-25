@@ -4,6 +4,8 @@ import Foundation
 ///
 /// 口径：
 /// - 叶子任务 = `kind != .group` 且无子项；群组不计入进度与占比分母。
+/// - 已取消（`cancelled`）的叶子不进加权总进度与健康占比分母，也不算逾期：
+///   「决定不做」既不该拖低完成度，也不该一直挂红（v0.16）。
 /// - 加权总进度按 `effortHours` 加权，缺失投入按权重 1。
 /// - 逾期 = 未完成且计划结束早于今天；无有效排期时退回 `dueDate`。
 /// - 健康占比的分母固定为未完成叶子任务。
@@ -40,7 +42,9 @@ public struct ProjectSummary: Codable, Hashable, Sendable {
     ) {
         let parentIDs = Set(tasks.compactMap(\.parentID))
         let leaves = tasks.filter { $0.kind != .group && !parentIDs.contains($0.id) }
-        let incompleteLeaves = leaves.filter { $0.status != .done }
+        // 已取消的叶子退出加权与逾期口径；taskCount / groupCount 等库存计数仍含它们。
+        let activeLeaves = leaves.filter { $0.status != .cancelled }
+        let incompleteLeaves = activeLeaves.filter { $0.status != .done }
         // 排期索引：避免逐任务线性查找导致 O(n²)。
         let scheduledByID = Dictionary(
             uniqueKeysWithValues: (schedule?.tasks ?? []).map { ($0.taskID, $0) }
@@ -59,9 +63,9 @@ public struct ProjectSummary: Codable, Hashable, Sendable {
         let weight = { (task: TaskItem) -> Double in
             max(task.effortHours ?? 1, 0)
         }
-        let totalWeight = leaves.reduce(0) { $0 + weight($1) }
+        let totalWeight = activeLeaves.reduce(0) { $0 + weight($1) }
         totalProgress = totalWeight > 0
-            ? min(max(leaves.reduce(0) { $0 + weight($1) * $1.progress } / totalWeight, 0), 1)
+            ? min(max(activeLeaves.reduce(0) { $0 + weight($1) * $1.progress } / totalWeight, 0), 1)
             : 0
 
         let today = calendar.startOfDay(for: now)
@@ -78,7 +82,7 @@ public struct ProjectSummary: Codable, Hashable, Sendable {
         errorCount = violations.filter { $0.severity == .error }.count
         warningCount = violations.filter { $0.severity == .warning }.count
 
-        criticalPathCount = leaves.filter { task in
+        criticalPathCount = activeLeaves.filter { task in
             guard let scheduled = validSchedule(task.id), scheduled.durationDays > 0 else { return false }
             return abs(scheduled.totalSlackDays) < 0.0001
         }.count
@@ -118,7 +122,8 @@ public struct ProjectSummary: Codable, Hashable, Sendable {
         now: Date,
         calendar: Calendar = Calendar(identifier: .gregorian)
     ) -> Bool {
-        guard task.status != .done else { return false }
+        // 已完成与已取消都不再有「逾期」语义：前者做完了，后者决定不做。
+        guard task.status != .done, task.status != .cancelled else { return false }
         let today = calendar.startOfDay(for: now)
         if let plannedFinish {
             return calendar.startOfDay(for: plannedFinish) < today

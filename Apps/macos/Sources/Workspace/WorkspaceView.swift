@@ -299,34 +299,13 @@ struct WorkspaceView: View {
             }
             .help(I18n.t("action.new_task", "New Task"))
 
-            // 基线（v0.13）：选中项驱动大纲四列与检查器基线段；
-            // 未选＝「不比较」，四列整体隐藏（08 §5）。
+            // 基线（v0.13 → v0.16）：内容与菜单栏「基线」菜单同一份视图
+            // （BaselineMenuContent），逐条基线都有「在甘特图中显示 / 设为主对比 /
+            // 8 色改色 / 改名 / 删除」。此前工具栏只有「选对比 + 改名 + 删除」，
+            // 显隐与改色只在菜单栏能改，两处能力不一致。
+            // 快捷键不在这里挂：⌥⌘B 已由菜单栏登记，同一组合注册两次会撞。
             Menu {
-                Button(baselineTitle(nil)) {
-                    store.dispatch(.setBaseline(nil))
-                }
-                if !store.baselines.isEmpty {
-                    Divider()
-                    ForEach(store.baselines) { baseline in
-                        Button(baselineTitle(baseline)) {
-                            store.dispatch(.setBaseline(baseline.id))
-                        }
-                    }
-                }
-                Divider()
-                Button(I18n.t("menu.baseline.create", "New Baseline")) {
-                    store.dispatch(.createBaseline(nil))
-                }
-                if let selected = store.selectedBaseline {
-                    Button(I18n.t("menu.baseline.rename", "Rename Baseline…")) {
-                        BaselineRenamePrompt.present(currentName: selected.name) { name in
-                            store.dispatch(.renameBaseline(selected.id, name))
-                        }
-                    }
-                    Button(I18n.t("menu.baseline.delete", "Delete Baseline…"), role: .destructive) {
-                        store.dispatch(.deleteBaseline(selected.id))
-                    }
-                }
+                BaselineMenuContent(store: store, commands: commands, showsShortcuts: false)
             } label: {
                 Image(systemName: "flag.checkered")
                     .foregroundStyle(store.hasSelectedBaseline
@@ -386,14 +365,6 @@ struct WorkspaceView: View {
         store.viewState.customDayWidth == nil
             && !store.viewState.usesFitZoom
             && store.viewState.zoom == zoom
-    }
-
-    /// 基线菜单项标题：当前对比基线打勾（未选时「不比较」打勾）。
-    private func baselineTitle(_ baseline: Baseline?) -> String {
-        let name = baseline?.name ?? I18n.t("menu.baseline.none", "No Baseline")
-        let isCurrent = baseline.map { $0.id == store.selectedBaseline?.id }
-            ?? (store.selectedBaseline == nil)
-        return isCurrent ? "✓ \(name)" : name
     }
 
     /// 「适合项目」菜单项标题：生效时打勾。
@@ -460,7 +431,9 @@ struct WorkspaceView: View {
                 focused: sizes.focused,
                 shownOptional: optionalColumns,
                 // 基线四列只在选定对比基线后出现（未选时整体隐藏，08 §5）。
-                hasSelectedBaseline: store.hasSelectedBaseline
+                hasSelectedBaseline: store.hasSelectedBaseline,
+                // 列顺序（v0.16 / #12）：与 Presenter 取同一份偏好，表头 / 行 / 列宽覆盖都按列身份走。
+                order: store.viewState.columnOrder
             )
         let layout = OutlineColumnLayout(
             columns: columns,
@@ -489,7 +462,22 @@ struct WorkspaceView: View {
                             liveColumnResize = nil
                             store.dispatch(.setOutlineColumnWidth(column, nil))
                         },
-                        onToggleColumn: { store.dispatch(.toggleOutlineColumn($0)) }
+                        onToggleColumn: { store.dispatch(.toggleOutlineColumn($0)) },
+                        // 拖拽重排（v0.16 / #12）：视图只报「哪一列、插到第几位」，
+                        // 完整顺序的合并（隐藏列守住槽位）由策略纯函数算，Store 只做归一化落库。
+                        onMoveColumn: { column, index in
+                            store.dispatch(.setOutlineColumnOrder(
+                                OutlineColumnPreferences.movedOrder(
+                                    store.viewState.columnOrder,
+                                    visible: layout.columns,
+                                    moving: column,
+                                    toInsertionIndex: index
+                                )
+                            ))
+                        },
+                        onResetColumnOrder: {
+                            store.dispatch(.setOutlineColumnOrder(OutlineColumnPreferences.defaultOrder))
+                        }
                     )
                     .frame(width: sizes.outlineWidth, height: DesignTokens.headerHeight)
                 }

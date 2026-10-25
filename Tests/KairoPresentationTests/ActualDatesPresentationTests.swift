@@ -76,20 +76,27 @@ struct ActualDatesPresentationTests {
         #expect(columns.firstIndex(of: .actualFinish) == columns.firstIndex(of: .finish).map { $0 + 1 })
     }
 
-    /// 基准列里没有 .finish（用户隐藏或宽度降级）时追加到末尾，不凭空插在中间。
-    @Test func optionalColumnsAppendWhenFinishAbsent() {
+    /// 基准列里没有 .finish（用户隐藏或宽度降级）时位置仍由列顺序决定（v0.16 / #12）。
+    ///
+    /// v0.15 的「找不到锚点就追加到末尾」在用户可重排之后不再成立：位置必须稳定，
+    /// 不能因为窗口宽窄在「finish 之后」与「末尾」两个位置之间跳（#12 用户裁定 2）。
+    @Test func optionalColumnsFollowColumnOrderWhenFinishAbsent() {
         let hiddenFinish = OutlineColumnPreferences.visibleColumns(
             outlineWidth: 600, hidden: [.finish], focused: false,
             shownOptional: [.actualStart, .actualFinish]
         )
-        #expect(hiddenFinish.last == .actualFinish)
-        #expect(hiddenFinish.dropLast().last == .actualStart)
         #expect(!hiddenFinish.contains(.finish))
+        #expect(hiddenFinish.firstIndex(of: .actualStart)
+            == hiddenFinish.firstIndex(of: .start).map { $0 + 1 })
+        #expect(hiddenFinish.firstIndex(of: .actualFinish)
+            == hiddenFinish.firstIndex(of: .actualStart).map { $0 + 1 },
+            "实际两列保持「实际开始 → 实际结束」紧凑相对位置")
 
         let narrow = OutlineColumnPreferences.visibleColumns(
             outlineWidth: 340, hidden: [], focused: false, shownOptional: [.actualStart]
         )
-        #expect(narrow.last == .actualStart)
+        #expect(narrow == [.status, .violation, .number, .title, .actualStart, .progress],
+                "窄窗下按列顺序落位（实际开始仍在完成之前），不追加到末尾")
     }
 
     /// 显式启用是用户的明确意图：窄窗下也照样出现（否则开关点了「没反应」）。

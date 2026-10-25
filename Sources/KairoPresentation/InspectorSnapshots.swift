@@ -224,6 +224,8 @@ public struct TaskInspector: Hashable, Sendable {
     public var title: String
     public var kind: TaskKind
     public var status: TaskStatus
+    /// 取消原因（v0.16 D）：只有已取消任务有值，离开该状态即清空。
+    public var cancelReason: String?
     public var priority: TaskPriority
     public var tags: [String]
     public var assignee: String?
@@ -285,7 +287,8 @@ public struct TaskInspector: Hashable, Sendable {
         assignmentNames: [String] = [],
         startDate: Date? = nil,
         actualStart: Date? = nil,
-        baseline: BaselineSection? = nil
+        baseline: BaselineSection? = nil,
+        cancelReason: String? = nil
     ) {
         self.taskID = taskID
         self.title = title
@@ -317,6 +320,7 @@ public struct TaskInspector: Hashable, Sendable {
         self.assignmentNames = assignmentNames
         self.actualStart = actualStart
         self.baseline = baseline
+        self.cancelReason = cancelReason
     }
 }
 
