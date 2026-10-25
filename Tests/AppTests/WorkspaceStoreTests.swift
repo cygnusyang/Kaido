@@ -124,8 +124,8 @@ struct WorkspaceStoreTests {
     @Test func catalogIsSingleSourceForMenuAndPalette() {
         let commands = makeCatalog(makeStore())
         // 24 条基线 + 日宽调节 3 条（加宽 / 收窄 / 重置，Sprint 6 / T3）
-        // + 大纲列显隐 10 条（F-14-20 的 8 列 + F-0719 两个可选列：实际开始/实际结束）。
-        #expect(commands.count == 38)
+        // + 大纲列显隐 14 条（F-14-20 的 8 列 + F-0719 两个实际列 + v0.13 四个基线列）。
+        #expect(commands.count == 42)
         #expect(Set(commands.map(\.id)).count == commands.count)
         #expect(Set(commands.map(\.group)) == Set(KairoCommandGroup.allCases))
         #expect(commands.allSatisfy { !$0.title.isEmpty })

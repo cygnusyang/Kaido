@@ -4,12 +4,17 @@ import Foundation
 ///
 /// 根结构：
 /// ```
-/// { "formatVersion": 1, "project": {...元数据}, "tasks": [...] }
+/// { "formatVersion": 2, "project": {...元数据}, "tasks": [...], "resources": [...],
+///   "baselines": [...] }
 /// ```
+/// - `baselines` 自 v2 起出现（08-baselines §6 方案 A：顶级数组，与 `tasks` 平级）；
+///   为空时**省略键**（缺省 = 空，解码层用 `decodeIfPresent ?? []` 兜底）。
+/// - v2 之后旧客户端（≤ v0.12）打开新文件会明确报错拒开，而不是静默丢掉基线（§7.1）。
+///
 /// 读取时忽略未知字段（前向兼容）；旧版本经 `FormatMigrationPlan` 顺序迁移后解码，
 /// 未来版本或迁移失败返回明确错误且不覆盖原文件（US-E6-01）。
 public enum KairoFile {
-    public static let currentFormatVersion = 1
+    public static let currentFormatVersion = 2
 
     /// 编码项目为 .kairo JSON 数据（人工可读、git 友好，ADR-003）。
     public static func encode(project: Project) throws -> Data {
@@ -17,7 +22,8 @@ public enum KairoFile {
             formatVersion: currentFormatVersion,
             project: project.metadata,
             tasks: project.tasks,
-            resources: project.resources
+            resources: project.resources,
+            baselines: project.baselines
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -106,6 +112,7 @@ public enum KairoFile {
         project.metadata = envelope.project
         project.tasks = envelope.tasks
         project.resources = envelope.resources
+        project.baselines = envelope.baselines
         return DecodedProject(project: project, sourceFormatVersion: version)
     }
 
@@ -146,22 +153,30 @@ public enum KairoFile {
         try read(from: url, plan: plan).project
     }
 
-    /// .kairo 信封：新增字段（resources）用自定义解码，缺失给默认值（ADR-011 前向兼容）。
+    /// .kairo 信封：新增字段（resources / baselines）用自定义解码，缺失给默认值（ADR-011 前向兼容）。
     private struct Envelope: Codable {
         var formatVersion: Int
         var project: ProjectMetadata
         var tasks: [TaskItem]
         var resources: [Resource]
+        var baselines: [Baseline]
 
         private enum CodingKeys: String, CodingKey {
-            case formatVersion, project, tasks, resources
+            case formatVersion, project, tasks, resources, baselines
         }
 
-        init(formatVersion: Int, project: ProjectMetadata, tasks: [TaskItem], resources: [Resource]) {
+        init(
+            formatVersion: Int,
+            project: ProjectMetadata,
+            tasks: [TaskItem],
+            resources: [Resource],
+            baselines: [Baseline]
+        ) {
             self.formatVersion = formatVersion
             self.project = project
             self.tasks = tasks
             self.resources = resources
+            self.baselines = baselines
         }
 
         init(from decoder: Decoder) throws {
@@ -170,6 +185,8 @@ public enum KairoFile {
             project = try c.decode(ProjectMetadata.self, forKey: .project)
             tasks = try c.decode([TaskItem].self, forKey: .tasks)
             resources = try c.decodeIfPresent([Resource].self, forKey: .resources) ?? []
+            // v1 文件没有该键：缺省即空（08-baselines §7.2）。
+            baselines = try c.decodeIfPresent([Baseline].self, forKey: .baselines) ?? []
         }
 
         func encode(to encoder: Encoder) throws {
@@ -178,6 +195,10 @@ public enum KairoFile {
             try c.encode(project, forKey: .project)
             try c.encode(tasks, forKey: .tasks)
             try c.encode(resources, forKey: .resources)
+            // 无基线不写键：大多数项目没有基线，凭空写 "baselines": [] 只是给 diff 加噪音（§7.3）。
+            if !baselines.isEmpty {
+                try c.encode(baselines, forKey: .baselines)
+            }
         }
     }
 }
@@ -196,7 +217,8 @@ public enum KairoFileError: Error, Equatable, CustomStringConvertible {
     public var description: String {
         switch self {
         case .unsupportedFormatVersion(let version):
-            return "不支持的 .kairo 版本 \(version)（当前支持 \(KairoFile.currentFormatVersion)）"
+            return "不支持的 .kairo 版本 \(version)（当前支持 \(KairoFile.currentFormatVersion)）："
+                + "此文件由更新版本的 Kairo 保存（格式 v\(version)），请升级 Kairo 后再打开"
         case .malformedFormatVersion(let reason):
             return "无效的 .kairo 格式版本：\(reason)"
         case .noMigrationPath(let from, let to):

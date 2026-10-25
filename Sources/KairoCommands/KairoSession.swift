@@ -970,6 +970,113 @@ public final class KairoSession {
         return result
     }
 
+    // MARK: - 基线（v0.13 / 08-baselines §8）
+
+    /// 基线列表（按创建顺序）。
+    public func baselines() throws -> [Baseline] {
+        guard let project else { throw notOpen() }
+        return project.baselines
+    }
+
+    /// 对当前排期结果拍一次快照（进度与计划时间一并冻结）。
+    ///
+    /// - 条目数 = 已排期任务数：未排期任务没有时间可比，不入条目（§3）。
+    /// - 群组以自身聚合时间入条目，偏差按群组自身比较，不由子任务求和推导。
+    /// - 默认名「基线 N · yyyy-MM-dd」，N 为创建序号（在本会话的项目内递增）。
+    ///
+    /// - Parameter now: 快照时刻与默认名日期来源；测试一律注入，不读墙钟。
+    @discardableResult
+    public func createBaseline(name: String? = nil, now: Date = Date()) throws -> Baseline {
+        guard let project else { throw notOpen() }
+        let result = try scheduleOrCompute()
+        let resolvedName = try Self.validateBaselineName(
+            name ?? BaselineEngine.defaultName(index: project.baselines.count + 1, date: now)
+        )
+        let baseline = BaselineEngine.snapshot(
+            tasks: project.tasks,
+            schedules: BaselineEngine.scheduleIndex(from: result),
+            name: resolvedName,
+            anchor: result.projectStart,
+            now: now
+        )
+        project.baselines.append(baseline)
+        markChanged()
+        return baseline
+    }
+
+    /// 基线改名：只改名字，不动创建时刻、锚点与条目（基线不可变）。
+    @discardableResult
+    public func renameBaseline(id: UUID, name: String) throws -> Baseline {
+        guard let project else { throw notOpen() }
+        guard let index = project.baselines.firstIndex(where: { $0.id == id }) else {
+            throw baselineNotFound(id)
+        }
+        project.baselines[index].name = try Self.validateBaselineName(name)
+        markChanged()
+        return project.baselines[index]
+    }
+
+    /// 删除基线（§11：允许删除，界面上由调用方做二次确认）；其余基线不受影响。
+    public func deleteBaseline(id: UUID) throws {
+        guard let project else { throw notOpen() }
+        guard let index = project.baselines.firstIndex(where: { $0.id == id }) else {
+            throw baselineNotFound(id)
+        }
+        project.baselines.remove(at: index)
+        markChanged()
+    }
+
+    /// 偏差报告（§4）：`baselineID` 为 nil 时比较最新一条基线。
+    ///
+    /// - Parameter now: 「今天」的唯一来源（逾期天数）；测试一律注入，不读墙钟。
+    public func baselineVariance(baselineID: UUID? = nil, now: Date = Date()) throws -> BaselineVarianceReport {
+        guard let project else { throw notOpen() }
+        let baseline: Baseline
+        if let baselineID {
+            guard let found = project.baselines.first(where: { $0.id == baselineID }) else {
+                throw baselineNotFound(baselineID)
+            }
+            baseline = found
+        } else {
+            guard let latest = project.baselines.last else {
+                throw SessionError(
+                    code: .invalidArgument,
+                    reason: .baselineNotFound,
+                    message: "项目还没有基线（请先创建基线）"
+                )
+            }
+            baseline = latest
+        }
+        let result = try scheduleOrCompute()
+        return BaselineEngine.variance(
+            baseline: baseline,
+            tasks: project.tasks,
+            schedules: BaselineEngine.scheduleIndex(from: result),
+            now: now
+        )
+    }
+
+    /// 基线名边界校验：去首尾空白后不得为空（空名会让报表无法区分基线）。
+    private static func validateBaselineName(_ name: String) throws -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw SessionError(
+                code: .invalidArgument,
+                reason: .baselineNameEmpty,
+                message: "基线名不能为空"
+            )
+        }
+        return trimmed
+    }
+
+    private func baselineNotFound(_ id: UUID) -> SessionError {
+        SessionError(
+            code: .invalidArgument,
+            reason: .baselineNotFound,
+            message: "基线不存在：\(id.uuidString)"
+        )
+    }
+
     // MARK: - 资源（F-23-01 / ADR-009）
 
     /// 新增资源（人员/设备/素材/群组）；单位与效率必须为正。

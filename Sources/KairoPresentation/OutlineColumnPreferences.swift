@@ -8,11 +8,22 @@ public enum OutlineColumnPreferences {
     /// 序号与任务说明固定显示：不进入显隐开关列表，隐藏请求一律忽略。
     public static let alwaysVisible: Set<OutlineColumn> = [.number, .title]
 
-    /// 可选列（F-0719）：默认隐藏，只能经 `shownOptional` 显式打开。
+    /// 可选列（F-0719 实际列 / v0.13 基线列）：默认隐藏，只能经 `shownOptional` 显式打开。
     ///
     /// 不复用 `hiddenOutlineColumns`：旧用户存过隐藏偏好，那一层无法区分「用户没隐藏」
     /// 与「这一列当时还不存在」，把默认值塞进去会让升级后凭空多出两列（设计 §5）。
-    public static let optional: Set<OutlineColumn> = [.actualStart, .actualFinish]
+    public static let optional: Set<OutlineColumn> = [
+        .actualStart, .actualFinish,
+        .baselineStart, .baselineFinish, .startVariance, .finishVariance,
+    ]
+
+    /// 基线列（08-baselines §11）：只在选定对比基线后才有意义。
+    ///
+    /// 未选基线时即使已勾选也不进入列集合——「没有对比对象」的列只会输出一列占位符，
+    /// 是纯粹的界面噪音（设计 §5「未选基线时整体隐藏」）。
+    public static let baseline: Set<OutlineColumn> = [
+        .baselineStart, .baselineFinish, .startVariance, .finishVariance,
+    ]
 
     /// 可显隐配置的列：`allCases` 顺序减去固定列（序号、任务说明）与可选列。
     ///
@@ -62,6 +73,8 @@ public enum OutlineColumnPreferences {
     ///   - focused: 图表聚焦模式（标签栏口径）。
     ///   - shownOptional: 用户显式打开的可选列（F-0719）；缺省空集 = 全部默认隐藏，
     ///     因此既有调用方的列集合逐位不变。
+    ///   - hasSelectedBaseline: 是否已选定对比基线（v0.13）；`false` 时基线四列一律不出现，
+    ///     与是否勾选无关（设计 §5「未选基线时四列整体隐藏」）。
     ///
     /// 可选列的插入规则（设计 §6）：按 `allCases` 顺序（实际开始 → 实际结束）插入；
     /// 基准列含 `.finish` 时紧随其后，否则追加到末尾。显式打开不受宽度阈值裁剪——
@@ -70,15 +83,17 @@ public enum OutlineColumnPreferences {
         outlineWidth: Double,
         hidden: Set<OutlineColumn>,
         focused: Bool,
-        shownOptional: Set<OutlineColumn> = []
+        shownOptional: Set<OutlineColumn> = [],
+        hasSelectedBaseline: Bool = false
     ) -> [OutlineColumn] {
         if focused { return [.status, .violation, .title] }
         let hiddenConfigurable = hidden.subtracting(alwaysVisible)
         var columns = OutlineColumn.visibleColumns(outlineWidth: outlineWidth)
             .filter { !hiddenConfigurable.contains($0) }
 
-        let enabled = OutlineColumn.allCases.filter {
-            optional.contains($0) && shownOptional.contains($0)
+        let enabled = OutlineColumn.allCases.filter { column in
+            guard optional.contains(column), shownOptional.contains(column) else { return false }
+            return hasSelectedBaseline || !baseline.contains(column)
         }
         guard !enabled.isEmpty else { return columns }
         if let finishIndex = columns.firstIndex(of: .finish) {

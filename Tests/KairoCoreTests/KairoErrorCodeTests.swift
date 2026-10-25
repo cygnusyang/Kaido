@@ -45,14 +45,17 @@ struct KairoErrorCodeTests {
         }
     }
 
-    /// 领域模型码 12 个（含 F-0703 新增的 model_resource_not_found：
+    /// 领域模型码 14 个（含 F-0703 新增的 model_resource_not_found：
     /// 「资源不存在」原先无码可落，硬塞单位/效率码会错误归因；
-    /// 含 v0.12 新增的 model_actual_date_order_invalid：实际时间顺序非法）。
+    /// 含 v0.12 新增的 model_actual_date_order_invalid：实际时间顺序非法；
+    /// 含 v0.13 新增的 model_baseline_not_found / model_baseline_name_empty：基线查找与命名）。
     @Test func modelCodesCoverSessionValidationSites() {
         let modelCodes = KairoErrorCode.allCases.filter { $0.rawValue.hasPrefix("model_") }
-        #expect(modelCodes.count == 12, "model 码应为 12 个，实际 \(modelCodes.count)")
+        #expect(modelCodes.count == 14, "model 码应为 14 个，实际 \(modelCodes.count)")
         #expect(KairoErrorCode.resourceNotFound.rawValue == "model_resource_not_found")
         #expect(KairoErrorCode.actualDateOrderInvalid.rawValue == "model_actual_date_order_invalid")
+        #expect(KairoErrorCode.baselineNotFound.rawValue == "model_baseline_not_found")
+        #expect(KairoErrorCode.baselineNameEmpty.rawValue == "model_baseline_name_empty")
     }
 
     /// 违例相关 8 个码齐全（F-0704 / F-0715 的判据前置）。

@@ -314,19 +314,19 @@ private func removingTaskKey(_ key: String, from data: Data) throws -> Data {
 
 // MARK: - 存储与向后兼容（判据 10；07 §7）
 
-/// 判据 10：旧 .kairo（无 actualStart 键）打开 → 字段 nil、formatVersion 仍为 1。
+/// 判据 10：旧 .kairo（无 actualStart 键）打开 → 字段 nil；格式版本由当前格式决定
+/// （v0.13 已升 2，本用例只守「少一个键不改版本号」这一条，不再钉死具体版本值）。
 @Test func legacyFileWithoutActualStartDecodesNilAndKeepsFormatVersion() throws {
     let project = Project()
     project.tasks = [TaskItem(title: "旧任务", actualStart: t0)]
     let current = try KairoFile.encode(project: project)
-    #expect(try formatVersion(in: current) == 1)
+    #expect(try formatVersion(in: current) == KairoFile.currentFormatVersion)
 
     let legacy = try removingTaskKey("actualStart", from: current)
     let loaded = try KairoFile.decode(from: legacy)
 
     #expect(loaded.tasks.first?.actualStart == nil)
     #expect(loaded.tasks.first?.title == "旧任务")
-    #expect(KairoFile.currentFormatVersion == 1)
 }
 
 /// 判据 10 后半：新文件被旧版本读回 —— 任务对象只多出 actualStart 一个键，且 nil 时不写键。

@@ -20,7 +20,8 @@ func makeState(
     _ tasks: [TaskItem],
     title: String = "测试项目",
     projectStart: Date? = nil,
-    resources: [Resource] = []
+    resources: [Resource] = [],
+    baselines: [Baseline] = []
 ) -> ProjectState {
     ProjectState(
         metadata: ProjectMetadata(
@@ -30,7 +31,8 @@ func makeState(
             projectStart: projectStart
         ),
         tasks: tasks,
-        resources: resources
+        resources: resources,
+        baselines: baselines
     )
 }
 

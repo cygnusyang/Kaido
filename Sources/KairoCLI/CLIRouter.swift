@@ -113,6 +113,10 @@ struct CLIRouter {
         case ("status", "batch"): try statusBatch(options)
         case ("resource", "add"): try resourceAdd(options)
         case ("resource", "list"): try resourceList(options)
+        case ("baseline", "list"): try baselineList(options)
+        case ("baseline", "create"): try baselineCreate(options)
+        case ("baseline", "delete"): try baselineDelete(options)
+        case ("baseline", "variance"): try baselineVariance(options)
         default:
             let strings = options.strings
             throw UsageError(message: strings.unknownCommand(
@@ -262,7 +266,11 @@ struct CLIRouter {
         guard let project = session.project else { return }
         let id = try resolveTaskID(rawID, in: session, strings: s)
         let task = try session.getTask(id: id)
-        o.emit(taskDetail(task, project: project, strings: s))
+        var detail = taskDetail(task, project: project, strings: s)
+        if let section = baselineSection(for: id, in: session, strings: s) {
+            detail += "\n" + section.joined(separator: "\n")
+        }
+        o.emit(detail)
     }
 
     /// kairo task update <ID> [--title/--kind/--parent/--effort/--duration/--notes/--priority/--status/--progress/--tags/--assignee]。
@@ -583,6 +591,138 @@ struct CLIRouter {
         }
     }
 
+    // MARK: - baseline（v0.13 / 08-baselines §8）
+
+    /// kairo baseline list [--json] [--file <路径>]：按创建顺序列出基线。
+    private static func baselineList(_ o: Options) throws {
+        let s = o.strings
+        try o.rejectUnknown(["--json", "--file"])
+        let session = KairoSession()
+        _ = try session.openProject(at: fileURL(o.value(for: "--file")))
+        let baselines = try session.baselines()
+        if o.flag("--json") {
+            o.emit(try CLIOutput.baselineListJSON(baselines))
+            return
+        }
+        guard !baselines.isEmpty else {
+            o.emit(s.noBaselines)
+            return
+        }
+        o.emit(s.baselineCountLine(baselines.count))
+        for baseline in baselines {
+            o.emit(s.baselineLine(
+                id: baseline.id.uuidString,
+                name: baseline.name,
+                createdAt: formatDate(baseline.createdAt),
+                entries: baseline.entries.count
+            ))
+        }
+    }
+
+    /// kairo baseline create [--name <名称>] [--file <路径>]：对当前排期拍一次快照。
+    ///
+    /// 缺省名由会话层生成「基线 N · yyyy-MM-dd」；空名 / 纯空白名由会话层校验拒绝。
+    private static func baselineCreate(_ o: Options) throws {
+        let s = o.strings
+        try o.rejectUnknown(["--name", "--file"])
+        let name = o.value(for: "--name")
+        let session = KairoSession()
+        try openForEdit(session, o)
+        let baseline = try session.createBaseline(name: name)
+        try session.saveProject()
+        o.emit(s.baselineCreated(
+            id: baseline.id.uuidString,
+            name: baseline.name,
+            createdAt: formatDate(baseline.createdAt),
+            entries: baseline.entries.count
+        ))
+    }
+
+    /// kairo baseline delete <基线ID> [--file <路径>]：删除一条基线（其余基线不受影响）。
+    private static func baselineDelete(_ o: Options) throws {
+        let s = o.strings
+        try o.rejectUnknown(["--file"])
+        let rawID = try o.operand(0, name: s.operandBaselineID)
+        let session = KairoSession()
+        try openForEdit(session, o)
+        // 回执要带身份三字段：删除后列表里就查不到了，先取（判据 6）。
+        let removed = try resolveBaseline(rawID, in: session, strings: s)
+        try session.deleteBaseline(id: removed.id)
+        try session.saveProject()
+        o.emit(s.baselineDeleted(
+            id: removed.id.uuidString,
+            name: removed.name,
+            createdAt: formatDate(removed.createdAt)
+        ))
+    }
+
+    /// kairo baseline variance [--baseline <基线ID>] [--task <任务ID>] [--json] [--file <路径>]。
+    ///
+    /// - 省略 `--baseline` 时比较**最新**一条基线（与 MCP `baseline_variance` 同口径）；
+    /// - `--task` 只收窄任务行，项目级聚合仍按全项目计算（聚合口径不随过滤漂移）；
+    /// - 文本与 `--json` 都必须带基线标识（§4.5），否则报表跨版本不可比。
+    private static func baselineVariance(_ o: Options) throws {
+        let s = o.strings
+        try o.rejectUnknown(["--baseline", "--task", "--json", "--file"])
+        let session = KairoSession()
+        _ = try session.openProject(at: fileURL(o.value(for: "--file")))
+        let baselineID = try o.value(for: "--baseline").map {
+            try resolveBaseline($0, in: session, strings: s).id
+        }
+        let taskID = try o.value(for: "--task").map {
+            try resolveTaskID($0, in: session, strings: s)
+        }
+        let report = try session.baselineVariance(baselineID: baselineID)
+        let projectOrder = (session.project?.tasks ?? []).map(\.id)
+        var taskIDs = CLIOutput.orderedTaskIDs(report, projectOrder: projectOrder)
+        if let taskID {
+            taskIDs = taskIDs.filter { $0 == taskID }
+        }
+
+        if o.flag("--json") {
+            o.emit(try CLIOutput.baselineVarianceJSON(report, taskIDs: taskIDs))
+            return
+        }
+
+        o.emit(s.varianceBaselineLine(
+            name: report.baselineName,
+            id: report.baselineID.uuidString,
+            createdAt: formatDate(report.baselineCreatedAt)
+        ))
+        o.emit(s.varianceProjectLine(s.varianceDays(report.projectFinishVariance)))
+        o.emit(s.varianceSummary(
+            late: report.lateTaskCount,
+            overdue: report.overdueOpenCount,
+            withoutBaseline: report.tasksWithoutBaseline,
+            forecast: report.predictedTaskCount
+        ))
+        let byID = session.project?.tasksByID ?? [:]
+        for id in taskIDs {
+            guard let variance = report.tasks[id] else { continue }
+            o.emit(s.varianceTaskLine(
+                id: shortID(id),
+                title: byID[id]?.title ?? s.unknownTask,
+                span: baselineSpanText(variance, strings: s),
+                plan: variancePair(variance.planStartVariance, variance.planFinishVariance, strings: s),
+                actual: variancePair(variance.actualStartVariance, variance.actualFinishVariance, strings: s),
+                note: variance.hasBaseline ? nil : s.baselineAddedAfterSnapshot
+            ))
+        }
+    }
+
+    /// 基线起止文本：两侧都有才算一段承诺，缺任一侧给「—」（不臆造时间）。
+    private static func baselineSpanText(_ variance: TaskVariance, strings s: CLIStrings) -> String {
+        guard let start = variance.baselineStart, let finish = variance.baselineFinish else {
+            return s.varianceEmpty
+        }
+        return "\(formatDate(start)) → \(formatDate(finish))"
+    }
+
+    /// 「开始/结束」成对偏差（缺值为「—」，不写 0）。
+    private static func variancePair(_ start: Int?, _ finish: Int?, strings s: CLIStrings) -> String {
+        "\(s.varianceDays(start))/\(s.varianceDays(finish))"
+    }
+
     // MARK: - 帮助
 
     /// 打开 --file（默认 ./project.kairo）。task/wbs 写命令统一入口。
@@ -625,6 +765,26 @@ struct CLIRouter {
         case 1: return candidates[0]
         case 0: throw UsageError(message: strings.resourceNotFound(raw))
         default: throw UsageError(message: strings.resourceIDPrefixAmbiguous(raw, matches: candidates.count))
+        }
+    }
+
+    /// 解析基线标识：接受完整 UUID 或唯一前缀（≥4 位），返回该基线。
+    ///
+    /// 返回基线本身而不是 ID：删除回执要在删除前拿到名称与创建时刻（判据 6）。
+    static func resolveBaseline(_ raw: String, in session: KairoSession, strings: CLIStrings) throws -> Baseline {
+        let baselines = try session.baselines()
+        if let full = UUID(uuidString: raw), let match = baselines.first(where: { $0.id == full }) {
+            return match
+        }
+        let prefix = raw.lowercased()
+        guard prefix.count >= 4 else {
+            throw UsageError(message: strings.baselineIDPrefixTooShort(raw))
+        }
+        let candidates = baselines.filter { $0.id.uuidString.lowercased().hasPrefix(prefix) }
+        switch candidates.count {
+        case 1: return candidates[0]
+        case 0: throw UsageError(message: strings.baselineNotFound(raw))
+        default: throw UsageError(message: strings.baselineIDPrefixAmbiguous(raw, matches: candidates.count))
         }
     }
 
@@ -691,6 +851,35 @@ struct CLIRouter {
         }
         if !task.notes.isEmpty { lines.append(s.detailNotes + task.notes) }
         return lines.joined(separator: "\n")
+    }
+
+    /// `task get` 的基线段（§8）：所选基线名 + 基线起止 + 计划偏差 + 实际偏差。
+    ///
+    /// CLI 没有「当前基线」视图状态（那是 App 的 UserDefaults），固定比较**最新**一条基线；
+    /// 项目还没有基线时整段不输出——无基线可比较不是「偏差为 0」。
+    private static func baselineSection(
+        for taskID: UUID,
+        in session: KairoSession,
+        strings s: CLIStrings
+    ) -> [String]? {
+        guard let report = try? session.baselineVariance() else { return nil }
+        guard let variance = report.variance(for: taskID) else { return nil }
+        var lines = [s.detailBaseline(name: report.baselineName, id: report.baselineID.uuidString)]
+        lines.append(s.detailBaselineSpan(
+            start: variance.baselineStart.map(formatDate) ?? s.varianceEmpty,
+            finish: variance.baselineFinish.map(formatDate) ?? s.varianceEmpty
+        ))
+        lines.append(s.detailPlanVariance(
+            start: s.varianceDays(variance.planStartVariance),
+            finish: s.varianceDays(variance.planFinishVariance)
+        ))
+        lines.append(s.detailActualVariance(
+            start: s.varianceDays(variance.actualStartVariance),
+            finish: s.varianceDays(variance.actualFinishVariance)
+        ))
+        // 基线之后新增：条目缺失，四行都只能是「—」，额外说明原因（§5）。
+        if !variance.hasBaseline { lines.append(s.baselineAddedAfterSnapshot) }
+        return lines
     }
 
     private static func formatNumber(_ value: Double) -> String {

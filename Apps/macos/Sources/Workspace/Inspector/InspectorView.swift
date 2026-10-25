@@ -324,6 +324,41 @@ private struct TaskInspectorContent: View {
             }
         }
 
+        // 基线（v0.13 / 08-baselines §4.2）：承诺起止 + 两层偏差。
+        // 未选基线或任务无基线条目 → 整段不显示；实际层为空显示「尚未结束」，不回落成 0。
+        if let baseline = task.baseline {
+            section(I18n.t("inspector.section.baseline", "Baseline")) {
+                FieldRow(label: I18n.t("inspector.baseline.name", "Name")) {
+                    readOnly(baseline.name)
+                }
+                FieldRow(label: I18n.t("column.baseline_start", "Baseline start")) {
+                    readOnly(Display.date(baseline.start))
+                }
+                FieldRow(label: I18n.t("column.baseline_finish", "Baseline finish")) {
+                    readOnly(Display.date(baseline.finish))
+                }
+                FieldRow(label: I18n.t("inspector.baseline.plan_variance", "Plan variance")) {
+                    readOnly(baseline.planFinishVariance.map(Display.varianceDays)
+                        ?? I18n.t("date.field.disabled.unscheduled", "Not scheduled"))
+                }
+                FieldRow(label: I18n.t("inspector.baseline.actual_variance", "Actual variance")) {
+                    readOnly(baseline.actualFinishVariance.map(Display.varianceDays)
+                        ?? I18n.t("inspector.baseline.actual_missing", "Not finished yet"))
+                }
+                if let overdue = baseline.overdueDays, overdue > 0 {
+                    FieldRow(label: I18n.t("inspector.baseline.overdue", "Overdue")) {
+                        readOnly(Display.duration(Double(overdue)))
+                    }
+                }
+                Text(I18n.t(
+                    "inspector.baseline.help",
+                    "Variance = actual date − baseline date; the plan column is a forecast and never substitutes for actual dates."
+                ))
+                .font(.system(size: DesignTokens.captionFontSize))
+                .foregroundStyle(DesignTokens.textSecondary)
+            }
+        }
+
         // 实际时间（F-0719）：紧随排期分区；群组行不表达实际，整段不显示。
         if !task.isAggregate {
             section(I18n.t("inspector.section.actual", "Actual")) {
@@ -627,6 +662,48 @@ private struct ProjectInspectorContent: View {
                 }
                 .menuStyle(.borderlessButton)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+
+        // 基线面板（v0.13 / 08 §5）：孤儿与基线后新增集中在这里，不为它们插大纲行。
+        if let baseline = project.baseline {
+            section(I18n.t("inspector.section.baseline", "Baseline")) {
+                summaryLine(
+                    I18n.t("inspector.baseline.panel.name", "Comparing"),
+                    baseline.name
+                )
+                summaryLine(
+                    I18n.t("inspector.baseline.panel.finish_variance", "Project finish variance"),
+                    Display.varianceDays(baseline.projectFinishVariance)
+                )
+                summaryLine(
+                    I18n.t("inspector.baseline.panel.without_entry", "Added after baseline"),
+                    "\(baseline.tasksWithoutBaseline)"
+                )
+                summaryLine(
+                    I18n.t("inspector.baseline.panel.late", "Finished later"),
+                    "\(baseline.lateTaskCount)"
+                )
+                summaryLine(
+                    I18n.t("inspector.baseline.panel.overdue_open", "Overdue open"),
+                    "\(baseline.overdueOpenCount)"
+                )
+                summaryLine(
+                    I18n.t("inspector.baseline.panel.orphans", "Deleted baseline tasks"),
+                    "\(baseline.orphans.count)"
+                )
+                // 孤儿条目只读展开：让「承诺对应的任务已不存在」可见，而不是静默消失（§5）。
+                ForEach(baseline.orphans) { orphan in
+                    Text(I18n.t(
+                        "inspector.baseline.panel.orphan_row",
+                        "%1$@ → %2$@ (task deleted)",
+                        Display.date(orphan.start),
+                        Display.date(orphan.finish)
+                    ))
+                    .font(.system(size: DesignTokens.captionFontSize))
+                    .foregroundStyle(DesignTokens.textSecondary)
+                    .lineLimit(1)
+                }
             }
         }
 

@@ -41,6 +41,7 @@ struct CLIStrings: Sendable {
     var operandTaskID: String { t("任务 ID", "task ID") }
     var operandJSONFile: String { t("JSON 文件", "JSON file") }
     var operandResourceName: String { t("资源名称", "resource name") }
+    var operandBaselineID: String { t("基线 ID", "baseline ID") }
     var operandProjectStart: String { t("项目开始", "project start") }
     var operandProjectEnd: String { t("项目结束", "project end") }
     var operandLanguageValue: String { t("--lang 的值", "--lang value") }
@@ -180,6 +181,21 @@ struct CLIStrings: Sendable {
         t(
             "资源 ID 前缀不唯一（\(matches) 个匹配）：\(raw)",
             "resource ID prefix is ambiguous (\(matches) matches): \(raw)"
+        )
+    }
+
+    func baselineIDPrefixTooShort(_ raw: String) -> String {
+        t("基线 ID 前缀至少 4 位：\(raw)", "baseline ID prefix must be at least 4 characters: \(raw)")
+    }
+
+    func baselineNotFound(_ raw: String) -> String {
+        t("找不到基线：\(raw)", "baseline not found: \(raw)")
+    }
+
+    func baselineIDPrefixAmbiguous(_ raw: String, matches: Int) -> String {
+        t(
+            "基线 ID 前缀不唯一（\(matches) 个匹配）：\(raw)",
+            "baseline ID prefix is ambiguous (\(matches) matches): \(raw)"
         )
     }
 
@@ -483,6 +499,114 @@ struct CLIStrings: Sendable {
     }
 
     var unknownResource: String { t("未知资源", "unknown resource") }
+
+    // MARK: - baseline（v0.13 / 08-baselines §8）
+
+    /// 缺值占位：空缺一律「—」，绝不写 0（0 = 准时，与「无数据」不同，§4.1）。
+    var varianceEmpty: String { "—" }
+
+    /// 偏差天数（带符号）：nil → 「—」；正数显式带 `+`，负数自带 `-`。
+    ///
+    /// 单位随语言（中文「天」/ 英文 `d`），符号与数字不随语言变化，便于脚本比对。
+    func varianceDays(_ value: Int?) -> String {
+        guard let value else { return varianceEmpty }
+        let signed = value > 0 ? "+\(value)" : "\(value)"
+        return t("\(signed) 天", "\(signed) d")
+    }
+
+    var noBaselines: String { t("尚未创建基线", "no baselines") }
+
+    func baselineCountLine(_ count: Int) -> String {
+        t("基线：\(count) 条", "baselines: \(count)")
+    }
+
+    func baselineLine(id: String, name: String, createdAt: String, entries: Int) -> String {
+        t(
+            "  \(id) \(name)  创建：\(createdAt)  条目：\(entries)",
+            "  \(id) \(name)  created: \(createdAt)  entries: \(entries)"
+        )
+    }
+
+    /// 创建回执：身份三字段（baselineID / name / createdAt）+ 条目数（判据 6）。
+    func baselineCreated(id: String, name: String, createdAt: String, entries: Int) -> String {
+        t(
+            "已创建基线：\(id) \(name) 创建：\(createdAt)（\(entries) 条条目）",
+            "baseline created: \(id) \(name) created: \(createdAt) (\(entries) entries)"
+        )
+    }
+
+    /// 删除回执：删除前取到的身份三字段（删除后就查不到了）。
+    func baselineDeleted(id: String, name: String, createdAt: String) -> String {
+        t(
+            "已删除基线：\(id) \(name) 创建：\(createdAt)",
+            "baseline deleted: \(id) \(name) created: \(createdAt)"
+        )
+    }
+
+    /// 偏差报告头：必须带 `baselineID` / 名称 / 创建时刻（§4.5），
+    /// 否则切换基线后的报表跨版本不可比。
+    func varianceBaselineLine(name: String, id: String, createdAt: String) -> String {
+        t("基线：\(name)（\(id)）创建：\(createdAt)", "baseline: \(name) (\(id)) created: \(createdAt)")
+    }
+
+    func varianceProjectLine(_ days: String) -> String {
+        t("项目结束偏差：\(days)", "project finish variance: \(days)")
+    }
+
+    func varianceSummary(late: Int, overdue: Int, withoutBaseline: Int, forecast: Int) -> String {
+        t(
+            "晚完成 \(late) 个 · 逾期未完成 \(overdue) 个 · 无基线 \(withoutBaseline) 个 · 含预测项 \(forecast) 个",
+            "completed late \(late) · overdue open \(overdue) · without baseline \(withoutBaseline) · forecast \(forecast)"
+        )
+    }
+
+    /// 偏差行：`计划偏差 开始/结束`、`实际偏差 开始/结束`（顺序固定，与检查器同口径）。
+    ///
+    /// - Parameters:
+    ///   - span: 基线起止（「开始 → 结束」，无基线条目时为「—」）。
+    ///   - plan: 计划偏差「开始/结束」，两侧各自带符号或「—」。
+    ///   - actual: 实际偏差「开始/结束」，缺实际时间为「—」。
+    ///   - note: 基线之后新增等附加说明；nil 不占位。
+    func varianceTaskLine(
+        id: String,
+        title: String,
+        span: String,
+        plan: String,
+        actual: String,
+        note: String?
+    ) -> String {
+        var line = t(
+            "  \(id) \(title)  基线 \(span)  计划偏差 \(plan)  实际偏差 \(actual)",
+            "  \(id) \(title)  baseline \(span)  plan variance \(plan)  actual variance \(actual)"
+        )
+        if let note { line += "  " + note }
+        return line
+    }
+
+    /// 基线之后新增：有任务无条目，偏差列显示「—」并说明原因（§5）。
+    var baselineAddedAfterSnapshot: String {
+        t("基线之后新增（无基线数据）", "added after baseline (no baseline data)")
+    }
+
+    /// `task get` 的基线段（§8）：基线名 + 基线标识。
+    func detailBaseline(name: String, id: String) -> String {
+        t("基线：\(name)（\(id)）", "baseline: \(name) (\(id))")
+    }
+
+    /// `task get` 的基线起止。
+    func detailBaselineSpan(start: String, finish: String) -> String {
+        t("基线起止：\(start) → \(finish)", "baseline span: \(start) → \(finish)")
+    }
+
+    /// `task get` 的计划偏差（预测层 vs 基线）。
+    func detailPlanVariance(start: String, finish: String) -> String {
+        t("计划偏差：开始 \(start) · 结束 \(finish)", "plan variance: start \(start) · finish \(finish)")
+    }
+
+    /// `task get` 的实际偏差（事实层 vs 基线）；缺实际时间为「—」，不回落成计划值。
+    func detailActualVariance(start: String, finish: String) -> String {
+        t("实际偏差：开始 \(start) · 结束 \(finish)", "actual variance: start \(start) · finish \(finish)")
+    }
 
     // MARK: - 领域枚举标签
 

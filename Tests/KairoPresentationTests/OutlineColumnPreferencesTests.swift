@@ -25,6 +25,11 @@ struct OutlineColumnPreferencesTests {
         // 实际列（F-0719）：可选列，宽度与既有日期列同口径。
         .actualStart: 78,
         .actualFinish: 78,
+        // 基线列（v0.13）：日期列同 78，偏差列按数字列 56。
+        .baselineStart: 78,
+        .baselineFinish: 78,
+        .startVariance: 56,
+        .finishVariance: 56,
         .duration: 56,
         .assignee: 76,
         .progress: 72

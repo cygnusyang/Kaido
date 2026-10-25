@@ -62,6 +62,11 @@ public struct WorkspaceViewState: Hashable, Sendable {
     /// 缺省空集 = 实际列全部隐藏；与 `hiddenOutlineColumns` 是两条独立的偏好，
     /// 因为可选列的缺省态是「不存在」，不能靠隐藏集合表达。
     public var visibleOptionalColumns: Set<String> = []
+    /// 当前对比基线（v0.13 / 08-baselines §8）：`nil` = 不比较，基线四列与检查器基线段整体隐藏。
+    ///
+    /// 纯视图状态：不进撤销栈、不进基线快照、不写 `.kairo`；应用层持久化到 UserDefaults。
+    /// 偏差是「所选基线 × 任务」的派生量，切换它只改变读数，不改变项目数据。
+    public var selectedBaselineID: UUID?
     public var filterText: String
     /// 查找/定位目标（只高亮跳转，不改变筛选）。
     public var highlightedTaskID: UUID?
@@ -90,7 +95,8 @@ public struct WorkspaceViewState: Hashable, Sendable {
         revealStatus: RevealStatus? = nil,
         outlineColumnWidths: [String: Double] = [:],
         hiddenOutlineColumns: Set<String> = [],
-        visibleOptionalColumns: Set<String> = []
+        visibleOptionalColumns: Set<String> = [],
+        selectedBaselineID: UUID? = nil
     ) {
         self.mode = mode
         self.chartFocused = chartFocused
@@ -115,6 +121,19 @@ public struct WorkspaceViewState: Hashable, Sendable {
         self.outlineColumnWidths = outlineColumnWidths
         self.hiddenOutlineColumns = hiddenOutlineColumns
         self.visibleOptionalColumns = visibleOptionalColumns
+        self.selectedBaselineID = selectedBaselineID
+    }
+}
+
+extension WorkspaceViewState {
+    /// 读取侧归一化（v0.13 / 08-baselines §8）：ID 指向不存在的基线时按「未选」处理。
+    ///
+    /// 悬挂 ID 的成因是「选择不进撤销栈」：撤销到基线创建之前，选择仍指着已经没有的那条基线。
+    /// 归一化放在读取侧（纯函数、只读），**不**在撤销回调里清理——视图卫生不该塞进撤销语义；
+    /// 因此这里不改写 `viewState`、不产生撤销点、不置脏，只影响展示：四列与检查器基线段一并隐藏。
+    public func normalizedBaselineID(in baselines: [Baseline]) -> UUID? {
+        guard let selectedBaselineID else { return nil }
+        return baselines.contains { $0.id == selectedBaselineID } ? selectedBaselineID : nil
     }
 }
 

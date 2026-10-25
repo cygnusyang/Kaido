@@ -3,6 +3,18 @@ import KairoCore
 
 /// 平台中立 Presenter（ADR-013）：纯函数，把项目值快照与视图状态映射为工作台快照。
 /// 不持有 `Project`，不访问时间与全局日历以外的环境；相同输入（含固定 `now`）产生相同输出。
+/// 偏差输入的来源（v0.13 / 08-baselines §4）。
+///
+/// 偏差计算在 5,000 任务上约 0.28 s（debug，tester 实测），**不能**每次快照重建都重算：
+/// 应用层按 (selectedBaselineID, session.revision) 缓存，用 `.cached` 注入；
+/// 测试、CLI 与预览没有会话版本可依赖，走 `.compute` 现算（纯函数，结果与缓存一致）。
+public enum BaselineVarianceSource: Sendable {
+    /// 按 `viewState.selectedBaselineID` 现算。
+    case compute
+    /// 使用应用层缓存的结果；`nil` = 未选基线（或缓存判定的确定空值）。
+    case cached(BaselineVarianceReport?)
+}
+
 public enum WorkspacePresenter {
     public static func make(
         state: ProjectState,
@@ -13,7 +25,8 @@ public enum WorkspacePresenter {
         calendar: Calendar = Calendar(identifier: .gregorian),
         locale: Locale,
         now: Date,
-        saveState: SaveState = .saved
+        saveState: SaveState = .saved,
+        baselineVariance: BaselineVarianceSource = .compute
     ) -> WorkspaceSnapshot {
         let tasks = state.tasks
         let byID = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
@@ -36,6 +49,32 @@ public enum WorkspacePresenter {
             guard !unscheduledIDs.contains(id) else { return nil }
             return scheduledByID[id]
         }
+
+        // 基线对比（v0.13 / 08-baselines §4）：只有选定基线才计算。
+        // 未选基线时四列与检查器基线段整体隐藏——不做「缺省比最新」的静默回落，
+        // 否则用户从没选过基线也会看到一屏偏差读数。
+        // 读取侧归一化：悬挂 ID（撤销到基线创建之前）按「未选」处理，
+        // 只影响展示，不改写 viewState（见 WorkspaceViewState.normalizedBaselineID）。
+        let selectedBaseline = viewState.normalizedBaselineID(in: state.baselines).flatMap { id in
+            state.baselines.first { $0.id == id }
+        }
+        let baselineReport: BaselineVarianceReport? = {
+            switch baselineVariance {
+            case .cached(let report):
+                return report
+            case .compute:
+                guard let selectedBaseline else { return nil }
+                // 与快照同源的排期索引：未排期任务不入表（scheduleIndex 已剔除）。
+                let schedules = schedule.map { BaselineEngine.scheduleIndex(from: $0) } ?? [:]
+                return BaselineEngine.variance(
+                    baseline: selectedBaseline,
+                    tasks: tasks,
+                    schedules: schedules,
+                    now: now,
+                    calendar: calendar
+                )
+            }
+        }()
 
         // 过滤：解析出子句才启用；纯文本不启用，与工具栏 AI 徽标同源。
         let trimmedFilter = viewState.filterText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -251,7 +290,13 @@ public enum WorkspacePresenter {
                 startDate: isGroup ? nil : task.startDate,
                 // 实际时间不聚合：群组行只表达子任务聚合的排期（设计 §2 末段）。
                 actualStart: isGroup ? nil : task.actualStart,
-                actualFinish: isGroup ? nil : task.completedAt
+                actualFinish: isGroup ? nil : task.completedAt,
+                // 基线与偏差（v0.13）：群组取自身条目（与上面聚合起止同口径，§3），不由子任务求和。
+                baselineStart: baselineReport?.variance(for: task.id)?.baselineStart,
+                baselineFinish: baselineReport?.variance(for: task.id)?.baselineFinish,
+                planStartVariance: baselineReport?.variance(for: task.id)?.planStartVariance,
+                planFinishVariance: baselineReport?.variance(for: task.id)?.planFinishVariance,
+                hasBaseline: baselineReport?.variance(for: task.id)?.hasBaseline ?? false
             ))
         }
 
@@ -272,8 +317,10 @@ public enum WorkspacePresenter {
                 outlineWidth: viewState.outlineWidth,
                 hidden: Set(viewState.hiddenOutlineColumns.compactMap(OutlineColumn.init(rawValue:))),
                 focused: viewState.chartFocused,
-                // 可选列（F-0719）：默认隐藏，只有用户显式打开才出现在列集合里。
-                shownOptional: Set(viewState.visibleOptionalColumns.compactMap(OutlineColumn.init(rawValue:)))
+                // 可选列（F-0719 / v0.13）：默认隐藏，只有用户显式打开才出现在列集合里；
+                // 基线四列还要求已选定对比基线（未选时整体隐藏，08 §5）。
+                shownOptional: Set(viewState.visibleOptionalColumns.compactMap(OutlineColumn.init(rawValue:))),
+                hasSelectedBaseline: selectedBaseline != nil
             ),
             filterExplanation: filterActive ? AIFilterTranslator.summary(for: clauses) : nil,
             emptyReason: outlineEmptyReason,
@@ -316,6 +363,7 @@ public enum WorkspacePresenter {
             today: today,
             calendar: calendar,
             childrenByParent: childrenByParent,
+            baselineReport: baselineReport,
             isLeaf: isLeaf,
             plannedFinish: plannedFinish,
             deadlineRisk: deadlineRisk,
@@ -542,6 +590,7 @@ public enum WorkspacePresenter {
         today: Date,
         calendar: Calendar,
         childrenByParent: [UUID: [UUID]],
+        baselineReport: BaselineVarianceReport?,
         isLeaf: (TaskItem) -> Bool,
         plannedFinish: (TaskItem) -> Date?,
         deadlineRisk: (TaskItem, Date?) -> Bool,
@@ -569,6 +618,7 @@ public enum WorkspacePresenter {
                 today: today,
                 calendar: calendar,
                 childrenByParent: childrenByParent,
+                baselineReport: baselineReport,
                 isLeaf: isLeaf,
                 plannedFinish: plannedFinish,
                 deadlineRisk: deadlineRisk,
@@ -589,7 +639,8 @@ public enum WorkspacePresenter {
             direction: state.metadata.direction,
             summary: summary,
             recentCompletions: recentCompletions(tasks: tasks),
-            saveState: saveState
+            saveState: saveState,
+            baseline: baselinePanel(report: baselineReport)
         )
         return InspectorSnapshot(
             content: .project(project),
@@ -610,6 +661,7 @@ public enum WorkspacePresenter {
         today: Date,
         calendar: Calendar,
         childrenByParent: [UUID: [UUID]],
+        baselineReport: BaselineVarianceReport?,
         isLeaf: (TaskItem) -> Bool,
         plannedFinish: (TaskItem) -> Date?,
         deadlineRisk: (TaskItem, Date?) -> Bool,
@@ -711,7 +763,32 @@ public enum WorkspacePresenter {
             violations: violations.filter { $0.taskID == task.id },
             assignmentNames: assignmentNames,
             startDate: isGroup ? nil : task.startDate,
-            actualStart: isGroup ? nil : task.actualStart
+            actualStart: isGroup ? nil : task.actualStart,
+            baseline: baselineSection(for: task, report: baselineReport)
+        )
+    }
+
+    /// 基线段：只在「有基线条目」时生成。
+    ///
+    /// 无条目 = 基线之后新增（§5）：整段不出现，偏差也就不会被误读成「准时」。
+    /// 群组同样按自身条目出段（时间取聚合值，§3）。
+    private static func baselineSection(
+        for task: TaskItem,
+        report: BaselineVarianceReport?
+    ) -> BaselineSection? {
+        guard let report,
+              let variance = report.variance(for: task.id),
+              variance.hasBaseline,
+              let start = variance.baselineStart,
+              let finish = variance.baselineFinish else { return nil }
+        return BaselineSection(
+            baselineID: report.baselineID,
+            name: report.baselineName,
+            start: start,
+            finish: finish,
+            planFinishVariance: variance.planFinishVariance,
+            actualFinishVariance: variance.actualFinishVariance,
+            overdueDays: variance.overdueDays
         )
     }
 
@@ -757,6 +834,29 @@ public enum WorkspacePresenter {
             groups: groups,
             errorCount: errors.count,
             warningCount: warnings.count
+        )
+    }
+
+    /// 基线面板（§5）：孤儿与基线后新增集中呈现，不插大纲行。
+    ///
+    /// 孤儿按开始日升序（同日的按 finish 再排），让「承诺时间」成为稳定可读的列表。
+    private static func baselinePanel(report: BaselineVarianceReport?) -> BaselinePanel? {
+        guard let report else { return nil }
+        let orphans = report.orphans
+            .sorted {
+                if $0.start == $1.start { return $0.finish < $1.finish }
+                return $0.start < $1.start
+            }
+            .map { BaselinePanel.OrphanEntry(taskID: $0.taskID, start: $0.start, finish: $0.finish) }
+        return BaselinePanel(
+            baselineID: report.baselineID,
+            name: report.baselineName,
+            createdAt: report.baselineCreatedAt,
+            orphans: orphans,
+            tasksWithoutBaseline: report.tasksWithoutBaseline,
+            lateTaskCount: report.lateTaskCount,
+            overdueOpenCount: report.overdueOpenCount,
+            projectFinishVariance: report.projectFinishVariance
         )
     }
 

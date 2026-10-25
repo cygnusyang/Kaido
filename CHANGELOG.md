@@ -3,6 +3,33 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.13.0 — 2026-10-25
+
+### 新增
+
+- **基线（Baseline）**：把当前排期冻结成一份不可变快照（条目只存任务身份 + 计划起止 + 完成度 + 里程碑标记），任意时刻对比**选中的那一条**；基线不可编辑，调整计划后只能新建一份。
+- **大纲四个基线列**（基线开始/基线结束/开始偏差/结束偏差，**默认隐藏**）：偏差 = 当前计划 − 基线，日历天，正数 = 比承诺晚；无基线条目的任务标记为「无基线」、单元格显示「—」而不是 0。
+- **检查器基线段与项目页基线面板**：并列显示计划偏差与实际偏差（实际缺失时显示「尚未结束」，不拿计划冒充实际）；面板单独列出「任务已删除」的孤儿条目与「基线之后新增」的任务；删除基线需二次确认。
+- **CLI / MCP**：`baseline list|create|delete|variance` 四个子命令与 `baseline_create/list/delete/variance` 四个工具，输出统一带 `baselineID`/`name`/`createdAt`，数值与 `BaselineEngine` 逐字段一致；空值省略键、负数保留符号。
+- 偏差计算按 `(selectedBaselineID, session.revision)` 缓存：缩放/日宽/面板等纯视图动作不重算，任务编辑与基线增删改名才失效。
+
+### 变更（不兼容，需注意）
+
+- **`.kairo` 格式版本 1 → 2**：新增顶层 `baselines` 数组；无基线的项目不写该键。**0.12.0 及更早版本打开 v2 文件会被明确拒绝**（`unsupportedFormatVersion`，提示升级 Kairo），不会静默丢基线。v1 文件打开时内存内迁移、**不落盘**，首次保存才写成 v2。
+- 偏差字段名与符号规则自本版起作为对外契约（CLI `--json` 与 MCP 返回同名同义），后续改口径视为破坏性变更。
+- 基线删除不做软删除、不留审批痕迹（与 OmniPlan 一致，PMBOK 口径不适用单人工具）。
+
+### 修复
+
+- **D-030**：`RecentProjectsTests.launchOpensTheMostRecentProject` 改为「完成回执」等待（`awaitPendingOpenForTesting`，`CheckedContinuation` 挂起、打开收尾统一 resume），去掉墙钟 sleep 轮询 —— 并行全量下的偶发超时假红消除。
+
+### 判据与证据
+
+- 全量 **1077 tests / 98 suites** 通过（`swift test --disable-sandbox`，2026-10-25 15:40，树已冻结）。
+- 基线相关 139 例分四层：core/storage/commands 91、pres 19、app 17、cli+mcp 12；判据 1-12 四层均有落盘用例。
+- 体积/耗时（debug，**耗时为单次运行样本、与机器负载相关**；体积是确定值）：5,000 任务 × 3 基线 = **5.10 MB**（encode 0.108–0.515 s / decode 0.150–0.262 s / variance 0.199–0.284 s）；5,000 任务 × 5 基线 = **7.31 MB**（231 B/条目）。内置体积护栏 12 MB / 15 MB 并做过变异验证。
+- 已知边界（不算缺口，但未验证）：① 视图侧只做函数级与本地渲染断言，没有整屏截图比对；② 只在 macOS 跑，未走 Linux CI 口径；③ 基线数不设上限，未测 50 条基线的体积曲线。
+
 ## v0.12.0 — 2026-10-25
 
 ### 新增

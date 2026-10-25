@@ -141,6 +141,10 @@ struct OutlineHeaderView: View {
         case .finish: return I18n.t("column.finish", "Finish")
         case .actualStart: return I18n.t("column.actual_start", "Actual start")
         case .actualFinish: return I18n.t("column.actual_finish", "Actual finish")
+        case .baselineStart: return I18n.t("column.baseline_start", "Baseline start")
+        case .baselineFinish: return I18n.t("column.baseline_finish", "Baseline finish")
+        case .startVariance: return I18n.t("column.start_variance", "Plan start variance")
+        case .finishVariance: return I18n.t("column.finish_variance", "Plan finish variance")
         case .duration: return I18n.t("column.header.duration", "Dur.")
         case .assignee: return I18n.t("column.header.assignee", "Owner")
         case .progress: return I18n.t("column.header.progress", "Done")
@@ -277,17 +281,51 @@ private struct OutlineRowView: View {
         return .clear
     }
 
-    /// 只读日期列（实际开始 / 实际结束）：大纲只展示，编辑入口在检查器「实际」分区。
+    /// 基线承诺日期列的 tooltip（区别于排期结果列）。
+    private static let baselineDateHelp = I18n.t("column.baseline.help", "Committed baseline date")
+
+    /// 偏差列 tooltip：说明符号方向（列名只说「计划偏差」，方向在这里讲清）。
+    private static let varianceHelp = I18n.t(
+        "column.variance.help",
+        "Plan variance (plan − baseline). Positive = later, negative = earlier."
+    )
+
+    /// 只读日期列（实际开始 / 实际结束 / 基线起止）：大纲只展示，编辑入口在检查器。
     /// 口径与既有日期列一致（`Display.date`，无值 `—`）。
-    private func readOnlyDateCell(_ value: Date?) -> some View {
+    private func readOnlyDateCell(_ value: Date?, help: String? = nil) -> some View {
         Text(Display.date(value))
             .font(.system(size: DesignTokens.captionFontSize))
             .monospacedDigit()
             .foregroundStyle(value == nil ? DesignTokens.textSecondary : DesignTokens.textPrimary)
             .padding(.horizontal, 4)
             .lineLimit(1)
-            .help(Display.date(value))
+            .help(help ?? Display.date(value))
             .accessibilityLabel(value.map { Display.longDate($0) } ?? Display.placeholder)
+    }
+
+    /// 偏差列（v0.13）：只读、带符号；正数用逾期色、负数用成功色，空缺/0 走次要色。
+    ///
+    /// 空缺显示占位符而不是 0：0 表示准时，二者不能混（08 §4.1）。
+    private func varianceCell(_ days: Int?) -> some View {
+        Text(Display.varianceDays(days))
+            .font(.system(size: DesignTokens.captionFontSize))
+            .monospacedDigit()
+            .foregroundStyle(varianceColor(days))
+            .padding(.horizontal, 4)
+            .lineLimit(1)
+            .help(Self.varianceHelp)
+            .accessibilityLabel(Display.varianceDays(days))
+    }
+
+    private func varianceColor(_ days: Int?) -> Color {
+        guard let days else { return DesignTokens.textSecondary }
+        if days > 0 {
+            return DesignTokens.semanticText(DesignTokens.overdue, isSelected: isSelected)
+        }
+        if days < 0 {
+            return DesignTokens.semanticText(DesignTokens.statusSuccess, isSelected: isSelected)
+        }
+        return DesignTokens.textSecondary
     }
 
     @ViewBuilder
@@ -346,6 +384,14 @@ private struct OutlineRowView: View {
             readOnlyDateCell(row.actualStart)
         case .actualFinish:
             readOnlyDateCell(row.actualFinish)
+        case .baselineStart:
+            readOnlyDateCell(row.baselineStart, help: Self.baselineDateHelp)
+        case .baselineFinish:
+            readOnlyDateCell(row.baselineFinish, help: Self.baselineDateHelp)
+        case .startVariance:
+            varianceCell(row.planStartVariance)
+        case .finishVariance:
+            varianceCell(row.planFinishVariance)
         case .duration:
             EditableTextCell(
                 text: row.durationDays.map { Display.duration($0) } ?? "—",

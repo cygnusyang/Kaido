@@ -18,6 +18,9 @@ struct WorkspaceView: View {
     /// 列宽拖拽中的预览草稿（F-14-20）：表头与行共用同一 layout，故两侧同步预览。
     /// 松手（`onResizeEnded`）才提交一次，拖动期间不落盘。
     @State private var liveColumnResize: (column: OutlineColumn, width: CGFloat)?
+    /// 基线改名弹窗（v0.13）：草稿名与开关独立于菜单，菜单关闭后仍可完成输入。
+    @State private var showsBaselineRename = false
+    @State private var baselineRenameDraft = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -80,6 +83,44 @@ struct WorkspaceView: View {
             }
         } message: { pending in
             Text(I18n.t("alert.delete.message", "“%1$@” contains %2$ld subtasks, which will be deleted too. This can be undone.", pending.title, max(pending.affectedCount - 1, 0)))
+        }
+        // 基线删除（v0.13 / 08 §11）：必须二次确认——基线删掉不可重建，误删无救。
+        .confirmationDialog(
+            store.pendingBaselineDeletion.map {
+                I18n.t("alert.baseline.delete.title", "Delete the baseline “%1$@”?", $0.name)
+            } ?? I18n.t("alert.baseline.delete.title_plain", "Delete this baseline?"),
+            isPresented: Binding(
+                get: { store.pendingBaselineDeletion != nil },
+                set: { if !$0 { store.cancelPendingBaselineDeletion() } }
+            ),
+            presenting: store.pendingBaselineDeletion
+        ) { pending in
+            Button(I18n.t("alert.baseline.delete.confirm", "Delete Baseline"), role: .destructive) {
+                store.confirmPendingBaselineDeletion()
+            }
+            Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {
+                store.cancelPendingBaselineDeletion()
+            }
+        } message: { pending in
+            Text(I18n.t(
+                "alert.baseline.delete.message",
+                "“%1$@” will be deleted permanently. Scheduled tasks are not affected.",
+                pending.name
+            ))
+        }
+        .alert(
+            I18n.t("alert.baseline.rename.title", "Rename Baseline"),
+            isPresented: $showsBaselineRename
+        ) {
+            TextField(
+                I18n.t("alert.baseline.rename.placeholder", "Baseline name"),
+                text: $baselineRenameDraft
+            )
+            Button(I18n.t("action.ok", "OK")) {
+                guard let id = store.selectedBaseline?.id else { return }
+                store.dispatch(.renameBaseline(id, baselineRenameDraft))
+            }
+            Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {}
         }
         .confirmationDialog(
             I18n.t("alert.unsaved_changes.title", "The current project has unsaved changes"),
@@ -240,6 +281,43 @@ struct WorkspaceView: View {
             }
             .help(I18n.t("action.new_task", "New Task"))
 
+            // 基线（v0.13）：选中项驱动大纲四列与检查器基线段；
+            // 未选＝「不比较」，四列整体隐藏（08 §5）。
+            Menu {
+                Button(baselineTitle(nil)) {
+                    store.dispatch(.setBaseline(nil))
+                }
+                if !store.baselines.isEmpty {
+                    Divider()
+                    ForEach(store.baselines) { baseline in
+                        Button(baselineTitle(baseline)) {
+                            store.dispatch(.setBaseline(baseline.id))
+                        }
+                    }
+                }
+                Divider()
+                Button(I18n.t("menu.baseline.create", "New Baseline")) {
+                    store.dispatch(.createBaseline(nil))
+                }
+                if let selected = store.selectedBaseline {
+                    Button(I18n.t("menu.baseline.rename", "Rename Baseline…")) {
+                        baselineRenameDraft = selected.name
+                        showsBaselineRename = true
+                    }
+                    Button(I18n.t("menu.baseline.delete", "Delete Baseline…"), role: .destructive) {
+                        store.dispatch(.deleteBaseline(selected.id))
+                    }
+                }
+            } label: {
+                Image(systemName: "flag.checkered")
+                    .foregroundStyle(store.hasSelectedBaseline
+                        ? DesignTokens.accentStrong
+                        : DesignTokens.textSecondary)
+            }
+            .help(store.selectedBaseline.map {
+                I18n.t("menu.baseline.help.selected", "Comparing against “%1$@”", $0.name)
+            } ?? I18n.t("menu.baseline.help", "Compare against a baseline"))
+
             Button {
                 store.dispatch(.setOutlineVisible(!store.viewState.outlineVisible))
             } label: {
@@ -289,6 +367,14 @@ struct WorkspaceView: View {
         store.viewState.customDayWidth == nil
             && !store.viewState.usesFitZoom
             && store.viewState.zoom == zoom
+    }
+
+    /// 基线菜单项标题：当前对比基线打勾（未选时「不比较」打勾）。
+    private func baselineTitle(_ baseline: Baseline?) -> String {
+        let name = baseline?.name ?? I18n.t("menu.baseline.none", "No Baseline")
+        let isCurrent = baseline.map { $0.id == store.selectedBaseline?.id }
+            ?? (store.selectedBaseline == nil)
+        return isCurrent ? "✓ \(name)" : name
     }
 
     /// 「适合项目」菜单项标题：生效时打勾。
@@ -353,7 +439,9 @@ struct WorkspaceView: View {
                 outlineWidth: Double(sizes.outlineWidth),
                 hidden: hiddenColumns,
                 focused: sizes.focused,
-                shownOptional: optionalColumns
+                shownOptional: optionalColumns,
+                // 基线四列只在选定对比基线后出现（未选时整体隐藏，08 §5）。
+                hasSelectedBaseline: store.hasSelectedBaseline
             )
         let layout = OutlineColumnLayout(
             columns: columns,

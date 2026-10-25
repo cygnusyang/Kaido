@@ -44,6 +44,16 @@ public enum WorkspaceAction: Equatable, Sendable {
     /// 大纲列显隐切换（F-14-20）：序号/任务说明直接忽略；不产生撤销点。
     case toggleOutlineColumn(OutlineColumn)
 
+    // 基线（v0.13 / 08-baselines §8）
+    /// 切换对比基线：`nil` = 不比较；纯视图状态（不产生撤销点、不置脏、不写文件）。
+    case setBaseline(UUID?)
+    /// 对当前排期拍一次快照；`nil` 名称 = 默认名「基线 N · yyyy-MM-dd」。进撤销栈。
+    case createBaseline(String?)
+    /// 基线改名（只改名字，条目不可变）。进撤销栈。
+    case renameBaseline(UUID, String)
+    /// 删除基线：界面必须先二次确认（08 §11），确认后由应用层执行。
+    case deleteBaseline(UUID)
+
     // 任务编辑（经会话）
     case createTask(parentID: UUID?, kind: TaskKind)
     case createSibling(after: UUID)

@@ -137,7 +137,8 @@ private let b0Fixture4 = "旧项目"
     // 缺少 resources 的旧信封：读取时回填默认值，另存后固定写当前版本。
     let legacy = #"{"formatVersion":1,"project":{"id":"\#(UUID().uuidString)","title":"旧项目","createdAt":"2026-10-17T00:00:00Z","updatedAt":"2026-10-17T00:00:00Z"},"tasks":[]}"#
     let decoded = try KairoFile.read(from: Data(legacy.utf8))
-    #expect(decoded.sourceFormatVersion == KairoFile.currentFormatVersion)
+    // v0.13 起当前格式为 v2：v1 文件如实报告来源版本 1（UI 据此提示「保存后升级」）。
+    #expect(decoded.sourceFormatVersion == 1)
     #expect(decoded.project.resources.isEmpty)
 
     let resaved = try KairoFile.encode(project: decoded.project)

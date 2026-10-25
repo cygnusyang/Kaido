@@ -76,6 +76,10 @@ struct ToolRegistry {
             statusBatchUpdate,
             resourceAdd,
             resourceList,
+            baselineCreate,
+            baselineList,
+            baselineDelete,
+            baselineVariance,
         ]
     }
 
@@ -409,6 +413,68 @@ struct ToolRegistry {
         let resources = try session.resourceList()
         return .object(["resources": .array(try resources.map { try JSONValue.json($0) })])
     }
+
+    // MARK: baseline（v0.13 / 08-baselines §8）
+
+    private static let baselineCreate = MCPTool(
+        name: "baseline_create",
+        description: "对当前排期拍一次不可变快照（冻结计划起止与完成度），返回 baselineID/name/createdAt/entryCount；省略 name 用默认名「基线 N · yyyy-MM-dd」，空名报 model_baseline_name_empty（08-baselines §8）",
+        inputSchema: Schema.object(properties: ["name": Schema.string()])
+    ) { args, session in
+        let a = try ToolArgs(args)
+        let baseline = try session.createBaseline(name: a.optionalString("name"))
+        return BaselineResults.created(baseline)
+    }
+
+    private static let baselineList = MCPTool(
+        name: "baseline_list",
+        description: "按创建顺序（早→晚）列出基线；每项含 baselineID/name/createdAt/entryCount，快照时无排期锚点则不返回 anchor（08-baselines §8）",
+        inputSchema: Schema.object(properties: [:])
+    ) { _, session in
+        BaselineResults.list(try session.baselines())
+    }
+
+    private static let baselineDelete = MCPTool(
+        name: "baseline_delete",
+        description: "按 baselineID 删除一条基线，其余基线与任务本身不受影响；返回 ok 与被删基线的 baselineID/name/createdAt，未知 ID 报 model_baseline_not_found（08-baselines §8）",
+        inputSchema: Schema.object(properties: ["baselineID": Schema.string()], required: ["baselineID"])
+    ) { args, session in
+        let a = try ToolArgs(args)
+        let id = try a.uuid("baselineID")
+        // 回执要带身份三字段：删除后就查不到了，先取（判据 6）。
+        guard let removed = try session.baselines().first(where: { $0.id == id }) else {
+            throw ToolError.invalidArgument(
+                reason: .baselineNotFound,
+                message: "基线不存在：\(id.uuidString)"
+            )
+        }
+        try session.deleteBaseline(id: id)
+        return .object([
+            "ok": .bool(true),
+            "baselineID": .string(id.uuidString),
+            "name": .string(removed.name),
+            "createdAt": .string(ISO8601DateFormatter().string(from: removed.createdAt)),
+        ])
+    }
+
+    private static let baselineVariance = MCPTool(
+        name: "baseline_variance",
+        description: "把当前计划与实际时间分别同基线比较（省略 baselineID = 最新一条）；必带 baselineID/baselineName/baselineCreatedAt；偏差为带符号日历天（正数 = 比承诺晚），空值省略键而不写 0；taskID 只收窄任务行，项目级聚合仍按全项目（08-baselines §4/§8）",
+        inputSchema: Schema.object(properties: [
+            "baselineID": Schema.string(),
+            "taskID": Schema.string(),
+        ])
+    ) { args, session in
+        let a = try ToolArgs(args)
+        let report = try session.baselineVariance(baselineID: try a.optionalUUID("baselineID"))
+        var taskIDs = BaselineResults.orderedTaskIDs(report, taskOrder: (session.project?.tasks ?? []).map(\.id))
+        if let taskID = try a.optionalUUID("taskID") {
+            // 未知任务直接报 model_task_not_found：静默返回空数组会让调用方以为「该任务没有偏差」。
+            _ = try session.getTask(id: taskID)
+            taskIDs = taskIDs.filter { $0 == taskID }
+        }
+        return try BaselineResults.variance(report, taskIDs: taskIDs)
+    }
 }
 
 /// 项目工具结果组装（FR-KAIRO-FMT-6）。
@@ -456,6 +522,103 @@ enum ProjectResults {
         if let start = meta.projectStart { result["projectStart"] = .string(formatter.string(from: start)) }
         if let end = meta.projectEnd { result["projectEnd"] = .string(formatter.string(from: end)) }
         return result
+    }
+}
+
+/// 基线工具结果组装（v0.13 / 08-baselines §8）。
+///
+/// 与 CLI `baseline list|variance --json` 字段名逐字一致：两条出口共用同一组契约名，
+/// 数值全部来自 `BaselineEngine`，接口层不再自行计算（对等性门禁，判据 12）。
+enum BaselineResults {
+    /// `baseline_create`：身份 + 条目数（条目数决定这次快照覆盖了多少任务）。
+    static func created(_ baseline: Baseline) -> JSONValue {
+        .object([
+            "baselineID": .string(baseline.id.uuidString),
+            "name": .string(baseline.name),
+            "createdAt": .string(ISO8601DateFormatter().string(from: baseline.createdAt)),
+            "entryCount": .number(Double(baseline.entries.count)),
+        ])
+    }
+
+    /// `baseline_list`：按创建顺序；`anchor` 缺失不写键。
+    static func list(_ baselines: [Baseline]) -> JSONValue {
+        let formatter = ISO8601DateFormatter()
+        let rows = baselines.map { baseline -> JSONValue in
+            var fields: [String: JSONValue] = [
+                "baselineID": .string(baseline.id.uuidString),
+                "name": .string(baseline.name),
+                "createdAt": .string(formatter.string(from: baseline.createdAt)),
+                "entryCount": .number(Double(baseline.entries.count)),
+            ]
+            if let anchor = baseline.anchor {
+                fields["anchor"] = .string(formatter.string(from: anchor))
+            }
+            return .object(fields)
+        }
+        return .object(["baselines": .array(rows)])
+    }
+
+    /// `baseline_variance`：字段与 `BaselineVarianceReport` / `TaskVariance` 同名同义。
+    ///
+    /// - 空值（`nil`）**不写键**：写 0 会把「没有数据」冒充成「准时」（§4.1）；
+    /// - 偏差是整数天，负数原样带 `-`；
+    /// - 需按 `taskIDs` 的行序输出（调用方按大纲顺序给出），字典键序不稳定。
+    static func variance(_ report: BaselineVarianceReport, taskIDs: [UUID]) throws -> JSONValue {
+        let formatter = ISO8601DateFormatter()
+        var fields: [String: JSONValue] = [
+            "baselineID": .string(report.baselineID.uuidString),
+            "baselineName": .string(report.baselineName),
+            "baselineCreatedAt": .string(formatter.string(from: report.baselineCreatedAt)),
+            "lateTaskCount": .number(Double(report.lateTaskCount)),
+            "overdueOpenCount": .number(Double(report.overdueOpenCount)),
+            "tasksWithoutBaseline": .number(Double(report.tasksWithoutBaseline)),
+            "predictedTaskCount": .number(Double(report.predictedTaskCount)),
+            "tasks": .array(taskIDs.compactMap { id in report.tasks[id].map(taskRow) }),
+            "orphans": .array(try report.orphans.map { try JSONValue.json($0) }),
+        ]
+        if let projectFinishVariance = report.projectFinishVariance {
+            fields["projectFinishVariance"] = .number(Double(projectFinishVariance))
+        }
+        return .object(fields)
+    }
+
+    /// 偏差行的稳定顺序：先按项目大纲顺序，报告里多出的任务按 UUID 排序兜底。
+    static func orderedTaskIDs(_ report: BaselineVarianceReport, taskOrder: [UUID]) -> [UUID] {
+        var seen: Set<UUID> = []
+        var result: [UUID] = []
+        for id in taskOrder where report.tasks[id] != nil {
+            if seen.insert(id).inserted { result.append(id) }
+        }
+        result.append(contentsOf: report.tasks.keys.filter { !seen.contains($0) }.sorted { $0.uuidString < $1.uuidString })
+        return result
+    }
+
+    /// 单任务偏差：空值省略键，正负号原样保留。
+    private static func taskRow(_ variance: TaskVariance) -> JSONValue {
+        let formatter = ISO8601DateFormatter()
+        var fields: [String: JSONValue] = [
+            "taskID": .string(variance.taskID.uuidString),
+            "hasBaseline": .bool(variance.hasBaseline),
+            "isForecast": .bool(variance.isForecast),
+        ]
+        if let start = variance.baselineStart {
+            fields["baselineStart"] = .string(formatter.string(from: start))
+        }
+        if let finish = variance.baselineFinish {
+            fields["baselineFinish"] = .string(formatter.string(from: finish))
+        }
+        let days: [(String, Int?)] = [
+            ("planStartVariance", variance.planStartVariance),
+            ("planFinishVariance", variance.planFinishVariance),
+            ("actualStartVariance", variance.actualStartVariance),
+            ("actualFinishVariance", variance.actualFinishVariance),
+            ("overdueDays", variance.overdueDays),
+            ("durationVariance", variance.durationVariance),
+        ]
+        for (key, value) in days {
+            if let value { fields[key] = .number(Double(value)) }
+        }
+        return .object(fields)
     }
 }
 

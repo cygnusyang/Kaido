@@ -145,6 +145,16 @@ enum Display {
         "\(Int((min(max(value, 0), 1) * 100).rounded()))%"
     }
 
+    /// 偏差读数（日历天，08-baselines §4.1）：正 = 比承诺晚，负 = 提前。
+    ///
+    /// 无值一律占位符——0 表示「准时」，与「没有数据」不是一回事，混用会把
+    /// 基线后新增任务算成准时（§4.1「空缺一律 nil，不写 0」）。
+    /// 正数补 `+`：符号即方向，用户不必回看列名解释。
+    static func varianceDays(_ days: Int?) -> String {
+        guard let days else { return placeholder }
+        return days > 0 ? "+\(days)" : "\(days)"
+    }
+
     /// 大纲列名：列显隐菜单与「显示/隐藏X列」命令共用同一份文案（F-14-20）。
     static func outlineColumnTitle(_ column: OutlineColumn) -> String {
         switch column {
@@ -157,6 +167,11 @@ enum Display {
         case .finish: return I18n.t("column.finish", "Finish")
         case .actualStart: return I18n.t("column.actual_start", "Actual start")
         case .actualFinish: return I18n.t("column.actual_finish", "Actual finish")
+        case .baselineStart: return I18n.t("column.baseline_start", "Baseline start")
+        case .baselineFinish: return I18n.t("column.baseline_finish", "Baseline finish")
+        // 偏差列名自带「计划」二字：大纲列对比 plan vs baseline，与检查器的实际偏差是两层读数（08 §4.3）。
+        case .startVariance: return I18n.t("column.start_variance", "Plan start variance")
+        case .finishVariance: return I18n.t("column.finish_variance", "Plan finish variance")
         case .duration: return I18n.t("column.duration", "Duration")
         case .assignee: return I18n.t("column.assignee", "Assignee")
         case .progress: return I18n.t("column.progress", "Progress")

@@ -108,7 +108,8 @@ public struct BaselineEntry: Codable, Hashable, Sendable {
 而不是让条目静默消失（调研：OmniPlan 4.x 对孤儿无任何说明，Kairo 要求显式呈现）。
 ## 6. 存储形态（已裁定：方案 A）
 
-> **裁定记录（2026-10-25，用户）**：采用**方案 A · 顶级 `baselines` 数组**。理由：单文件承诺不变、CLI/MCP 零改动可读、一条基线一块连续 JSON 对 git diff 最友好；体积按条目 180 B 估算，5,000 任务 × 5 基线 ≈ 4.5 MB，由 v0.13 的读写实测把关。
+> **裁定记录（2026-10-25，用户）**：采用**方案 A · 顶级 `baselines` 数组**。理由：单文件承诺不变、CLI/MCP 零改动可读、一条基线一块连续 JSON 对 git diff 最友好。
+> **实测（v0.13，2026-10-25）**：5,000 任务 × 5 基线 = 7.31 MB（无基线 1.80 MB，基线净增 5.51 MB，**231 B/条目**，比估算 180 B 高 63%，主因 prettyPrinted + ISO8601 + UUID）；encode 0.205 s / decode 0.234 s / variance 0.183 s（debug，**单次运行样本、与机器负载相关**；全量并发下常见 0.2–0.45 s，最挤 0.63 s），远低于 1 s 门槛；体积为确定值。估算已按实测校正。
 
 ### 方案 A · 内嵌快照数组（推荐）
 
@@ -120,7 +121,7 @@ public struct BaselineEntry: Codable, Hashable, Sendable {
 
 - 落在**顶级 `baselines`**（与 `tasks` 平级），不塞进 `project` 节点：`ProjectMetadata` 的语义是标量元数据（标题/时间戳/窗口），塞数组会让它变成半个项目容器。
   JSON 消费者无差别（都在同一文件），但 Swift 侧 `Project.baselines` 与 `metadata` 分层干净。
-- 条目字段 5 个（§3），单条目 pretty 约 180 B：1,000 任务 ≈ 180 KB/基线，5,000 任务 ≈ 0.9 MB/基线；5 基线 × 5,000 任务 ≈ 4.5 MB（需 v0.13 实测，NFR 是 5,000 任务 ≤ 1 s 读写）。
+- 条目字段 5 个（§3），单条目 pretty 实测 **231 B**：1,000 任务 ≈ 231 KB/基线，5,000 任务 ≈ 1.1 MB/基线；5 基线 × 5,000 任务 ≈ **5.5 MB**（v0.13 已实测，见上方裁定记录；NFR 是 5,000 任务 ≤ 1 s 读写，实测 0.205 s / 0.234 s）。
 
 ### 方案 B · 独立 sidecar 文件（`<name>.kairo.baselines.json`）
 
@@ -135,7 +136,7 @@ public struct BaselineEntry: Codable, Hashable, Sendable {
 
 | 维度 | A 内嵌数组 | B sidecar | C 规范化表 |
 | --- | --- | --- | --- |
-| 体积 | 中（180 B/条目） | 主文件 0，总量同 A | 中（略小于 A） |
+| 体积 | 中（**实测 231 B/条目**，原估算 180 B） | 主文件 0，总量同 A | 中（略小于 A） |
 | git diff 友好（ADR-003） | **好**：一条基线一个连续块，新增只加块 | 差：基线变成另一文件，评审要开两个文件 | 差：entries 扁平混排，删一条基线动大段 |
 | 旧版本行为 | 升 v2 后旧版本**拒开**（明确报错） | 旧版本能开主文件但看不到基线（静默缺功能） | 同 A |
 | 删除 / 多基线 | **简单**：数组删元素 | 跨文件同步，复杂 | 需同时改两处 |
@@ -223,16 +224,16 @@ public struct TaskVariance: Hashable, Sendable {
 }
 public struct BaselineVarianceReport: Hashable, Sendable {
     public var baselineID: UUID; public var baselineName: String; public var baselineCreatedAt: Date
-    public var tasks: [UUID: TaskVariance]          // 仅含有基线条目的任务
+    public var tasks: [UUID: TaskVariance]          // 含全部当前任务；基线后新增的也在此，hasBaseline == false 且偏差全 nil（判据 §9-7 口径，不按「只含有条目的任务」裁剪）
     public var orphans: [BaselineEntry]             // 条目在、任务已删
     public var projectFinishVariance: Int?          // 最晚 P.finish − 最晚 B.finish
     public var lateTaskCount: Int; public var overdueOpenCount: Int
     public var tasksWithoutBaseline: Int; public var predictedTaskCount: Int
 }
 public enum BaselineEngine {
-    public static func snapshot(tasks: [TaskItem], schedules: [UUID: ScheduleEntry], name: String,
+    public static func snapshot(tasks: [TaskItem], schedules: [UUID: ScheduledTask], name: String,
                                 anchor: Date?, now: Date) -> Baseline
-    public static func variance(baseline: Baseline, tasks: [TaskItem], schedules: [UUID: ScheduleEntry],
+    public static func variance(baseline: Baseline, tasks: [TaskItem], schedules: [UUID: ScheduledTask],
                                 now: Date, calendar: Calendar) -> BaselineVarianceReport
 }
 

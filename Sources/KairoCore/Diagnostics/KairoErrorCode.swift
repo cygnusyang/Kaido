@@ -28,6 +28,10 @@ public enum KairoErrorCode: String, Codable, Hashable, Sendable, CaseIterable {
     case resourceNotFound = "model_resource_not_found"
     /// 07-actual-dates §4：实际结束早于实际开始（顺序非法）。
     case actualDateOrderInvalid = "model_actual_date_order_invalid"
+    /// v0.13 / 08-baselines §8：基线不存在（含「项目还没有基线」）。
+    case baselineNotFound = "model_baseline_not_found"
+    /// v0.13 / 08-baselines §8：基线名为空（改名后无法在大纲/报表里区分基线）。
+    case baselineNameEmpty = "model_baseline_name_empty"
 
     // MARK: - schedule（排期、时限与违例）
 

@@ -43,6 +43,14 @@ final class WorkspaceStore: ObservableObject {
 
     @Published var pendingDeletion: PendingDeletion?
 
+    /// 基线删除确认（08-baselines §11：允许删除，但必须二次确认；无软删除）。
+    struct PendingBaselineDeletion: Identifiable {
+        var id: UUID
+        var name: String
+    }
+
+    @Published var pendingBaselineDeletion: PendingBaselineDeletion?
+
     /// 打开的磁盘文件早于当前格式；保存/另存为后升级并清除（FR-KAIRO-FMT）。
     @Published private(set) var needsFormatUpgrade = false
     /// 磁盘文件已被外部修改且本地存在未保存修改。
@@ -77,6 +85,8 @@ final class WorkspaceStore: ObservableObject {
     /// 外部文件读取失败时的 mtime；相同版本不重复重试与弹窗。
     private var failedExternalMtime: Date?
     private var loadingToken: UUID?
+    /// 等待「异步打开收尾」的测试回执（D-030）：用完成通知替代墙钟轮询。
+    private var pendingOpenWaiters: [CheckedContinuation<Void, Never>] = []
     private var dropExpandTask: Task<Void, Never>?
     private var dropExpandTargetID: UUID?
     /// 打开另存为面板时的会话版本；用于判断导出期间是否又有新修改。
@@ -115,6 +125,8 @@ final class WorkspaceStore: ObservableObject {
         var visibleOptionalColumns: [String]?
         /// 是否标出非工作日；旧数据缺省 → false（一周 7 天，与排期口径一致）。
         var showsNonWorkingDays: Bool?
+        /// 当前对比基线（v0.13）；旧数据缺省 → nil（不比较，基线列隐藏）。
+        var selectedBaselineID: UUID?
 
         /// 字段默认值 = `WorkspaceViewState()` 初值（与新建会话一致）。
         init(
@@ -130,7 +142,8 @@ final class WorkspaceStore: ObservableObject {
             outlineColumnWidths: [String: Double]?,
             hiddenOutlineColumns: [String]?,
             visibleOptionalColumns: [String]?,
-            showsNonWorkingDays: Bool?
+            showsNonWorkingDays: Bool?,
+            selectedBaselineID: UUID?
         ) {
             self.outlineWidth = outlineWidth
             self.outlineVisible = outlineVisible
@@ -145,6 +158,7 @@ final class WorkspaceStore: ObservableObject {
             self.hiddenOutlineColumns = hiddenOutlineColumns
             self.visibleOptionalColumns = visibleOptionalColumns
             self.showsNonWorkingDays = showsNonWorkingDays
+            self.selectedBaselineID = selectedBaselineID
         }
 
         init(from decoder: Decoder) throws {
@@ -178,6 +192,7 @@ final class WorkspaceStore: ObservableObject {
             showsNonWorkingDays = try? container.decodeIfPresent(
                 Bool.self, forKey: .showsNonWorkingDays
             )
+            selectedBaselineID = try? container.decodeIfPresent(UUID.self, forKey: .selectedBaselineID)
         }
     }
 
@@ -186,6 +201,44 @@ final class WorkspaceStore: ObservableObject {
         var selectedTaskID: UUID?
         var expandedTaskIDs: Set<UUID>
     }
+
+    /// 偏差计算缓存（v0.13 / 08-baselines §4）：5,000 任务单次约 0.28 s（tester 实测），
+    /// 绝不能每次快照重建都重算——日宽、滚动、面板开合都会重建快照。
+    ///
+    /// 失效键 = (selectedBaselineID, session.revision)：任务编辑与基线创建/删除/改名都会
+    /// bump revision；切换基线本身不进模型，只换 key。
+    private final class BaselineVarianceCache {
+        struct Key: Equatable {
+            var baselineID: UUID
+            var revision: UInt64
+        }
+
+        private var key: Key?
+        private var cached: BaselineVarianceReport?
+        /// 测试观测缝：真实计算次数（命中缓存不增加）。
+        private(set) var computationCount = 0
+
+        func report(
+            for baseline: Baseline?,
+            revision: UInt64,
+            compute: () -> BaselineVarianceReport?
+        ) -> BaselineVarianceReport? {
+            guard let baseline else {
+                key = nil
+                cached = nil
+                return nil
+            }
+            let candidate = Key(baselineID: baseline.id, revision: revision)
+            if key == candidate { return cached }
+            let value = compute()
+            computationCount += 1
+            key = candidate
+            cached = value
+            return value
+        }
+    }
+
+    private let varianceCache = BaselineVarianceCache()
 
     private var undoStack: [UndoEntry] = []
     private var redoStack: [UndoEntry] = []
@@ -236,6 +289,9 @@ final class WorkspaceStore: ObservableObject {
             state.outlineColumnWidths = Self.loadedColumnWidths(stored.outlineColumnWidths)
             state.hiddenOutlineColumns = Self.loadedHiddenColumns(stored.hiddenOutlineColumns)
             state.visibleOptionalColumns = Self.loadedOptionalColumns(stored.visibleOptionalColumns)
+            // 基线选择是应用级视图偏好：存的是 ID，打开的项目没有这条基线时
+            // 由 `selectedBaseline` 解析失败回落成「不比较」，不会指向别的项目的数据。
+            state.selectedBaselineID = stored.selectedBaselineID
         }
         // 自定义日宽：载入时归一化（夹取 + 取整 0.1，与写入口径一致，D-012），
         // 并与「适合项目」互斥（自定义优先）。
@@ -256,7 +312,8 @@ final class WorkspaceStore: ObservableObject {
             viewport: viewport,
             saveState: .saved,
             calendar: calendar,
-            now: now
+            now: now,
+            varianceCache: varianceCache
         )
         self.saveState = session.hasUnsavedChanges ? .unsaved : .saved
         // 最近列表只读一次：之后由 noteRecentProject / clearRecentProjects 维护。
@@ -284,9 +341,37 @@ final class WorkspaceStore: ObservableObject {
     /// 测试观测缝（@testable 消费）：撤销栈深度，用于断言被拒绝的动作不产生撤销点。
     var undoDepthForTesting: Int { undoStack.count }
 
+    /// 测试观测缝（@testable 消费）：偏差真实计算次数（命中缓存不增加）。
+    var baselineVarianceComputationCountForTesting: Int { varianceCache.computationCount }
+
+    /// 测试观测缝（@testable 消费）：等待进行中的异步打开收尾。
+    ///
+    /// 完成回执替代「墙钟 sleep + 轮询」（D-030）：轮询窗口在并行全量下会假红。
+    /// `isLoading` 在 `startOpenAsync` 里同步置真，发起打开后立刻 await 不会漏掉这次载入；
+    /// 已经收尾（或从未发起）时立即返回。
+    func awaitPendingOpenForTesting() async {
+        guard isLoading else { return }
+        await withCheckedContinuation { continuation in
+            pendingOpenWaiters.append(continuation)
+        }
+    }
+
     var projectURL: URL? { session.projectURL }
     var hasUnsavedChanges: Bool { session.hasUnsavedChanges }
     var selection: UUID? { viewState.selectedTaskID }
+
+    /// 项目基线（有序 = 创建顺序）：基线菜单与检查器共用同一份。
+    var baselines: [Baseline] { session.project?.baselines ?? [] }
+
+    /// 解析后的当前对比基线：ID 指向不存在的基线（换项目 / 已被删除）按「不比较」处理，
+    /// 与 Presenter 的解析口径一致，避免视图显示「已选中」而列里全是占位符。
+    var selectedBaseline: Baseline? {
+        guard let id = viewState.normalizedBaselineID(in: baselines) else { return nil }
+        return baselines.first { $0.id == id }
+    }
+
+    /// 基线四列是否可见：解析成功才算选中（未选时四列与检查器基线段整体隐藏）。
+    var hasSelectedBaseline: Bool { selectedBaseline != nil }
 
     /// 仅深链解析等主线程内部逻辑使用；视图不得读取。
     var exportProject: Project { session.project ?? Project() }
@@ -321,7 +406,8 @@ final class WorkspaceStore: ObservableObject {
             viewport: viewport,
             saveState: saveState,
             calendar: calendar,
-            now: now
+            now: now,
+            varianceCache: varianceCache
         )
         // 锁定时检查器使用冻结任务；状态栏仍显示真实选择。
         if viewState.inspectorLocked, let title = selectedTaskTitle {
@@ -344,7 +430,8 @@ final class WorkspaceStore: ObservableObject {
         viewport: WorkspaceViewport,
         saveState: SaveState,
         calendar: Calendar,
-        now: Date
+        now: Date,
+        varianceCache: BaselineVarianceCache
     ) -> WorkspaceSnapshot {
         // 排期走会话缓存（D-014）：只有任务/元数据写操作会置空缓存，
         // 纯视图动作（日宽调整、面板开合等）命中缓存不重算排期。
@@ -352,6 +439,25 @@ final class WorkspaceStore: ObservableObject {
         let violations = schedule.map {
             ViolationEngine.check(result: $0, tasks: state.tasks)
         } ?? []
+        // 偏差按 (基线, 会话版本) 缓存（见 BaselineVarianceCache）：切换基线只换 key，
+        // 纯视图动作命中缓存，不重算 5k 任务的偏差。
+        let selectedBaseline = viewState.selectedBaselineID.flatMap { id in
+            state.baselines.first { $0.id == id }
+        }
+        let variance = varianceCache.report(
+            for: selectedBaseline,
+            revision: session.revision
+        ) {
+            guard let baseline = selectedBaseline else { return nil }
+            let schedules = schedule.map { BaselineEngine.scheduleIndex(from: $0) } ?? [:]
+            return BaselineEngine.variance(
+                baseline: baseline,
+                tasks: state.tasks,
+                schedules: schedules,
+                now: now,
+                calendar: calendar
+            )
+        }
         return WorkspacePresenter.make(
             state: state,
             schedule: schedule,
@@ -361,7 +467,8 @@ final class WorkspaceStore: ObservableObject {
             calendar: calendar,
             locale: Locale.current, // TODO(F-0706): 由语言设置注入
             now: now,
-            saveState: saveState
+            saveState: saveState,
+            baselineVariance: .cached(variance)
         )
     }
 
@@ -553,6 +660,18 @@ final class WorkspaceStore: ObservableObject {
 
         case .toggleOutlineColumn(let column):
             toggleOutlineColumn(column)
+
+        case .setBaseline(let id):
+            setBaseline(id)
+
+        case .createBaseline(let name):
+            createBaseline(name: name)
+
+        case .renameBaseline(let id, let name):
+            renameBaseline(id: id, name: name)
+
+        case .deleteBaseline(let id):
+            requestDeleteBaseline(id: id)
 
         case .createTask(let parentID, let kind):
             createTask(kind: kind, parentID: parentID)
@@ -804,6 +923,70 @@ final class WorkspaceStore: ObservableObject {
                 state.hiddenOutlineColumns.insert(column.rawValue)
             }
         }
+    }
+
+    // MARK: - 基线（v0.13 / 08-baselines）
+
+    /// 切换对比基线（§9-10）：纯视图状态——不进撤销栈、不置脏、不写文件。
+    ///
+    /// 指向不存在的基线时落成 `nil`：留着悬挂 ID 只会让界面「看起来选了」却没有任何读数。
+    private func setBaseline(_ id: UUID?) {
+        let resolved = id.flatMap { candidate in baselines.first { $0.id == candidate }?.id }
+        mutateView { $0.selectedBaselineID = resolved }
+    }
+
+    /// 拍一次基线快照：成功后记撤销点，并选中新基线（点「新建基线」的意图就是拿它做对比）。
+    ///
+    /// 与 `updateActual` 同序：先拿前置快照，成功后再压栈——失败不应留下空撤销步。
+    private func createBaseline(name: String?) {
+        let entry = captureUndoEntry()
+        do {
+            let baseline = try session.createBaseline(name: name)
+            appendUndo(entry, mergeKey: nil)
+            viewState.selectedBaselineID = baseline.id
+        } catch {
+            report(error)
+        }
+        refresh()
+    }
+
+    /// 基线改名：只改名字（条目不可变，§3）；进撤销栈。
+    private func renameBaseline(id: UUID, name: String) {
+        let entry = captureUndoEntry()
+        do {
+            try session.renameBaseline(id: id, name: name)
+            appendUndo(entry, mergeKey: "baseline-rename-\(id)")
+        } catch {
+            report(error)
+        }
+        refresh()
+    }
+
+    /// 删除入口（§11）：只登记待确认，确认后才真正删——基线删掉不可重建。
+    func requestDeleteBaseline(id: UUID) {
+        guard let baseline = baselines.first(where: { $0.id == id }) else { return }
+        pendingBaselineDeletion = PendingBaselineDeletion(id: baseline.id, name: baseline.name)
+    }
+
+    func cancelPendingBaselineDeletion() {
+        pendingBaselineDeletion = nil
+    }
+
+    /// 确认删除：进撤销栈；删的是当前对比基线时回落成「不比较」（四列随之隐藏）。
+    func confirmPendingBaselineDeletion() {
+        guard let pending = pendingBaselineDeletion else { return }
+        pendingBaselineDeletion = nil
+        let entry = captureUndoEntry()
+        do {
+            try session.deleteBaseline(id: pending.id)
+            appendUndo(entry, mergeKey: nil)
+            if viewState.selectedBaselineID == pending.id {
+                viewState.selectedBaselineID = nil
+            }
+        } catch {
+            report(error)
+        }
+        refresh()
     }
 
     private func mutateView(_ change: (inout WorkspaceViewState) -> Void) {
@@ -1518,6 +1701,16 @@ final class WorkspaceStore: ObservableObject {
             self.isLoading = false
             self.showsLoadingSkeleton = false
             self.loadingToken = nil
+            self.resumePendingOpenWaiters()
+        }
+    }
+
+    /// 唤醒所有等待打开收尾的调用方（收尾路径唯一，只需在这里通知）。
+    private func resumePendingOpenWaiters() {
+        let waiters = pendingOpenWaiters
+        pendingOpenWaiters.removeAll()
+        for waiter in waiters {
+            waiter.resume()
         }
     }
 
@@ -1527,6 +1720,7 @@ final class WorkspaceStore: ObservableObject {
         undoStack.removeAll()
         redoStack.removeAll()
         pendingDeletion = nil
+        pendingBaselineDeletion = nil
         pendingOpenURL = nil
         saveState = .saved
         needsFormatUpgrade = session.needsFormatUpgrade
@@ -1644,7 +1838,9 @@ final class WorkspaceStore: ObservableObject {
             // 否则打开文件会静默清空用户配置并写回偏好。
             outlineColumnWidths: viewState.outlineColumnWidths,
             hiddenOutlineColumns: viewState.hiddenOutlineColumns,
-            visibleOptionalColumns: viewState.visibleOptionalColumns
+            visibleOptionalColumns: viewState.visibleOptionalColumns,
+            // 基线选择同理：ID 解析不到就是「不比较」，不因为换项目就抹掉偏好。
+            selectedBaselineID: viewState.selectedBaselineID
         )
         lockedTaskID = nil
         lockedTaskTitle = nil
@@ -1716,7 +1912,9 @@ final class WorkspaceStore: ObservableObject {
             visibleOptionalColumns: viewState.visibleOptionalColumns.isEmpty
                 ? nil
                 : viewState.visibleOptionalColumns.sorted(),
-            showsNonWorkingDays: viewState.showsNonWorkingDays
+            showsNonWorkingDays: viewState.showsNonWorkingDays,
+            // 基线选择是应用级视图偏好：换项目保留（解析不到时等价于「不比较」）。
+            selectedBaselineID: viewState.selectedBaselineID
         )
         guard let data = try? JSONEncoder().encode(stored) else { return }
         defaults.set(data, forKey: Self.preferencesKey)

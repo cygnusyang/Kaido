@@ -17,6 +17,14 @@ public enum OutlineColumn: String, Codable, Hashable, CaseIterable, Sendable {
     case actualStart
     /// 实际结束（F-0719）：可选列，默认隐藏；复用 `TaskItem.completedAt`。
     case actualFinish
+    /// 基线开始（v0.13）：可选列，默认隐藏；所选基线条目的承诺开始（08-baselines §4.2）。
+    case baselineStart
+    /// 基线结束（v0.13）：可选列，默认隐藏；排他端点，与 `finish` 同口径。
+    case baselineFinish
+    /// 计划开始偏差（v0.13）：`P.start − B.start`，日历天，正 = 比承诺晚。
+    case startVariance
+    /// 计划结束偏差（v0.13）：`P.finish − B.finish`，大纲主指标。
+    case finishVariance
     case duration
     case assignee
     case progress
@@ -29,8 +37,10 @@ public enum OutlineColumn: String, Codable, Hashable, CaseIterable, Sendable {
         case .number: return 30
         case .title: return 160 * scale
         case .predecessors: return 96 * scale
-        case .start, .finish, .actualStart, .actualFinish: return 78 * scale
-        case .duration: return 56 * scale
+        case .start, .finish, .actualStart, .actualFinish,
+             .baselineStart, .baselineFinish: return 78 * scale
+        // 偏差列按数字列口径：只放得下 `+3` / `-1` 这类读数。
+        case .startVariance, .finishVariance, .duration: return 56 * scale
         case .assignee: return 76 * scale
         case .progress: return 72 * scale
         }
@@ -79,6 +89,16 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
     public var actualStart: Date?
     /// 实际结束（复用 `TaskItem.completedAt`，F-0719）；群组行恒为 nil。
     public var actualFinish: Date?
+    /// 所选基线的承诺开始（`B.start`，v0.13）；未选基线或无基线条目为 nil。
+    public var baselineStart: Date?
+    /// 所选基线的承诺结束（`B.finish`，排他端点）。
+    public var baselineFinish: Date?
+    /// 计划开始偏差 `P.start − B.start`（日历天，正 = 晚）；无条目/无排期为 nil（不写 0）。
+    public var planStartVariance: Int?
+    /// 计划结束偏差 `P.finish − B.finish`（大纲主指标），口径同 `planStartVariance`。
+    public var planFinishVariance: Int?
+    /// 是否存在基线条目：`false` = 基线之后新增（四列显示占位符，不显示 0）。
+    public var hasBaseline: Bool
     public var durationDays: Double?
     public var assignee: String?
     /// 前置任务摘要（`A8FC:fs` / `A8FC:fs+1.5`，逗号分隔）；空串表示无前置。
@@ -124,7 +144,12 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
         isHighlighted: Bool = false,
         startDate: Date? = nil,
         actualStart: Date? = nil,
-        actualFinish: Date? = nil
+        actualFinish: Date? = nil,
+        baselineStart: Date? = nil,
+        baselineFinish: Date? = nil,
+        planStartVariance: Int? = nil,
+        planFinishVariance: Int? = nil,
+        hasBaseline: Bool = false
     ) {
         self.id = id
         self.depth = depth
@@ -138,6 +163,11 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
         self.startDate = startDate
         self.actualStart = actualStart
         self.actualFinish = actualFinish
+        self.baselineStart = baselineStart
+        self.baselineFinish = baselineFinish
+        self.planStartVariance = planStartVariance
+        self.planFinishVariance = planFinishVariance
+        self.hasBaseline = hasBaseline
         self.durationDays = durationDays
         self.assignee = assignee
         self.predecessorsText = predecessorsText

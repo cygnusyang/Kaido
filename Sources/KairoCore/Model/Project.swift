@@ -70,6 +70,8 @@ public final class Project {
     public var tasks: [TaskItem] = []
     /// 资源清单（F-23-01）：供资源 CRUD 与投入↔持续时间换算。
     public var resources: [Resource] = []
+    /// 基线快照（v0.13 / 08-baselines §3）：有序，索引即创建顺序；不可变（只增 / 改名 / 删）。
+    public var baselines: [Baseline] = []
 
     public init(metadata: ProjectMetadata = ProjectMetadata()) {
         self.metadata = metadata

@@ -62,6 +62,21 @@ public protocol FormatMigration {
     func migrate(_ document: inout FormatDocument) throws
 }
 
+/// v1 → v2 迁移（08-baselines §7.2）：纯加法，只升版本号。
+///
+/// `baselines` 缺失即合法（= 空），由 `Envelope` 的 `decodeIfPresent ?? []` 兜底，
+/// 因此本步骤**不写任何字段**，也绝不把 `document.root` 解成强类型再写回——
+/// 后者会丢掉未知键（ADR-011 只保证「读不报错」之外还有「迁移不重建根节点」）。
+public struct BaselineFormatV2Migration: FormatMigration {
+    public init() {}
+
+    public var toVersion: Int { 2 }
+
+    public func migrate(_ document: inout FormatDocument) throws {
+        document.formatVersion = 2
+    }
+}
+
 /// 顺序迁移计划：按版本升序逐步执行迁移，任何缺口都视为无迁移路径。
 public struct FormatMigrationPlan {
     private let steps: [any FormatMigration]
@@ -77,8 +92,10 @@ public struct FormatMigrationPlan {
         self.steps = steps
     }
 
-    /// 标准计划：当前格式为 v1，v2 之前没有迁移步骤。
-    public static let standard = FormatMigrationPlan()
+    /// 标准计划：v1 → v2（08-baselines §7.2 加法迁移）。
+    ///
+    /// 每次升版本在此追加步骤，顺序由 `toVersion` 决定，不依赖数组顺序。
+    public static let standard = FormatMigrationPlan([BaselineFormatV2Migration()])
 
     /// 把文档从 `from` 升到 `to`。
     ///

@@ -14,9 +14,9 @@ import KairoPresentation
 struct ActualDatesPresentationTests {
     // MARK: - 可选列集合
 
-    /// 可选项就是这两个实际列，且与固定列/可隐藏列互不重叠。
-    @Test func optionalIsActualStartAndFinish() {
-        #expect(OutlineColumnPreferences.optional == [.actualStart, .actualFinish])
+    /// 可选列包含这两个实际列（v0.13 起另含基线四列），且与固定列/可隐藏列互不重叠。
+    @Test func optionalContainsActualStartAndFinish() {
+        #expect(OutlineColumnPreferences.optional.isSuperset(of: [.actualStart, .actualFinish]))
         #expect(OutlineColumnPreferences.optional.isDisjoint(with: OutlineColumnPreferences.alwaysVisible))
         #expect(Set(OutlineColumnPreferences.configurable).isDisjoint(with: OutlineColumnPreferences.optional))
     }

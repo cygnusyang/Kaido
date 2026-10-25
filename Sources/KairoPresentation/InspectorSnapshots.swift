@@ -38,6 +38,60 @@ public struct CompletedTask: Identifiable, Hashable, Sendable {
     }
 }
 
+/// 项目级基线面板（v0.13 / 08-baselines §5）。
+///
+/// 孤儿（条目在、任务已删）与「基线后新增」都收在这里，**不为它们插大纲行**——
+/// 大纲行集合必须与任务树一致（ADR-013 行索引契约）。
+public struct BaselinePanel: Hashable, Sendable {
+    /// 孤儿条目：任务已删，只剩承诺时间，只读呈现在面板里。
+    public struct OrphanEntry: Identifiable, Hashable, Sendable {
+        public var id: UUID { taskID }
+        public var taskID: UUID
+        public var start: Date
+        public var finish: Date
+
+        public init(taskID: UUID, start: Date, finish: Date) {
+            self.taskID = taskID
+            self.start = start
+            self.finish = finish
+        }
+    }
+
+    public var baselineID: UUID
+    public var name: String
+    public var createdAt: Date
+    /// 已删除任务对应的条目（按开始日升序，便于扫读）。
+    public var orphans: [OrphanEntry]
+    /// 基线之后新增的任务数（不计入项目偏差与平均值）。
+    public var tasksWithoutBaseline: Int
+    /// 已实际完成且晚于基线结束的任务数。
+    public var lateTaskCount: Int
+    /// 未完成且已过基线结束日的任务数。
+    public var overdueOpenCount: Int
+    /// 项目结束偏差 = 最晚 P.finish − 最晚 B.finish（不含孤儿）。
+    public var projectFinishVariance: Int?
+
+    public init(
+        baselineID: UUID,
+        name: String,
+        createdAt: Date,
+        orphans: [OrphanEntry] = [],
+        tasksWithoutBaseline: Int = 0,
+        lateTaskCount: Int = 0,
+        overdueOpenCount: Int = 0,
+        projectFinishVariance: Int? = nil
+    ) {
+        self.baselineID = baselineID
+        self.name = name
+        self.createdAt = createdAt
+        self.orphans = orphans
+        self.tasksWithoutBaseline = tasksWithoutBaseline
+        self.lateTaskCount = lateTaskCount
+        self.overdueOpenCount = overdueOpenCount
+        self.projectFinishVariance = projectFinishVariance
+    }
+}
+
 /// 项目页内容。
 public struct ProjectInspector: Hashable, Sendable {
     public var title: String
@@ -47,6 +101,8 @@ public struct ProjectInspector: Hashable, Sendable {
     public var summary: ProjectSummary
     public var recentCompletions: [CompletedTask]
     public var saveState: SaveState
+    /// 基线面板（v0.13）：未选基线时为 nil，整段不显示。
+    public var baseline: BaselinePanel?
 
     public init(
         title: String,
@@ -55,7 +111,8 @@ public struct ProjectInspector: Hashable, Sendable {
         direction: ScheduleDirection,
         summary: ProjectSummary,
         recentCompletions: [CompletedTask] = [],
-        saveState: SaveState
+        saveState: SaveState,
+        baseline: BaselinePanel? = nil
     ) {
         self.title = title
         self.projectStart = projectStart
@@ -64,6 +121,48 @@ public struct ProjectInspector: Hashable, Sendable {
         self.summary = summary
         self.recentCompletions = recentCompletions
         self.saveState = saveState
+        self.baseline = baseline
+    }
+}
+
+/// 检查器基线段（v0.13 / 08-baselines §4.2、§8）。
+///
+/// 只在「已选对比基线且该任务有基线条目」时存在：无条目（基线后新增）整段不出现，
+/// 由大纲列占位符 + 基线面板计数表达，不在检查器里塞一行「无数据」。
+///
+/// **两层偏差不对称是刻意的**（§4.3）：`planFinishVariance` 是预测层读数，
+/// `actualFinishVariance` 是事实层读数；后者为空就是空，**不回落成 0，也不拿 plan 冒充 actual**。
+public struct BaselineSection: Hashable, Sendable {
+    public var baselineID: UUID
+    /// 基线名（列头提示 / 检查器共用，§4.5 偏差必须带基线标识）。
+    public var name: String
+    /// 承诺开始（`B.start`）。
+    public var start: Date
+    /// 承诺结束（`B.finish`，排他端点）。
+    public var finish: Date
+    /// 计划结束偏差 `P.finish − B.finish`；当前无排期为 nil。
+    public var planFinishVariance: Int?
+    /// 实际结束偏差 `A.finish − B.finish`；未完成即 nil（不拿 plan 顶替）。
+    public var actualFinishVariance: Int?
+    /// 逾期天数 `max(0, today − B.finish)`；已完成即 nil。
+    public var overdueDays: Int?
+
+    public init(
+        baselineID: UUID,
+        name: String,
+        start: Date,
+        finish: Date,
+        planFinishVariance: Int? = nil,
+        actualFinishVariance: Int? = nil,
+        overdueDays: Int? = nil
+    ) {
+        self.baselineID = baselineID
+        self.name = name
+        self.start = start
+        self.finish = finish
+        self.planFinishVariance = planFinishVariance
+        self.actualFinishVariance = actualFinishVariance
+        self.overdueDays = overdueDays
     }
 }
 
@@ -101,6 +200,8 @@ public struct TaskInspector: Hashable, Sendable {
     public var successors: [DependencyRow]
     public var violations: [Violation]
     public var assignmentNames: [String]
+    /// 基线对比段（v0.13）；nil = 未选基线 / 基线后新增，视图整段不显示。
+    public var baseline: BaselineSection?
 
     public init(
         taskID: UUID,
@@ -131,7 +232,8 @@ public struct TaskInspector: Hashable, Sendable {
         violations: [Violation] = [],
         assignmentNames: [String] = [],
         startDate: Date? = nil,
-        actualStart: Date? = nil
+        actualStart: Date? = nil,
+        baseline: BaselineSection? = nil
     ) {
         self.taskID = taskID
         self.title = title
@@ -162,6 +264,7 @@ public struct TaskInspector: Hashable, Sendable {
         self.violations = violations
         self.assignmentNames = assignmentNames
         self.actualStart = actualStart
+        self.baseline = baseline
     }
 }
 
