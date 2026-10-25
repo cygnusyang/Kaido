@@ -147,8 +147,9 @@ public enum GanttLayoutEngine {
     ///
     /// - Parameters:
     ///   - windowStart: 可见起点；nil 时取内容范围起点（无内容时取今天）。
-    ///   - nonWorkingWeekdays: 非工作星期（`Calendar` 星期序号，1=周日）；默认周六、周日。
-    ///     工作日历模型（F-22-06）落地前以此为视图默认。
+    ///   - nonWorkingWeekdays: 非工作星期（`Calendar` 星期序号，1=周日）；默认空 = 一周 7 天
+    ///     都算工作日（Kairo 按日历天排期）。要标出周末由调用方显式传 `[1, 7]`（#10）。
+    ///     工作日历模型（F-22-06）落地后由日历模型驱动，不再由视图硬编码。
     ///   - dayWidthOverride: 覆盖档位默认宽度（「缩放以适合项目」传 `fitDayWidth` 结果）。
     ///   - rowIndexByTaskID: 可见行索引；提供时生成依赖路由（缺省不生成）。
     ///   - rowHeight: 行高（点），用于依赖路由的行中心与行边界。
@@ -163,7 +164,7 @@ public enum GanttLayoutEngine {
         zoom: GanttZoom,
         viewWidth: Double,
         windowStart requestedStart: Date? = nil,
-        nonWorkingWeekdays: Set<Int> = [1, 7],
+        nonWorkingWeekdays: Set<Int> = [],
         dayWidthOverride: Double? = nil,
         rowIndexByTaskID: [UUID: Int] = [:],
         rowHeight: Double = 28,

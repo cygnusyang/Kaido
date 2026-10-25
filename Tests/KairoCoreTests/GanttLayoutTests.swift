@@ -154,7 +154,8 @@ struct GanttLayoutTests {
             locale: zhCN,
             zoom: .day,
             viewWidth: 7 * 32,
-            windowStart: monday
+            windowStart: monday,
+            nonWorkingWeekdays: [1, 7]
         )
         #expect(layout.bands.map(\.x) == [160, 192])
         #expect(layout.bands.allSatisfy { $0.width == 32 })
@@ -235,7 +236,8 @@ struct GanttLayoutTests {
             locale: zhCN,
             zoom: .day,
             viewWidth: 7 * 32,
-            windowStart: monday
+            windowStart: monday,
+            nonWorkingWeekdays: [1, 7]
         )
         #expect(!day.bands.isEmpty)
     }

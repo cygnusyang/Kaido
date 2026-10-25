@@ -30,6 +30,8 @@ public enum WorkspaceAction: Equatable, Sendable {
     // 显示开关
     case toggleCriticalPath
     case toggleBarLabels
+    /// 标出非工作日（周末带）。默认关闭：Kairo 按日历天排期，一周 7 天都算工作日（#10）。
+    case toggleNonWorkingDays
     case setInspectorVisible(Bool)
     case setInspectorTab(InspectorTab)
     case setInspectorLocked(Bool)

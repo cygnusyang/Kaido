@@ -3,6 +3,16 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.11.0 — 2026-10-25
+
+### 新增
+
+- **非工作日着色开关（F-14-14 / #10）**：时间轴默认不再把周六/周日画成灰底 —— Kairo 按日历天排期，「一周 7 天都算工作日」才和图上的条体一致。需要对照周末时，用「显示 → 显示/隐藏非工作日」（或 ⌘K 命令面板）打开，周末重新以灰带标出。
+- 该选择是应用级视图偏好（`UserDefaults` 的 `kairo.workspace.preferences.v1`），换项目与重启都保留；旧偏好在缺失该字段时回落为「不显示」。
+
+### 变更
+
+- `GanttLayoutEngine.make` 的 `nonWorkingWeekdays` 默认值由 `[1, 7]` 改为空集：库层默认「全是工作日」，需要着色由调用方显式传周末集合。
 ## v0.10.2 — 2026-10-25
 
 ### 修复

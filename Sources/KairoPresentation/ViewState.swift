@@ -49,6 +49,9 @@ public struct WorkspaceViewState: Hashable, Sendable {
     public var inspectorLocked: Bool
     public var showCriticalPath: Bool
     public var showBarLabels: Bool
+    /// 是否在时间轴上标出非工作日（周末带）。默认关闭 —— Kairo 按日历天排期，
+    /// 「一周 7 天都算工作日」才与排期一致；需要对照周末时再打开（F-14-14 / #10）。
+    public var showsNonWorkingDays: Bool = false
     /// 大纲列宽覆盖值（键 = `OutlineColumn.rawValue`，值 = 用户设定的点宽）。
     /// 缺键 = 该列按默认派生宽度；无覆盖值时布局与引入本字段前逐位一致。
     public var outlineColumnWidths: [String: Double] = [:]
@@ -77,6 +80,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
         inspectorLocked: Bool = false,
         showCriticalPath: Bool = false,
         showBarLabels: Bool = true,
+        showsNonWorkingDays: Bool = false,
         filterText: String = "",
         highlightedTaskID: UUID? = nil,
         revealStatus: RevealStatus? = nil,
@@ -99,6 +103,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
         self.inspectorLocked = inspectorLocked
         self.showCriticalPath = showCriticalPath
         self.showBarLabels = showBarLabels
+        self.showsNonWorkingDays = showsNonWorkingDays
         self.filterText = filterText
         self.highlightedTaskID = highlightedTaskID
         self.revealStatus = revealStatus

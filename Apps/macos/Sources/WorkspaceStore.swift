@@ -111,6 +111,8 @@ final class WorkspaceStore: ObservableObject {
         var outlineColumnWidths: [String: Double]?
         /// 隐藏的大纲列（列 rawValue）；旧数据缺省时为 nil，全部列显示。
         var hiddenOutlineColumns: [String]?
+        /// 是否标出非工作日；旧数据缺省 → false（一周 7 天，与排期口径一致）。
+        var showsNonWorkingDays: Bool?
 
         /// 字段默认值 = `WorkspaceViewState()` 初值（与新建会话一致）。
         init(
@@ -124,7 +126,8 @@ final class WorkspaceStore: ObservableObject {
             inspectorWidth: Double,
             inspectorTab: InspectorTab,
             outlineColumnWidths: [String: Double]?,
-            hiddenOutlineColumns: [String]?
+            hiddenOutlineColumns: [String]?,
+            showsNonWorkingDays: Bool?
         ) {
             self.outlineWidth = outlineWidth
             self.outlineVisible = outlineVisible
@@ -137,6 +140,7 @@ final class WorkspaceStore: ObservableObject {
             self.inspectorTab = inspectorTab
             self.outlineColumnWidths = outlineColumnWidths
             self.hiddenOutlineColumns = hiddenOutlineColumns
+            self.showsNonWorkingDays = showsNonWorkingDays
         }
 
         init(from decoder: Decoder) throws {
@@ -163,6 +167,9 @@ final class WorkspaceStore: ObservableObject {
             )
             hiddenOutlineColumns = try? container.decodeIfPresent(
                 [String].self, forKey: .hiddenOutlineColumns
+            )
+            showsNonWorkingDays = try? container.decodeIfPresent(
+                Bool.self, forKey: .showsNonWorkingDays
             )
         }
     }
@@ -215,6 +222,7 @@ final class WorkspaceStore: ObservableObject {
             state.zoom = stored.zoom
             state.usesFitZoom = stored.usesFitZoom
             state.windowStart = stored.windowStart
+            state.showsNonWorkingDays = stored.showsNonWorkingDays ?? false
             state.inspectorWidth = stored.inspectorWidth
             state.inspectorTab = stored.inspectorTab
             // 列宽/显隐（F-14-20）：未知列与越界宽度静默丢弃，不牵连其余偏好（D-016）。
@@ -490,6 +498,9 @@ final class WorkspaceStore: ObservableObject {
 
         case .toggleCriticalPath:
             mutateView { $0.showCriticalPath.toggle() }
+
+        case .toggleNonWorkingDays:
+            mutateView { $0.showsNonWorkingDays.toggle() }
 
         case .toggleBarLabels:
             mutateView { $0.showBarLabels.toggle() }
@@ -1564,6 +1575,8 @@ final class WorkspaceStore: ObservableObject {
             inspectorWidth: viewState.inspectorWidth,
             showCriticalPath: viewState.showCriticalPath,
             showBarLabels: viewState.showBarLabels,
+            // 非工作日着色是应用级视图偏好：换项目保留用户选择。
+            showsNonWorkingDays: viewState.showsNonWorkingDays,
             // 列宽/显隐是应用级视图偏好（与检查器宽度同类）：换项目不重置，
             // 否则打开文件会静默清空用户配置并写回偏好。
             outlineColumnWidths: viewState.outlineColumnWidths,
@@ -1625,7 +1638,8 @@ final class WorkspaceStore: ObservableObject {
             outlineColumnWidths: viewState.outlineColumnWidths.isEmpty ? nil : viewState.outlineColumnWidths,
             hiddenOutlineColumns: viewState.hiddenOutlineColumns.isEmpty
                 ? nil
-                : viewState.hiddenOutlineColumns.sorted()
+                : viewState.hiddenOutlineColumns.sorted(),
+            showsNonWorkingDays: viewState.showsNonWorkingDays
         )
         guard let data = try? JSONEncoder().encode(stored) else { return }
         defaults.set(data, forKey: Self.preferencesKey)

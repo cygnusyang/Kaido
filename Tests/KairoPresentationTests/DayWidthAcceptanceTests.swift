@@ -88,6 +88,8 @@ private func makeDayWidthSnapshot(
     viewState.zoom = zoom
     viewState.usesFitZoom = usesFitZoom
     viewState.customDayWidth = customDayWidth
+    // 本套用例专门校验「非工作带」与日宽的整除关系：显式打开着色开关（默认关闭）。
+    viewState.showsNonWorkingDays = true
     return makeSnapshot(
         state: fixture.state,
         schedule: fixture.schedule,
@@ -186,6 +188,8 @@ private func referenceLayout(
         zoom: effectiveZoom,
         viewWidth: max(canvasWidth, 1),
         windowStart: content.start,
+        // 参考实现与快照同口径：本套用例显式打开非工作带着色。
+        nonWorkingWeekdays: [1, 7],
         dayWidthOverride: dayWidthOverride,
         rowHeight: 28,
         today: fixture.now

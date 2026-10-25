@@ -4098,6 +4098,23 @@
         }
       }
     },
+    "menu.view.non_working_days": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show/Hide Non-Working Days"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示/隐藏非工作日"
+          }
+        }
+      }
+    },
     "menu.view.critical_path": {
       "extractionState": "manual",
       "localizations": {

@@ -425,6 +425,9 @@ public enum WorkspacePresenter {
             zoom: engineZoom,
             viewWidth: max(viewport.canvasWidth, 1),
             windowStart: requestedStart,
+            // 非工作日着色（F-14-14 / #10）：默认不标，按日历天排期一周 7 天；
+            // 打开开关才把周末（周日=1、周六=7）画成非工作带。
+            nonWorkingWeekdays: viewState.showsNonWorkingDays ? [1, 7] : [],
             dayWidthOverride: dayWidthOverride,
             rowIndexByTaskID: rowIndexByID,
             rowHeight: 28,
