@@ -18,9 +18,13 @@
 
 ### 判据与证据
 
-- 验收用例 24 例（`ActualDatesAcceptanceTests`）+ 接口层 3 例（`ActualDatesInterfaceTests`，锁 CLI/MCP 键形状）+ core 24 例 + 展示 13 例 + 应用层 13 例；全量 **937 例 / 93 suites** 通过。
+- 验收用例 24 例（`ActualDatesAcceptanceTests`）+ 接口层 3 例（`ActualDatesInterfaceTests`，锁 CLI/MCP 键形状）+ core 24 例 + 展示 14 例 + 应用层 13 例；全量 **937 例 / 93 suites** 通过。
 - 判据映射与先红证据见 `docs/features/07-actual-dates-cases.md`；设计见 `docs/features/07-actual-dates.md`。
-- 群组行「实际时间恒 nil」有可失败用例（先写脏数据、再断言快照抑制），并做过变异验证（去掉抑制即变红）。
+- 群组行「实际时间恒 nil」有可失败用例（先写脏数据、再断言快照抑制），并做过变异验证（去掉抑制即变红）：
+  - 去掉行侧抑制（`Presenter` 的 `actualStart: isGroup ? nil`）→ `ActualDatesPresentationTests` 报 `(row.actualStart → 2025-10-18) == nil` 失败、`ActualDatesWorkspaceTests` 报 `(groupRow.actualStart → 2025-11-03 16:00) == nil` 失败；
+  - 去掉检查器侧抑制（`completedAt` / `actualStart` 两处）→ 报 `(inspector.actualStart → 2025-10-18) == nil`、`(inspector.completedAt → 2025-10-20) == nil` 失败；
+  - 还原后复跑即绿（变异由 dev-coder-ui 执行，2026-10-25）。
+
 ## v0.11.0 — 2026-10-25
 
 ### 新增
