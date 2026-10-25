@@ -3,6 +3,16 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.13.3 — 2026-10-25
+
+### 新增
+
+- **基线入口进菜单栏与 ⌘K（D-035）**：「新建基线」与「不比较基线」两条命令加入「显示」菜单与命令面板 —— 之前基线只能从工具栏那颗棋盘旗进入，窗口一窄就被系统收进溢出菜单，用户找不到「新建基线」在哪。
+
+### 判据与证据
+
+- 命令注册表 42 → 44 条（`WorkspaceStoreTests` 计数同步）；全量 **1107 tests / 100 suites** 通过。
+
 ## v0.13.2 — 2026-10-25
 
 ### 修复

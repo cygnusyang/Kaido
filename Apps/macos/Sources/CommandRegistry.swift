@@ -259,6 +259,20 @@ enum KairoCommandCatalog {
                 group: .view,
                 action: { store.dispatch(.toggleNonWorkingDays) }
             ),
+            // 基线入口（v0.13.3）：工具栏那颗棋盘旗在窄窗口会被系统收进溢出菜单，
+            // 这里补「菜单栏 + ⌘K」入口，保证「新建基线」始终可发现（D-035）。
+            KairoCommand(
+                id: "view.baselineCreate",
+                title: I18n.t("menu.baseline.create", "New Baseline"),
+                group: .view,
+                action: { store.dispatch(.createBaseline(nil)) }
+            ),
+            KairoCommand(
+                id: "view.baselineClear",
+                title: I18n.t("menu.baseline.none", "Stop Comparing Baseline"),
+                group: .view,
+                action: { store.dispatch(.setBaseline(nil)) }
+            ),
             KairoCommand(
                 id: "view.criticalPath",
                 title: I18n.t("menu.view.critical_path", "Show/Hide Critical Path"),
@@ -488,7 +502,7 @@ struct KairoMenuCommands: Commands {
     // MARK: - 关于面板
 
     /// 应用版本号：发版前更新。
-    static let appVersion = "0.13.2"
+    static let appVersion = "0.13.3"
 
     /// 版权与联系邮箱：法律声明，不随界面语言变化，也不进 String Catalog。
     static let copyrightNotice = "Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>"

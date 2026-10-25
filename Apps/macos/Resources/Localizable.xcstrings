@@ -4880,6 +4880,23 @@
         }
       }
     },
+    "menu.baseline.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop Comparing Baseline"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不比较基线"
+          }
+        }
+      }
+    },
     "menu.baseline.create": {
       "extractionState": "manual",
       "localizations": {

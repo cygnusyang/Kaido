@@ -125,7 +125,7 @@ struct WorkspaceStoreTests {
         let commands = makeCatalog(makeStore())
         // 24 条基线 + 日宽调节 3 条（加宽 / 收窄 / 重置，Sprint 6 / T3）
         // + 大纲列显隐 14 条（F-14-20 的 8 列 + F-0719 两个实际列 + v0.13 四个基线列）。
-        #expect(commands.count == 42)
+        #expect(commands.count == 44)
         #expect(Set(commands.map(\.id)).count == commands.count)
         #expect(Set(commands.map(\.group)) == Set(KairoCommandGroup.allCases))
         #expect(commands.allSatisfy { !$0.title.isEmpty })
