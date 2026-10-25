@@ -157,10 +157,11 @@ swift test --disable-sandbox --filter OutlineSelectionAcceptanceTests
 ✔ Test run with 14 tests in 1 suite passed
 
 swift test --disable-sandbox
-✘ Test run with 1105 tests in 100 suites failed with 1 issue
-  └─ OutlineRowInteractionTests.boundariesFollowWidthOverrides（coder 文件，期望值算错，
-     归因见 §5.2 第 4 行；生产行为 360.0 正确）
+✔ Test run with 1105 tests in 100 suites passed      # 独立复跑，0 failure
+
+swift build                                          # 0 warning
 ```
 
-本文件 14/14 全绿，其余 1091 例无回归；全量唯一红是 coder 用例的期望值，已交 dev-coder-pres 修（属其文件，不由测试改生产代码）。
-D-033 收口判据：上图唯一红消失后全量绿，再把 commit hash 回填 D-033 行与 issue #13。
+收口状态：全量绿（含本文件 14 例、实现方 14 例），线性记录见下 ——
+先编译红 → 本文件 14/14 → 全量曾有 1 红（`boundariesFollowWidthOverrides`，期望值漏算 title 吃余量，归因交 dev-coder-pres）→ 其改为不变性断言后全量 1105/1105 绿。
+剩余动作：把 commit hash 回填 D-033 行与 issue #13（不属测试职责，由 lead/coder 收口）。
