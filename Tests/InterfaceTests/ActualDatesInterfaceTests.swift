@@ -48,13 +48,7 @@ private func makeTaskWithActualDates(in file: URL) throws -> UUID {
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
     let id = try makeTaskWithActualDates(in: scratch.kairo)
 
-    let detail = try captureStdout {
-        try CLIRouter.execute(
-            arguments: ["task", "get", id.uuidString, "--file", scratch.kairo.path],
-            environment: ["KAIRO_LANG": "zh-Hans"],
-            preferredLanguages: []
-        )
-    }
+    let detail = try cliOutput(arguments: ["task", "get", id.uuidString, "--file", scratch.kairo.path], environment: ["KAIRO_LANG": "zh-Hans"], preferredLanguages: [])
 
     let startLine = "实际开始：\(isoString(t0))"
     let finishLine = "实际结束：\(isoString(t1))"
@@ -77,13 +71,7 @@ private func makeTaskWithActualDates(in file: URL) throws -> UUID {
     _ = try session.openProject(at: scratch.kairo)
     let id = try #require(session.project?.tasks.first?.id)
 
-    let output = try captureStdout {
-        try CLIRouter.execute(
-            arguments: ["status", "update", id.uuidString, "--status", "done", "--file", scratch.kairo.path],
-            environment: ["KAIRO_LANG": "zh-Hans"],
-            preferredLanguages: []
-        )
-    }
+    let output = try cliOutput(arguments: ["status", "update", id.uuidString, "--status", "done", "--file", scratch.kairo.path], environment: ["KAIRO_LANG": "zh-Hans"], preferredLanguages: [])
 
     // 行为不变，只有标签口径改为「实际结束」（§8）。
     #expect(output.contains("实际结束："))

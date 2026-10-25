@@ -30,13 +30,7 @@ private func makeScratch() throws -> (dir: URL, kairo: URL) {
 
 /// 跑一条 CLI 命令并捕获 stdout（语言钉死 zh-Hans）。
 private func runCLI(_ arguments: [String]) throws -> String {
-    try captureStdout {
-        try CLIRouter.execute(
-            arguments: arguments,
-            environment: ["KAIRO_LANG": "zh-Hans"],
-            preferredLanguages: []
-        )
-    }
+    try cliOutput(arguments: arguments, environment: ["KAIRO_LANG": "zh-Hans"], preferredLanguages: [])
 }
 
 /// 跑一条 CLI 命令，把 --json 输出的最后一行解析为 JSONValue。

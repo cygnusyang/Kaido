@@ -539,29 +539,14 @@ struct Sprint2CommandTests {
 
         // 语言必须钉死：默认跟随系统/环境，CI 的英文 runner 上中文断言必红。
         let pinned = ["KAIRO_LANG": "zh-Hans"]
-        let createOutput = try captureStdout {
-            try CLIRouter.execute(
-                arguments: ["project", "create", "版本输出", "--file", file.path],
-                environment: pinned, preferredLanguages: []
-            )
-        }
+        let createOutput = try cliOutput(arguments: ["project", "create", "版本输出", "--file", file.path], environment: pinned, preferredLanguages: [])
         #expect(createOutput.contains(line))
 
-        let saveOutput = try captureStdout {
-            try CLIRouter.execute(
-                arguments: ["project", "save", "--file", file.path],
-                environment: pinned, preferredLanguages: []
-            )
-        }
+        let saveOutput = try cliOutput(arguments: ["project", "save", "--file", file.path], environment: pinned, preferredLanguages: [])
         #expect(saveOutput.contains(line))
         #expect(!saveOutput.contains("已从 v"))
 
-        let openOutput = try captureStdout {
-            try CLIRouter.execute(
-                arguments: ["project", "open", file.path],
-                environment: pinned, preferredLanguages: []
-            )
-        }
+        let openOutput = try cliOutput(arguments: ["project", "open", file.path], environment: pinned, preferredLanguages: [])
         // project open：报告磁盘文件版本与当前目标版本，不报告升级来源。
         #expect(openOutput.contains("源格式版本：v\(KairoFile.currentFormatVersion)（当前 v\(KairoFile.currentFormatVersion)）"))
         #expect(!openOutput.contains("保存后升级"))

@@ -348,40 +348,25 @@ private func makeScratchDir() throws -> (dir: URL, kairo: URL) {
     return (dir: dir, kairo: dir.appendingPathComponent("demo.kairo"))
 }
 
-/// stdout 捕获的进程级互斥锁。
-/// fd 1 是进程级全局资源：并行用例同时进入捕获时，一方的 dup(1) 可能指向另一方的管道
-/// 写端；后者恢复 fd 1 到该写端时其读端已关闭，随后任何 stdout 写入都会触发
-/// SIGPIPE（signal 13）。锁必须覆盖 dup2 → body → 恢复 fd 1 → 关闭写端 全程，
-/// 使捕获窗口不重叠。本函数不得嵌套调用（NSLock 非递归）。
-private let stdoutCaptureLock = NSLock()
-
-/// 捕获闭包内 print 写入 stdout 的文本（断言 CLI 文本输出用）。
-/// 通过 dup2 把 fd 1 重定向到管道，并把 stdout 设为无缓冲，保证 print 立即落管；
-/// 读之前先恢复 fd 1、关闭写端，避免 readToEnd 因残留写引用而阻塞。
-func captureStdout(_ body: () throws -> Void) throws -> String {
-    stdoutCaptureLock.lock()
-    defer { stdoutCaptureLock.unlock() }
-
-    let pipe = Pipe()
-    let savedFD = dup(FileHandle.standardOutput.fileDescriptor)
-    dup2(pipe.fileHandleForWriting.fileDescriptor, FileHandle.standardOutput.fileDescriptor)
-    setvbuf(stdout, nil, _IONBF, 0)
-
-    var thrown: Error?
-    do {
-        try body()
-    } catch {
-        thrown = error
-    }
-    fflush(stdout)
-    dup2(savedFD, FileHandle.standardOutput.fileDescriptor)
-    close(savedFD)
-    pipe.fileHandleForWriting.closeFile()
-
-    if let thrown { throw thrown }
-    return String(decoding: try pipe.fileHandleForReading.readToEnd() ?? Data(), as: UTF8.self)
+/// 跑一条 CLI 命令并捕获其 stdout —— 走 `CLIRouter.execute(... emit:)` 注入，**不碰进程级 fd 1**。
+///
+/// 为什么不再用 dup2 捕获（D-036）：fd 1 是全进程共享资源，捕获窗口内任何线程/套件的
+/// `print` 都会写进同一条管道 —— 表现为 JSON 首字节变成 `å`（BOM 被拦腰截断）或 SIGPIPE。
+/// 锁只能串行化「同样走捕获」的用例，挡不住别人直接 print。
+func cliOutput(
+    arguments: [String],
+    environment: [String: String] = ProcessInfo.processInfo.environment,
+    preferredLanguages: [String] = []
+) throws -> String {
+    var lines: [String] = []
+    try CLIRouter.execute(
+        arguments: arguments,
+        environment: environment,
+        preferredLanguages: preferredLanguages,
+        emit: { lines.append($0) }
+    )
+    return lines.joined(separator: "\n")
 }
-
 // US-E1-02-A1：CLI task add --assignee 创建后 assignee 生效，task list --json 输出该值。
 @Test func usE102A1_cliTaskAddWithAssigneePersists() throws {
     let scratch = try makeScratchDir()
@@ -401,13 +386,7 @@ func captureStdout(_ body: () throws -> Void) throws -> String {
     #expect(json.contains("\"assignee\":\"dev-coder-core\""))
     // task get 文本输出含负责人行（US-E1-02-A1 输出要求，HIGH-1）。
     // 断言中文回执：显式钉死语言，避免 CI（英文系统语言）下 CLI 默认出英文而假红。
-    let detail = try captureStdout {
-        try CLIRouter.execute(
-            arguments: ["task", "get", task.id.uuidString, "--file", file.path],
-            environment: ["KAIRO_LANG": "zh-Hans"],
-            preferredLanguages: []
-        )
-    }
+    let detail = try cliOutput(arguments: ["task", "get", task.id.uuidString, "--file", file.path], environment: ["KAIRO_LANG": "zh-Hans"], preferredLanguages: [])
     #expect(detail.contains("负责人：dev-coder-core"))
 }
 

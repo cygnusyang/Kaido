@@ -3,6 +3,18 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.17.2 — 2026-10-25
+
+### 修复（测试基建）
+
+- **接口测试并行串写根治（D-036）**：`captureStdout` 过去用 `dup2` **全局替换 fd 1**，锁只能串行化「同样走捕获」的用例，挡不住别的套件直接 `print` —— 表现为偶发 JSON 首字节变成 `å`（BOM 被拦腰截断）或 SIGPIPE，单跑必过、并行随机红。
+- 改为走 `CLIRouter.execute(... emit:)` 这个**本来就存在的注入缝**：新增 `cliOutput(arguments:environment:preferredLanguages:)` 收集输出，7 处调用点全部迁移，`captureStdout` 与其锁一并删除。唯一残留是 `CLILanguageTests` 的 `captureStderr`（单用例、`contains` 断言），已在注释标注。
+
+### 判据与证据
+
+- `swift test --filter Interface` **连跑 5 次，117/117 全绿**，每次 4.3–4.9 s（比 dup2 方案快约 1 s —— 少了一次全局重定向与管道读写）。
+- 全量 **1338 tests / 125 suites** 通过。
+
 ## v0.17.1 — 2026-10-25
 
 ### 修复
