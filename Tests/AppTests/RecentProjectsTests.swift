@@ -37,18 +37,6 @@ struct RecentProjectsTests {
         return url
     }
 
-    private func waitUntil(
-        timeout: TimeInterval = 3,
-        _ condition: @MainActor () -> Bool
-    ) async throws {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if condition() { return }
-            try await Task.sleep(nanoseconds: 20_000_000)
-        }
-        #expect(condition(), "等待超时")
-    }
-
     // MARK: - 存储口径
 
     /// 最多 5 条，最新在前，超出的旧条目被挤掉。
@@ -141,6 +129,9 @@ struct RecentProjectsTests {
     }
 
     /// 启动默认打开最新一条（用户要求：默认打开最后一个）。
+    ///
+    /// D-030：等待方式从「墙钟 sleep + 轮询」改为完成回执（`awaitPendingOpenForTesting`），
+    /// 并行全量下不再有轮询窗口可超时——失败只可能来自真实断言。
     @Test func launchOpensTheMostRecentProject() async throws {
         let defaults = makeDefaults()
         let directory = try makeTemporaryDirectory()
@@ -149,7 +140,7 @@ struct RecentProjectsTests {
 
         let store = WorkspaceStore(defaults: defaults)
         #expect(store.openMostRecentProjectOnLaunch())
-        try await waitUntil { store.projectURL != nil }
+        await store.awaitPendingOpenForTesting()
         let opened = try #require(store.projectURL)
         #expect(RecentProjects.path(of: opened) == RecentProjects.path(of: newest))
         #expect(store.recentProjects.first.map { RecentProjects.path(of: $0) }
