@@ -53,11 +53,13 @@ public enum ScheduleEngine {
             anchor: anchor, cycleSet: cycleSet, calendar: calendar
         )
 
-        let scheduled = scheduledTasks(
-            tasks: tasks, durations: durations,
+        let rawScheduled = scheduledTasks(
+            tasks: tasks, byID: byID, durations: durations,
             earliest: earliest, latest: latest, successorMap: successorMap,
             calendar: calendar
         )
+        // 群组自带排期无意义：改为子树聚合（issue #16），让 CLI 与甘特同一口径。
+        let scheduled = aggregateGroupWindows(rawScheduled, tasks: tasks, calendar: calendar)
 
         // 无法排期：环上任务与空群组。其余任务均有调度条目。
         let parentIDs = Set(tasks.compactMap(\.parentID))
@@ -110,13 +112,38 @@ public enum ScheduleEngine {
         }
     }
 
+    // MARK: - 有效前驱（群组依赖下推 / issue #16）
+
+    /// 有效前驱：任务自身依赖 **∪ 所有祖先群组的依赖**。
+    ///
+    /// 为什么需要：群组（阶段）本身没有排期，用户最自然的建模是「v1.0 接在 v0.17 之后」。
+    /// 若只认叶子自身的依赖，群组依赖既不下推也看不到效果（issue #16）。
+    /// 同一前驱在自身与祖先重复出现时只保留第一次，避免入度重复计数。
+    /// 祖先链按 parentID 上溯并用集合防环（脏数据里父子互指不得死循环）。
+    static func effectiveDependencies(of task: TaskItem, byID: [UUID: TaskItem]) -> [TaskDependency] {
+        var deps: [TaskDependency] = []
+        var seen = Set<UUID>()
+        var visitedGroups = Set<UUID>()
+        var node: TaskItem? = task
+        while let current = node {
+            for dep in current.dependencies where seen.insert(dep.predecessorID).inserted {
+                deps.append(dep)
+            }
+            guard let pid = current.parentID,
+                  let parent = byID[pid],
+                  visitedGroups.insert(pid).inserted else { break }
+            node = parent
+        }
+        return deps
+    }
+
     // MARK: - 环检测（F-30-08）
 
     /// 找出所有处于相关性环中的任务（三色 DFS）。环上任务不参与拓扑传播。
     private static func cycleTaskIDs(_ tasks: [TaskItem], byID: [UUID: TaskItem]) -> [UUID] {
         var successors: [UUID: [UUID]] = [:]
         for task in tasks {
-            for dep in task.dependencies where byID[dep.predecessorID] != nil {
+            for dep in effectiveDependencies(of: task, byID: byID) where byID[dep.predecessorID] != nil {
                 successors[dep.predecessorID, default: []].append(task.id)
             }
         }
@@ -151,7 +178,7 @@ public enum ScheduleEngine {
     private static func successorMap(of tasks: [TaskItem], byID: [UUID: TaskItem]) -> [UUID: [TaskItem]] {
         var map: [UUID: [TaskItem]] = [:]
         for task in tasks {
-            for dep in task.dependencies where byID[dep.predecessorID] != nil {
+            for dep in effectiveDependencies(of: task, byID: byID) where byID[dep.predecessorID] != nil {
                 map[dep.predecessorID, default: []].append(task)
             }
         }
@@ -163,8 +190,9 @@ public enum ScheduleEngine {
         var inDegree: [UUID: Int] = [:]
         var successors: [UUID: [UUID]] = [:]
         for task in tasks {
-            inDegree[task.id] = task.dependencies.filter { byID[$0.predecessorID] != nil }.count
-            for dep in task.dependencies where byID[dep.predecessorID] != nil {
+            let effective = effectiveDependencies(of: task, byID: byID)
+            inDegree[task.id] = effective.filter { byID[$0.predecessorID] != nil }.count
+            for dep in effective where byID[dep.predecessorID] != nil {
                 successors[dep.predecessorID, default: []].append(task.id)
             }
         }
@@ -196,6 +224,19 @@ public enum ScheduleEngine {
         let base = startAnchor ?? dayZero
         var earliest: [UUID: Window] = [:]
 
+        // 群组作为前驱时，要用「子树聚合窗口」而不是它自己的占位窗口（issue #16）。
+        var children: [UUID: [UUID]] = [:]
+        for task in tasks { if let parent = task.parentID { children[parent, default: []].append(task.id) } }
+        func subtreeWindow(_ id: UUID) -> Window? {
+            if let kids = children[id], !kids.isEmpty {
+                let windows: [Window] = kids.compactMap { subtreeWindow($0) }
+                guard let start = windows.map({ $0.start }).min(),
+                      let finish = windows.map({ $0.finish }).max() else { return nil }
+                return Window(start: start, finish: finish)
+            }
+            return earliest[id]
+        }
+
         // 环上任务先定基值，供其后继（非环任务）正常推导。
         for id in cycleSet {
             let task = byID[id]!
@@ -208,21 +249,33 @@ public enum ScheduleEngine {
             earliest[id] = Window(start: start, finish: addDays(start, duration, in: calendar))
         }
 
-        for id in order {
-            let task = byID[id]!
-            let duration = durations[id] ?? 1
-            var start = max(
-                base,
-                constraintStartLowerBound(task, calendar: calendar),
-                startDateLowerBound(task, calendar: calendar)
-            )
-            for dep in task.dependencies {
-                guard let pred = byID[dep.predecessorID], let pw = earliest[pred.id] else { continue }
-                start = max(start, forwardStartLowerBound(
-                    type: dep.type, lag: dep.lagDays, pred: pw, duration: duration, calendar: calendar
-                ))
+        // 两遍：第一遍推出叶子窗口，第二遍让「以群组为前驱」的任务吃到子树聚合窗口。
+        // 群组自身窗口的最终值由 aggregateGroupWindows 统一改写（与这里同口径）。
+        for pass in 0..<2 {
+            for id in order {
+                let task = byID[id]!
+                let duration = durations[id] ?? 1
+                var start = max(
+                    base,
+                    constraintStartLowerBound(task, calendar: calendar),
+                    startDateLowerBound(task, calendar: calendar)
+                )
+                for dep in effectiveDependencies(of: task, byID: byID) {
+                    guard let pred = byID[dep.predecessorID] else { continue }
+                    let pw: Window?
+                    if pred.kind == .group, let aggregated = subtreeWindow(pred.id) {
+                        pw = aggregated
+                    } else {
+                        pw = earliest[pred.id]
+                    }
+                    guard let window = pw else { continue }
+                    start = max(start, forwardStartLowerBound(
+                        type: dep.type, lag: dep.lagDays, pred: window, duration: duration, calendar: calendar
+                    ))
+                }
+                let next = Window(start: start, finish: addDays(start, duration, in: calendar))
+                if pass == 1 || earliest[id] == nil { earliest[id] = next }
             }
-            earliest[id] = Window(start: start, finish: addDays(start, duration, in: calendar))
         }
         return earliest
     }
@@ -267,7 +320,7 @@ public enum ScheduleEngine {
             var finish = min(anchor, constraintEndUpperBound(task, duration: duration, calendar: calendar))
             for succ in successorMap[id] ?? [] {
                 guard let sw = latest[succ.id] else { continue }
-                for dep in succ.dependencies where dep.predecessorID == id {
+                for dep in effectiveDependencies(of: succ, byID: byID) where dep.predecessorID == id {
                     finish = min(finish, backwardFinishUpperBound(
                         type: dep.type, lag: dep.lagDays, succ: sw, duration: duration, calendar: calendar
                     ))
@@ -295,6 +348,7 @@ public enum ScheduleEngine {
 
     private static func scheduledTasks(
         tasks: [TaskItem],
+        byID: [UUID: TaskItem],
         durations: [UUID: Double],
         earliest: [UUID: Window],
         latest: [UUID: Window],
@@ -308,7 +362,7 @@ public enum ScheduleEngine {
             let useLatest = task.schedulingPolicy == .alap
             let totalSlack = daysBetween(e.start, l.start, in: calendar)
             let free = freeSlack(
-                of: task.id, earliest: earliest, successorMap: successorMap,
+                of: task.id, byID: byID, earliest: earliest, successorMap: successorMap,
                 totalSlack: totalSlack, calendar: calendar
             )
             // 选定安排统一收敛到 startDate 下界（S8 / D-021）：ASAP 已由前向传播保证，
@@ -331,9 +385,58 @@ public enum ScheduleEngine {
         }
     }
 
+    /// 群组窗口聚合：群组的 scheduled/earliest/latest 统一改为子树聚合区间。
+    ///
+    /// 群组本身没有可执行工作，之前它被当成 1 天叶子单独排期，导致
+    /// `schedule compute` 打印「群组 1 天」而甘特按子任务聚合画出另一跨度（issue #16）。
+    private static func aggregateGroupWindows(
+        _ scheduled: [ScheduledTask],
+        tasks: [TaskItem],
+        calendar: Calendar
+    ) -> [ScheduledTask] {
+        var children: [UUID: [UUID]] = [:]
+        for task in tasks { if let parent = task.parentID { children[parent, default: []].append(task.id) } }
+        guard !children.isEmpty else { return scheduled }
+        let index = Dictionary(uniqueKeysWithValues: scheduled.enumerated().map { ($1.taskID, $0) })
+        let kinds = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0.kind) })
+        var memo: [UUID: Window?] = [:]
+
+        func subtreeWindow(_ id: UUID) -> Window? {
+            if let cached = memo[id] { return cached }
+            var value: Window?
+            if let kids = children[id], !kids.isEmpty {
+                let windows = kids.compactMap(subtreeWindow)
+                if let start = windows.map(\.start).min(), let finish = windows.map(\.finish).max() {
+                    value = Window(start: start, finish: finish)
+                }
+            } else if let idx = index[id] {
+                value = Window(start: scheduled[idx].scheduledStart, finish: scheduled[idx].scheduledFinish)
+            }
+            memo[id] = value
+            return value
+        }
+
+        var result = scheduled
+        for (id, idx) in index where kinds[id] == .group {
+            guard let window = subtreeWindow(id) else { continue }
+            let duration = max(0, daysBetween(window.start, window.finish, in: calendar))
+            result[idx].earliestStart = window.start
+            result[idx].earliestFinish = window.finish
+            result[idx].latestStart = window.start
+            result[idx].latestFinish = window.finish
+            result[idx].scheduledStart = window.start
+            result[idx].scheduledFinish = window.finish
+            result[idx].durationDays = duration
+            result[idx].totalSlackDays = 0
+            result[idx].freeSlackDays = 0
+        }
+        return result
+    }
+
     /// 自由宽延：不推迟任何后继最早安排的最大推迟量（US-E2-03）。无后继时等于总宽延。
     private static func freeSlack(
         of id: UUID,
+        byID: [UUID: TaskItem],
         earliest: [UUID: Window],
         successorMap: [UUID: [TaskItem]],
         totalSlack: Double,
@@ -344,7 +447,7 @@ public enum ScheduleEngine {
         var minGap = Double.greatestFiniteMagnitude
         for succ in successors {
             guard let sw = earliest[succ.id] else { continue }
-            for dep in succ.dependencies where dep.predecessorID == id {
+            for dep in effectiveDependencies(of: succ, byID: byID) where dep.predecessorID == id {
                 let gap: Double
                 switch dep.type {
                 case .fs: gap = daysBetween(addDays(ew.finish, dep.lagDays, in: calendar), sw.start, in: calendar)

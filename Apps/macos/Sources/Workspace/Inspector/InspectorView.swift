@@ -181,7 +181,9 @@ private struct TaskInspectorContent: View {
 
     var body: some View {
         if task.isAggregate {
-            Text(I18n.t("inspector.group_readonly", "Group fields are aggregated from subtasks and are read-only."))
+            // v0.16（issue #16）：依赖是本行唯一可写语义，提示条只声明哪些是汇总值，
+            // 不再笼统说「全部只读」——那会让用户以为依赖也不能改。
+            Text(I18n.t("inspector.group_summary", "Group dates, duration and progress are aggregated from subtasks. Dependencies are edited on the group itself."))
                 .font(.system(size: DesignTokens.captionFontSize))
                 .foregroundStyle(DesignTokens.textSecondary)
         }

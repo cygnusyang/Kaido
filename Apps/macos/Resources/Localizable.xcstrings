@@ -3350,19 +3350,19 @@
         }
       }
     },
-    "inspector.group_readonly": {
+    "inspector.group_summary": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Group fields are aggregated from subtasks and are read-only."
+            "value": "Group dates, duration and progress are aggregated from subtasks. Dependencies are edited on the group itself."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "群组字段由子任务聚合，只读。"
+            "value": "群组的日期、工期与进度由子任务聚合，依赖在群组本身上维护。"
           }
         }
       }

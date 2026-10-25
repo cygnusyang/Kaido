@@ -522,7 +522,7 @@ private struct OutlineRowView: View {
             EditableTextCell(
                 text: row.predecessorsText.isEmpty ? "—" : row.predecessorsText,
                 value: row.predecessorsText,
-                enabled: !row.isAggregate,
+                enabled: OutlineTextCellEditing.isEditable(column: .predecessors, isAggregate: row.isAggregate),
                 onCommit: { store.dispatch(.setPredecessors(row.id, $0)) }
             )
         case .start:
@@ -571,14 +571,14 @@ private struct OutlineRowView: View {
             EditableTextCell(
                 text: row.durationDays.map { Display.duration($0) } ?? "—",
                 value: row.durationDays.map { String(format: "%g", $0) } ?? "",
-                enabled: !row.isAggregate,
+                enabled: OutlineTextCellEditing.isEditable(column: .duration, isAggregate: row.isAggregate),
                 onCommit: { store.dispatch(.setDuration(row.id, Double($0))) }
             )
         case .assignee:
             EditableTextCell(
                 text: row.assignee ?? "—",
                 value: row.assignee ?? "",
-                enabled: !row.isAggregate,
+                enabled: OutlineTextCellEditing.isEditable(column: .assignee, isAggregate: row.isAggregate),
                 onCommit: { text in
                     let trimmed = text.trimmingCharacters(in: .whitespaces)
                     store.dispatch(.setAssignee(row.id, trimmed.isEmpty ? nil : trimmed))
@@ -1132,6 +1132,22 @@ private struct OutlineDateHelpModifier: ViewModifier {
             content.help(text)
         } else {
             content
+        }
+    }
+}
+
+/// 大纲文本列（依赖 / 持续时间 / 负责人）的可编辑性（v0.16 / issue #16）。
+///
+/// 依赖列对群组行同样开放：群组的依赖由用户显式维护，不从子任务汇总得出，
+/// 汇总口径只适用于日期、持续时间与进度。日期列不经过这里：OutlineDateEditing
+/// 仍按 isAggregate 只读。纯函数，脱离 SwiftUI 可单测。
+enum OutlineTextCellEditing {
+    static func isEditable(column: OutlineColumn, isAggregate: Bool) -> Bool {
+        switch column {
+        case .predecessors:
+            return true
+        default:
+            return !isAggregate
         }
     }
 }
