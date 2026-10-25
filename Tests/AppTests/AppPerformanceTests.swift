@@ -78,6 +78,23 @@ struct AppPerformanceTests {
         return Date().timeIntervalSince(started) * 1000
     }
 
+    /// 横向翻窗的单帧预算（ms）：release 按 60Hz 帧预算，debug 按同口径留 3 倍余量。
+    static var panFrameBudgetMilliseconds: Double {
+        #if DEBUG
+        return 50
+        #else
+        return 16.7
+        #endif
+    }
+
+    static var panFrameBudgetLabel: String {
+        #if DEBUG
+        return "debug"
+        #else
+        return "release"
+        #endif
+    }
+
     /// 1000 任务交互动作的性能护栏。
     ///
     /// 设计预算（debug 构建）：选择 / 展开 / 缩放类 ≤ 100ms。**CI 门禁不写 100ms**：
@@ -112,9 +129,10 @@ struct AppPerformanceTests {
     /// 1000 行甘特「横向翻页」的单次刷新耗时 —— 滚动帧预算的直接证据。
     ///
     /// 横向滚动按整日翻窗（`GanttScrollInput` 的累积器只在跨越一天时触发 `panWindow`），
-    /// 每次翻窗都走一遍 `refresh()` 并重建整张 1000 行快照。60Hz 下单帧预算 16.7ms
-    /// （10-multi-baseline-gantt §9 的「滚动单帧 CPU < 16ms」），因此本用例打印的
-    /// 单次翻窗耗时可直接与帧预算比对；门禁仍只设 1000ms sanity 上限（墙钟门禁固有 flaky）。
+    /// 每次翻窗只重建甘特与状态栏，复用大纲与检查器（D-038 / `RefreshScope.windowPan`）。
+    /// 60Hz 下单帧预算 16.7ms（10-multi-baseline-gantt §9「滚动单帧 CPU < 16ms」），
+    /// 因此这里直接按帧预算门禁：release ≤ 16.7ms；debug 另有 3 倍余量（≤ 50ms），
+    /// 两档都写，避免只盯 release 让本地日常回归失去意义、或只盯 debug 让门禁失真。
     @Test func ganttPanStepStaysWithinSanityCeilingOnThousandRows() throws {
         let fixture = try makeFixture()
         let store = fixture.store
@@ -141,7 +159,10 @@ struct AppPerformanceTests {
             + "；单次平均 \(String(format: "%.1f", average))；单次最差 \(String(format: "%.1f", worst))"
         )
         #expect(store.snapshot.outline.rows.count == 1000)
-        #expect(average < 1000, "1000 行横向翻窗单次平均 \(average) ms，超出 sanity 上限（疑似数量级回归）")
+        // 单帧预算（release 16.7ms / debug 50ms）：取平均而不是最差，最差会被并行回归的
+        // CPU 抢占偶然抬高；平均仍能捕获「退回整表 refresh」这类数量级回退（30ms+）。
+        let budget = Self.panFrameBudgetMilliseconds
+        #expect(average <= budget, "1000 行横向翻窗单次平均 \(String(format: "%.1f", average)) ms，超出 \(Self.panFrameBudgetLabel) 单帧预算 \(budget) ms")
     }
 
     @Test func scheduleRecomputeMeetsBudget() throws {

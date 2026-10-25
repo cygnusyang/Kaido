@@ -119,4 +119,104 @@ struct GanttRenderPerformanceTests {
             "1000 行 × 3 基线快照构造最快耗时 \(String(format: "%.1f", best)) ms，超出 sanity 上限（疑似数量级回归）"
         )
     }
+
+    /// 横向翻窗（增量快照）的单次耗时 —— 60Hz 单帧预算的取证与门禁（D-038）。
+    ///
+    /// 走 `WorkspacePresenter.makeWindowPan`：只重建甘特与状态栏，复用大纲与检查器。
+    /// 这是 1,000 行 × 3 基线的最重负载（30 个窗口内可见条 + 3000 条基线细条都要随窗口平移），
+    /// 因此门禁直接按帧预算写，不再退化成 sanity 上限：
+    /// release ≤ 16.7ms（60Hz），debug ≤ 50ms（同口径留 3 倍余量，本地日常回归也有约束力）。
+    /// 正确性由 `GanttWindowPanEqualityTests` 逐窗口比对（增量结果 == 全量重建）。
+    @Test func windowPanKeepsSnapshotRebuildWithinFrameBudget() throws {
+        let fixture = makeFixture()
+        var viewState = WorkspaceViewState()
+        viewState.visibleBaselineIDs = Set(fixture.baselines.map(\.id))
+        viewState.windowStart = projectStart
+        let viewport = WorkspaceViewport(canvasWidth: 1_280, canvasHeight: 720)
+
+        func fullSnapshot() -> WorkspaceSnapshot {
+            WorkspacePresenter.make(
+                state: fixture.state,
+                schedule: fixture.schedule,
+                violations: [],
+                viewState: viewState,
+                viewport: viewport,
+                calendar: testCalendar,
+                locale: testLocale,
+                now: now
+            )
+        }
+
+        // 预热：首轮含惰性初始化成本，不计入统计。
+        var previous = fullSnapshot()
+        viewState.windowStart = testCalendar.date(byAdding: .day, value: 1, to: projectStart)
+        previous = WorkspacePresenter.makeWindowPan(
+            previous: previous,
+            state: fixture.state,
+            schedule: fixture.schedule,
+            viewState: viewState,
+            viewport: viewport,
+            saveState: .saved,
+            calendar: testCalendar,
+            locale: testLocale,
+            now: now
+        )
+
+        var samples: [Double] = []
+        for step in 0..<10 {
+            viewState.windowStart = testCalendar.date(
+                byAdding: .day, value: step + 2, to: projectStart
+            )
+            let started = DispatchTime.now().uptimeNanoseconds
+            previous = WorkspacePresenter.makeWindowPan(
+                previous: previous,
+                state: fixture.state,
+                schedule: fixture.schedule,
+                viewState: viewState,
+                viewport: viewport,
+                saveState: .saved,
+                calendar: testCalendar,
+                locale: testLocale,
+                now: now
+            )
+            samples.append(Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000)
+        }
+
+        // 前提：确实复用了 1000 行大纲，且甘特/基线细条随窗口重建（否则测的是空动作）。
+        #expect(previous.outline.rows.count == rowCount)
+        let barCount = previous.gantt.baselineBars.values.reduce(0) { $0 + $1.count }
+        #expect(barCount > 0, "基线细条应随窗口重建")
+        #expect(previous.gantt.windowStart == viewState.windowStart, "窗口起点跟随翻窗")
+
+        let average = samples.reduce(0, +) / Double(samples.count)
+        let worst = samples.max() ?? .infinity
+        #expect(average <= Self.frameBudgetMilliseconds,
+            "1000 行 × 3 基线横向翻窗单次平均 \(String(format: "%.1f", average)) ms，超出 \(Self.frameBudgetLabel) 单帧预算 \(Self.frameBudgetMilliseconds) ms")
+        print(String(
+            format: "[gantt-render-perf] 1000 行 × %d 基线横向翻窗（%@，ms）：%@；平均 %.2f；最差 %.2f（预算 %.1f）",
+            baselineCount,
+            Self.frameBudgetLabel,
+            samples.map { String(format: "%.2f", $0) }.joined(separator: ", "),
+            average,
+            worst,
+            Self.frameBudgetMilliseconds
+        ))
+    }
+
+    /// 单帧预算：release 按 60Hz（16.7ms），debug 留 3 倍余量（50ms）。
+    static var frameBudgetMilliseconds: Double {
+        #if DEBUG
+        return 50
+        #else
+        return 16.7
+        #endif
+    }
+
+    static var frameBudgetLabel: String {
+        #if DEBUG
+        return "debug"
+        #else
+        return "release"
+        #endif
+    }
 }

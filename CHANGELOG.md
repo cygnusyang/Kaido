@@ -3,25 +3,17 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
-## [Unreleased]
+## v0.17.1 — 2026-10-25
 
-### 新增
+### 修复
 
-- **大纲列顺序可拖拽（#12）**：拖列头中部即可左右换位，拖动中显示插入位置竖线，松手提交一次；拖列右缘仍是调宽（8pt 热区，v0.13.1 落地）——两种手势按命中位置分界，互不抢。序号（#）与任务说明是固定列，仍不可隐藏，但**可以**换位置。
-- **列顺序是全局偏好**：与列宽 / 显隐同域存入 `kairo.workspace.preferences.v1`（新字段 `outlineColumnOrder`，键名不升版）；旧偏好缺字段 → 默认顺序，缺失列自动补到末尾，不丢列。默认顺序写 `nil`，不为「没动过」的状态多写一个键。
-- **列右键菜单补「重置列顺序」**：拖乱之后一键回默认（显隐偏好不受影响）。
+- **甘特横向翻窗不再整表刷新（D-038）**：跨日翻窗过去走整表 `refresh()`，1000 行下 release 37.6 ms / debug 54.6 ms，是 60Hz 单帧预算（16.7 ms）的 2–3 倍，连续横滑每跨一天掉 1–2 帧。现在翻窗只重建甘特与状态栏，复用上一帧的大纲行与检查器，且不触发文件导出快照重编码：release **4.3–8.1 ms**（四次测量，门禁取 10 次样本平均）、debug **9.0–10.1 ms**（1000 行 × 3 基线 4.8–6.6 / 12.6–16.8 ms）。正确性用「同一窗口下增量快照 == 全量重建快照」逐字段断言（8 个视图状态场景 + 应用层真实会话，各 5 个随机窗口）；性能门禁两档并列（release ≤ 16.7 ms、debug ≤ 50 ms）。
 
-### 行为变化
+### 判据与证据
 
-- 可选列（实际开始 / 实际结束 / 基线四列）的位置改由列顺序决定，取代 v0.15 的「紧随 `finish`、找不到锚点就追加到末尾」：用户拖过之后位置必须稳定，不能随窗口宽窄在两个位置之间跳。默认顺序下的渲染结果与改动前逐列一致。
-
-### 构建与发布
-
-- **签名/公证链路修了三处真问题**：① OTA 的 zip 无法 staple，改为「先公证并装订 App，再打包 DMG/zip」，否则离线首次启动的更新包仍被 Gatekeeper 拦；② 证书只配一半（有 p12、缺公证凭据）过去会走到 notarytool 才失败，现在前置判定直接拒绝，并报出缺哪几个 secret；③ CLI/MCP 通用二进制此前完全未签名，现按同一证书签名（tar.gz 无法装订票据，属已知限制）。
-- **未签名不再含糊**：Release 说明顶部加「未签名、未公证」提示，Release 附件与 `artifacts/<tag>/` 都落一份 `SIGNING.txt`（签名身份 / 公证结论 / codesign 摘要），本地 `tools/release.sh` 也把本地产物的 ad-hoc 状态写进 `dist/SIGNING.txt` 并打印。**当前所有已发布产物仍是 ad-hoc 未签名、未公证**——文档如实描述，未声称已签名。
-- **发版门禁与合入前收敛**：`release.yml` 补跑 `gate-ui` / 全角检查 / 多语言门禁与自测（此前只有 `build.sh` 带的 `gate-core`）；多语言门禁抽成 `tools/gate-i18n.sh`，`ci.yml` 与 `release.yml` 共用一份，避免两处口径漂移。
-- **warnings-as-errors 两端一致**：`ci.yml` 的 macOS 与 Linux 两侧都新增 `swift build -Xswiftc -warnings-as-errors`（产物目标；此前只有发版构建开，Linux 完全没开），Linux 侧在 `swift:6.0-jammy` 容器实测 0 warning。该 flag 不施加到 `swift test`：测试代码现存一处 `[#no-usage]` 提示（`OutlineSelectionAcceptanceTests.swift:74`），修复属测试代码改动，已登记为待办，不在发布链路内夹带。
-- **新增 `docs/release.md`**：1.0 发版前置清单、5 个 secret 的生成方式、有证书机器上的逐步签名/公证验证命令与期望输出、Linux 与本地 macOS 的口径差异表。
+- 相等性硬门禁：同一 windowStart 下增量快照与全量 refresh 逐子快照相等（8 种视图状态 × 5 个随机窗口 = 40 次比对，附变异检验）。
+- 性能硬门禁：1,000 行 release ≤ 16.7 ms / debug ≤ 50 ms（两档写在用例里，避免 CI 抖动假红）。
+- 全量 1338 tests / 125 suites 通过；A7 黄金布局一行未改仍绿；warnings-as-errors 通过。
 
 ## v0.17.0 — 2026-10-25
 

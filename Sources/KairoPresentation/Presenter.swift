@@ -29,15 +29,10 @@ public enum WorkspacePresenter {
         baselineVariance: BaselineVarianceSource = .compute
     ) -> WorkspaceSnapshot {
         let tasks = state.tasks
-        let byID = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+        let index = Self.taskIndex(tasks: tasks)
+        let byID = index.byID
+        let childrenByParent = index.childrenByParent
         let today = calendar.startOfDay(for: now)
-
-        var childrenByParent: [UUID: [UUID]] = [:]
-        for task in tasks {
-            if let parent = task.parentID, byID[parent] != nil {
-                childrenByParent[parent, default: []].append(task.id)
-            }
-        }
 
         // 排期索引：`ScheduleResult.scheduled(_:)` 为线性查找，先在边界处建索引，
         // 避免 1000 任务快照退化为二次复杂度。
@@ -164,15 +159,7 @@ public enum WorkspacePresenter {
             return nil
         }
 
-        let criticalIDs: Set<UUID> = {
-            guard let schedule else { return [] }
-            let entries = CriticalPathEngine.compute(result: schedule)
-            return Set(entries.filter { entry in
-                guard entry.isCritical, let scheduled = validSchedule(entry.taskID),
-                      scheduled.durationDays > 0 else { return false }
-                return true
-            }.map(\.taskID))
-        }()
+        let criticalIDs = Self.criticalTaskIDs(schedule: schedule, validSchedule: validSchedule)
 
         func isOverdueRow(_ task: TaskItem) -> Bool {
             if isLeaf(task) {
@@ -400,6 +387,118 @@ public enum WorkspacePresenter {
             statusBar: statusBar,
             generatedAt: now
         )
+    }
+
+    // MARK: - 局部刷新（D-038）
+
+    /// 横向翻窗的增量快照：只重建甘特与状态栏，复用大纲行与检查器。
+    ///
+    /// 翻窗只改 `viewState.windowStart` 与 `usesFitZoom`，不触碰任务、排期、筛选、展开与选中，
+    /// 因此大纲行、检查器与上一帧逐字段相同——这是本函数成立的**唯一前提**，调用方负责保证：
+    /// `previous` 必须与传入的 `state` / `viewState`（窗口字段除外）同源。
+    ///
+    /// 与全量 `make` 的关系是对照关系而非替代关系：同一窗口下两条路径必须产出**相等**快照
+    /// （`WorkspaceSnapshot` 的 `==`），由相等性用例逐窗口断言（`GanttWindowPanEqualityTests`）。
+    /// 任何「窗口之外也变了的字段」被误放进这条路径，都会让该用例先红，而不是让用户看到错数据。
+    public static func makeWindowPan(
+        previous: WorkspaceSnapshot,
+        state: ProjectState,
+        schedule: ScheduleResult?,
+        viewState: WorkspaceViewState,
+        viewport: WorkspaceViewport,
+        saveState: SaveState,
+        calendar: Calendar = Calendar(identifier: .gregorian),
+        locale: Locale,
+        now: Date
+    ) -> WorkspaceSnapshot {
+        let tasks = state.tasks
+        let index = Self.taskIndex(tasks: tasks)
+        let today = calendar.startOfDay(for: now)
+
+        // 排期索引（与 `make` 同一口径）：只有任务/元数据写操作会置空会话缓存，
+        // 翻窗命中缓存，因此这里的字典只是重建，不重算排期。
+        let scheduledByID = Dictionary(
+            uniqueKeysWithValues: (schedule?.tasks ?? []).map { ($0.taskID, $0) }
+        )
+        let unscheduledIDs = Set(schedule?.unscheduledTaskIDs ?? [])
+        func validSchedule(_ id: UUID) -> ScheduledTask? {
+            guard !unscheduledIDs.contains(id) else { return nil }
+            return scheduledByID[id]
+        }
+        let criticalIDs = Self.criticalTaskIDs(schedule: schedule, validSchedule: validSchedule)
+
+        // 行索引直接取自被复用的大纲：行集合与顺序在翻窗前后不变，
+        // 甘特条的 rowIndex 与之逐位一致（与 `make` 里 planRows 的下标同源）。
+        let rows = previous.outline.rows
+        let rowIndexByID = Dictionary(uniqueKeysWithValues: rows.enumerated().map { ($0.element.id, $0.offset) })
+        let rowByID = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+
+        let gantt = makeGantt(
+            tasks: tasks,
+            rowByID: rowByID,
+            rowIndexByID: rowIndexByID,
+            baselines: state.baselines,
+            schedule: schedule,
+            viewState: viewState,
+            viewport: viewport,
+            today: today,
+            calendar: calendar,
+            locale: locale,
+            childrenByParent: index.childrenByParent,
+            criticalIDs: criticalIDs
+        )
+
+        // 状态栏只有窗口相关的四项随翻窗变化：其余指标（健康度 / 进度 / 逾期 / 违例 / 隐藏行 /
+        // 选中摘要）在翻窗前后同源，直接沿用上一帧。
+        var statusBar = previous.statusBar
+        statusBar.saveState = saveState
+        statusBar.visibleStart = gantt.windowStart
+        statusBar.visibleEnd = gantt.windowEnd
+        statusBar.todayVisible = gantt.todayX != nil
+        statusBar.zoom = ZoomIndicator(
+            preset: zoomPreset(viewState),
+            pointsPerDay: Self.renderableDayWidth(gantt.dayWidth)
+        )
+
+        return WorkspaceSnapshot(
+            outline: previous.outline,
+            gantt: gantt,
+            inspector: previous.inspector,
+            statusBar: statusBar,
+            generatedAt: now
+        )
+    }
+
+    /// 任务索引：ID 字典 + 父 → 子列表（父不在本集合的悬空 `parentID` 不入表）。
+    ///
+    /// 全量与翻窗两条路径共用，避免两份索引各写一遍后漂移（D-038）。
+    private static func taskIndex(
+        tasks: [TaskItem]
+    ) -> (byID: [UUID: TaskItem], childrenByParent: [UUID: [UUID]]) {
+        let byID = Dictionary(uniqueKeysWithValues: tasks.map { ($0.id, $0) })
+        var childrenByParent: [UUID: [UUID]] = [:]
+        for task in tasks {
+            if let parent = task.parentID, byID[parent] != nil {
+                childrenByParent[parent, default: []].append(task.id)
+            }
+        }
+        return (byID, childrenByParent)
+    }
+
+    /// 关键路径任务集合：只认「已排期且持续 > 0」的关键条目（里程碑不算关键行）。
+    ///
+    /// 全量与翻窗两条路径共用（见 `taskIndex` 的同一理由）。
+    private static func criticalTaskIDs(
+        schedule: ScheduleResult?,
+        validSchedule: (UUID) -> ScheduledTask?
+    ) -> Set<UUID> {
+        guard let schedule else { return [] }
+        let entries = CriticalPathEngine.compute(result: schedule)
+        return Set(entries.filter { entry in
+            guard entry.isCritical, let scheduled = validSchedule(entry.taskID),
+                  scheduled.durationDays > 0 else { return false }
+            return true
+        }.map(\.taskID))
     }
 
     // MARK: - 画布

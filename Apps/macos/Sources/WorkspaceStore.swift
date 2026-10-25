@@ -99,6 +99,9 @@ final class WorkspaceStore: ObservableObject {
         metadata: ProjectMetadata(), tasks: [], resources: []
     )
 
+    /// 上一帧全量快照对应的会话版本；增量刷新（翻窗）只在同版本上复用子快照。
+    private var fullSnapshotRevision: UInt64?
+
     /// 视图偏好在 `UserDefaults` 中的键名；测试按此键读写偏好 JSON。
     static let preferencesKey = "kairo.workspace.preferences.v1"
     // 时刻（外部更新提示）判定为展示格式：走 `Display.time`（本地化），不在这里固定 `HH:mm`（F-0712）。
@@ -409,23 +412,58 @@ final class WorkspaceStore: ObservableObject {
 
     // MARK: - 刷新
 
-    func refresh(now: Date = Date()) {
+    /// 刷新范围：决定重建哪几个子快照。
+    ///
+    /// 只有「一次变更确实只动了窗口」的入口才允许用 `windowPan`——其余一律全量重建。
+    /// 误用的后果由 `WorkspaceStoreWindowPanTests` 的相等性断言兜住：同一窗口下
+    /// 增量结果必须与全量重建逐字段相等（`WorkspaceSnapshot` 的 `==`）。
+    enum RefreshScope {
+        /// 全部子快照 + 文件导出状态。
+        case all
+        /// 横向翻窗：只重建甘特与状态栏，复用大纲与检查器，不动 `exportState`。
+        case windowPan
+    }
+
+    func refresh(now: Date = Date(), scope requestedScope: RefreshScope = .all) {
         if saveState != .failed {
             saveState = session.hasUnsavedChanges ? .unsaved : .saved
         }
         let state = (try? session.snapshot())
             ?? ProjectState(metadata: ProjectMetadata(), tasks: [], resources: [])
-        exportState = state
-        snapshot = Self.makeSnapshot(
-            state: state,
-            session: session,
-            viewState: inspectorState(for: viewState),
-            viewport: viewport,
-            saveState: saveState,
-            calendar: calendar,
-            now: now,
-            varianceCache: varianceCache
-        )
+        // 不变量：增量刷新只在「上一帧全量快照与当前会话同版本」时成立——任务或元数据一变，
+        // 被复用的大纲行与检查器就过期了。用会话版本兜底，不依赖调用方自觉（D-038）。
+        let scope = requestedScope == .windowPan && fullSnapshotRevision == session.revision
+            ? RefreshScope.windowPan
+            : RefreshScope.all
+        switch scope {
+        case .all:
+            exportState = state
+            snapshot = Self.makeSnapshot(
+                state: state,
+                session: session,
+                viewState: inspectorState(for: viewState),
+                viewport: viewport,
+                saveState: saveState,
+                calendar: calendar,
+                now: now,
+                varianceCache: varianceCache
+            )
+            fullSnapshotRevision = session.revision
+        case .windowPan:
+            // 翻窗不改项目内容：`exportState` 保持上一帧，不触发文件导出的重编码。
+            let schedule = (try? session.scheduleOrCompute()) ?? session.lastSchedule
+            snapshot = WorkspacePresenter.makeWindowPan(
+                previous: snapshot,
+                state: state,
+                schedule: schedule,
+                viewState: inspectorState(for: viewState),
+                viewport: viewport,
+                saveState: saveState,
+                calendar: calendar,
+                locale: Locale.current, // TODO(F-0706): 由语言设置注入
+                now: now
+            )
+        }
         // 锁定时检查器使用冻结任务；状态栏仍显示真实选择。
         if viewState.inspectorLocked, let title = selectedTaskTitle {
             snapshot.statusBar.selectionSummary = title
@@ -515,7 +553,7 @@ final class WorkspaceStore: ObservableObject {
         guard days != 0 else { return }
         let base = viewState.windowStart ?? snapshot.gantt.windowStart
         let shifted = calendar.date(byAdding: .day, value: -days, to: base) ?? base
-        mutateView {
+        mutateView(scope: .windowPan) {
             $0.windowStart = calendar.startOfDay(for: shifted)
             $0.usesFitZoom = false
         }
@@ -611,7 +649,7 @@ final class WorkspaceStore: ObservableObject {
             }
 
         case .panWindow(let date):
-            mutateView {
+            mutateView(scope: .windowPan) {
                 $0.windowStart = calendar.startOfDay(for: date)
                 $0.usesFitZoom = false
             }
@@ -1115,9 +1153,14 @@ final class WorkspaceStore: ObservableObject {
         if baselinePanel != model { baselinePanel = model }
     }
 
-    private func mutateView(_ change: (inout WorkspaceViewState) -> Void) {
+    /// 视图状态变更后的刷新。`scope` 默认全量；只有翻窗这类「只动窗口」的变更
+    /// 可以传 `.windowPan` 省掉大纲与检查器的重建（D-038）。
+    private func mutateView(
+        scope: RefreshScope = .all,
+        _ change: (inout WorkspaceViewState) -> Void
+    ) {
         change(&viewState)
-        refresh()
+        refresh(scope: scope)
     }
 
     /// 任务当前排期起点：优先排期结果；未排期（群组/环/无安排）回落到 `startDate` 意图。
