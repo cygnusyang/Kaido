@@ -187,14 +187,27 @@ public enum ScheduleEngine {
 
     /// Kahn 拓扑序（仅非环任务；环任务不入序）。依赖计数只算有效前驱。
     private static func topologicalOrder(_ tasks: [TaskItem], byID: [UUID: TaskItem]) -> [UUID] {
+        // 群组前驱要展开到叶子（issue #16）：阶段门的语义是「前一阶段所有叶子做完」。
+        // 只保留「群组节点 → 任务」一条边时，群组节点在拓扑序里很早就出队，
+        // 下游任务会在前驱子树还没排完时就被计算，表现为「只顺延了一部分」。
+        var children: [UUID: [UUID]] = [:]
+        for task in tasks { if let parent = task.parentID { children[parent, default: []].append(task.id) } }
+        func leaves(_ id: UUID) -> [UUID] {
+            guard let kids = children[id], !kids.isEmpty else { return [id] }
+            return kids.flatMap { leaves($0) }
+        }
+
         var inDegree: [UUID: Int] = [:]
         var successors: [UUID: [UUID]] = [:]
         for task in tasks {
-            let effective = effectiveDependencies(of: task, byID: byID)
-            inDegree[task.id] = effective.filter { byID[$0.predecessorID] != nil }.count
-            for dep in effective where byID[dep.predecessorID] != nil {
-                successors[dep.predecessorID, default: []].append(task.id)
+            var predecessors = Set<UUID>()
+            for dep in effectiveDependencies(of: task, byID: byID) {
+                guard let pred = byID[dep.predecessorID] else { continue }
+                let nodes = pred.kind == .group ? leaves(pred.id) : [pred.id]
+                for node in nodes where node != task.id { predecessors.insert(node) }
             }
+            inDegree[task.id] = predecessors.count
+            for node in predecessors { successors[node, default: []].append(task.id) }
         }
         var queue: [UUID] = tasks.filter { inDegree[$0.id] == 0 }.map(\.id)
         var order: [UUID] = []

@@ -123,4 +123,22 @@ struct GroupDependencyTests {
         #expect(sa.scheduledStart == d0)
         #expect(sb.scheduledStart == sa.scheduledFinish)
     }
+
+    /// 群组依赖必须等**整棵子树**结束（不是部分）：前一阶段内部串行时，
+    /// 下游任务不得在阶段中途启动（v0.14.2 首版只顺延了一部分的回归守卫）。
+    @Test func groupDependencyWaitsForWholeSubtree() throws {
+        let groupA = UUID(), groupB = UUID()
+        let a1 = UUID(), a2 = UUID(), b1 = UUID()
+        let tasks = [
+            item("阶段 A", id: groupA, kind: .group),
+            item("A1", id: a1, duration: 2, parent: groupA),
+            item("A2", id: a2, duration: 3, parent: groupA, deps: [fs(a1)]),
+            item("阶段 B", id: groupB, kind: .group, deps: [fs(groupA)]),
+            item("B1", id: b1, duration: 1, parent: groupB),
+        ]
+        let result = ScheduleEngine.compute(tasks: tasks, projectStart: d0, calendar: utc)
+        let lastA = try #require(scheduled(result, a2))
+        let b = try #require(scheduled(result, b1))
+        #expect(b.scheduledStart >= lastA.scheduledFinish, "B1 必须在阶段 A 整棵子树完成后才启动")
+    }
 }
