@@ -3,6 +3,18 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.13.2 — 2026-10-25
+
+### 修复
+
+- **甘特画布左右平移在会话中静默失效（D-034）**：现场日志显示 `scroll surface attached` 之后出现两次 `detached`，此后再无 `attached` —— 监听被摘掉且没人补装，画布完全不动而界面无任何异常。根因：监听只挂在 `viewDidMoveToWindow` / `viewWillMove(toWindow:)` 上，SwiftUI 在结构变化时不保证这对生命周期按序到达。
+- 修复：新增 `syncMonitoringState()`，在每次 `updateNSView` 时把「视图在窗口」与「监听在岗」拉回一致（窗口有视图但监听缺失就补装，反之摘除）。漏掉的生命周期事件不再致命。
+
+### 判据与证据
+
+- `GanttScrollSurfaceTests` 新增 2 例：`syncMonitoringStateReattachesAfterUnexpectedDetach`（模拟漏事件后自愈补装）、`syncMonitoringStateStaysOffWithoutWindow`（不在窗口不得凭空安装）。
+- 全量 **1107 tests / 100 suites** 通过；debug 构建零 warning。
+
 ## v0.13.1 — 2026-10-25
 
 ### 修复

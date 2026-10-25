@@ -152,6 +152,31 @@ struct GanttScrollSurfaceTests {
         surface.stopMonitoring()
     }
 
+    /// D-034：视图在窗口但监听不在时，下一次 SwiftUI 更新必须把监听补回来。
+    /// 现场事故是「attached → 原地 detached 两次 → 再无 attached」，画布平移整段失效。
+    @Test func syncMonitoringStateReattachesAfterUnexpectedDetach() {
+        let window = makeWindow()
+        let surface = makeSurface()
+        window.contentView?.addSubview(surface)
+        #expect(surface.isMonitoring, "进入窗口即安装")
+
+        // 模拟生命周期漏事件：监听被摘掉，但视图仍在窗口里。
+        surface.stopMonitoring()
+        #expect(!surface.isMonitoring)
+
+        surface.syncMonitoringState()
+        #expect(surface.isMonitoring, "视图在窗口时下一次更新必须自愈补装")
+
+        surface.stopMonitoring()
+    }
+
+    @Test func syncMonitoringStateStaysOffWithoutWindow() {
+        let surface = makeSurface()
+        #expect(!surface.isMonitoring)
+        surface.syncMonitoringState()
+        #expect(!surface.isMonitoring, "不在窗口里不得凭空安装监听")
+    }
+
     @Test func surfaceInstallsMonitorWithViewLifetime() {
         let window = makeWindow()
         let surface = makeSurface()

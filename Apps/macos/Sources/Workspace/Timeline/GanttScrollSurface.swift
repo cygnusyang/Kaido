@@ -33,6 +33,8 @@ struct GanttScrollSurface: NSViewRepresentable {
 
     func updateNSView(_ view: ScrollSurfaceView, context: Context) {
         view.update(dayWidth: dayWidth, onDays: onDays)
+        // 每次渲染都把「视图在窗口 / 监听在岗」对齐一次（D-034 自愈）。
+        view.syncMonitoringState()
     }
 
     /// 承接滚动的 NSView：不吃鼠标事件（`hitTest` 返回 nil），画布手势照旧。
@@ -72,6 +74,21 @@ struct GanttScrollSurface: NSViewRepresentable {
         override func viewWillMove(toWindow newWindow: NSWindow?) {
             if newWindow == nil { stopMonitoring() }
             super.viewWillMove(toWindow: newWindow)
+        }
+
+        /// 视图在窗口里、但监听不在时补装（D-034）。
+        ///
+        /// 为什么需要这道自愈：SwiftUI 在结构变化（切视图、换项目、覆盖层进出）时
+        /// 并不保证按配对顺序调用 `viewWillMove(nil)` → `viewDidMoveToWindow`。
+        /// 曾经出现「启动时 attached → 原地 detached 两次 → 再无 attached」的现场，
+        /// 结果是画布左右平移整段失效而界面毫无异常。这里在每次 SwiftUI 更新时
+        /// 把「视图在窗口」与「监听在岗」拉回一致，漏掉的生命周期事件不再致命。
+        func syncMonitoringState() {
+            if window == nil, monitor != nil {
+                stopMonitoring()
+            } else if window != nil, monitor == nil {
+                startMonitoring()
+            }
         }
 
         private func startMonitoring() {
