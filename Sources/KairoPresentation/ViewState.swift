@@ -58,6 +58,10 @@ public struct WorkspaceViewState: Hashable, Sendable {
     /// 用户隐藏的大纲列（键 = `OutlineColumn.rawValue`）。
     /// 序号/任务说明固定显示，隐藏请求不生效（见 `OutlineColumnPreferences`）。
     public var hiddenOutlineColumns: Set<String> = []
+    /// 用户显式打开的可选列（键 = `OutlineColumn.rawValue`，F-0719）。
+    /// 缺省空集 = 实际列全部隐藏；与 `hiddenOutlineColumns` 是两条独立的偏好，
+    /// 因为可选列的缺省态是「不存在」，不能靠隐藏集合表达。
+    public var visibleOptionalColumns: Set<String> = []
     public var filterText: String
     /// 查找/定位目标（只高亮跳转，不改变筛选）。
     public var highlightedTaskID: UUID?
@@ -85,7 +89,8 @@ public struct WorkspaceViewState: Hashable, Sendable {
         highlightedTaskID: UUID? = nil,
         revealStatus: RevealStatus? = nil,
         outlineColumnWidths: [String: Double] = [:],
-        hiddenOutlineColumns: Set<String> = []
+        hiddenOutlineColumns: Set<String> = [],
+        visibleOptionalColumns: Set<String> = []
     ) {
         self.mode = mode
         self.chartFocused = chartFocused
@@ -109,6 +114,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
         self.revealStatus = revealStatus
         self.outlineColumnWidths = outlineColumnWidths
         self.hiddenOutlineColumns = hiddenOutlineColumns
+        self.visibleOptionalColumns = visibleOptionalColumns
     }
 }
 

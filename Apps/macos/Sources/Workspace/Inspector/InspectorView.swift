@@ -324,6 +324,30 @@ private struct TaskInspectorContent: View {
             }
         }
 
+        // 实际时间（F-0719）：紧随排期分区；群组行不表达实际，整段不显示。
+        if !task.isAggregate {
+            section(I18n.t("inspector.section.actual", "Actual")) {
+                DateFieldRow(
+                    label: I18n.t("column.actual_start", "Actual start"),
+                    value: task.actualStart,
+                    allowsClear: true,
+                    onCommit: { date in
+                        // nil 只可能来自「清除」；写入口径与自动记录同源（同一字段），
+                        // 顺序校验与状态联动在会话里（设计 §4）。
+                        store.dispatch(.setActualStart(task.taskID, date))
+                    }
+                )
+                DateFieldRow(
+                    label: I18n.t("column.actual_finish", "Actual finish"),
+                    value: task.completedAt,
+                    allowsClear: true,
+                    onCommit: { date in
+                        store.dispatch(.setActualFinish(task.taskID, date))
+                    }
+                )
+            }
+        }
+
         section(I18n.t("inspector.section.dependencies", "Dependencies")) {
             if task.predecessors.isEmpty {
                 Text(I18n.t("inspector.predecessors.empty", "No predecessors"))

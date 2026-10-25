@@ -22,6 +22,9 @@ struct OutlineColumnPreferencesTests {
         .predecessors: 96,
         .start: 78,
         .finish: 78,
+        // 实际列（F-0719）：可选列，宽度与既有日期列同口径。
+        .actualStart: 78,
+        .actualFinish: 78,
         .duration: 56,
         .assignee: 76,
         .progress: 72
@@ -44,11 +47,14 @@ struct OutlineColumnPreferencesTests {
         ])
         #expect(configurable == OutlineColumn.allCases.filter {
             !OutlineColumnPreferences.alwaysVisible.contains($0)
+                && !OutlineColumnPreferences.optional.contains($0)
         })
         #expect(!configurable.contains(.number), "序号固定显示，不得进入开关列表")
         #expect(!configurable.contains(.title), "任务说明固定显示，不得进入开关列表")
-        // 派生而非手写：可配置列 + 固定列必须恰好覆盖全部列，无遗漏无重复。
-        #expect(Set(configurable).union(OutlineColumnPreferences.alwaysVisible).count
+        // 派生而非手写：可配置列 + 固定列 + 可选列必须恰好覆盖全部列，无遗漏无重复。
+        #expect(Set(configurable)
+            .union(OutlineColumnPreferences.alwaysVisible)
+            .union(OutlineColumnPreferences.optional).count
             == OutlineColumn.allCases.count)
     }
 

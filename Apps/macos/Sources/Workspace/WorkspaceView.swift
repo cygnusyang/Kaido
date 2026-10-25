@@ -344,13 +344,16 @@ struct WorkspaceView: View {
         let rows = store.snapshot.outline.rows
         let gantt = store.snapshot.gantt
         let hiddenColumns = hiddenOutlineColumns
-        // 列集合与 Presenter 同源（F-14-20 策略）：阈值降级优先，用户隐藏只进一步收窄。
+        let optionalColumns = visibleOptionalColumns
+        // 列集合与 Presenter 同源（F-14-20 策略）：阈值降级优先，用户隐藏只进一步收窄；
+        // 实际列（F-0719）是可选列，只有 shownOptional 里有才出现。
         let columns = !sizes.showsOutline
             ? []
             : OutlineColumnPreferences.visibleColumns(
                 outlineWidth: Double(sizes.outlineWidth),
                 hidden: hiddenColumns,
-                focused: sizes.focused
+                focused: sizes.focused,
+                shownOptional: optionalColumns
             )
         let layout = OutlineColumnLayout(
             columns: columns,
@@ -370,7 +373,7 @@ struct WorkspaceView: View {
                 if sizes.showsOutline {
                     OutlineHeaderView(
                         layout: layout,
-                        hiddenColumns: hiddenColumns,
+                        hiddenColumns: uncheckedColumns,
                         onResizeChanged: { column, width in
                             liveColumnResize = (column, clampedColumnWidth(width, for: column))
                         },
@@ -447,6 +450,17 @@ struct WorkspaceView: View {
     /// 用户隐藏的列：状态里存的是 rawValue，未知键在此静默忽略。
     private var hiddenOutlineColumns: Set<OutlineColumn> {
         Set(store.viewState.hiddenOutlineColumns.compactMap(OutlineColumn.init(rawValue:)))
+    }
+
+    /// 用户显式打开的可选列（F-0719）：默认空集 = 实际列全部隐藏。
+    private var visibleOptionalColumns: Set<OutlineColumn> {
+        Set(store.viewState.visibleOptionalColumns.compactMap(OutlineColumn.init(rawValue:)))
+    }
+
+    /// 右键菜单的勾选态数据源：可选列未启用时按「隐藏」呈现，
+    /// 使菜单只有一条 `!contains` 判定，不必在视图里区分两类列。
+    private var uncheckedColumns: Set<OutlineColumn> {
+        hiddenOutlineColumns.union(OutlineColumnPreferences.optional.subtracting(visibleOptionalColumns))
     }
 
     /// 用户列宽覆盖（列 → 点宽）：Store 载入/写入时已过滤未知列与越界值。

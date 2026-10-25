@@ -37,8 +37,12 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     public var constraint: SchedulingConstraint?
     /// 调度策略（F-22-04 ASAP/ALAP）：默认尽可能早。
     public var schedulingPolicy: SchedulingPolicy
-    /// 完成时间（US-E3-01 状态回写：状态置 done 时记录）。
+    /// 实际结束（v0.12 / 07-actual-dates §2）：状态置 done 时记录，可人工修正。
+    /// 复用 US-E3-01 的字段与磁盘键 `completedAt`，不另设 `actualFinish`。
     public var completedAt: Date?
+    /// 实际开始（v0.12 / 07-actual-dates §2）：首次开工时刻，只增不清（人工可清除）。
+    /// 群组行不表达实际，恒为 nil。
+    public var actualStart: Date?
     /// 资源分配（F-22-08 / ADR-009）：任务↔资源分配列表；供投入↔持续时间换算。
     public var assignments: [TaskAssignment]
 
@@ -61,7 +65,8 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         constraint: SchedulingConstraint? = nil,
         schedulingPolicy: SchedulingPolicy = .asap,
         completedAt: Date? = nil,
-        assignments: [TaskAssignment] = []
+        assignments: [TaskAssignment] = [],
+        actualStart: Date? = nil
     ) {
         self.id = id
         self.title = title
@@ -82,6 +87,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         self.schedulingPolicy = schedulingPolicy
         self.completedAt = completedAt
         self.assignments = assignments
+        self.actualStart = actualStart
     }
 
     public var isOverdue: Bool {
@@ -94,7 +100,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id, title, notes, startDate, dueDate, priority, status, tags, assignee
         case kind, parentID, effortHours, durationDays, dependencies, progress
-        case constraint, schedulingPolicy, completedAt, assignments
+        case constraint, schedulingPolicy, completedAt, assignments, actualStart
     }
 
     public init(from decoder: Decoder) throws {
@@ -127,6 +133,8 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         schedulingPolicy = try c.decodeIfPresent(SchedulingPolicy.self, forKey: .schedulingPolicy) ?? .asap
         completedAt = try c.decodeIfPresent(Date.self, forKey: .completedAt)
         assignments = try c.decodeIfPresent([TaskAssignment].self, forKey: .assignments) ?? []
+        // v0.12 新增：旧文件缺键 → nil，格式版本不变（ADR-011）。
+        actualStart = try c.decodeIfPresent(Date.self, forKey: .actualStart)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -150,5 +158,6 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         try c.encode(schedulingPolicy, forKey: .schedulingPolicy)
         try c.encodeIfPresent(completedAt, forKey: .completedAt)
         try c.encode(assignments, forKey: .assignments)
+        try c.encodeIfPresent(actualStart, forKey: .actualStart)
     }
 }

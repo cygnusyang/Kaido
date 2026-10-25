@@ -111,6 +111,8 @@ final class WorkspaceStore: ObservableObject {
         var outlineColumnWidths: [String: Double]?
         /// 隐藏的大纲列（列 rawValue）；旧数据缺省时为 nil，全部列显示。
         var hiddenOutlineColumns: [String]?
+        /// 显式打开的可选列（列 rawValue，F-0719）；旧数据缺省时为 nil，可选列全隐藏。
+        var visibleOptionalColumns: [String]?
         /// 是否标出非工作日；旧数据缺省 → false（一周 7 天，与排期口径一致）。
         var showsNonWorkingDays: Bool?
 
@@ -127,6 +129,7 @@ final class WorkspaceStore: ObservableObject {
             inspectorTab: InspectorTab,
             outlineColumnWidths: [String: Double]?,
             hiddenOutlineColumns: [String]?,
+            visibleOptionalColumns: [String]?,
             showsNonWorkingDays: Bool?
         ) {
             self.outlineWidth = outlineWidth
@@ -140,6 +143,7 @@ final class WorkspaceStore: ObservableObject {
             self.inspectorTab = inspectorTab
             self.outlineColumnWidths = outlineColumnWidths
             self.hiddenOutlineColumns = hiddenOutlineColumns
+            self.visibleOptionalColumns = visibleOptionalColumns
             self.showsNonWorkingDays = showsNonWorkingDays
         }
 
@@ -167,6 +171,9 @@ final class WorkspaceStore: ObservableObject {
             )
             hiddenOutlineColumns = try? container.decodeIfPresent(
                 [String].self, forKey: .hiddenOutlineColumns
+            )
+            visibleOptionalColumns = try? container.decodeIfPresent(
+                [String].self, forKey: .visibleOptionalColumns
             )
             showsNonWorkingDays = try? container.decodeIfPresent(
                 Bool.self, forKey: .showsNonWorkingDays
@@ -228,6 +235,7 @@ final class WorkspaceStore: ObservableObject {
             // 列宽/显隐（F-14-20）：未知列与越界宽度静默丢弃，不牵连其余偏好（D-016）。
             state.outlineColumnWidths = Self.loadedColumnWidths(stored.outlineColumnWidths)
             state.hiddenOutlineColumns = Self.loadedHiddenColumns(stored.hiddenOutlineColumns)
+            state.visibleOptionalColumns = Self.loadedOptionalColumns(stored.visibleOptionalColumns)
         }
         // 自定义日宽：载入时归一化（夹取 + 取整 0.1，与写入口径一致，D-012），
         // 并与「适合项目」互斥（自定义优先）。
@@ -615,6 +623,17 @@ final class WorkspaceStore: ObservableObject {
                 try self.session.updateTask(id: id, patch: patch)
             }
 
+        case .setActualStart(let id, let date):
+            // 实际开始不加日粒度归一：快照显示到日，模型保留完整时间戳（设计 §5「日期口径」）。
+            updateActual(mergeKey: "actual-start-\(id)") {
+                try self.session.setActualStart(id: id, date: date)
+            }
+
+        case .setActualFinish(let id, let date):
+            updateActual(mergeKey: "actual-finish-\(id)") {
+                try self.session.setActualFinish(id: id, date: date)
+            }
+
         case .setTaskFinish(let id, let finish, let start):
             // 「结束」只折算持续时间；两重校验都在 update 之前，任一失败不写库、不产生撤销点。
             // ① 起点必须仍是当前排期起点：快照渲染到点击之间排期可能已被撤销/重做、画布拖拽、
@@ -761,12 +780,24 @@ final class WorkspaceStore: ObservableObject {
         }
     }
 
-    /// 列显隐（F-14-20）：序号/任务说明固定显示，请求直接忽略（不产生撤销点、不改状态）。
+    /// 列显隐（F-14-20 / F-0719）：序号/任务说明固定显示，请求直接忽略（不产生撤销点、不改状态）。
+    ///
+    /// 可选列（实际开始/实际结束）走另一条偏好 `visibleOptionalColumns`：它们的缺省态是
+    /// 「不存在」，记在隐藏集合里无法区分「用户隐藏」与「新列尚未存在」（设计 §5）。
+    /// 菜单与命令面板只发同一个动作，由这里按列归属分流，避免视图重复判断。
     ///
     /// 纯视图偏好，与大纲整体宽度一致：走 `mutateView` 而非 `update`，不进撤销栈。
     private func toggleOutlineColumn(_ column: OutlineColumn) {
         guard !OutlineColumnPreferences.alwaysVisible.contains(column) else { return }
         mutateView { state in
+            if OutlineColumnPreferences.optional.contains(column) {
+                if state.visibleOptionalColumns.contains(column.rawValue) {
+                    state.visibleOptionalColumns.remove(column.rawValue)
+                } else {
+                    state.visibleOptionalColumns.insert(column.rawValue)
+                }
+                return
+            }
             if state.hiddenOutlineColumns.contains(column.rawValue) {
                 state.hiddenOutlineColumns.remove(column.rawValue)
             } else {
@@ -795,18 +826,32 @@ final class WorkspaceStore: ObservableObject {
 
     /// 记录撤销点；相同 `mergeKey` 在 500ms 内合并为一步。
     private func pushUndo(mergeKey: String?) {
+        appendUndo(captureUndoEntry(), mergeKey: mergeKey)
+    }
+
+    /// 捕获当前项目快照（撤销点内容）；会话不可用时为 nil。
+    ///
+    /// 与 `pushUndo` 拆开是为了「先改、成功后才压栈」的写入口（实际时间，F-0719）：
+    /// 那些入口要先拿到前置快照，再执行可能失败的写入。
+    private func captureUndoEntry() -> UndoEntry? {
+        guard let state = try? session.snapshot() else { return nil }
+        return UndoEntry(
+            state: state,
+            selectedTaskID: viewState.selectedTaskID,
+            expandedTaskIDs: viewState.expandedTaskIDs
+        )
+    }
+
+    /// 压入撤销点：同一 `mergeKey` 在 500ms 内合并为一步。
+    private func appendUndo(_ entry: UndoEntry?, mergeKey: String?) {
         let now = Date()
         if let mergeKey, mergeKey == lastMergeKey, now.timeIntervalSince(lastMergeAt) < 0.5,
            !undoStack.isEmpty {
             lastMergeAt = now
             return
         }
-        if let state = try? session.snapshot() {
-            undoStack.append(UndoEntry(
-                state: state,
-                selectedTaskID: viewState.selectedTaskID,
-                expandedTaskIDs: viewState.expandedTaskIDs
-            ))
+        if let entry {
+            undoStack.append(entry)
             if undoStack.count > 50 { undoStack.removeFirst(undoStack.count - 50) }
             redoStack.removeAll()
         }
@@ -825,6 +870,24 @@ final class WorkspaceStore: ObservableObject {
         } catch {
             report(error)
         }
+        refresh()
+    }
+
+    /// 写实际时间（F-0719）：**成功后才记撤销点**。
+    ///
+    /// 与 `update(id:mergeKey:)` 的差异只有顺序：后者先压撤销点再执行，而实际时间的
+    /// 顺序校验在会话里（早于实际开始 → 抛错不写库），失败请求会在撤销栈里留下一个
+    /// 「撤销后毫无变化」的空步（设计 §4 判据 9「不产生撤销点」）。
+    private func updateActual(mergeKey: String, _ body: () throws -> Void) {
+        let entry = captureUndoEntry()
+        do {
+            try body()
+        } catch {
+            report(error)
+            refresh()
+            return
+        }
+        appendUndo(entry, mergeKey: mergeKey)
         refresh()
     }
 
@@ -1580,7 +1643,8 @@ final class WorkspaceStore: ObservableObject {
             // 列宽/显隐是应用级视图偏好（与检查器宽度同类）：换项目不重置，
             // 否则打开文件会静默清空用户配置并写回偏好。
             outlineColumnWidths: viewState.outlineColumnWidths,
-            hiddenOutlineColumns: viewState.hiddenOutlineColumns
+            hiddenOutlineColumns: viewState.hiddenOutlineColumns,
+            visibleOptionalColumns: viewState.visibleOptionalColumns
         )
         lockedTaskID = nil
         lockedTaskTitle = nil
@@ -1623,6 +1687,16 @@ final class WorkspaceStore: ObservableObject {
         })
     }
 
+    /// 载入可选列：只保留可选列集合内的 rawValue，未知列与普通列静默丢弃。
+    private static func loadedOptionalColumns(_ stored: [String]?) -> Set<String> {
+        guard let stored else { return [] }
+        return Set(stored.compactMap { raw -> String? in
+            guard let column = OutlineColumn(rawValue: raw),
+                  OutlineColumnPreferences.optional.contains(column) else { return nil }
+            return column.rawValue
+        })
+    }
+
     private func savePreferences() {
         let stored = StoredPreferences(
             outlineWidth: viewState.outlineWidth,
@@ -1639,6 +1713,9 @@ final class WorkspaceStore: ObservableObject {
             hiddenOutlineColumns: viewState.hiddenOutlineColumns.isEmpty
                 ? nil
                 : viewState.hiddenOutlineColumns.sorted(),
+            visibleOptionalColumns: viewState.visibleOptionalColumns.isEmpty
+                ? nil
+                : viewState.visibleOptionalColumns.sorted(),
             showsNonWorkingDays: viewState.showsNonWorkingDays
         )
         guard let data = try? JSONEncoder().encode(stored) else { return }

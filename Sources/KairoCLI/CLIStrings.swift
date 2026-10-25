@@ -385,8 +385,14 @@ struct CLIStrings: Sendable {
         )
     }
 
-    func completedAt(_ timestamp: String) -> String {
-        t("完成于：\(timestamp)", "completed at: \(timestamp)")
+    /// 实际开始（07-actual-dates §8）：与「实际结束」成对出现，措辞统一为「实际」。
+    func actualStart(_ timestamp: String) -> String {
+        t("实际开始：\(timestamp)", "actual start: \(timestamp)")
+    }
+
+    /// 实际结束（07-actual-dates §2）：复用原 completedAt 输出行，仅改标签口径。
+    func actualFinish(_ timestamp: String) -> String {
+        t("实际结束：\(timestamp)", "actual finish: \(timestamp)")
     }
 
     func groupProgress(_ percent: Int) -> String {

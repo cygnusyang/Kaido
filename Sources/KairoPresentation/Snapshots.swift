@@ -13,6 +13,10 @@ public enum OutlineColumn: String, Codable, Hashable, CaseIterable, Sendable {
     case predecessors
     case start
     case finish
+    /// 实际开始（F-0719）：可选列，默认隐藏；只读，无值显示占位符。
+    case actualStart
+    /// 实际结束（F-0719）：可选列，默认隐藏；复用 `TaskItem.completedAt`。
+    case actualFinish
     case duration
     case assignee
     case progress
@@ -25,7 +29,7 @@ public enum OutlineColumn: String, Codable, Hashable, CaseIterable, Sendable {
         case .number: return 30
         case .title: return 160 * scale
         case .predecessors: return 96 * scale
-        case .start, .finish: return 78 * scale
+        case .start, .finish, .actualStart, .actualFinish: return 78 * scale
         case .duration: return 56 * scale
         case .assignee: return 76 * scale
         case .progress: return 72 * scale
@@ -71,6 +75,10 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
     /// 意图起点（`TaskItem.startDate`）：用户设置的最早开始日；`nil` = 未设置，
     /// 完全由自动排期决定。群组行为 `nil`（聚合口径只有排期结果）。
     public var startDate: Date?
+    /// 实际开始（`TaskItem.actualStart`，F-0719）；群组行恒为 nil（不做子任务聚合）。
+    public var actualStart: Date?
+    /// 实际结束（复用 `TaskItem.completedAt`，F-0719）；群组行恒为 nil。
+    public var actualFinish: Date?
     public var durationDays: Double?
     public var assignee: String?
     /// 前置任务摘要（`A8FC:fs` / `A8FC:fs+1.5`，逗号分隔）；空串表示无前置。
@@ -114,7 +122,9 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
         hasSchedule: Bool = false,
         unscheduledReason: UnscheduledReason? = nil,
         isHighlighted: Bool = false,
-        startDate: Date? = nil
+        startDate: Date? = nil,
+        actualStart: Date? = nil,
+        actualFinish: Date? = nil
     ) {
         self.id = id
         self.depth = depth
@@ -126,6 +136,8 @@ public struct PlanRow: Identifiable, Hashable, Sendable {
         self.scheduledStart = scheduledStart
         self.scheduledFinish = scheduledFinish
         self.startDate = startDate
+        self.actualStart = actualStart
+        self.actualFinish = actualFinish
         self.durationDays = durationDays
         self.assignee = assignee
         self.predecessorsText = predecessorsText

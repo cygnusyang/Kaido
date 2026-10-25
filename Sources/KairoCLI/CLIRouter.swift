@@ -457,7 +457,7 @@ struct CLIRouter {
             progress: Int(task.progress * 100)
         ))
         if let completed = task.completedAt {
-            o.emit(s.completedAt(formatDate(completed)))
+            o.emit(s.actualFinish(formatDate(completed)))
         }
         let group = try session.groupProgress(id: id)
         o.emit(s.groupProgress(Int(group * 100)))
@@ -668,6 +668,9 @@ struct CLIRouter {
         if let duration = task.durationDays { lines.append(s.detailDuration + s.daysUnit(formatNumber(duration))) }
         if !task.tags.isEmpty { lines.append(s.detailTags + task.tags.map { "#\($0)" }.joined(separator: " ")) }
         lines.append(s.detailProgress + "\(Int(task.progress * 100))%")
+        // 实际时间（07-actual-dates §8）：有值才输出，缺值不占行（与其它可选行同口径）。
+        if let actualStart = task.actualStart { lines.append(s.actualStart(formatDate(actualStart))) }
+        if let actualFinish = task.completedAt { lines.append(s.actualFinish(formatDate(actualFinish))) }
         if !task.dependencies.isEmpty {
             lines.append(s.detailDependencies)
             for dep in task.dependencies {

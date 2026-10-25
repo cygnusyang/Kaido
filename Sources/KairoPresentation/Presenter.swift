@@ -248,7 +248,10 @@ public enum WorkspacePresenter {
                 unscheduledReason: unscheduledReason(for: task, hasSchedule: hasSchedule),
                 isHighlighted: viewState.highlightedTaskID == task.id,
                 // 意图起点只对非群组行有意义：群组的起止一律是子任务聚合值（口径与 `start` 一致）。
-                startDate: isGroup ? nil : task.startDate
+                startDate: isGroup ? nil : task.startDate,
+                // 实际时间不聚合：群组行只表达子任务聚合的排期（设计 §2 末段）。
+                actualStart: isGroup ? nil : task.actualStart,
+                actualFinish: isGroup ? nil : task.completedAt
             ))
         }
 
@@ -268,7 +271,9 @@ public enum WorkspacePresenter {
             columns: OutlineColumnPreferences.visibleColumns(
                 outlineWidth: viewState.outlineWidth,
                 hidden: Set(viewState.hiddenOutlineColumns.compactMap(OutlineColumn.init(rawValue:))),
-                focused: viewState.chartFocused
+                focused: viewState.chartFocused,
+                // 可选列（F-0719）：默认隐藏，只有用户显式打开才出现在列集合里。
+                shownOptional: Set(viewState.visibleOptionalColumns.compactMap(OutlineColumn.init(rawValue:)))
             ),
             filterExplanation: filterActive ? AIFilterTranslator.summary(for: clauses) : nil,
             emptyReason: outlineEmptyReason,
@@ -694,7 +699,8 @@ public enum WorkspacePresenter {
             deadlineRisk: deadlineRisk(task, finish),
             isOverdue: overdue,
             progress: isGroup ? (full?.aggregateProgress ?? 0) : task.progress,
-            completedAt: task.completedAt,
+            // 实际结束复用 completedAt；群组不表达实际（设计 §2 末段）。
+            completedAt: isGroup ? nil : task.completedAt,
             constraint: task.constraint,
             schedulingPolicy: task.schedulingPolicy,
             isAggregate: isGroup,
@@ -704,7 +710,8 @@ public enum WorkspacePresenter {
             successors: successors,
             violations: violations.filter { $0.taskID == task.id },
             assignmentNames: assignmentNames,
-            startDate: isGroup ? nil : task.startDate
+            startDate: isGroup ? nil : task.startDate,
+            actualStart: isGroup ? nil : task.actualStart
         )
     }
 

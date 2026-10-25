@@ -1327,6 +1327,40 @@
         }
       }
     },
+    "column.actual_finish": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actual finish"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实际结束"
+          }
+        }
+      }
+    },
+    "column.actual_start": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actual start"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实际开始"
+          }
+        }
+      }
+    },
     "column.assignee": {
       "extractionState": "manual",
       "localizations": {
@@ -3125,6 +3159,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "暂无完成记录"
+          }
+        }
+      }
+    },
+    "inspector.section.actual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actual"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实际"
           }
         }
       }

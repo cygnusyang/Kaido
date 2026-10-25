@@ -3,6 +3,24 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.12.0 — 2026-10-25
+
+### 新增
+
+- **任务的实际开始 / 实际结束**：计划之外单独记录「真的什么时候开工、什么时候完的」。任务首次进入「进行中」（或进度 > 0）时自动记实际开始；完成时自动记实际结束；两种时间都不覆盖已存在的值，回退到「待办」也不会抹掉实际开始（历史不因状态回退消失）。
+- 检查器新增「实际」分区（两行日期，可手工补录与清空，群组不显示）；大纲新增「实际开始」「实际结束」两个可选列，**默认隐藏**，走列菜单按需打开。
+- CLI `task get` 输出实际开始/实际结束两行（有值才输出）；`task list --json` 带 `actualStart`，实际结束沿用既有 `completedAt` 键，不新增 `actualFinish`。
+
+### 变更
+
+- `completedAt` 的语义明确为「实际结束」，界面与 CLI 标签统一改为「实际结束」（原「完成于」退场）。
+- 新增错误码 `model_actual_date_order_invalid`：实际结束早于实际开始被拒绝且不写库。
+
+### 判据与证据
+
+- 验收用例 24 例（`ActualDatesAcceptanceTests`）+ 接口层 3 例（`ActualDatesInterfaceTests`，锁 CLI/MCP 键形状）+ core 24 例 + 展示 13 例 + 应用层 13 例；全量 **937 例 / 93 suites** 通过。
+- 判据映射与先红证据见 `docs/features/07-actual-dates-cases.md`；设计见 `docs/features/07-actual-dates.md`。
+- 群组行「实际时间恒 nil」有可失败用例（先写脏数据、再断言快照抑制），并做过变异验证（去掉抑制即变红）。
 ## v0.11.0 — 2026-10-25
 
 ### 新增

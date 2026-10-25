@@ -359,8 +359,11 @@ struct OutlineDateEditingTests {
 
     /// 策略只服务日期列：群组行上其它列也必须「可编辑、无原因、无下限」。
     @Test func nonDateColumnsAreNeverGated() {
-        let nonDateColumns = OutlineColumn.allCases.filter { $0 != .start && $0 != .finish }
-        #expect(nonDateColumns.count == 8, "除开始/结束外共 8 列参与断言")
+        // 实际列（F-0719）是只读列，同样不经过开始/结束的日期策略。
+        let nonDateColumns = OutlineColumn.allCases.filter {
+            $0 != .start && $0 != .finish && $0 != .actualStart && $0 != .actualFinish
+        }
+        #expect(nonDateColumns.count == 8, "除开始/结束（及只读实际列）外共 8 列参与断言")
 
         for row in [scheduledTaskRow(), unscheduledTaskRow(), groupRow(), milestoneRow()] {
             for column in nonDateColumns {

@@ -452,7 +452,7 @@ public final class KairoSession {
         Self.apply(patch.effortHours, to: &task.effortHours)
         Self.apply(patch.durationDays, to: &task.durationDays)
         Self.apply(patch.constraint, to: &task.constraint)
-        Self.applyStatus(status: patch.status, progress: patch.progress, to: &task)
+        Self.applyStatus(status: patch.status, progress: patch.progress, now: Date(), to: &task)
         // 仅父级实际变更时校验与提升，避免逐键更新做全量子树遍历。
         if case .set = patch.parentID {
             try validateParent(of: task, id: id, in: project)
@@ -759,10 +759,18 @@ public final class KairoSession {
 
     // MARK: - 状态回写（US-E3-01 / US-E3-02）
 
-    /// 单任务状态/进度回写：状态置 done 时记录完成时间并把进度置 1；
+    /// 单任务状态/进度回写：状态置 done 时记录实际结束并把进度置 1；
+    /// 首次开工（并入 in_progress 或进度 > 0）记录实际开始；
     /// 进度超出 0...1 拒绝并返回参数错误（US-E3-01 验收）。
+    ///
+    /// - Parameter now: 实际时间戳来源（默认当前时刻）。测试一律注入，不读墙钟。
     @discardableResult
-    public func statusUpdate(id: UUID, status: TaskStatus? = nil, progress: Double? = nil) throws -> TaskItem {
+    public func statusUpdate(
+        id: UUID,
+        status: TaskStatus? = nil,
+        progress: Double? = nil,
+        now: Date = Date()
+    ) throws -> TaskItem {
         guard let project else { throw notOpen() }
         guard let index = project.tasks.firstIndex(where: { $0.id == id }) else {
             throw SessionError(code: .taskNotFound, reason: .taskNotFound, message: "任务不存在", taskID: id)
@@ -771,22 +779,91 @@ public final class KairoSession {
             throw SessionError(code: .invalidArgument, reason: .progressOutOfRange, message: "进度必须介于 0 与 1 之间", taskID: id)
         }
         var task = project.tasks[index]
-        Self.applyStatus(status: status, progress: progress, to: &task)
+        Self.applyStatus(status: status, progress: progress, now: now, to: &task)
         project.tasks[index] = task
         markChanged()
         return task
     }
 
-    /// 统一状态回写入口：`done` → 进度 1 + 完成时间；离开 `done` 清空完成时间；
-    /// 进度 100% → `done`（100% 与 done 双向联动）。
-    private static func applyStatus(status: TaskStatus?, progress: Double?, to task: inout TaskItem) {
+    /// 人工写入实际开始（07-actual-dates §4）：`nil` = 清除。
+    ///
+    /// 非 nil 且任务为 `.pending` 时顺带置 `.inProgress`（有实际开始即已开工）；
+    /// `.done` / `.blocked` 不改状态——补录历史不重开任务。
+    /// 实际结束早于实际开始时抛 `model_actual_date_order_invalid`，任务不被修改。
+    @discardableResult
+    public func setActualStart(id: UUID, date: Date?) throws -> TaskItem {
+        try mutateTask(id: id) { task in
+            guard let date else {
+                task.actualStart = nil
+                return
+            }
+            try Self.validateActualDateOrder(start: date, finish: task.completedAt, taskID: id)
+            task.actualStart = date
+            if task.status == .pending { task.status = .inProgress }
+        }
+    }
+
+    /// 人工写入实际结束（07-actual-dates §4）：`nil` = 只清除实际结束，不改状态。
+    ///
+    /// 非 nil → 与 done 同语义（状态 `.done`、进度 1）；实际结束早于实际开始时抛
+    /// `model_actual_date_order_invalid`，任务不被修改。
+    @discardableResult
+    public func setActualFinish(id: UUID, date: Date?) throws -> TaskItem {
+        try mutateTask(id: id) { task in
+            guard let date else {
+                task.completedAt = nil
+                return
+            }
+            try Self.validateActualDateOrder(start: task.actualStart, finish: date, taskID: id)
+            task.completedAt = date
+            task.status = .done
+            task.progress = 1
+        }
+    }
+
+    /// 实际开始/结束的先后校验：结束早于开始即非法（相等合法——零时长任务）。
+    private static func validateActualDateOrder(start: Date?, finish: Date?, taskID: UUID) throws {
+        guard let start, let finish, finish < start else { return }
+        throw SessionError(
+            code: .invalidArgument,
+            reason: .actualDateOrderInvalid,
+            message: "实际结束不能早于实际开始",
+            taskID: taskID
+        )
+    }
+
+    /// 单任务就地修改的公共外壳：定位 → 修改 → 回写 → 置脏。
+    ///
+    /// 闭包内抛错时不回写（任务保持原值），因此校验失败不会留下半改状态。
+    @discardableResult
+    private func mutateTask(id: UUID, _ body: (inout TaskItem) throws -> Void) throws -> TaskItem {
+        guard let project else { throw notOpen() }
+        guard let index = project.tasks.firstIndex(where: { $0.id == id }) else {
+            throw SessionError(code: .taskNotFound, reason: .taskNotFound, message: "任务不存在", taskID: id)
+        }
+        var task = project.tasks[index]
+        try body(&task)
+        project.tasks[index] = task
+        markChanged()
+        return task
+    }
+
+    /// 统一状态回写入口（07-actual-dates §3 的唯一触发点）：
+    /// - `done`（含进度达 1）→ 实际结束 = now、进度 1；离开 `done` 清空实际结束；
+    /// - 并入 `.inProgress` 或进度 > 0 且尚无实际开始 → 实际开始 = now；
+    /// - 实际开始只在 nil 时写（首次为准），回退状态不清空；
+    /// - 从 pending/blocked 直跳 `done` 不补实际开始（不臆造未观测到的开工时刻）。
+    private static func applyStatus(status: TaskStatus?, progress: Double?, now: Date, to task: inout TaskItem) {
         if let status {
             task.status = status
             if status == .done {
                 task.progress = 1
-                if task.completedAt == nil { task.completedAt = Date() }
+                if task.completedAt == nil { task.completedAt = now }
             } else {
                 task.completedAt = nil
+                if status == .inProgress, task.actualStart == nil {
+                    task.actualStart = now
+                }
             }
         }
         if let progress, task.status != .done {
@@ -794,7 +871,10 @@ public final class KairoSession {
             if task.progress >= 1 {
                 task.progress = 1
                 task.status = .done
-                if task.completedAt == nil { task.completedAt = Date() }
+                if task.completedAt == nil { task.completedAt = now }
+            } else if task.progress > 0, task.actualStart == nil {
+                // 有进度即已开工；不改状态，避免隐式状态跳变。
+                task.actualStart = now
             }
         }
     }

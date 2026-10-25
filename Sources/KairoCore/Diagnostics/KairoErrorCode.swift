@@ -26,6 +26,8 @@ public enum KairoErrorCode: String, Codable, Hashable, Sendable, CaseIterable {
     case resourceUnitInvalid = "model_resource_unit_invalid"
     case resourceEfficiencyInvalid = "model_resource_efficiency_invalid"
     case resourceNotFound = "model_resource_not_found"
+    /// 07-actual-dates §4：实际结束早于实际开始（顺序非法）。
+    case actualDateOrderInvalid = "model_actual_date_order_invalid"
 
     // MARK: - schedule（排期、时限与违例）
 

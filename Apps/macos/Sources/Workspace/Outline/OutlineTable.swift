@@ -119,7 +119,7 @@ struct OutlineHeaderView: View {
 
     /// 列显隐菜单：序号/任务说明固定显示，不出现在开关列表（`configurable` 已排除）。
     private var columnMenu: some View {
-        ForEach(OutlineColumnPreferences.configurable, id: \.self) { column in
+        ForEach(OutlineColumnPreferences.toggleable, id: \.self) { column in
             Toggle(isOn: Binding(
                 get: { !hiddenColumns.contains(column) },
                 set: { _ in onToggleColumn(column) }
@@ -139,6 +139,8 @@ struct OutlineHeaderView: View {
         case .predecessors: return I18n.t("column.header.predecessors", "Pred.")
         case .start: return I18n.t("column.start", "Start")
         case .finish: return I18n.t("column.finish", "Finish")
+        case .actualStart: return I18n.t("column.actual_start", "Actual start")
+        case .actualFinish: return I18n.t("column.actual_finish", "Actual finish")
         case .duration: return I18n.t("column.header.duration", "Dur.")
         case .assignee: return I18n.t("column.header.assignee", "Owner")
         case .progress: return I18n.t("column.header.progress", "Done")
@@ -275,6 +277,19 @@ private struct OutlineRowView: View {
         return .clear
     }
 
+    /// 只读日期列（实际开始 / 实际结束）：大纲只展示，编辑入口在检查器「实际」分区。
+    /// 口径与既有日期列一致（`Display.date`，无值 `—`）。
+    private func readOnlyDateCell(_ value: Date?) -> some View {
+        Text(Display.date(value))
+            .font(.system(size: DesignTokens.captionFontSize))
+            .monospacedDigit()
+            .foregroundStyle(value == nil ? DesignTokens.textSecondary : DesignTokens.textPrimary)
+            .padding(.horizontal, 4)
+            .lineLimit(1)
+            .help(Display.date(value))
+            .accessibilityLabel(value.map { Display.longDate($0) } ?? Display.placeholder)
+    }
+
     @ViewBuilder
     private func cell(_ column: OutlineColumn) -> some View {
         switch column {
@@ -327,6 +342,10 @@ private struct OutlineRowView: View {
                     ))
                 }
             )
+        case .actualStart:
+            readOnlyDateCell(row.actualStart)
+        case .actualFinish:
+            readOnlyDateCell(row.actualFinish)
         case .duration:
             EditableTextCell(
                 text: row.durationDays.map { Display.duration($0) } ?? "—",

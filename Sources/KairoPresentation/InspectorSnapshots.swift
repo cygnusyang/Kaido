@@ -81,6 +81,9 @@ public struct TaskInspector: Hashable, Sendable {
     public var scheduledFinish: Date?
     /// 「开始」字段的用户意图（排期结果见 scheduledStart）；群组为 nil。
     public var startDate: Date?
+    /// 实际开始（`TaskItem.actualStart`，F-0719）；群组为 nil。
+    /// 实际结束复用下面的 `completedAt`，不另设字段。
+    public var actualStart: Date?
     public var durationDays: Double?
     public var effortHours: Double?
     public var slackDays: Double?
@@ -127,7 +130,8 @@ public struct TaskInspector: Hashable, Sendable {
         successors: [DependencyRow] = [],
         violations: [Violation] = [],
         assignmentNames: [String] = [],
-        startDate: Date? = nil
+        startDate: Date? = nil,
+        actualStart: Date? = nil
     ) {
         self.taskID = taskID
         self.title = title
@@ -157,6 +161,7 @@ public struct TaskInspector: Hashable, Sendable {
         self.successors = successors
         self.violations = violations
         self.assignmentNames = assignmentNames
+        self.actualStart = actualStart
     }
 }
 

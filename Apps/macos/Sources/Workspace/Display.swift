@@ -155,6 +155,8 @@ enum Display {
         case .predecessors: return I18n.t("column.predecessors", "Predecessors")
         case .start: return I18n.t("column.start", "Start")
         case .finish: return I18n.t("column.finish", "Finish")
+        case .actualStart: return I18n.t("column.actual_start", "Actual start")
+        case .actualFinish: return I18n.t("column.actual_finish", "Actual finish")
         case .duration: return I18n.t("column.duration", "Duration")
         case .assignee: return I18n.t("column.assignee", "Assignee")
         case .progress: return I18n.t("column.progress", "Progress")

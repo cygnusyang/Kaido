@@ -57,6 +57,10 @@ public enum WorkspaceAction: Equatable, Sendable {
     case setDuration(UUID, Double?)
     /// 「开始」字段：写 startDate（用户意图锚点，与画布拖条同一字段）。nil = 清除。
     case setTaskStart(UUID, Date?)
+    /// 「实际开始」字段（F-0719）：写 TaskItem.actualStart；nil = 清除。
+    case setActualStart(UUID, Date?)
+    /// 「实际结束」字段（F-0719）：写 TaskItem.completedAt（实际结束复用该字段）；nil = 清除。
+    case setActualFinish(UUID, Date?)
     /// 「结束」字段：finish 为排他端点；start 为本次换算采用的排期起点
     /// （视图传 scheduledStart ?? startDate，不自行做除法）。Store 折算后只写 durationDays。
     case setTaskFinish(UUID, finish: Date, start: Date)
