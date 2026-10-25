@@ -127,6 +127,8 @@ final class WorkspaceStore: ObservableObject {
         var showsNonWorkingDays: Bool?
         /// 当前对比基线（v0.13）；旧数据缺省 → nil（不比较，基线列隐藏）。
         var selectedBaselineID: UUID?
+        /// 甘特图上画哪些基线（v0.14 §6）；旧数据缺省 → nil（一条都不画，N=0）。
+        var visibleBaselineIDs: [UUID]?
 
         /// 字段默认值 = `WorkspaceViewState()` 初值（与新建会话一致）。
         init(
@@ -143,7 +145,8 @@ final class WorkspaceStore: ObservableObject {
             hiddenOutlineColumns: [String]?,
             visibleOptionalColumns: [String]?,
             showsNonWorkingDays: Bool?,
-            selectedBaselineID: UUID?
+            selectedBaselineID: UUID?,
+            visibleBaselineIDs: [UUID]?
         ) {
             self.outlineWidth = outlineWidth
             self.outlineVisible = outlineVisible
@@ -159,6 +162,7 @@ final class WorkspaceStore: ObservableObject {
             self.visibleOptionalColumns = visibleOptionalColumns
             self.showsNonWorkingDays = showsNonWorkingDays
             self.selectedBaselineID = selectedBaselineID
+            self.visibleBaselineIDs = visibleBaselineIDs
         }
 
         init(from decoder: Decoder) throws {
@@ -193,6 +197,9 @@ final class WorkspaceStore: ObservableObject {
                 Bool.self, forKey: .showsNonWorkingDays
             )
             selectedBaselineID = try? container.decodeIfPresent(UUID.self, forKey: .selectedBaselineID)
+            visibleBaselineIDs = try? container.decodeIfPresent(
+                [UUID].self, forKey: .visibleBaselineIDs
+            )
         }
     }
 
@@ -292,6 +299,8 @@ final class WorkspaceStore: ObservableObject {
             // 基线选择是应用级视图偏好：存的是 ID，打开的项目没有这条基线时
             // 由 `selectedBaseline` 解析失败回落成「不比较」，不会指向别的项目的数据。
             state.selectedBaselineID = stored.selectedBaselineID
+            // 显示集合同口径：悬挂 ID 由读取侧归一化剔除（可能存了 4 条以上旧偏好）。
+            state.visibleBaselineIDs = Set(stored.visibleBaselineIDs ?? [])
         }
         // 自定义日宽：载入时归一化（夹取 + 取整 0.1，与写入口径一致，D-012），
         // 并与「适合项目」互斥（自定义优先）。
@@ -673,6 +682,12 @@ final class WorkspaceStore: ObservableObject {
         case .deleteBaseline(let id):
             requestDeleteBaseline(id: id)
 
+        case .setBaselineVisible(let id, let visible):
+            setBaselineVisible(id, visible)
+
+        case .setBaselineColor(let id, let colorIndex):
+            setBaselineColor(id: id, colorIndex: colorIndex)
+
         case .createTask(let parentID, let kind):
             createTask(kind: kind, parentID: parentID)
 
@@ -935,6 +950,41 @@ final class WorkspaceStore: ObservableObject {
         mutateView { $0.selectedBaselineID = resolved }
     }
 
+    /// 甘特图显示 / 隐藏某条基线（v0.14 §6）：纯视图状态——不进撤销栈、不置脏、不写文件。
+    ///
+    /// 三条拒绝口径（全部保持状态不变，不报错）：
+    /// - 基线不存在（悬挂 ID / 已删除）；
+    /// - 已显示满 `BaselineLanes.maxVisible` 条——不替换、不插队，任何一条都不会因此消失；
+    /// - 重复勾选 / 重复取消。
+    ///
+    /// 写入前按归一化结果重算：顺手清掉撤销回退留下的悬挂 ID，避免它们白占名额。
+    private func setBaselineVisible(_ id: UUID, _ visible: Bool) {
+        guard baselines.contains(where: { $0.id == id }) else { return }
+        var next = Set(viewState.normalizedVisibleBaselineIDs(in: baselines))
+        if visible {
+            guard !next.contains(id), next.count < BaselineLanes.maxVisible else { return }
+            next.insert(id)
+        } else {
+            guard next.remove(id) != nil else { return }
+        }
+        mutateView { $0.visibleBaselineIDs = next }
+    }
+
+    /// 改基线颜色（v0.14 §4）：写模型（置脏、落盘）并进撤销栈——一次改色 = 一个撤销步。
+    ///
+    /// 索引越界由会话拒绝（`BaselinePalette.count` 是唯一上限来源），此处不重复夹取：
+    /// 静默夹取会让「点错色」看起来成功，用户不知道自己的操作被改写。
+    private func setBaselineColor(id: UUID, colorIndex: Int) {
+        let entry = captureUndoEntry()
+        do {
+            try session.setBaselineColor(id: id, colorIndex: colorIndex)
+            appendUndo(entry, mergeKey: "baseline-color-\(id)")
+        } catch {
+            report(error)
+        }
+        refresh()
+    }
+
     /// 拍一次基线快照：成功后记撤销点，并选中新基线（点「新建基线」的意图就是拿它做对比）。
     ///
     /// 与 `updateActual` 同序：先拿前置快照，成功后再压栈——失败不应留下空撤销步。
@@ -944,6 +994,11 @@ final class WorkspaceStore: ObservableObject {
             let baseline = try session.createBaseline(name: name)
             appendUndo(entry, mergeKey: nil)
             viewState.selectedBaselineID = baseline.id
+            // §6：未满 3 条时自动加入显示；已满 3 条不替换、不插队（新基线只在菜单里可见）。
+            if viewState.normalizedVisibleBaselineIDs(in: baselines).count
+                < BaselineLanes.maxVisible {
+                viewState.visibleBaselineIDs.insert(baseline.id)
+            }
         } catch {
             report(error)
         }
@@ -983,6 +1038,8 @@ final class WorkspaceStore: ObservableObject {
             if viewState.selectedBaselineID == pending.id {
                 viewState.selectedBaselineID = nil
             }
+            // 展示卫生：删掉的基线不再占显示名额（不产生撤销点，撤销回来也不会自动复显）。
+            viewState.visibleBaselineIDs.remove(pending.id)
         } catch {
             report(error)
         }
@@ -1840,7 +1897,10 @@ final class WorkspaceStore: ObservableObject {
             hiddenOutlineColumns: viewState.hiddenOutlineColumns,
             visibleOptionalColumns: viewState.visibleOptionalColumns,
             // 基线选择同理：ID 解析不到就是「不比较」，不因为换项目就抹掉偏好。
-            selectedBaselineID: viewState.selectedBaselineID
+            selectedBaselineID: viewState.selectedBaselineID,
+            // 显示集合同为应用级偏好（v0.14 §6）：解析不到的 ID 由读取侧归一化剔除，
+            // 不因为换项目就清空「我在图上想看哪几条」。
+            visibleBaselineIDs: viewState.visibleBaselineIDs
         )
         lockedTaskID = nil
         lockedTaskTitle = nil
@@ -1914,7 +1974,11 @@ final class WorkspaceStore: ObservableObject {
                 : viewState.visibleOptionalColumns.sorted(),
             showsNonWorkingDays: viewState.showsNonWorkingDays,
             // 基线选择是应用级视图偏好：换项目保留（解析不到时等价于「不比较」）。
-            selectedBaselineID: viewState.selectedBaselineID
+            selectedBaselineID: viewState.selectedBaselineID,
+            // 显隐同口径：Set 无序，按 UUID 字符串排序落盘，保证同一状态写出同一份 JSON。
+            visibleBaselineIDs: viewState.visibleBaselineIDs.isEmpty
+                ? nil
+                : viewState.visibleBaselineIDs.sorted { $0.uuidString < $1.uuidString }
         )
         guard let data = try? JSONEncoder().encode(stored) else { return }
         defaults.set(data, forKey: Self.preferencesKey)

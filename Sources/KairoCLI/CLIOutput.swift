@@ -10,18 +10,41 @@ enum CLIOutput {
 
     /// `baseline list --json`：字段与 MCP `baseline_list` 同名同义。
     static func baselineListJSON(_ baselines: [Baseline]) throws -> String {
+        let colors = resolvedColorIndexes(baselines)
         let payload = BaselineListPayload(
-            baselines: baselines.map {
+            baselines: zip(baselines, colors).map { baseline, colorIndex in
                 BaselineListPayload.Row(
-                    baselineID: $0.id.uuidString,
-                    name: $0.name,
-                    createdAt: $0.createdAt,
-                    anchor: $0.anchor,
-                    entryCount: $0.entries.count
+                    baselineID: baseline.id.uuidString,
+                    name: baseline.name,
+                    colorIndex: colorIndex,
+                    createdAt: baseline.createdAt,
+                    anchor: baseline.anchor,
+                    entryCount: baseline.entries.count
                 )
             }
         )
         return try encode(payload)
+    }
+
+    /// 读路径颜色索引：整组交给 `BaselinePalette.resolve` 归一（nil / 越界 / 重复都派生），
+    /// 返回与入参逐位对应的合法索引。
+    ///
+    /// 为什么不直接读 `baseline.colorIndex`：旧文件缺字段时它是 nil，JSON 里写成 0
+    /// 会把「未分配」冒充成「第 1 色」；派生一次与 App 画的颜色才一致。
+    static func resolvedColorIndexes(_ baselines: [Baseline]) -> [Int] {
+        BaselinePalette.resolve(baselines.map(\.colorIndex))
+    }
+
+    /// 指定基线的颜色索引（整组归一后按位取）。
+    ///
+    /// - Parameter id: 目标基线；不在 `baselines` 里时（调用方传错了快照）按
+    ///   「如新建一条」的最小未用索引给出合法值，绝不写死 0。
+    static func resolvedColorIndex(of id: UUID, in baselines: [Baseline]) -> Int {
+        let colors = resolvedColorIndexes(baselines)
+        if let position = baselines.firstIndex(where: { $0.id == id }) {
+            return colors[position]
+        }
+        return BaselinePalette.colorIndex(for: baselines)
     }
 
     /// `baseline variance --json`：字段与 `BaselineVarianceReport` / `TaskVariance`
@@ -30,7 +53,12 @@ enum CLIOutput {
     /// - 空值（`nil`）**不写键**：写成 0 会把「没有数据」冒充成「准时」（§4.1）；
     /// - 偏差是整数天，负数原样带 `-`；
     /// - `taskIDs` 决定行顺序（调用方按大纲顺序给出，见 `orderedTaskIDs(_:projectOrder:)`）。
-    static func baselineVarianceJSON(_ report: BaselineVarianceReport, taskIDs: [UUID]) throws -> String {
+    /// - Parameter colorIndex: 该基线在整组里的调色板索引（由 `resolvedColorIndex(of:in:)` 派生）。
+    static func baselineVarianceJSON(
+        _ report: BaselineVarianceReport,
+        taskIDs: [UUID],
+        colorIndex: Int
+    ) throws -> String {
         let rows = taskIDs.compactMap { taskID -> BaselineVariancePayload.TaskRow? in
             guard let variance = report.tasks[taskID] else { return nil }
             return BaselineVariancePayload.TaskRow(
@@ -50,6 +78,7 @@ enum CLIOutput {
         let payload = BaselineVariancePayload(
             baselineID: report.baselineID.uuidString,
             baselineName: report.baselineName,
+            colorIndex: colorIndex,
             baselineCreatedAt: report.baselineCreatedAt,
             projectFinishVariance: report.projectFinishVariance,
             lateTaskCount: report.lateTaskCount,
@@ -86,6 +115,7 @@ private struct BaselineListPayload: Encodable {
     struct Row: Encodable {
         var baselineID: String
         var name: String
+        var colorIndex: Int
         var createdAt: Date
         var anchor: Date?
         var entryCount: Int
@@ -116,6 +146,7 @@ private struct BaselineVariancePayload: Encodable {
 
     var baselineID: String
     var baselineName: String
+    var colorIndex: Int
     var baselineCreatedAt: Date
     var projectFinishVariance: Int?
     var lateTaskCount: Int

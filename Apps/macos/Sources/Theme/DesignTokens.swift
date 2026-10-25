@@ -63,6 +63,27 @@ enum DesignTokens {
     static let progressFill = color(light: "3D74C9", dark: "6FA3E8")
     static let dependency = color(light: "7A8290", dark: "8B93A3")
 
+    // MARK: - 基线调色板（10-multi-baseline-gantt §4）
+
+    // 索引语义与 KairoCore.BaselinePalette.count 一一对应（8 色），顺序即索引：
+    // 0 青 / 1 琥珀 / 2 绿 / 3 品红 / 4 橄榄 / 5 深靛 / 6 棕 / 7 岩蓝。
+    // 快照只存索引，颜色值只此一份（ADR-013）。
+    static let baselineLane0 = color(light: "0E7C7C", dark: "4FC7C4")
+    static let baselineLane1 = color(light: "A86800", dark: "E3A63C")
+    static let baselineLane2 = color(light: "2E7D46", dark: "5CC088")
+    static let baselineLane3 = color(light: "9C2A6B", dark: "DE7BA8")
+    static let baselineLane4 = color(light: "6B7A1F", dark: "A9B84E")
+    // 深靛而非藏青：藏青与计划条 progressFill 同色系，会把「承诺」误读成「进行中」（§11 裁定）。
+    static let baselineLane5 = color(light: "4B3F9E", dark: "9A8CE0")
+    static let baselineLane6 = color(light: "7A5433", dark: "BE9066")
+    static let baselineLane7 = color(light: "0F7089", dark: "4FB3CE")
+
+    /// 按下标取基线色；越界回落首色（调用方应先用 BaselinePalette 归一索引）。
+    static let baselinePalette: [Color] = [
+        baselineLane0, baselineLane1, baselineLane2, baselineLane3,
+        baselineLane4, baselineLane5, baselineLane6, baselineLane7,
+    ]
+
     // MARK: - 叠加
 
     static let hoverOverlay = Color.primary.opacity(0.04)

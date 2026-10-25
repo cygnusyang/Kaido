@@ -53,6 +53,12 @@ public enum WorkspaceAction: Equatable, Sendable {
     case renameBaseline(UUID, String)
     /// 删除基线：界面必须先二次确认（08 §11），确认后由应用层执行。
     case deleteBaseline(UUID)
+    /// 甘特图显示 / 隐藏某条基线（v0.14 §6）：纯视图状态（不产生撤销点、不置脏、不写文件）。
+    ///
+    /// 已显示满 `BaselineLanes.maxVisible` 条时新增请求被拒绝（不替换、不插队），状态不变。
+    case setBaselineVisible(UUID, Bool)
+    /// 改基线颜色（v0.14 §4）：写 `Baseline.colorIndex` 并进撤销栈；索引越界由会话拒绝。
+    case setBaselineColor(UUID, Int)
 
     // 任务编辑（经会话）
     case createTask(parentID: UUID?, kind: TaskKind)

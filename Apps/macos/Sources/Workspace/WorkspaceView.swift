@@ -18,9 +18,6 @@ struct WorkspaceView: View {
     /// 列宽拖拽中的预览草稿（F-14-20）：表头与行共用同一 layout，故两侧同步预览。
     /// 松手（`onResizeEnded`）才提交一次，拖动期间不落盘。
     @State private var liveColumnResize: (column: OutlineColumn, width: CGFloat)?
-    /// 基线改名弹窗（v0.13）：草稿名与开关独立于菜单，菜单关闭后仍可完成输入。
-    @State private var showsBaselineRename = false
-    @State private var baselineRenameDraft = ""
 
     var body: some View {
         dialogsWithUnsaved
@@ -138,23 +135,12 @@ struct WorkspaceView: View {
             }
     }
 
-    /// 弹窗第二段：基线改名 + 两处未保存确认。
+    /// 弹窗第二段：两处未保存确认。
+    ///
+    /// 基线改名弹窗不在这里：菜单栏的「重命名…」拿不到视图 @State，若两处各自持有一个
+    /// 弹窗就会有两份校验。改名统一走 BaselineRenamePrompt（工具菜单与本视图同调它）。
     private var dialogsWithUnsaved: some View {
         dialogs
-            .alert(
-                I18n.t("alert.baseline.rename.title", "Rename Baseline"),
-                isPresented: $showsBaselineRename
-            ) {
-                TextField(
-                    I18n.t("alert.baseline.rename.placeholder", "Baseline name"),
-                    text: $baselineRenameDraft
-                )
-                Button(I18n.t("action.ok", "OK")) {
-                    guard let id = store.selectedBaseline?.id else { return }
-                    store.dispatch(.renameBaseline(id, baselineRenameDraft))
-                }
-                Button(I18n.t("action.cancel", "Cancel"), role: .cancel) {}
-            }
             .confirmationDialog(
                 I18n.t("alert.unsaved_changes.title", "The current project has unsaved changes"),
                 isPresented: Binding(
@@ -325,8 +311,9 @@ struct WorkspaceView: View {
                 }
                 if let selected = store.selectedBaseline {
                     Button(I18n.t("menu.baseline.rename", "Rename Baseline…")) {
-                        baselineRenameDraft = selected.name
-                        showsBaselineRename = true
+                        BaselineRenamePrompt.present(currentName: selected.name) { name in
+                            store.dispatch(.renameBaseline(selected.id, name))
+                        }
                     }
                     Button(I18n.t("menu.baseline.delete", "Delete Baseline…"), role: .destructive) {
                         store.dispatch(.deleteBaseline(selected.id))

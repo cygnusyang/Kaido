@@ -45,6 +45,7 @@ public struct BaselineEntry: Codable, Hashable, Sendable {
 
 - 条目字段固定为调研建议口径 `(taskID, start, finish, progress, isMilestone)`：不存 title / outlineNumber / parentID / durationDays——
   标题用「已删除」占位（§5），工期由排他端点派生（`finish − start`），条目瘦身直接决定体积（§6）。
+- `Baseline.colorIndex: Int?`（**v0.14 追加，可选字段，不升 formatVersion**）：调色板索引 0…7，供甘特图多基线叠加按颜色区分；缺失时按创建顺序由 `BaselinePalette.resolve` 派生（[10-multi-baseline-gantt.md](10-multi-baseline-gantt.md) §4 / §7）。**取代**本节原先「基线无颜色属性」的表述。
 - **禁止**在 `TaskItem` 上加 `baselineStart/baselineEnd`：单值只能承载一份基线，与「多基线 + 切换对比」冲突；偏差是「所选基线 × 任务」的**派生量，不落盘**。
 - 群组任务同样入条目，时间取聚合值（与 `PlanRow` 同口径）；偏差按自身条目比较，不由子任务求和推导。
 - 未排期任务（`scheduledStart/Finish == nil`）**不入条目**：没有时间可比较，入表只会制造 0 偏差假象。
@@ -261,9 +262,9 @@ case deleteBaseline(UUID)
 ```
 
 - **「当前基线」是视图状态**：`WorkspaceViewState.selectedBaselineID: UUID?` → UserDefaults，不进撤销栈、不进基线快照、不写 `.kairo`。
-- CLI：`kairo baseline list | create [--name] | delete <id> | variance [--baseline <id>] [--task <id>]`；输出必须带 `baselineID` 与名称；`task get` 增「基线」段。
-- MCP：`baseline_create / baseline_list / baseline_delete / baseline_variance`（`baselineID` 可选，缺省最新）；返回含 `baselineID`。
-- 甘特对比模式（本期只做一档）：`仅实际 / 仅基线 / 双日程 / 分割` 四档先定义在 `GanttBaselineMode` 枚举里，v0.14 **只实现「双日程（基线灰条在下）」**，其余两档在 UI 中不可选（不出现死按钮）。
+- CLI：`kairo baseline list | create [--name] | delete <id> | variance [--baseline <id>] [--task <id>] | color <id 或唯一前缀> <0…7>`；输出必须带 `baselineID` 与名称，**并带 `colorIndex`**（缺失时按 `BaselinePalette.resolve` 派生，不写 0 冒充）；`task get` 增「基线」段。
+- MCP：`baseline_create / baseline_list / baseline_delete / baseline_variance / baseline_set_color`（`baselineID` 可选，缺省最新）；五处返回均含 `baselineID`、名称与 **`colorIndex`**；越界索引返回稳定细码 `model_baseline_color_index_invalid`（工具总数 20 → 21，逐字等值清单断言已同步）。
+- **甘特显示（v0.14 重写，取代本节原「四档 `GanttBaselineMode` + 单基线灰条」方案）**：改为**多基线行内分轨叠加**——1–3 条基线各占 28pt 行内的一条下轨，按 `colorIndex` 上色，几何由 `BaselineLanes` 纯函数给出，`GanttBar` 几何零改动。详见 [10-multi-baseline-gantt.md](10-multi-baseline-gantt.md)。`GanttBaselineMode`（仅实际 / 仅基线 / 双日程 / 分割）**不再作为 v0.14 的实现载体**，其中「仅基线 / 分割」仍是 v0.15+ 候选。
 ## 9. 判据清单
 
 1. 创建基线：条目数 = 已排期任务数；默认名含日期与序号；`createdAt` 取注入时钟。
@@ -301,6 +302,8 @@ case deleteBaseline(UUID)
 | 未知根键保存透传 | **非目标**（§7.6） | 断言只落在迁移层；不扩 `Envelope` raw 透传 |
 | 条目记 `progress` | 记（§3） | 支撑完成度偏差，+1 字段/条 |
 | 基线数量上限 | 不设硬上限 | 体积由 v0.13 实测把关 |
+| 基线颜色 | `colorIndex` 0…7，创建时取最小未用索引（v0.14） | 存索引不存色值；删除其他基线不串色（10 §4） |
+| 甘特同屏显示条数 | 默认 3 条（保守 / 基准 / 激进） | 超出在菜单提示「另有 N 条未显示」（10 §5 / §6） |
 
 > 至此 08 无待确认项，v0.13 可开工。
 

@@ -54,7 +54,7 @@ struct KairoShortcut {
 /// 用中文串当标识会让「菜单构建匹配分组」和「面板显示分组名」绑在同一份可变文案上——
 /// 换语言就会静默失配（菜单变空）。这里只留 case，文案由 `title` 查 Catalog。
 enum KairoCommandGroup: String, CaseIterable, Hashable, Sendable {
-    case file, edit, outline, task, view, find
+    case file, edit, outline, task, view, baseline, find
 
     /// 菜单标题 / 面板分组标签。
     var title: String {
@@ -64,6 +64,7 @@ enum KairoCommandGroup: String, CaseIterable, Hashable, Sendable {
         case .outline: return I18n.t("menu.group.outline", "Outline")
         case .task: return I18n.t("menu.group.task", "Task")
         case .view: return I18n.t("menu.group.view", "Workspace")
+        case .baseline: return I18n.t("menu.group.baseline", "Baseline")
         case .find: return I18n.t("menu.group.find", "Find")
         }
     }
@@ -78,6 +79,12 @@ struct KairoCommand: Identifiable {
     let shortcut: KairoShortcut?
     /// 旧标题，仅用于命令面板搜索（不显示在菜单）。
     let aliases: [String]
+    /// 不进 ⌘K 面板（菜单里仍然有）。
+    ///
+    /// 用于「一基线 × 8 色」这类组合项：进面板会把面板挤成一份色卡（10 §5）。
+    let isPaletteHidden: Bool
+    /// 菜单项按破坏性操作渲染（删除基线）。
+    let isDestructive: Bool
     let action: @MainActor () -> Void
 
     init(
@@ -86,6 +93,8 @@ struct KairoCommand: Identifiable {
         group: KairoCommandGroup,
         shortcut: KairoShortcut? = nil,
         aliases: [String] = [],
+        isPaletteHidden: Bool = false,
+        isDestructive: Bool = false,
         action: @escaping @MainActor () -> Void
     ) {
         self.id = id
@@ -93,6 +102,8 @@ struct KairoCommand: Identifiable {
         self.group = group
         self.shortcut = shortcut
         self.aliases = aliases
+        self.isPaletteHidden = isPaletteHidden
+        self.isDestructive = isDestructive
         self.action = action
     }
 }
@@ -259,18 +270,19 @@ enum KairoCommandCatalog {
                 group: .view,
                 action: { store.dispatch(.toggleNonWorkingDays) }
             ),
-            // 基线入口（v0.13.3）：工具栏那颗棋盘旗在窄窗口会被系统收进溢出菜单，
-            // 这里补「菜单栏 + ⌘K」入口，保证「新建基线」始终可发现（D-035）。
+            // 基线入口（v0.13.3 → v0.14）：工具栏那颗棋盘旗在窄窗口会被系统收进溢出菜单，
+            // 单独设一个顶级「基线」菜单后，新建入口恒为该项第 1 条（D-035）。
             KairoCommand(
-                id: "view.baselineCreate",
+                id: "baseline.create",
                 title: I18n.t("menu.baseline.create", "New Baseline"),
-                group: .view,
+                group: .baseline,
+                shortcut: KairoShortcut(key: "b", modifiers: [.command, .option]),
                 action: { store.dispatch(.createBaseline(nil)) }
             ),
             KairoCommand(
-                id: "view.baselineClear",
+                id: "baseline.compareClear",
                 title: I18n.t("menu.baseline.none", "Stop Comparing Baseline"),
-                group: .view,
+                group: .baseline,
                 action: { store.dispatch(.setBaseline(nil)) }
             ),
             KairoCommand(
@@ -348,7 +360,7 @@ enum KairoCommandCatalog {
                 shortcut: KairoShortcut(key: "k", modifiers: .command),
                 action: { store.showCommandPalette = true }
             )
-        ] + recentCommands(store: store) + OutlineColumnPreferences.toggleable.map { column in
+        ] + recentCommands(store: store) + baselineCommands(store: store) + OutlineColumnPreferences.toggleable.map { column in
             // 大纲列显隐（F-14-20 / F-0719）：与表头右键菜单同源动作；
             // 序号/任务说明固定显示，故由 `toggleable`（可隐藏列 + 可选列）派生，
             // 不手写条目以免两处漂移。
@@ -358,6 +370,76 @@ enum KairoCommandCatalog {
                 group: .view,
                 action: { store.dispatch(.toggleOutlineColumn(column)) }
             )
+        }
+    }
+
+    /// 逐条基线的命令（v0.14 §5）：显示 / 对比 / 8 色 / 改名 / 删除，每条基线 12 条。
+    ///
+    /// id 用基线 UUID 而不是数组下标：删掉中间一条后下标会漂移，命令就可能指到别人的
+    /// 基线上；UUID 让「哪条命令动哪条基线」在菜单重建前后一致。
+    /// 颜色项标 isPaletteHidden——8 色 × N 条进 ⌘K 会把面板挤成色卡（§5）。
+    private static func baselineCommands(store: WorkspaceStore) -> [KairoCommand] {
+        store.baselines.flatMap { baseline -> [KairoCommand] in
+            let key = baseline.id.uuidString
+            var items: [KairoCommand] = [
+                KairoCommand(
+                    id: "baseline.visibility.\(key)",
+                    title: I18n.t("menu.baseline.show_in_gantt", "Show in Gantt"),
+                    group: .baseline,
+                    // 菜单里父级子菜单已经是基线名，面板里没有上下文，故把名称放进别名可搜。
+                    aliases: [
+                        baseline.name,
+                        I18n.t("menu.baseline.show_named", "Show %1$@", baseline.name),
+                        I18n.t("menu.baseline.hide_named", "Hide %1$@", baseline.name),
+                    ],
+                    action: {
+                        // 目标状态在执行时读：菜单可能在状态变化之前就建好了。
+                        let isVisible = BaselineMenuModel(
+                            baselines: store.baselines,
+                            viewState: store.viewState
+                        ).items.first { $0.id == baseline.id }?.isVisibleInGantt ?? false
+                        store.dispatch(.setBaselineVisible(baseline.id, !isVisible))
+                    }
+                ),
+                KairoCommand(
+                    id: "baseline.compare.\(key)",
+                    title: I18n.t("menu.baseline.set_compared", "Compare Against This Baseline"),
+                    group: .baseline,
+                    aliases: [
+                        baseline.name,
+                        I18n.t("menu.baseline.compare_named", "Compare with %1$@", baseline.name),
+                    ],
+                    action: { store.dispatch(.setBaseline(baseline.id)) }
+                ),
+            ]
+            items += (0 ..< BaselineColorNames.count).map { colorIndex in
+                KairoCommand(
+                    id: "baseline.color.\(key).\(colorIndex)",
+                    title: BaselineColorNames.title(colorIndex),
+                    group: .baseline,
+                    isPaletteHidden: true,
+                    action: { store.dispatch(.setBaselineColor(baseline.id, colorIndex)) }
+                )
+            }
+            items.append(KairoCommand(
+                id: "baseline.rename.\(key)",
+                title: I18n.t("menu.baseline.rename", "Rename Baseline…"),
+                group: .baseline,
+                action: {
+                    BaselineRenamePrompt.present(currentName: baseline.name) { name in
+                        store.dispatch(.renameBaseline(baseline.id, name))
+                    }
+                }
+            ))
+            items.append(KairoCommand(
+                id: "baseline.delete.\(key)",
+                title: I18n.t("menu.baseline.delete", "Delete Baseline…"),
+                group: .baseline,
+                isDestructive: true,
+                // 沿用既有二次确认：只登记待删，确认对话框在 WorkspaceView。
+                action: { store.dispatch(.deleteBaseline(baseline.id)) }
+            ))
+            return items
         }
     }
 
@@ -393,6 +475,10 @@ enum KairoCommandCatalog {
 /// 由注册表生成菜单栏（US-E4-05 验收 3：菜单命令与面板同源）。
 struct KairoMenuCommands: Commands {
     let commands: [KairoCommand]
+    /// 工作台状态：顶级「基线」菜单要按当前基线渲染子菜单与图例。
+    ///
+    /// 与 `commands` 同源：菜单只排布，动作与文案仍由注册表提供。
+    let store: WorkspaceStore
     /// 「检查更新…」入口（OTA；nil = 不挂菜单，供测试省略）。
     var checkForUpdates: (() -> Void)? = nil
 
@@ -422,6 +508,10 @@ struct KairoMenuCommands: Commands {
         }
         CommandMenu(KairoCommandGroup.view.title) {
             items(group: .view)
+        }
+        // 「基线」独立成顶级菜单（v0.14 §5）：创建入口不再只靠工具栏溢出菜单（D-035）。
+        CommandMenu(KairoCommandGroup.baseline.title) {
+            BaselineMenuContent(store: store, commands: commands)
         }
         CommandMenu(KairoCommandGroup.find.title) {
             items(group: .find)
@@ -502,7 +592,7 @@ struct KairoMenuCommands: Commands {
     // MARK: - 关于面板
 
     /// 应用版本号：发版前更新。
-    static let appVersion = "0.13.3"
+    static let appVersion = "0.14.0"
 
     /// 版权与联系邮箱：法律声明，不随界面语言变化，也不进 String Catalog。
     static let copyrightNotice = "Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>"

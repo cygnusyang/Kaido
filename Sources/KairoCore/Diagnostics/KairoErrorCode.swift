@@ -32,6 +32,8 @@ public enum KairoErrorCode: String, Codable, Hashable, Sendable, CaseIterable {
     case baselineNotFound = "model_baseline_not_found"
     /// v0.13 / 08-baselines §8：基线名为空（改名后无法在大纲/报表里区分基线）。
     case baselineNameEmpty = "model_baseline_name_empty"
+    /// v0.14 / 10-multi-baseline-gantt §4：颜色索引越界（合法范围 0…BaselinePalette.count-1）。
+    case baselineColorIndexInvalid = "model_baseline_color_index_invalid"
 
     // MARK: - schedule（排期、时限与违例）
 

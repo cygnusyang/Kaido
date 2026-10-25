@@ -116,6 +116,7 @@ struct CLIRouter {
         case ("baseline", "list"): try baselineList(options)
         case ("baseline", "create"): try baselineCreate(options)
         case ("baseline", "delete"): try baselineDelete(options)
+        case ("baseline", "color"): try baselineColor(options)
         case ("baseline", "variance"): try baselineVariance(options)
         default:
             let strings = options.strings
@@ -609,10 +610,12 @@ struct CLIRouter {
             return
         }
         o.emit(s.baselineCountLine(baselines.count))
-        for baseline in baselines {
+        let colors = CLIOutput.resolvedColorIndexes(baselines)
+        for (baseline, colorIndex) in zip(baselines, colors) {
             o.emit(s.baselineLine(
                 id: baseline.id.uuidString,
                 name: baseline.name,
+                colorIndex: colorIndex,
                 createdAt: formatDate(baseline.createdAt),
                 entries: baseline.entries.count
             ))
@@ -630,9 +633,12 @@ struct CLIRouter {
         try openForEdit(session, o)
         let baseline = try session.createBaseline(name: name)
         try session.saveProject()
+        // 颜色索引按创建后的整组归一，与 list 同口径（回执里不写死 0）。
+        let colorIndex = CLIOutput.resolvedColorIndex(of: baseline.id, in: try session.baselines())
         o.emit(s.baselineCreated(
             id: baseline.id.uuidString,
             name: baseline.name,
+            colorIndex: colorIndex,
             createdAt: formatDate(baseline.createdAt),
             entries: baseline.entries.count
         ))
@@ -656,6 +662,32 @@ struct CLIRouter {
         ))
     }
 
+    /// kairo baseline color <基线ID> <颜色索引> [--file <路径>]：给基线换调色板颜色（0…7）。
+    ///
+    /// 职责划分：命令层只判「是不是整数」（用法错误，退出码 2）；范围（0…7）由会话层
+    /// 统一拒绝并带 model_baseline_color_index_invalid，两处各判一遍迟早漂移。
+    /// 未知 ID / 前缀歧义沿用 `resolveBaseline` 的既有用法错误路径（退出码 2）。
+    private static func baselineColor(_ o: Options) throws {
+        let s = o.strings
+        try o.rejectUnknown(["--file"])
+        // 两个位置参数：--file 的值不是操作数，必须显式排除（见 Options.operand）。
+        let fileArg = o.value(for: "--file")
+        let rawID = try o.operand(0, name: s.operandBaselineID, excluding: fileArg)
+        let rawIndex = try o.operand(1, name: s.operandColorIndex, excluding: fileArg)
+        guard let colorIndex = Int(rawIndex) else {
+            throw UsageError(message: s.invalidColorIndex(rawIndex))
+        }
+        let session = KairoSession()
+        try openForEdit(session, o)
+        let target = try resolveBaseline(rawID, in: session, strings: s)
+        let updated = try session.setBaselineColor(id: target.id, colorIndex: colorIndex)
+        try session.saveProject()
+        o.emit(s.baselineColorChanged(
+            name: updated.name,
+            colorIndex: CLIOutput.resolvedColorIndex(of: updated.id, in: try session.baselines())
+        ))
+    }
+
     /// kairo baseline variance [--baseline <基线ID>] [--task <任务ID>] [--json] [--file <路径>]。
     ///
     /// - 省略 `--baseline` 时比较**最新**一条基线（与 MCP `baseline_variance` 同口径）；
@@ -673,6 +705,7 @@ struct CLIRouter {
             try resolveTaskID($0, in: session, strings: s)
         }
         let report = try session.baselineVariance(baselineID: baselineID)
+        let colorIndex = CLIOutput.resolvedColorIndex(of: report.baselineID, in: try session.baselines())
         let projectOrder = (session.project?.tasks ?? []).map(\.id)
         var taskIDs = CLIOutput.orderedTaskIDs(report, projectOrder: projectOrder)
         if let taskID {
@@ -680,13 +713,14 @@ struct CLIRouter {
         }
 
         if o.flag("--json") {
-            o.emit(try CLIOutput.baselineVarianceJSON(report, taskIDs: taskIDs))
+            o.emit(try CLIOutput.baselineVarianceJSON(report, taskIDs: taskIDs, colorIndex: colorIndex))
             return
         }
 
         o.emit(s.varianceBaselineLine(
             name: report.baselineName,
             id: report.baselineID.uuidString,
+            colorIndex: colorIndex,
             createdAt: formatDate(report.baselineCreatedAt)
         ))
         o.emit(s.varianceProjectLine(s.varianceDays(report.projectFinishVariance)))

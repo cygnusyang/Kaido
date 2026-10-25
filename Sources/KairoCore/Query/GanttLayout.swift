@@ -118,6 +118,22 @@ public struct GanttLayout: Equatable, Sendable {
 }
 
 public enum GanttLayoutEngine {
+    // MARK: - 横向换算（唯一来源，D-024）
+
+    /// 时间 → 横坐标：`(date − windowStart) / 86400 × dayWidth`。
+    ///
+    /// 计划条与基线细条（v0.14 多基线）共用同一换算，避免第二份实现让同一日期
+    /// 在两条线上错位。按 86 400 秒折算而非日历日差：跨夏令时的 23 / 25 小时日
+    /// 仍占一个固定日宽，与刻度、非工作带用同一把尺子。
+    public static func x(for date: Date, windowStart: Date, dayWidth: Double) -> Double {
+        date.timeIntervalSince(windowStart) / 86_400 * dayWidth
+    }
+
+    /// 起止 → 条宽：`(finish − start) / 86400 × dayWidth`，负区间夹取为 0。
+    public static func width(from start: Date, to finish: Date, dayWidth: Double) -> Double {
+        max(0, finish.timeIntervalSince(start) / 86_400 * dayWidth)
+    }
+
     /// 内容范围：项目边界与全部任务排期边界的并集（F-14-01「缩放以适合项目」）。
     public static func contentRange(
         tasks: [TaskItem],
@@ -192,8 +208,8 @@ public enum GanttLayoutEngine {
             let finish = scheduled.scheduledFinish
             guard finish > windowStart, start < windowEnd else { continue }
             let task = tasksByID[scheduled.taskID]
-            let x = start.timeIntervalSince(windowStart) / 86_400 * dayWidth
-            let barWidth = max(0, finish.timeIntervalSince(start) / 86_400 * dayWidth)
+            let x = Self.x(for: start, windowStart: windowStart, dayWidth: dayWidth)
+            let barWidth = Self.width(from: start, to: finish, dayWidth: dayWidth)
             bars.append(
                 GanttLayout.Bar(
                     taskID: scheduled.taskID,
@@ -320,7 +336,7 @@ public enum GanttLayoutEngine {
             guard let today else { return nil }
             let day = calendar.startOfDay(for: today)
             guard day >= windowStart, day < windowEnd else { return nil }
-            return day.timeIntervalSince(windowStart) / 86_400 * dayWidth
+            return x(for: day, windowStart: windowStart, dayWidth: dayWidth)
         }()
 
         let routes = dependencyRoutes(

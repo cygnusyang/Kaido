@@ -42,6 +42,8 @@ struct CLIStrings: Sendable {
     var operandJSONFile: String { t("JSON 文件", "JSON file") }
     var operandResourceName: String { t("资源名称", "resource name") }
     var operandBaselineID: String { t("基线 ID", "baseline ID") }
+    /// baseline color 的第二个操作数（0…7 调色板索引）。
+    var operandColorIndex: String { t("颜色索引", "color index") }
     var operandProjectStart: String { t("项目开始", "project start") }
     var operandProjectEnd: String { t("项目结束", "project end") }
     var operandLanguageValue: String { t("--lang 的值", "--lang value") }
@@ -520,19 +522,34 @@ struct CLIStrings: Sendable {
         t("基线：\(count) 条", "baselines: \(count)")
     }
 
-    func baselineLine(id: String, name: String, createdAt: String, entries: Int) -> String {
+    /// 列表行：颜色索引只写编号，不写色值 / 色名（颜色值属 App 层 DesignTokens，ADR-013）。
+    func baselineLine(id: String, name: String, colorIndex: Int, createdAt: String, entries: Int) -> String {
         t(
-            "  \(id) \(name)  创建：\(createdAt)  条目：\(entries)",
-            "  \(id) \(name)  created: \(createdAt)  entries: \(entries)"
+            "  \(id) \(name)  颜色索引：\(colorIndex)  创建：\(createdAt)  条目：\(entries)",
+            "  \(id) \(name)  color index: \(colorIndex)  created: \(createdAt)  entries: \(entries)"
         )
     }
 
-    /// 创建回执：身份三字段（baselineID / name / createdAt）+ 条目数（判据 6）。
-    func baselineCreated(id: String, name: String, createdAt: String, entries: Int) -> String {
+    /// 创建回执：身份三字段（baselineID / name / createdAt）+ 颜色索引 + 条目数（判据 6）。
+    func baselineCreated(id: String, name: String, colorIndex: Int, createdAt: String, entries: Int) -> String {
         t(
-            "已创建基线：\(id) \(name) 创建：\(createdAt)（\(entries) 条条目）",
-            "baseline created: \(id) \(name) created: \(createdAt) (\(entries) entries)"
+            "已创建基线：\(id) \(name) 颜色索引：\(colorIndex) 创建：\(createdAt)（\(entries) 条条目）",
+            "baseline created: \(id) \(name) color index: \(colorIndex) created: \(createdAt) (\(entries) entries)"
         )
+    }
+
+    /// 改色回执：基线名 + 新颜色索引（脚本据此确认改到了哪一色）。
+    func baselineColorChanged(name: String, colorIndex: Int) -> String {
+        t(
+            "已改色：\(name) 颜色索引：\(colorIndex)",
+            "baseline recolored: \(name) color index: \(colorIndex)"
+        )
+    }
+
+    /// 颜色索引不是整数：用法错误（退出码 2）。越界（如 8 / -1）不在此处拦，
+    /// 由会话层以 model_baseline_color_index_invalid 统一拒绝，避免两处范围判断漂移。
+    func invalidColorIndex(_ raw: String) -> String {
+        t("颜色索引必须是 0…7 的整数：\(raw)", "color index must be an integer in 0...7: \(raw)")
     }
 
     /// 删除回执：删除前取到的身份三字段（删除后就查不到了）。
@@ -543,10 +560,13 @@ struct CLIStrings: Sendable {
         )
     }
 
-    /// 偏差报告头：必须带 `baselineID` / 名称 / 创建时刻（§4.5），
-    /// 否则切换基线后的报表跨版本不可比。
-    func varianceBaselineLine(name: String, id: String, createdAt: String) -> String {
-        t("基线：\(name)（\(id)）创建：\(createdAt)", "baseline: \(name) (\(id)) created: \(createdAt)")
+    /// 偏差报告头：必须带 `baselineID` / 名称 / 颜色索引 / 创建时刻（§4.5、§4），
+    /// 否则切换基线后的报表跨版本不可比、也对不上图上那一条的颜色。
+    func varianceBaselineLine(name: String, id: String, colorIndex: Int, createdAt: String) -> String {
+        t(
+            "基线：\(name)（\(id)）颜色索引：\(colorIndex) 创建：\(createdAt)",
+            "baseline: \(name) (\(id)) color index: \(colorIndex) created: \(createdAt)"
+        )
     }
 
     func varianceProjectLine(_ days: String) -> String {

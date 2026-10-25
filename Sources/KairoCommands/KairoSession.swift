@@ -280,6 +280,9 @@ public final class KairoSession {
             )
         }
         project.metadata.updatedAt = Date()
+        // 写路径独占的补色点：旧文件缺 colorIndex 的基线在这里补齐并随本次保存落盘；
+        // 打开路径不调用，避免只读打开给未修改的文件平白置脏（§4）。
+        BaselinePalette.ensureColors(in: &project.baselines)
         do {
             try KairoFile.save(project, to: target)
         } catch {
@@ -992,13 +995,18 @@ public final class KairoSession {
         let resolvedName = try Self.validateBaselineName(
             name ?? BaselineEngine.defaultName(index: project.baselines.count + 1, date: now)
         )
-        let baseline = BaselineEngine.snapshot(
+        // 写路径入口先补色（§4）：旧文件缺 colorIndex 的条目按创建顺序补齐，
+        // 新建基线再取最小未用索引——否则最新一条会抢走首色，与自下而上轨道顺序不符。
+        BaselinePalette.ensureColors(in: &project.baselines)
+        var baseline = BaselineEngine.snapshot(
             tasks: project.tasks,
             schedules: BaselineEngine.scheduleIndex(from: result),
             name: resolvedName,
             anchor: result.projectStart,
             now: now
         )
+        // 取「当前未被占用的最小索引」：删除中间一条后新建会复用空缺，已有索引不动。
+        baseline.colorIndex = BaselinePalette.colorIndex(for: project.baselines)
         project.baselines.append(baseline)
         markChanged()
         return baseline
@@ -1011,7 +1019,34 @@ public final class KairoSession {
         guard let index = project.baselines.firstIndex(where: { $0.id == id }) else {
             throw baselineNotFound(id)
         }
+        // 写路径入口先补色（§4）：补齐后再改，其余基线颜色不动。
+        BaselinePalette.ensureColors(in: &project.baselines)
         project.baselines[index].name = try Self.validateBaselineName(name)
+        markChanged()
+        return project.baselines[index]
+    }
+
+    /// 改色（§4）：只改调色板索引，不动条目、名字与创建时刻。
+    ///
+    /// - Parameter colorIndex: 合法范围 0 … `BaselinePalette.count - 1`；越界直接拒绝，
+    ///   不落库、不置脏（快照里出现越界索引只会让读路径反复纠正）。
+    /// - 与创建同等粒度：一次调用 = 一个撤销点。
+    @discardableResult
+    public func setBaselineColor(id: UUID, colorIndex: Int) throws -> Baseline {
+        guard let project else { throw notOpen() }
+        guard let index = project.baselines.firstIndex(where: { $0.id == id }) else {
+            throw baselineNotFound(id)
+        }
+        guard (0..<BaselinePalette.count).contains(colorIndex) else {
+            throw SessionError(
+                code: .invalidArgument,
+                reason: .baselineColorIndexInvalid,
+                message: "颜色索引越界：\(colorIndex)（合法范围 0…\(BaselinePalette.count - 1)）"
+            )
+        }
+        // 写路径入口先补色（§4）：改色之前先把旧文件缺的索引补齐，避免后补时撞上新色。
+        BaselinePalette.ensureColors(in: &project.baselines)
+        project.baselines[index].colorIndex = colorIndex
         markChanged()
         return project.baselines[index]
     }
@@ -1022,6 +1057,8 @@ public final class KairoSession {
         guard let index = project.baselines.firstIndex(where: { $0.id == id }) else {
             throw baselineNotFound(id)
         }
+        // 写路径入口先补色（§4）：补齐后再删，其余颜色不因删除而重排。
+        BaselinePalette.ensureColors(in: &project.baselines)
         project.baselines.remove(at: index)
         markChanged()
     }

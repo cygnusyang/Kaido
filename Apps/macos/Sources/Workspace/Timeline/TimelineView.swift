@@ -207,7 +207,8 @@ struct TimelineBody: View {
         let hit = GanttHitTesting.hitTest(
             pointX: point.x, pointY: point.y, canvasOffset: offset,
             bars: gantt.bars, dependencies: gantt.dependencies,
-            rowHeight: DesignTokens.rowHeight, dayWidth: gantt.dayWidth
+            rowHeight: DesignTokens.rowHeight, dayWidth: gantt.dayWidth,
+            lanes: gantt.baselineLanes
         )
         if case .dependencyLine(let index) = hit {
             selectedDependencyIndex = index
@@ -235,7 +236,8 @@ struct TimelineBody: View {
             let target = GanttHitTesting.hitTest(
                 pointX: value.startLocation.x, pointY: value.startLocation.y,
                 canvasOffset: offset, bars: gantt.bars, dependencies: gantt.dependencies,
-                rowHeight: DesignTokens.rowHeight, dayWidth: gantt.dayWidth
+                rowHeight: DesignTokens.rowHeight, dayWidth: gantt.dayWidth,
+                lanes: gantt.baselineLanes
             )
             if let bar = draggableBar(for: target) {
                 drag.begin(target: target, anchor: anchor(for: bar))
@@ -341,6 +343,7 @@ struct TimelineBody: View {
 
         drawDependencies(context: &context, size: size, offset: offset)
         drawBars(context: &context, size: size, offset: offset, firstRow: firstRow, lastRow: lastRow)
+        drawBaselineBars(context: &context, size: size, offset: offset, firstRow: firstRow, lastRow: lastRow)
         drawDragPreview(context: &context, size: size, offset: offset)
     }
 
@@ -372,13 +375,15 @@ struct TimelineBody: View {
         let previewWidth = CGFloat(preview.durationDays) * gantt.dayWidth
 
         if bar.kind == .milestone {
-            // 里程碑：预览菱形。
-            let center = CGPoint(x: x + 5, y: top + 14)
+            // 里程碑：预览菱形（中心与边长取计划轨几何）。
+            let frame = BaselineLanes.milestoneFrame(layout: gantt.baselineLanes)
+            let half = CGFloat(frame.side / 2)
+            let center = CGPoint(x: x + half, y: top + CGFloat(frame.centerY))
             var diamond = Path()
-            diamond.move(to: CGPoint(x: center.x, y: center.y - 5))
-            diamond.addLine(to: CGPoint(x: center.x + 5, y: center.y))
-            diamond.addLine(to: CGPoint(x: center.x, y: center.y + 5))
-            diamond.addLine(to: CGPoint(x: center.x - 5, y: center.y))
+            diamond.move(to: CGPoint(x: center.x, y: center.y - half))
+            diamond.addLine(to: CGPoint(x: center.x + half, y: center.y))
+            diamond.addLine(to: CGPoint(x: center.x, y: center.y + half))
+            diamond.addLine(to: CGPoint(x: center.x - half, y: center.y))
             diamond.closeSubpath()
             context.stroke(
                 diamond,
@@ -393,9 +398,11 @@ struct TimelineBody: View {
             return
         }
 
-        let height: CGFloat = bar.kind == .group ? 10 : 14
-        let y = top + (DesignTokens.rowHeight - height) / 2
-        let rect = CGRect(x: x, y: y, width: max(previewWidth, 1), height: height)
+        let frame = BaselineLanes.planBarFrame(kind: bar.kind, layout: gantt.baselineLanes)
+        let rect = CGRect(
+            x: x, y: top + CGFloat(frame.top),
+            width: max(previewWidth, 1), height: CGFloat(frame.height)
+        )
         guard rect.minY < size.height, rect.maxY > 0 else { return }
         context.stroke(
             Path(roundedRect: rect, cornerRadius: bar.kind == .group ? 2 : 3),
@@ -419,10 +426,10 @@ struct TimelineBody: View {
         // 目标条高亮。
         if let targetID = preview.targetID, let bar = gantt.bars.first(where: { $0.taskID == targetID }) {
             let top = CGFloat(bar.rowIndex) * DesignTokens.rowHeight - offset
-            let height: CGFloat = bar.kind == .group ? 10 : 14
+            let frame = BaselineLanes.planBarFrame(kind: bar.kind, layout: gantt.baselineLanes)
             let rect = CGRect(
-                x: CGFloat(bar.x), y: top + (DesignTokens.rowHeight - height) / 2,
-                width: max(CGFloat(bar.width), 1), height: height
+                x: CGFloat(bar.x), y: top + CGFloat(frame.top),
+                width: max(CGFloat(bar.width), 1), height: CGFloat(frame.height)
             )
             context.stroke(
                 Path(roundedRect: rect.insetBy(dx: -2, dy: -2), cornerRadius: 4),
@@ -434,7 +441,9 @@ struct TimelineBody: View {
         let startX = preview.isFromEnd
             ? CGFloat(source.x + max(source.width, 1))
             : CGFloat(source.x)
-        let startY = CGFloat(source.rowIndex) * DesignTokens.rowHeight + 14 - offset
+        // 连线起点：计划轨中线（n = 0 即 v0.13 的 +14）。
+        let planMidY = gantt.baselineLanes.plan.top + gantt.baselineLanes.plan.height / 2
+        let startY = CGFloat(source.rowIndex) * DesignTokens.rowHeight + CGFloat(planMidY) - offset
         let end = CGPoint(x: preview.pointX, y: preview.pointY - offset)
         var line = Path()
         line.move(to: CGPoint(x: startX, y: startY))
@@ -594,12 +603,15 @@ struct TimelineBody: View {
         let title = rows.indices.contains(bar.rowIndex) ? rows[bar.rowIndex].title : ""
 
         if bar.kind == .milestone {
-            let center = CGPoint(x: bar.x + max(bar.width, 0) / 2, y: rowTop + 14)
+            // 菱形中心与边长只取计划轨几何（n = 0 即 v0.13 的 10pt 中心 y=14）。
+            let frame = BaselineLanes.milestoneFrame(layout: gantt.baselineLanes)
+            let half = CGFloat(frame.side / 2)
+            let center = CGPoint(x: bar.x + max(bar.width, 0) / 2, y: rowTop + CGFloat(frame.centerY))
             var diamond = Path()
-            diamond.move(to: CGPoint(x: center.x, y: center.y - 5))
-            diamond.addLine(to: CGPoint(x: center.x + 5, y: center.y))
-            diamond.addLine(to: CGPoint(x: center.x, y: center.y + 5))
-            diamond.addLine(to: CGPoint(x: center.x - 5, y: center.y))
+            diamond.move(to: CGPoint(x: center.x, y: center.y - half))
+            diamond.addLine(to: CGPoint(x: center.x + half, y: center.y))
+            diamond.addLine(to: CGPoint(x: center.x, y: center.y + half))
+            diamond.addLine(to: CGPoint(x: center.x - half, y: center.y))
             diamond.closeSubpath()
             context.fill(
                 diamond,
@@ -613,9 +625,12 @@ struct TimelineBody: View {
             return
         }
 
-        let height: CGFloat = bar.kind == .group ? 10 : 14
-        let y = rowTop + (DesignTokens.rowHeight - height) / 2
-        let rect = CGRect(x: bar.x, y: y, width: max(bar.width, 1), height: height)
+        // 计划条纵向框：轨内居中、高 = min(轨高, kind 高)，唯一来源 BaselineLanes。
+        let frame = BaselineLanes.planBarFrame(kind: bar.kind, layout: gantt.baselineLanes)
+        let rect = CGRect(
+            x: bar.x, y: rowTop + CGFloat(frame.top),
+            width: max(bar.width, 1), height: CGFloat(frame.height)
+        )
         guard rect.minY < size.height, rect.maxY > 0 else { return }
 
         let radius: CGFloat = bar.kind == .group ? 2 : 3
@@ -648,7 +663,8 @@ struct TimelineBody: View {
 
         drawViolationBadge(context: &context, bar: bar, x: rect.maxX + 2, y: rowTop + 4)
 
-        let labelY = rowTop + DesignTokens.rowHeight / 2
+        // 标签基线跟计划条中线（n = 0 时即行中线，逐像素同 v0.13）。
+        let labelY = rect.midY
         let labelX = rect.maxX + 6
         if labelX + 60 < size.width {
             drawLabel(context: &context, size: size, text: labelText(bar: bar, title: title), x: labelX, y: labelY)
@@ -658,6 +674,73 @@ struct TimelineBody: View {
                 .foregroundStyle(DesignTokens.textPrimary)
             context.draw(text, at: CGPoint(x: rect.minX - 6, y: labelY), anchor: .trailing)
         }
+    }
+
+    // MARK: - 基线图层（v0.14 / 10-multi-baseline-gantt §2）
+
+    /// 基线细条图层：每行按 lane 在计划轨下方画细实心条，颜色取调色板索引。
+    ///
+    /// 与 `drawBars` 用同一行窗口（`firstRow…lastRow`）：只按行取该任务的基线条目，
+    /// 不遍历全表，也不重算横向换算（`x / width` 已由快照算好）。`baselineBars` 为空
+    /// （N = 0）时直接返回，画布与 v0.13 零差异。
+    private func drawBaselineBars(
+        context: inout GraphicsContext,
+        size: CGSize,
+        offset: CGFloat,
+        firstRow: Int,
+        lastRow: Int
+    ) {
+        guard !gantt.baselineBars.isEmpty, firstRow <= lastRow else { return }
+        let rowHeight = DesignTokens.rowHeight
+        for row in firstRow...lastRow where rows.indices.contains(row) {
+            guard let laneBars = gantt.baselineBars[rows[row].id], !laneBars.isEmpty else { continue }
+            let rowTop = CGFloat(row) * rowHeight - offset
+            guard rowTop + rowHeight > 0, rowTop < size.height else { continue }
+            for bar in laneBars {
+                drawBaselineBar(context: &context, size: size, bar: bar, rowTop: rowTop)
+            }
+        }
+    }
+
+    /// 单条基线细条：无进度、无标签、无描边（基线不可变、不参与命中）。
+    private func drawBaselineBar(
+        context: inout GraphicsContext,
+        size: CGSize,
+        bar: GanttBaselineBar,
+        rowTop: CGFloat
+    ) {
+        guard let lane = BaselineLanes.laneIndex(of: bar.baselineID, in: gantt.visibleBaselineIDs),
+              let frame = gantt.baselineLanes.baselineFrame(lane: lane) else { return }
+        let height = CGFloat(frame.height)
+        let top = rowTop + CGFloat(frame.top)
+        guard height > 0, top < size.height, top + height > 0 else { return }
+
+        let color = Self.baselineColor(bar.colorIndex)
+        let x = CGFloat(bar.x)
+        if bar.isMilestone {
+            // 里程碑基线：同轨高菱形，中心对齐条起点（与计划里程碑同口径）。
+            let half = height / 2
+            let center = CGPoint(x: x + max(CGFloat(bar.width), 0) / 2, y: top + half)
+            var diamond = Path()
+            diamond.move(to: CGPoint(x: center.x, y: center.y - half))
+            diamond.addLine(to: CGPoint(x: center.x + half, y: center.y))
+            diamond.addLine(to: CGPoint(x: center.x, y: center.y + half))
+            diamond.addLine(to: CGPoint(x: center.x - half, y: center.y))
+            diamond.closeSubpath()
+            context.fill(diamond, with: .color(color))
+            return
+        }
+
+        let rect = CGRect(x: x, y: top, width: max(CGFloat(bar.width), 1), height: height)
+        guard rect.minX < size.width, rect.maxX > 0 else { return }
+        context.fill(Path(roundedRect: rect, cornerRadius: 1), with: .color(color))
+    }
+
+    /// 调色板索引 → 颜色；越界（旧快照 / 手改数据）回落首色，不崩。
+    private static func baselineColor(_ colorIndex: Int) -> Color {
+        let palette = DesignTokens.baselinePalette
+        guard let fallback = palette.first else { return DesignTokens.accentStrong }
+        return palette.indices.contains(colorIndex) ? palette[colorIndex] : fallback
     }
 
     private func labelText(bar: GanttBar, title: String) -> String {

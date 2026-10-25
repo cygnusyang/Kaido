@@ -72,19 +72,27 @@ public struct Baseline: Identifiable, Codable, Hashable, Sendable {
     public var anchor: Date?
     /// 快照条目（按任务大纲顺序）。
     public var entries: [BaselineEntry]
+    /// 调色板索引 0…7（10-multi-baseline-gantt §4）。
+    ///
+    /// 快照只带索引、不带颜色值（ADR-013），颜色由 DesignTokens 按索引解析。
+    /// nil = 旧文件缺该字段：读路径用 BaselinePalette.resolve 派生，写路径用
+    /// BaselinePalette.ensureColors 补齐——纯加法字段，不升 formatVersion。
+    public var colorIndex: Int?
 
     public init(
         id: UUID = UUID(),
         name: String,
         createdAt: Date,
         anchor: Date? = nil,
-        entries: [BaselineEntry] = []
+        entries: [BaselineEntry] = [],
+        colorIndex: Int? = nil
     ) {
         self.id = id
         self.name = name
         self.createdAt = createdAt
         self.anchor = anchor
         self.entries = entries
+        self.colorIndex = colorIndex
     }
 
     /// 按任务 ID 取条目（快照条目数量级与任务数同阶，线性查找足够）。
@@ -100,7 +108,7 @@ public struct Baseline: Identifiable, Codable, Hashable, Sendable {
     // MARK: - Codable 兼容（ADR-011）
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, createdAt, anchor, entries
+        case id, name, createdAt, anchor, entries, colorIndex
     }
 
     public init(from decoder: Decoder) throws {
@@ -110,6 +118,7 @@ public struct Baseline: Identifiable, Codable, Hashable, Sendable {
         createdAt = try c.decode(Date.self, forKey: .createdAt)
         anchor = try c.decodeIfPresent(Date.self, forKey: .anchor)
         entries = try c.decodeIfPresent([BaselineEntry].self, forKey: .entries) ?? []
+        colorIndex = try c.decodeIfPresent(Int.self, forKey: .colorIndex)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -119,5 +128,7 @@ public struct Baseline: Identifiable, Codable, Hashable, Sendable {
         try c.encode(createdAt, forKey: .createdAt)
         try c.encodeIfPresent(anchor, forKey: .anchor)
         try c.encode(entries, forKey: .entries)
+        // 与 anchor 同口径：nil 不落盘，避免给旧文件补出无意义的 null。
+        try c.encodeIfPresent(colorIndex, forKey: .colorIndex)
     }
 }

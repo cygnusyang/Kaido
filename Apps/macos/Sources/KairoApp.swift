@@ -77,6 +77,7 @@ struct KairoApp: App {
         .commands {
             KairoMenuCommands(
                 commands: commandCatalog,
+                store: store,
                 checkForUpdates: {
                     showUpdateSheet = true
                     Task { await updater.check() }

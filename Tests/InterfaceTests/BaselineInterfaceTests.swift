@@ -390,7 +390,10 @@ private func expectReportMatches(_ report: JSONValue, _ expected: BaselineVarian
     let response = try mcpSend(server, #"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#)
     let tools = response.objectValue?["result"]?.objectValue?["tools"]?.arrayValue ?? []
     let names = tools.compactMap { $0.objectValue?["name"]?.stringValue }
-    for name in ["baseline_create", "baseline_list", "baseline_delete", "baseline_variance"] {
+    for name in [
+        "baseline_create", "baseline_list", "baseline_delete", "baseline_variance",
+        "baseline_set_color",
+    ] {
         #expect(names.contains(name), "缺少工具 \(name)")
         let tool = tools.first { $0.objectValue?["name"]?.stringValue == name }
         #expect(tool?.objectValue?["inputSchema"]?.objectValue?["type"]?.stringValue == "object")
@@ -442,4 +445,194 @@ private func expectReportMatches(_ report: JSONValue, _ expected: BaselineVarian
     let (isError, payload) = try mcpCallResult(server, id: 2, name: "baseline_create", arguments: #"{"name":"   "}"#)
     #expect(isError)
     #expect(payload.objectValue?["reason"]?.stringValue == KairoErrorCode.baselineNameEmpty.rawValue)
+}
+
+// MARK: - v0.14 颜色索引（10-multi-baseline-gantt §4）
+
+/// 从 `baseline list --json` 取 baselineID → colorIndex。
+///
+/// colorIndex 必须存在且是整数：缺键就是「没派生」，与写 0 冒充一样不可接受。
+private func cliColorIndexes(_ file: URL) throws -> [String: Int] {
+    let json = try runCLIJSON(["baseline", "list", "--json", "--file", file.path])
+    let rows = try #require(json.objectValue?["baselines"]?.arrayValue)
+    var result: [String: Int] = [:]
+    for row in rows {
+        let id = try #require(row.objectValue?["baselineID"]?.stringValue)
+        let color = try #require(row.objectValue?["colorIndex"]?.doubleValue)
+        result[id] = Int(color)
+    }
+    return result
+}
+
+/// 从 MCP `baseline_list` 取 baselineID → colorIndex（与 CLI 同口径的另一条出口）。
+private func mcpColorIndexes(_ server: MCPServer, id: Int) throws -> [String: Int] {
+    let listed = try mcpCall(server, id: id, name: "baseline_list", arguments: "{}")
+    let rows = try #require(listed.objectValue?["baselines"]?.arrayValue)
+    var result: [String: Int] = [:]
+    for row in rows {
+        let baselineID = try #require(row.objectValue?["baselineID"]?.stringValue)
+        let color = try #require(row.objectValue?["colorIndex"]?.doubleValue)
+        result[baselineID] = Int(color)
+    }
+    return result
+}
+
+/// 建一个带 N 条基线的项目（按创建顺序拿 0,1,2…）。
+private func makeMultiBaselineFixture(names: [String]) throws -> (dir: URL, file: URL, ids: [UUID]) {
+    let scratch = try makeScratch()
+    try CLIRouter.execute(arguments: [
+        "project", "create", "多基线配色", "--start", "2030-01-01", "--file", scratch.kairo.path,
+    ])
+    try CLIRouter.execute(arguments: ["task", "add", "任务一", "--duration", "2", "--file", scratch.kairo.path])
+    for name in names {
+        try CLIRouter.execute(arguments: ["baseline", "create", "--name", name, "--file", scratch.kairo.path])
+    }
+    let ids = try KairoFile.load(from: scratch.kairo).baselines.map(\.id)
+    return (dir: scratch.dir, file: scratch.kairo, ids: ids)
+}
+
+/// 判据 4（接口面）：同一条基线在 CLI 与 MCP 报出同一个颜色索引；create / list / variance 都带。
+@Test func baselineColorIndexMatchesAcrossCLIAndMCP() throws {
+    let fixture = try makeMultiBaselineFixture(names: ["保守基线", "基准基线", "激进基线"])
+    defer { try? FileManager.default.removeItem(at: fixture.dir) }
+
+    // CLI：三条按创建顺序 0/1/2；第四条取最小未用 3。
+    var cliColors = try cliColorIndexes(fixture.file)
+    #expect(cliColors.count == 3)
+    for (position, id) in fixture.ids.enumerated() {
+        #expect(cliColors[id.uuidString] == position)
+    }
+    let createdText = try runCLI(["baseline", "create", "--name", "第四条", "--file", fixture.file.path])
+    #expect(createdText.contains("颜色索引：3"))
+    cliColors = try cliColorIndexes(fixture.file)
+    #expect(cliColors.count == 4)
+
+    // MCP 打开同一文件：list 逐条同值（同一份快照，两条出口，判据 12 对等性）。
+    let server = MCPServer()
+    _ = try mcpCall(server, id: 1, name: "project_open", arguments: #"{"path":"\#(fixture.file.path)"}"#)
+    #expect(try mcpColorIndexes(server, id: 2) == cliColors)
+
+    // MCP 在内存里是第 5 条 → 颜色 4；回执必须带这个值。
+    let mcpCreated = try mcpCall(server, id: 3, name: "baseline_create", arguments: #"{"name":"MCP 第五条"}"#)
+    #expect(mcpCreated.objectValue?["colorIndex"]?.doubleValue == 4)
+    let createdID = try #require(mcpCreated.objectValue?["baselineID"]?.stringValue)
+
+    // variance 带的是「所比较那条」的颜色：MCP 最新 = 刚建的（4）；
+    // CLI 看不到 MCP 未落盘的改动，最新仍是第四条（3）。
+    let mcpVariance = try mcpCall(server, id: 4, name: "baseline_variance", arguments: "{}")
+    #expect(mcpVariance.objectValue?["baselineID"]?.stringValue == createdID)
+    #expect(mcpVariance.objectValue?["colorIndex"]?.doubleValue == 4)
+
+    let cliVariance = try runCLIJSON(["baseline", "variance", "--json", "--file", fixture.file.path])
+    let cliVarianceID = try #require(cliVariance.objectValue?["baselineID"]?.stringValue)
+    let expectedCLIColor = try #require(cliColors[cliVarianceID])
+    #expect(cliVariance.objectValue?["colorIndex"]?.doubleValue == Double(expectedCLIColor))
+    let varianceText = try runCLI(["baseline", "variance", "--file", fixture.file.path])
+    #expect(varianceText.contains("颜色索引：3"))
+}
+
+/// CLI 改色：唯一前缀即可，回执带名称与新索引，list（文本 / JSON / 落盘）立即反映。
+@Test func baselineColorCLIReflectsImmediatelyInList() throws {
+    let fixture = try makeMultiBaselineFixture(names: ["验收基线"])
+    defer { try? FileManager.default.removeItem(at: fixture.dir) }
+    let baselineID = try #require(fixture.ids.first)
+    #expect(try cliColorIndexes(fixture.file)[baselineID.uuidString] == 0)
+
+    let receipt = try runCLI([
+        "baseline", "color", String(baselineID.uuidString.prefix(8)), "5", "--file", fixture.file.path,
+    ])
+    #expect(receipt.contains("验收基线"))
+    #expect(receipt.contains("颜色索引：5"))
+
+    let listed = try runCLI(["baseline", "list", "--file", fixture.file.path])
+    #expect(listed.contains("颜色索引：5"))
+    #expect(try cliColorIndexes(fixture.file)[baselineID.uuidString] == 5)
+    // 已落盘：不是只改内存。
+    #expect(try KairoFile.load(from: fixture.file).baselines.first?.colorIndex == 5)
+}
+
+/// MCP 改色：variance 返回体带新颜色，且落盘后 CLI 读到同一色。
+@Test func baselineSetColorMCPShowsInVariance() throws {
+    let fixture = try makeFixture()
+    defer { try? FileManager.default.removeItem(at: fixture.dir) }
+    let server = MCPServer()
+    _ = try mcpCall(server, id: 1, name: "project_open", arguments: #"{"path":"\#(fixture.file.path)"}"#)
+
+    let recolored = try mcpCall(
+        server, id: 2, name: "baseline_set_color",
+        arguments: #"{"baselineID":"\#(fixture.baseline.id.uuidString)","colorIndex":3}"#
+    )
+    #expect(recolored.objectValue?["baselineID"]?.stringValue == fixture.baseline.id.uuidString)
+    #expect(recolored.objectValue?["name"]?.stringValue == fixture.baseline.name)
+    #expect(recolored.objectValue?["colorIndex"]?.doubleValue == 3)
+
+    let variance = try mcpCall(server, id: 3, name: "baseline_variance", arguments: "{}")
+    #expect(variance.objectValue?["baselineID"]?.stringValue == fixture.baseline.id.uuidString)
+    #expect(variance.objectValue?["colorIndex"]?.doubleValue == 3)
+
+    _ = try mcpCall(server, id: 4, name: "project_save", arguments: "{}")
+    #expect(try cliColorIndexes(fixture.file)[fixture.baseline.id.uuidString] == 3)
+}
+
+/// 越界索引：两条出口都报 model_baseline_color_index_invalid，且都不落库。
+@Test func baselineColorIndexOutOfRangeReportsStableCodeOnBothSides() throws {
+    let fixture = try makeMultiBaselineFixture(names: ["越界基线"])
+    defer { try? FileManager.default.removeItem(at: fixture.dir) }
+    let baselineID = try #require(fixture.ids.first)
+
+    for raw in ["8", "-1"] {
+        var caught: SessionError?
+        do {
+            _ = try runCLI(["baseline", "color", baselineID.uuidString, raw, "--file", fixture.file.path])
+        } catch let error as SessionError {
+            caught = error
+        }
+        let error = try #require(caught)
+        #expect(error.reason == .baselineColorIndexInvalid, "CLI 越界 \(raw) 的细码")
+        #expect(error.code == .invalidArgument)
+    }
+    #expect(try cliColorIndexes(fixture.file)[baselineID.uuidString] == 0)
+
+    let server = MCPServer()
+    _ = try mcpCall(server, id: 1, name: "project_open", arguments: #"{"path":"\#(fixture.file.path)"}"#)
+    for (offset, raw) in ["8", "-1"].enumerated() {
+        let (isError, payload) = try mcpCallResult(
+            server, id: 2 + offset, name: "baseline_set_color",
+            arguments: #"{"baselineID":"\#(baselineID.uuidString)","colorIndex":\#(raw)}"#
+        )
+        #expect(isError)
+        #expect(payload.objectValue?["reason"]?.stringValue == KairoErrorCode.baselineColorIndexInvalid.rawValue)
+        #expect(payload.objectValue?["code"]?.stringValue == "invalid_argument")
+    }
+    let listed = try mcpCall(server, id: 4, name: "baseline_list", arguments: "{}")
+    #expect(listed.objectValue?["baselines"]?.arrayValue?.first?.objectValue?["colorIndex"]?.doubleValue == 0)
+}
+
+/// 旧文件缺 colorIndex：读路径按创建顺序派生，CLI / MCP 同值，且只读出口不写回。
+@Test func baselineColorIndexDerivedForLegacyFileWithoutField() throws {
+    let fixture = try makeMultiBaselineFixture(names: ["旧甲", "旧乙"])
+    defer { try? FileManager.default.removeItem(at: fixture.dir) }
+
+    // 模拟 v0.13 快照：把 colorIndex 整个字段摘掉。
+    let data = try Data(contentsOf: fixture.file)
+    let object = try JSONSerialization.jsonObject(with: data)
+    var root = try #require(object as? [String: Any])
+    let rows = try #require(root["baselines"] as? [[String: Any]])
+    root["baselines"] = rows.map { row in
+        var copy = row
+        copy.removeValue(forKey: "colorIndex")
+        return copy
+    }
+    try JSONSerialization.data(withJSONObject: root).write(to: fixture.file)
+
+    let colors = try cliColorIndexes(fixture.file)
+    #expect(colors[fixture.ids[0].uuidString] == 0)
+    #expect(colors[fixture.ids[1].uuidString] == 1)
+
+    let server = MCPServer()
+    _ = try mcpCall(server, id: 1, name: "project_open", arguments: #"{"path":"\#(fixture.file.path)"}"#)
+    #expect(try mcpColorIndexes(server, id: 2) == colors)
+
+    let after = try String(contentsOf: fixture.file, encoding: .utf8)
+    #expect(!after.contains("colorIndex"), "只读出口不得把派生颜色写回文件")
 }

@@ -58,6 +58,8 @@ private func toolResult(_ value: JSONValue) throws -> JSONValue {
         "status_batch_update", "resource_add", "resource_list",
         // v0.13 基线（08-baselines §8）
         "baseline_create", "baseline_list", "baseline_delete", "baseline_variance",
+        // v0.14 改色（10-multi-baseline-gantt §4）
+        "baseline_set_color",
     ])
     #expect(tools.allSatisfy { $0.objectValue?["inputSchema"]?.objectValue?["type"]?.stringValue == "object" })
     let taskAdd = tools.first { $0.objectValue?["name"]?.stringValue == "task_add" }

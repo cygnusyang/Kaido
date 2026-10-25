@@ -67,6 +67,12 @@ public struct WorkspaceViewState: Hashable, Sendable {
     /// 纯视图状态：不进撤销栈、不进基线快照、不写 `.kairo`；应用层持久化到 UserDefaults。
     /// 偏差是「所选基线 × 任务」的派生量，切换它只改变读数，不改变项目数据。
     public var selectedBaselineID: UUID?
+    /// 甘特图上画哪些基线（v0.14 / 10-multi-baseline-gantt §6）：多选，上限
+    /// `BaselineLanes.maxVisible`；空集 = 不画（N=0，逐像素即 v0.13 现状）。
+    ///
+    /// 与 `selectedBaselineID` 互相独立：可只对比不显示（只看数字），也可只显示不对比。
+    /// 同为纯视图状态：不进撤销栈、不进基线快照、不写 `.kairo`；应用层持久化到 UserDefaults。
+    public var visibleBaselineIDs: Set<UUID> = []
     public var filterText: String
     /// 查找/定位目标（只高亮跳转，不改变筛选）。
     public var highlightedTaskID: UUID?
@@ -96,7 +102,8 @@ public struct WorkspaceViewState: Hashable, Sendable {
         outlineColumnWidths: [String: Double] = [:],
         hiddenOutlineColumns: Set<String> = [],
         visibleOptionalColumns: Set<String> = [],
-        selectedBaselineID: UUID? = nil
+        selectedBaselineID: UUID? = nil,
+        visibleBaselineIDs: Set<UUID> = []
     ) {
         self.mode = mode
         self.chartFocused = chartFocused
@@ -122,6 +129,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
         self.hiddenOutlineColumns = hiddenOutlineColumns
         self.visibleOptionalColumns = visibleOptionalColumns
         self.selectedBaselineID = selectedBaselineID
+        self.visibleBaselineIDs = visibleBaselineIDs
     }
 }
 
@@ -134,6 +142,21 @@ extension WorkspaceViewState {
     public func normalizedBaselineID(in baselines: [Baseline]) -> UUID? {
         guard let selectedBaselineID else { return nil }
         return baselines.contains { $0.id == selectedBaselineID } ? selectedBaselineID : nil
+    }
+
+    /// 读取侧归一化「图上画哪些」（v0.14 / 10-multi-baseline-gantt §6）：
+    /// 剔除悬挂 ID（撤销到基线创建之前 / 换了项目）、按创建顺序排序、截断到前
+    /// `BaselineLanes.maxVisible` 条。
+    ///
+    /// 与 `normalizedBaselineID` 同口径：纯函数、只读，不改写状态、不产生撤销点、不置脏。
+    /// 旧偏好可能存了 4 条以上，夹取在这里一次做完，视图与菜单不各自再截断。
+    public func normalizedVisibleBaselineIDs(in baselines: [Baseline]) -> [UUID] {
+        guard !visibleBaselineIDs.isEmpty else { return [] }
+        return baselines
+            .map(\.id)
+            .filter { visibleBaselineIDs.contains($0) }
+            .prefix(BaselineLanes.maxVisible)
+            .map { $0 }
     }
 }
 

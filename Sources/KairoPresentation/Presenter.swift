@@ -332,6 +332,7 @@ public enum WorkspacePresenter {
             tasks: tasks,
             rowByID: rowByID,
             rowIndexByID: rowIndexByID,
+            baselines: state.baselines,
             schedule: schedule,
             viewState: viewState,
             viewport: viewport,
@@ -405,6 +406,7 @@ public enum WorkspacePresenter {
         tasks: [TaskItem],
         rowByID: [UUID: PlanRow],
         rowIndexByID: [UUID: Int],
+        baselines: [Baseline],
         schedule: ScheduleResult?,
         viewState: WorkspaceViewState,
         viewport: WorkspaceViewport,
@@ -538,6 +540,13 @@ public enum WorkspacePresenter {
             return nil
         }()
 
+        let overlay = baselineOverlay(
+            baselines: baselines,
+            viewState: viewState,
+            layout: layout,
+            rowIndexByID: rowIndexByID
+        )
+
         return GanttSnapshot(
             windowStart: layout.windowStart,
             windowEnd: layout.windowEnd,
@@ -558,7 +567,94 @@ public enum WorkspacePresenter {
             projectStartSource: schedule?.projectStartSource ?? .projectStart,
             showsCriticalPath: viewState.showCriticalPath,
             showsBarLabels: viewState.showBarLabels,
-            tickGranularity: engineZoom
+            tickGranularity: engineZoom,
+            baselineBars: overlay.bars,
+            visibleBaselineIDs: overlay.visibleIDs,
+            baselineLanes: overlay.lanes,
+            baselineLegend: overlay.legend
+        )
+    }
+
+    /// 多基线叠加层（v0.14 / docs/features/10-multi-baseline-gantt.md §7）。
+    ///
+    /// 三条口径：
+    /// - 只为「可见基线 ∩ 可见行上有条目」生成条：收起 / 被筛选的行天然不生成，不插行。
+    /// - 横坐标**只经** `GanttLayoutEngine.x / width`（D-024），与计划条同一把尺子，
+    ///   同一日期必然同 x；跨夏令时也不会 ±1 天漂移。
+    /// - 颜色按 `BaselinePalette.resolve` 只读派生：缺 / 越界 / 重复索引在这里归一，
+    ///   不改数据、不置脏（写路径补色是会话的事）。
+    ///
+    /// 一条都画不出来时（无可见基线 / 全部任务无该基线条目）返回 N=0 的空叠加层：
+    /// 不留空轨、行内几何与本功能引入前逐像素一致（§8 / A7）。
+    private static func baselineOverlay(
+        baselines: [Baseline],
+        viewState: WorkspaceViewState,
+        layout: GanttLayout,
+        rowIndexByID: [UUID: Int]
+    ) -> (
+        bars: [UUID: [GanttBaselineBar]],
+        visibleIDs: [UUID],
+        lanes: BaselineLaneLayout,
+        legend: [BaselineLegendItem]
+    ) {
+        let empty = (
+            bars: [UUID: [GanttBaselineBar]](),
+            visibleIDs: [UUID](),
+            lanes: BaselineLanes.layout(visibleCount: 0),
+            legend: [BaselineLegendItem]()
+        )
+        let visibleIDs = viewState.normalizedVisibleBaselineIDs(in: baselines)
+        guard !visibleIDs.isEmpty else { return empty }
+
+        // 与基线数组逐位对应：resolved[i] 属于 baselines[i]。
+        let resolvedColors = BaselinePalette.resolve(baselines.map(\.colorIndex))
+        var colorByID: [UUID: Int] = [:]
+        colorByID.reserveCapacity(baselines.count)
+        for (offset, baseline) in baselines.enumerated() where offset < resolvedColors.count {
+            colorByID[baseline.id] = resolvedColors[offset]
+        }
+
+        var bars: [UUID: [GanttBaselineBar]] = [:]
+        var drawnIDs: [UUID] = []
+        var legend: [BaselineLegendItem] = []
+        for id in visibleIDs {
+            guard let baseline = baselines.first(where: { $0.id == id }) else { continue }
+            let colorIndex = colorByID[id] ?? 0
+            var drewAnything = false
+            for entry in baseline.entries {
+                guard rowIndexByID[entry.taskID] != nil else { continue }
+                drewAnything = true
+                bars[entry.taskID, default: []].append(GanttBaselineBar(
+                    baselineID: id,
+                    colorIndex: colorIndex,
+                    x: GanttLayoutEngine.x(
+                        for: entry.start,
+                        windowStart: layout.windowStart,
+                        dayWidth: layout.dayWidth
+                    ),
+                    width: GanttLayoutEngine.width(
+                        from: entry.start,
+                        to: entry.finish,
+                        dayWidth: layout.dayWidth
+                    ),
+                    isMilestone: entry.isMilestone
+                ))
+            }
+            guard drewAnything else { continue }
+            drawnIDs.append(id)
+            legend.append(BaselineLegendItem(
+                baselineID: id,
+                name: baseline.name,
+                colorIndex: colorIndex,
+                createdAt: baseline.createdAt
+            ))
+        }
+        guard !drawnIDs.isEmpty else { return empty }
+        return (
+            bars: bars,
+            visibleIDs: drawnIDs,
+            lanes: BaselineLanes.layout(visibleCount: drawnIDs.count),
+            legend: legend
         )
     }
 

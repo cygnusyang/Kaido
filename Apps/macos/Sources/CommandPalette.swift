@@ -9,7 +9,8 @@ struct CommandPalette: View {
     @FocusState private var fieldFocused: Bool
 
     private var filtered: [KairoCommand] {
-        Self.matching(query, in: commands)
+        // isPaletteHidden：菜单专用项（基线 8 色 × N 条）不进面板，否则面板被色卡挤满（10 §5）。
+        Self.matching(query, in: commands.filter { !$0.isPaletteHidden })
     }
 
     /// 按命令标题与搜索别名不区分大小写过滤（US-E4-05 验收 2）；空查询返回全部命令。

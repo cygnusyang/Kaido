@@ -22,8 +22,12 @@ struct Options {
     var strings: CLIStrings { CLIStrings(language: language) }
 
     /// 第 n 个非选项操作数。
-    func operand(_ index: Int, name: String) throws -> String {
-        let operands = items.filter { !$0.hasPrefix("--") }
+    ///
+    /// - Parameter excluded: 已知的选项取值（如 `--file` 的路径）。本方法只按「不以 -- 开头」
+    ///   判断，选项的值同样不以 -- 开头，多操作数命令（`baseline color`）不排除它会把
+    ///   路径误当成第二个操作数——报「颜色索引必须是整数：./p.kairo」这种跑题错误。
+    func operand(_ index: Int, name: String, excluding excluded: String? = nil) throws -> String {
+        let operands = items.filter { !$0.hasPrefix("--") && $0 != excluded }
         guard index < operands.count else {
             throw UsageError(message: strings.missingOperand(name))
         }

@@ -9,8 +9,8 @@
 | --- | --- | --- | --- | --- |
 | v0.12.0 | 实际开始 / 实际结束（落实 07） | 任务能看到「真的什么时候开工、什么时候完的」，并自动记录 | 无 | TaskItem 扩字段引发既有相等断言批量红 |
 | v0.13.0 | 基线快照 + 偏差数值（含 `.kairo` 格式升 v2） | 拍一次基线，大纲/检查器直接看到「比承诺晚几天」 | v0.12 | 格式升版不可逆：旧版本从此打不开新文件 |
-| v0.14.0 | 基线可视化 + 项目摘要 | 甘特上灰条 vs 计划条一眼对照，项目级偏差一屏看完 | v0.13 | 碰 A7 黄金基线布局 |
-| v0.15.0 | 基线与偏差报表化 | 多基线管理、孤儿可查、偏差导出 CSV | v0.14 | 报表口径与对等性 |
+| v0.14.0 | **多基线叠加**（重写，取代「单基线灰条」） | 1–3 条基线同屏画在同一行、按颜色区分，创建入口一眼可见 | v0.13 | 碰 A7 黄金布局；28pt 内 3 条的可读性 |
+| v0.15.0 | 基线与偏差报表化 + 项目摘要 | 基线面板管理、孤儿可查、项目级偏差一屏、导出 CSV | v0.14 | 报表口径与对等性 |
 
 分层纪律（贯穿四版）：baseline（冻结）/ plan（引擎 `scheduledStart/Finish`，预测）/ actual（`actualStart` + `completedAt`，事实）三层互不回写；
 基线绝不回流 `ScheduleEngine`，实际时间也绝不参与排期与违例判定。
@@ -66,32 +66,53 @@
 
 **非目标**：甘特灰条、项目摘要、基线间对比、挣值、保存时透传未知根键。
 
-## 3. v0.14.0 · 基线可视化 + 项目摘要
+## 3. v0.14.0 · 多基线叠加：甘特图同屏可见、按颜色区分
 
-**目标**：把 v0.13 的数字画出来，并给项目级偏差一屏结论。
-甘特对比模式先定义四档 `GanttBaselineMode`（仅实际 / 仅基线 / 双日程 / 分割），**本版只实现「双日程（基线灰条在下）」**，其余两档不出现在菜单里（不放死按钮）。
+> **重写（2026-10-25）**：原方案「单基线灰条 + 四档 `GanttBaselineMode`」已被**用户否决**——需求是「可创建很多个基线，甘特图同一行同时显示、用不同颜色区分」。
+> 新方案全文见 **[10-multi-baseline-gantt.md](10-multi-baseline-gantt.md)**；本节只保留版本范围、并行分组与版本级判据。原「项目摘要」内容顺延到 v0.15。
+
+**目标**：让 1–3 条基线（保守 / 基准 / 激进）**同时**画在同一任务行的计划条下方，用 8 色调色板按基线区分颜色；创建入口在菜单里第一眼可见；基线数量不设上限。
 
 **范围**
 
-- Presentation：独立 `baselineBars: [GanttBaselineBar]`（**不改 `GanttBar` 既有几何**）、`GanttSnapshot.baselineMode: GanttBaselineMode`、项目摘要 `ProjectInspector` 增偏差字段（结束偏差 / 晚完成数 / 逾期数 / 无基线数 / 已删除数 / 预测项数）。
-- App：`TimelineView` 灰条图层（新增 `DesignTokens.baselineBar` token）、视图菜单「基线对比：双日程」（另两档不出现）、项目检查器 Summary 行。
-- CLI：`project summary` 增偏差块（与检查器同源字符串）。
+- Core：`Baseline.colorIndex: Int?`（加法可选字段，**不升 formatVersion**）、`BaselinePalette`（索引归一化 / 最小未用分配，纯函数）、`GanttLayoutEngine.x(for:windowStart:dayWidth:)` + `width(from:to:dayWidth:)`（把内联算式抽出，计划条与基线共用，杜绝第二份实现）。
+- Commands：`setBaselineColor(id:colorIndex:)`（进撤销栈）；创建 / 改名 / 改色 / 删除四条写路径入口先 `ensureBaselineColors()`（旧文件补色，打开不动盘）。
+- Presentation：`BaselineLanes`（行内分轨几何纯函数 + 28pt 四档表）、`GanttBaselineBar` / `BaselineLegendItem` / `GanttSnapshot.baselineBars|baselineLanes|baselineLegend|hiddenBaselineCount`、`ViewState.visibleBaselineIDs` + 读取侧归一化（去悬挂 / 按创建序 / 截断到 3）、`GanttHitTesting` 增 plan lane 纵向闸门（防在基线轨上拖计划条）。
+- App：`TimelineView` 基线下轨图层（`drawBaselineBars`，与 `drawBars` 同行窗口裁剪）、`DesignTokens.baselinePalette[8]`、**菜单栏顶级「基线」菜单**（新建 ⌘⌥B 置顶）+ 工具栏「基线」菜单重做 + ⌘K 静态/动态项、状态栏图例、大纲列与检查器沿用 v0.13。
+- CLI / MCP：`baseline list` 与 `baseline_variance` 输出增 `colorIndex`；`baseline color <id> <0-7>`。显示集合是视图状态，**不进** CLI / MCP。
 
-**并行分组**
+**改动清单（逐文件，组内文件互斥才能并行）**
 
-- 波次 1：G1（Presentation 几何：`GanttLayout` 纯函数算基线 x/width + 用例）
-- 波次 2：G2（App 渲染 + 菜单 + token）∥ G3（项目摘要：Presentation 快照 + InspectorView + CLI 文案）——文件不重叠
+| 组 | 文件范围（互斥） | 归属 | 前置 |
+| --- | --- | --- | --- |
+| G1 core-model | `Sources/KairoCore/Model/Baseline.swift`、`Sources/KairoCore/Model/BaselinePalette.swift`（新）、`Tests/KairoCoreTests/BaselinePaletteTests.swift`（新） | core | — |
+| G2 core-geom | `Sources/KairoCore/Query/GanttLayout.swift`、`Tests/KairoCoreTests/GanttDateToXTests.swift`（新） | core | — |
+| G3 pres-lane | `Sources/KairoPresentation/BaselineLanes.swift`（新）、`Sources/KairoPresentation/GanttHitTesting.swift`、`Tests/KairoPresentationTests/BaselineLaneGeometryTests.swift`（新）、`Tests/KairoPresentationTests/GanttHitTestingTests.swift` | pres | G2 |
+| G4 cmds | `Sources/KairoCommands/KairoSession.swift`、`Tests/KairoCoreTests/SessionBaselineTests.swift` | core | G1 |
+| G5 pres-snapshot | `Sources/KairoPresentation/Snapshots.swift`、`Presenter.swift`、`ViewState.swift`、`WorkspaceAction.swift`、`Tests/KairoPresentationTests/BaselineMultiGanttTests.swift`（新） | pres | G3 + G4 |
+| G6 tokens | `Apps/macos/Sources/Theme/DesignTokens.swift`（只加 8 色 + 图例 token） | app | — |
+| G7 canvas | `Apps/macos/Sources/Workspace/Timeline/TimelineView.swift` | app | G5 + G6 |
+| G8 menus | `Apps/macos/Sources/CommandRegistry.swift`、`Apps/macos/Sources/Workspace/Baseline/`（新目录：`BaselineMenu.swift`、`BaselineDot.swift`）、`Workspace/WorkspaceView.swift`、`WorkspaceStore.swift`、`Resources/Localizable.xcstrings` | app | G5 + G6 |
+| G9 interfaces | `Sources/KairoCLI/CLIRouter.swift`、`Sources/KairoCLI/CLIStrings.swift`、`Sources/KairoMCP/Tools.swift`、`Tests/InterfaceTests/BaselineInterfaceTests.swift` | cli | G4 |
 
-**判据要点**
+**并行分组（只有文件范围两两不重叠才并行）**
 
-1. 灰条几何由纯函数计算并有断言（`baselineX/Width` 与基线条目日期换算一致），不靠目测。
-2. 模式切换不改变行索引、不改变既有 bars 几何（**A7 黄金基线用例必须原样通过**，只允许新增图层）。
-3. 无基线 / 基线后新增任务：不画灰条、不报错、不占位留空陷阱。
-4. 1,000 行灰条渲染不掉帧（沿用既有性能用例口径）。
+- 波次 1：**G1 ∥ G2 ∥ G6**（core 模型 / core 几何 / app token，互不重叠）
+- 波次 2：**G3 ∥ G4**（pres 几何 vs session 写路径，无交集）
+- 波次 3：**G5**（依赖 G3 的类型与 G4 的写路径，单链）
+- 波次 4：**G7 ∥ G8 ∥ G9**（画布 / 菜单与 Store / CLI+MCP，文件两两互斥）
+- 串行链（不得并行）：G2 → G3 → G5 → G7；G1 → G4 → G5 / G9。
 
-**风险**：A7 黄金基线是既有布局基准（历史多次被撞）；缓解——灰条走独立数据结构与独立图层，禁止改 `GanttBar.x/width` 的既有语义。
+**版本级判据**：10 §10 全 13 条；版本门禁另加——① A7 黄金用例**一行不改**全绿；② 1,000 行 × 3 基线的构造 / 绘制实测记入 CHANGELOG；③ CLI / MCP 的 `colorIndex` 与 Session 落盘值逐字段一致。
 
-**非目标**：「仅基线」「分割日程（上下半并排）」两档——枚举已定义、UI 不暴露，另开版本；资源/成本维度的基线。
+**风险与缓解**
+
+- **A7 黄金布局（历史多次被撞）**：基线走独立结构 + 独立图层；`GanttBar` 零改动；N=0 时几何逐像素即现状（`BaselineLanes.layout(0)` 断言）。
+- **创建入口再次「消失」**（D-035 复发）：创建同时静态注册到菜单栏顶级菜单第 1 项、工具栏菜单第 1 项、⌘K；判据 12 用注册表断言锁死，不靠肉眼验收。
+- **视图效果只能目测**：分轨几何、颜色分配、上限截断全部走纯函数 + 单测，视图只消费数值。
+- **28pt 内 3 条基线的可读性**：以 4pt 轨高 + 8 色调色板 + 图例兜底；若用户确认「底部细轨」备选，只需换 `BaselineLanes` 的参数表，其余组不动（这是把几何抽成纯函数的主要收益）。
+
+**非目标**：「分割日程」「仅基线」两档视图模式、基线间对比（A vs B）、项目级偏差摘要（顺延 v0.15）、基线条拖拽、图例常驻画布、颜色取色器。
 
 ## 4. v0.15.0 · 基线与偏差报表化
 
@@ -126,4 +147,7 @@ v0.12（事实层） → v0.13（数字层） → v0.14（视觉层） → v0.15
 | 格式版本升 2 | 用户 | ✅ 已裁定 | v0.13 存储组 |
 | 08 §11 剩余 2 条（存储形态 A/B/C、是否写 `.v1.bak`） | 用户 | 待确认 | v0.13 存储组落地写法 |
 | 07 已定口径（三层、实际字段、自动记录时机） | 设计 | ✅ 已定 | v0.12 |
-| v0.14 灰条数据结构（独立 `baselineBars`，不动 `GanttBar` 几何） | 设计 | ✅ 已定 | v0.14 G1 |
+| v0.14 数据结构（独立 `baselineBars` + `BaselineLanes`，不动 `GanttBar` 几何） | 设计 | ✅ 已定 | v0.14 G3 / G5 |
+| v0.14 行内分轨参数（28pt 内 1–3 条） | 用户 | 待确认（10 §12-1） | v0.14 G3 参数表 |
+| v0.14 显示上限 3 条 + 第 4 条策略 | 用户 | 待确认（10 §12-2） | v0.14 G5 |
+| v0.14 `colorIndex` 加法字段（不升 formatVersion） | 设计 | ✅ 已定 | v0.14 G1 |

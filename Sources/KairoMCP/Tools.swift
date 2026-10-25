@@ -80,6 +80,7 @@ struct ToolRegistry {
             baselineList,
             baselineDelete,
             baselineVariance,
+            baselineSetColor,
         ]
     }
 
@@ -418,17 +419,17 @@ struct ToolRegistry {
 
     private static let baselineCreate = MCPTool(
         name: "baseline_create",
-        description: "对当前排期拍一次不可变快照（冻结计划起止与完成度），返回 baselineID/name/createdAt/entryCount；省略 name 用默认名「基线 N · yyyy-MM-dd」，空名报 model_baseline_name_empty（08-baselines §8）",
+        description: "对当前排期拍一次不可变快照（冻结计划起止与完成度），返回 baselineID/name/colorIndex/createdAt/entryCount；省略 name 用默认名「基线 N · yyyy-MM-dd」，空名报 model_baseline_name_empty（08-baselines §8、10-multi-baseline-gantt §4）",
         inputSchema: Schema.object(properties: ["name": Schema.string()])
     ) { args, session in
         let a = try ToolArgs(args)
         let baseline = try session.createBaseline(name: a.optionalString("name"))
-        return BaselineResults.created(baseline)
+        return BaselineResults.created(baseline, among: try session.baselines())
     }
 
     private static let baselineList = MCPTool(
         name: "baseline_list",
-        description: "按创建顺序（早→晚）列出基线；每项含 baselineID/name/createdAt/entryCount，快照时无排期锚点则不返回 anchor（08-baselines §8）",
+        description: "按创建顺序（早→晚）列出基线；每项含 baselineID/name/colorIndex/createdAt/entryCount，快照时无排期锚点则不返回 anchor；colorIndex 为 0…7 的调色板索引，旧文件缺该字段时按创建顺序派生（08-baselines §8、10-multi-baseline-gantt §4）",
         inputSchema: Schema.object(properties: [:])
     ) { _, session in
         BaselineResults.list(try session.baselines())
@@ -436,30 +437,33 @@ struct ToolRegistry {
 
     private static let baselineDelete = MCPTool(
         name: "baseline_delete",
-        description: "按 baselineID 删除一条基线，其余基线与任务本身不受影响；返回 ok 与被删基线的 baselineID/name/createdAt，未知 ID 报 model_baseline_not_found（08-baselines §8）",
+        description: "按 baselineID 删除一条基线，其余基线与任务本身不受影响；返回 ok 与被删基线的 baselineID/name/colorIndex/createdAt，未知 ID 报 model_baseline_not_found（08-baselines §8）",
         inputSchema: Schema.object(properties: ["baselineID": Schema.string()], required: ["baselineID"])
     ) { args, session in
         let a = try ToolArgs(args)
         let id = try a.uuid("baselineID")
-        // 回执要带身份三字段：删除后就查不到了，先取（判据 6）。
-        guard let removed = try session.baselines().first(where: { $0.id == id }) else {
+        // 回执要带身份三字段：删除后就查不到了，先取（判据 6）。颜色索引同理。
+        let baselines = try session.baselines()
+        guard let removed = baselines.first(where: { $0.id == id }) else {
             throw ToolError.invalidArgument(
                 reason: .baselineNotFound,
                 message: "基线不存在：\(id.uuidString)"
             )
         }
+        let colorIndex = BaselineResults.colorIndex(of: id, in: baselines)
         try session.deleteBaseline(id: id)
         return .object([
             "ok": .bool(true),
             "baselineID": .string(id.uuidString),
             "name": .string(removed.name),
+            "colorIndex": .number(Double(colorIndex)),
             "createdAt": .string(ISO8601DateFormatter().string(from: removed.createdAt)),
         ])
     }
 
     private static let baselineVariance = MCPTool(
         name: "baseline_variance",
-        description: "把当前计划与实际时间分别同基线比较（省略 baselineID = 最新一条）；必带 baselineID/baselineName/baselineCreatedAt；偏差为带符号日历天（正数 = 比承诺晚），空值省略键而不写 0；taskID 只收窄任务行，项目级聚合仍按全项目（08-baselines §4/§8）",
+        description: "把当前计划与实际时间分别同基线比较（省略 baselineID = 最新一条）；必带 baselineID/baselineName/colorIndex/baselineCreatedAt；偏差为带符号日历天（正数 = 比承诺晚），空值省略键而不写 0；taskID 只收窄任务行，项目级聚合仍按全项目（08-baselines §4/§8）",
         inputSchema: Schema.object(properties: [
             "baselineID": Schema.string(),
             "taskID": Schema.string(),
@@ -473,7 +477,27 @@ struct ToolRegistry {
             _ = try session.getTask(id: taskID)
             taskIDs = taskIDs.filter { $0 == taskID }
         }
-        return try BaselineResults.variance(report, taskIDs: taskIDs)
+        let colorIndex = BaselineResults.colorIndex(of: report.baselineID, in: try session.baselines())
+        return try BaselineResults.variance(report, taskIDs: taskIDs, colorIndex: colorIndex)
+    }
+
+    private static let baselineSetColor = MCPTool(
+        name: "baseline_set_color",
+        description: "给一条基线换调色板颜色（只改颜色索引，不动快照条目与创建时刻）；参数 baselineID 为基线 UUID，colorIndex 为 0…7 的整数，越界或非整数分别报 model_baseline_color_index_invalid / mcp_wrong_type；返回 baselineID/name/colorIndex（10-multi-baseline-gantt §4）",
+        inputSchema: Schema.object(
+            properties: [
+                "baselineID": Schema.string(),
+                "colorIndex": Schema.number(),
+            ],
+            required: ["baselineID", "colorIndex"]
+        )
+    ) { args, session in
+        let a = try ToolArgs(args)
+        let id = try a.uuid("baselineID")
+        let updated = try session.setBaselineColor(id: id, colorIndex: try a.int("colorIndex"))
+        // 回报「会被画出来的那一色」：与 baseline_list / baseline_variance 同口径（整组归一）。
+        let colorIndex = BaselineResults.colorIndex(of: id, in: try session.baselines())
+        return BaselineResults.recolored(updated, colorIndex: colorIndex)
     }
 }
 
@@ -527,26 +551,54 @@ enum ProjectResults {
 
 /// 基线工具结果组装（v0.13 / 08-baselines §8）。
 ///
-/// 与 CLI `baseline list|variance --json` 字段名逐字一致：两条出口共用同一组契约名，
-/// 数值全部来自 `BaselineEngine`，接口层不再自行计算（对等性门禁，判据 12）。
+/// 与 CLI `baseline list|variance --json` 字段名逐字一致：两条出口共用同一组契约名。
+/// 偏差数值全部来自 `BaselineEngine`、颜色索引全部来自 `BaselinePalette`，
+/// 接口层不自行算偏差、也不自行分配颜色（对等性门禁，判据 12）。
 enum BaselineResults {
-    /// `baseline_create`：身份 + 条目数（条目数决定这次快照覆盖了多少任务）。
-    static func created(_ baseline: Baseline) -> JSONValue {
+    /// `baseline_create`：身份 + 颜色索引 + 条目数（条目数决定这次快照覆盖了多少任务）。
+    ///
+    /// - Parameter baselines: 创建后的整组快照（颜色索引要按整组派生，与 list 同口径）。
+    static func created(_ baseline: Baseline, among baselines: [Baseline]) -> JSONValue {
         .object([
             "baselineID": .string(baseline.id.uuidString),
             "name": .string(baseline.name),
+            "colorIndex": .number(Double(colorIndex(of: baseline.id, in: baselines))),
             "createdAt": .string(ISO8601DateFormatter().string(from: baseline.createdAt)),
             "entryCount": .number(Double(baseline.entries.count)),
         ])
     }
 
+    /// `baseline_set_color`：改色回执（名称 + 新颜色索引，身份字段便于脚本核对改到了哪条）。
+    static func recolored(_ baseline: Baseline, colorIndex: Int) -> JSONValue {
+        .object([
+            "baselineID": .string(baseline.id.uuidString),
+            "name": .string(baseline.name),
+            "colorIndex": .number(Double(colorIndex)),
+        ])
+    }
+
+    /// 指定基线的读路径颜色索引：整组交给 `BaselinePalette.resolve` 归一
+    /// （nil / 越界 / 重复都派生），不写死 0 冒充「第 1 色」。
+    ///
+    /// - Parameter id: 目标基线；不在 `baselines` 里时（调用方传错了快照）按
+    ///   「如新建一条」的最小未用索引给出合法值。
+    static func colorIndex(of id: UUID, in baselines: [Baseline]) -> Int {
+        let colors = BaselinePalette.resolve(baselines.map(\.colorIndex))
+        if let position = baselines.firstIndex(where: { $0.id == id }) {
+            return colors[position]
+        }
+        return BaselinePalette.colorIndex(for: baselines)
+    }
+
     /// `baseline_list`：按创建顺序；`anchor` 缺失不写键。
     static func list(_ baselines: [Baseline]) -> JSONValue {
         let formatter = ISO8601DateFormatter()
-        let rows = baselines.map { baseline -> JSONValue in
+        let colors = BaselinePalette.resolve(baselines.map(\.colorIndex))
+        let rows = zip(baselines, colors).map { baseline, colorIndex -> JSONValue in
             var fields: [String: JSONValue] = [
                 "baselineID": .string(baseline.id.uuidString),
                 "name": .string(baseline.name),
+                "colorIndex": .number(Double(colorIndex)),
                 "createdAt": .string(formatter.string(from: baseline.createdAt)),
                 "entryCount": .number(Double(baseline.entries.count)),
             ]
@@ -563,11 +615,17 @@ enum BaselineResults {
     /// - 空值（`nil`）**不写键**：写 0 会把「没有数据」冒充成「准时」（§4.1）；
     /// - 偏差是整数天，负数原样带 `-`；
     /// - 需按 `taskIDs` 的行序输出（调用方按大纲顺序给出），字典键序不稳定。
-    static func variance(_ report: BaselineVarianceReport, taskIDs: [UUID]) throws -> JSONValue {
+    /// - Parameter colorIndex: 该基线在整组里的调色板索引（调用方用 `colorIndex(of:in:)` 派生）。
+    static func variance(
+        _ report: BaselineVarianceReport,
+        taskIDs: [UUID],
+        colorIndex: Int
+    ) throws -> JSONValue {
         let formatter = ISO8601DateFormatter()
         var fields: [String: JSONValue] = [
             "baselineID": .string(report.baselineID.uuidString),
             "baselineName": .string(report.baselineName),
+            "colorIndex": .number(Double(colorIndex)),
             "baselineCreatedAt": .string(formatter.string(from: report.baselineCreatedAt)),
             "lateTaskCount": .number(Double(report.lateTaskCount)),
             "overdueOpenCount": .number(Double(report.overdueOpenCount)),
@@ -685,6 +743,20 @@ private struct ToolArgs {
 
     func optionalDouble(_ key: String) -> Double? {
         dict[key]?.doubleValue
+    }
+
+    /// 整数参数（如调色板索引）：缺失报 mcp_missing_param；带小数或非数字报 mcp_wrong_type。
+    ///
+    /// 不静默截断 3.5 → 3：截断会让调用方以为改成了自己请求的颜色。
+    /// 范围校验不在这里做——0…7 由会话层统一拒绝（一个地方判范围）。
+    func int(_ key: String) throws -> Int {
+        guard let raw = dict[key] else {
+            throw ToolError.invalidArgument(reason: .mcpMissingParam, message: "缺少参数 \(key)")
+        }
+        guard let number = raw.doubleValue, let value = Int(exactly: number) else {
+            throw ToolError.invalidArgument(reason: .mcpWrongType, message: "参数 \(key) 必须是整数")
+        }
+        return value
     }
 
     func optionalUUID(_ key: String) throws -> UUID? {

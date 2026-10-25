@@ -29,12 +29,14 @@ private func makeBar(
         _ y: Double,
         offset: Double = 0,
         bars: [GanttBar],
-        dependencies: [GanttDependency] = []
+        dependencies: [GanttDependency] = [],
+        lanes: BaselineLaneLayout = BaselineLanes.layout(visibleCount: 0)
     ) -> GanttDragTarget {
         GanttHitTesting.hitTest(
             pointX: x, pointY: y, canvasOffset: offset,
             bars: bars, dependencies: dependencies,
-            rowHeight: rowHeight, dayWidth: dayWidth
+            rowHeight: rowHeight, dayWidth: dayWidth,
+            lanes: lanes
         )
     }
 
@@ -148,6 +150,75 @@ private func makeBar(
     @Test func distanceToDegenerateSegment() {
         let segment = GanttSegment(startX: 10, startY: 10, endX: 10, endY: 10)
         #expect(GanttHitTesting.distance(pointX: 13, pointY: 14, segment: segment) == 5)
+    }
+
+    // MARK: - v0.14 命中闸门：基线轨只读（设计稿 §10.9）
+
+    // n=3 的分轨（§3 表）：计划轨 3…10、基线轨 11…15 / 16…20 / 21…25。
+    private let lanes3 = BaselineLanes.layout(visibleCount: 3)
+
+    @Test func baselineLanesMissForTaskBar() {
+        let bars = [makeBar(rowIndex: 0, x: 100, width: 200)]
+        // 三条基线轨内、水平位置正落在条体上，也必须 miss。
+        for y in [11.0, 13.0, 15.0, 16.0, 18.0, 20.0, 21.0, 23.0, 25.0] {
+            #expect(hit(150, y, bars: bars, lanes: lanes3) == .none, "基线轨 y=\(y) 不应命中")
+        }
+        // 轨下留白同样 miss。
+        #expect(hit(150, 27, bars: bars, lanes: lanes3) == .none)
+    }
+
+    @Test func planLaneStillHitsWithThreeBaselines() {
+        let bars = [makeBar(rowIndex: 0, x: 100, width: 200)]
+        // 计划轨 3…10：x 方向语义不变（条体 / 端点 / 环带）。
+        #expect(hit(150, 5, bars: bars, lanes: lanes3) == .body(taskID))
+        #expect(hit(150, 3, bars: bars, lanes: lanes3) == .body(taskID))
+        #expect(hit(150, 10, bars: bars, lanes: lanes3) == .body(taskID))
+        #expect(hit(103, 6, bars: bars, lanes: lanes3) == .startHandle(taskID))
+        #expect(hit(297, 6, bars: bars, lanes: lanes3) == .endHandle(taskID))
+        #expect(hit(95, 6, bars: bars, lanes: lanes3) == .dependencyStart(taskID))
+        #expect(hit(305, 6, bars: bars, lanes: lanes3) == .dependencyEnd(taskID))
+    }
+
+    @Test func groupLinkZonesGatedToPlanLane() {
+        let bars = [makeBar(rowIndex: 0, x: 100, width: 200, kind: .group)]
+        // 计划轨内仍可作依赖端点（群组不可拖体）。
+        #expect(hit(95, 5, bars: bars, lanes: lanes3) == .dependencyStart(taskID))
+        #expect(hit(305, 5, bars: bars, lanes: lanes3) == .dependencyEnd(taskID))
+        // 基线轨内连环带也不命中。
+        #expect(hit(95, 13, bars: bars, lanes: lanes3) == .none)
+        #expect(hit(150, 13, bars: bars, lanes: lanes3) == .none)
+    }
+
+    @Test func milestoneGatedToDiamondFrame() {
+        let bars = [makeBar(rowIndex: 0, x: 100, width: 1, kind: .milestone)]
+        // n=3：中心 y=6.5、边长 7 ⇒ 纵向窗口 3…10。
+        #expect(hit(105, 3, bars: bars, lanes: lanes3) == .body(taskID))
+        #expect(hit(105, 6, bars: bars, lanes: lanes3) == .body(taskID))
+        #expect(hit(105, 10, bars: bars, lanes: lanes3) == .body(taskID))
+        #expect(hit(105, 11, bars: bars, lanes: lanes3) == .none)
+        #expect(hit(105, 14, bars: bars, lanes: lanes3) == .none)
+    }
+
+    @Test func zeroBaselinesKeepsLegacyWindow() {
+        let bars = [makeBar(rowIndex: 0, x: 100, width: 200)]
+        // 默认值必须与显式 n=0 等价：任务条 7…21。
+        #expect(hit(150, 7, bars: bars) == GanttDragTarget.body(taskID))
+        #expect(hit(150, 7, bars: bars, lanes: BaselineLanes.layout(visibleCount: 0))
+            == GanttDragTarget.body(taskID))
+        #expect(hit(150, 21, bars: bars, lanes: BaselineLanes.layout(visibleCount: 0))
+            == GanttDragTarget.body(taskID))
+        // 行内计划轨之外（整行仍在本行）不再命中。
+        #expect(hit(150, 25, bars: bars) == .none)
+        #expect(hit(150, 2, bars: bars) == .none)
+    }
+
+    @Test func oneBaselineGatesToItsPlanLane() {
+        let lanes1 = BaselineLanes.layout(visibleCount: 1)
+        let bars = [makeBar(rowIndex: 0, x: 100, width: 200)]
+        // n=1：计划轨 3…17，基线轨 19…25。
+        #expect(hit(150, 17, bars: bars, lanes: lanes1) == .body(taskID))
+        #expect(hit(150, 19, bars: bars, lanes: lanes1) == .none)
+        #expect(hit(150, 25, bars: bars, lanes: lanes1) == .none)
     }
 
     private func makeDate(_ year: Int, _ month: Int, _ day: Int) -> Date {

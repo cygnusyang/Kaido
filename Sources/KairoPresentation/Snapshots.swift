@@ -335,6 +335,49 @@ public struct GanttBand: Hashable, Sendable {
     }
 }
 
+/// 甘特图上的基线细条（v0.14 / docs/features/10-multi-baseline-gantt.md §7）。
+///
+/// 与 `GanttBar` 完全分离：基线不可变、不参与命中与拖拽，行索引仍由外层字典的
+/// 任务 ID 给出（与大纲一致，ADR-013）。快照只带调色板索引，不带颜色值。
+///
+/// `lane` 不落在结构里：轨道 = 本条基线在 `GanttSnapshot.visibleBaselineIDs` 中的下标。
+/// 这样某行缺某条基线的条目时，其余基线仍画在自己的轨上，不会上移串轨。
+public struct GanttBaselineBar: Hashable, Sendable {
+    public var baselineID: UUID
+    /// 调色板索引 0…7；已按 `BaselinePalette.resolve` 只读派生（缺 / 越界 / 重复已归一）。
+    public var colorIndex: Int
+    /// 与计划条同一换算（`GanttLayoutEngine.x`），基线不可拖拽。
+    public var x: Double
+    /// 排他端点口径（`finish − start`）；里程碑为 0，由视图画菱形。
+    public var width: Double
+    public var isMilestone: Bool
+
+    public init(baselineID: UUID, colorIndex: Int, x: Double, width: Double, isMilestone: Bool) {
+        self.baselineID = baselineID
+        self.colorIndex = colorIndex
+        self.x = x
+        self.width = width
+        self.isMilestone = isMilestone
+    }
+}
+
+/// 基线图例项（§4：图例不进画布，由状态栏 / 菜单按此顺序取色点与名称）。
+public struct BaselineLegendItem: Identifiable, Hashable, Sendable {
+    public var id: UUID { baselineID }
+    public var baselineID: UUID
+    /// 基线名（用户数据，原样带入快照，不做本地化）。
+    public var name: String
+    public var colorIndex: Int
+    public var createdAt: Date
+
+    public init(baselineID: UUID, name: String, colorIndex: Int, createdAt: Date) {
+        self.baselineID = baselineID
+        self.name = name
+        self.colorIndex = colorIndex
+        self.createdAt = createdAt
+    }
+}
+
 /// 时间画布快照。
 public struct GanttSnapshot: Hashable, Sendable {
     public var windowStart: Date
@@ -362,9 +405,25 @@ public struct GanttSnapshot: Hashable, Sendable {
     public var projectStartSource: ScheduleAnchor.Source
     public var showsCriticalPath: Bool
     public var showsBarLabels: Bool
+    /// 已画出的基线细条，按任务 ID 分组（v0.14 / §7）。
+    ///
+    /// 只为「可见基线 ∩ 可见行上有条目」生成：收起 / 被筛选的行天然不在字典里。
+    /// 无基线（或一条都画不出来）时为空字典 —— 视图据此走 N=0 的既有渲染。
+    public var baselineBars: [UUID: [GanttBaselineBar]]
+    /// 实际参与绘制的基线 ID，**创建顺序**，≤ `BaselineLanes.maxVisible`。
+    ///
+    /// 只有画出了至少一条基线的基线才在其中：读取侧归一化（悬挂 ID / 超过 3 条）
+    /// 在 Presenter 完成，视图按此数组下标取轨道位置，不再自己夹取。
+    public var visibleBaselineIDs: [UUID]
+    /// 行内分轨几何；条数 = `visibleBaselineIDs.count`（0 时与 v0.13 逐像素一致，A7 基准）。
+    public var baselineLanes: BaselineLaneLayout
+    /// 图例项（与 `visibleBaselineIDs` 同序）。
+    public var baselineLegend: [BaselineLegendItem]
 
     /// - Parameters:
     ///   - tickGranularity: 生效刻度档位；缺省时由 `zoom` 派生（保持旧构造点源码兼容）。
+    ///   - baselineBars / visibleBaselineIDs / baselineLanes / baselineLegend: 多基线叠加
+    ///     （v0.14）；缺省值即 N=0，既有构造点与断言零改动。
     public init(
         windowStart: Date,
         windowEnd: Date,
@@ -385,7 +444,11 @@ public struct GanttSnapshot: Hashable, Sendable {
         projectStartSource: ScheduleAnchor.Source = .projectStart,
         showsCriticalPath: Bool = false,
         showsBarLabels: Bool = true,
-        tickGranularity: GanttZoom? = nil
+        tickGranularity: GanttZoom? = nil,
+        baselineBars: [UUID: [GanttBaselineBar]] = [:],
+        visibleBaselineIDs: [UUID] = [],
+        baselineLanes: BaselineLaneLayout = BaselineLanes.layout(visibleCount: 0),
+        baselineLegend: [BaselineLegendItem] = []
     ) {
         self.windowStart = windowStart
         self.windowEnd = windowEnd
@@ -407,5 +470,9 @@ public struct GanttSnapshot: Hashable, Sendable {
         self.projectStartSource = projectStartSource
         self.showsCriticalPath = showsCriticalPath
         self.showsBarLabels = showsBarLabels
+        self.baselineBars = baselineBars
+        self.visibleBaselineIDs = visibleBaselineIDs
+        self.baselineLanes = baselineLanes
+        self.baselineLegend = baselineLegend
     }
 }
