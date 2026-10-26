@@ -320,6 +320,16 @@ jobs:
             mv release-notes.signed.md release-notes.md
           fi
 
+      - name: 生成下载校验和
+        run: |
+          # 用户在下载页要能自查字节完整：DMG/ZIP 各出一份 sha256，另给一份汇总。
+          # 之前只有 CLI tarball 带校验和，DMG 反而没有 —— 而 DMG 才是人装的入口。
+          TAG="${GITHUB_REF_NAME}"
+          shasum -a 256 "Kairo-${TAG}.dmg" | awk '{print $1}' > "Kairo-${TAG}.dmg.sha256"
+          shasum -a 256 "Kairo-${TAG}.zip" | awk '{print $1}' > "Kairo-${TAG}.zip.sha256"
+          shasum -a 256 "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" "$CLI_TARBALL" > SHA256SUMS
+          cat SHA256SUMS
+
       - name: 归档产物到 artifacts 分支（仓库内可追溯）
         env:
           GH_TOKEN: ${{ github.token }}
@@ -345,8 +355,10 @@ jobs:
           # latest/ 每次重建：只镜像当前版本，不残留历史产物（D-026）。
           rm -rf "$TAG" latest
           mkdir -p "$TAG" latest
-          cp "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" update-manifest.json SIGNING.txt "$TAG"/
-          cp "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" update-manifest.json SIGNING.txt latest/
+          cp "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" update-manifest.json SIGNING.txt \
+             "Kairo-${TAG}.dmg.sha256" "Kairo-${TAG}.zip.sha256" SHA256SUMS "$TAG"/
+          cp "Kairo-${TAG}.dmg" "Kairo-${TAG}.zip" update-manifest.json SIGNING.txt \
+             "Kairo-${TAG}.dmg.sha256" "Kairo-${TAG}.zip.sha256" SHA256SUMS latest/
           git add -Af "$TAG" latest
           if ! git diff --cached --quiet; then
             git commit -m "artifacts: ${TAG}（DMG + OTA 载体 zip + 签名清单 + 签名状态）"
@@ -374,14 +386,18 @@ jobs:
           # /releases/latest/download/ 永久链接随每个 release 重传即更新）
           if [ "${{ steps.changelog.outputs.has_autonotes }}" = "true" ]; then
             gh release create "$GITHUB_REF_NAME" \
-              "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" update-manifest.json SIGNING.txt \
+              "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" \
+              "Kairo-${GITHUB_REF_NAME}.dmg.sha256" "Kairo-${GITHUB_REF_NAME}.zip.sha256" SHA256SUMS \
+              update-manifest.json SIGNING.txt \
               "$CLI_TARBALL" "$CLI_TARBALL.sha256" \
               --title "Kairo ${GITHUB_REF_NAME}" \
               --notes-file release-notes.md \
               --generate-notes
           else
             gh release create "$GITHUB_REF_NAME" \
-              "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" update-manifest.json SIGNING.txt \
+              "Kairo-${GITHUB_REF_NAME}.dmg" "Kairo-${GITHUB_REF_NAME}.zip" \
+              "Kairo-${GITHUB_REF_NAME}.dmg.sha256" "Kairo-${GITHUB_REF_NAME}.zip.sha256" SHA256SUMS \
+              update-manifest.json SIGNING.txt \
               "$CLI_TARBALL" "$CLI_TARBALL.sha256" \
               --title "Kairo ${GITHUB_REF_NAME}" \
               --notes-file release-notes.md
