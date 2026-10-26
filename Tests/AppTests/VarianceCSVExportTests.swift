@@ -32,9 +32,12 @@ struct VarianceCSVExportTests {
 
         let data = try Data(contentsOf: url)
         let text = try #require(String(data: data, encoding: .utf8))
-        // String(data:encoding:) 会吞掉 BOM，必须按字节断言（Excel 靠这三个字节判 UTF-8）。
+        // BOM 一律按字节断言（Excel 靠这三个字节判 UTF-8）。
         #expect(data.prefix(3) == Data([0xEF, 0xBB, 0xBF]), "CSV 必须带 BOM，否则 Excel 打开中文乱码")
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        // 解码后的字符串**是否保留** U+FEFF 取决于 Foundation 版本：本机吞掉、CI runner 保留。
+        // 断言行结构前先显式剥掉，否则会在「首行 hasPrefix」上得到与产品无关的环境差异（v1.0.1 修）。
+        let body = text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text
+        let lines = body.split(separator: "\n", omittingEmptySubsequences: false)
         #expect(lines.count >= 4)
         #expect(lines[0].hasPrefix("# baselineID,"))
         #expect(lines[3] == VarianceCSV.header.joined(separator: ","), "第 4 行必须是 11 列固定表头")
