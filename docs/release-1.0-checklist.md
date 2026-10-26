@@ -40,6 +40,19 @@
 - [ ] 语言切到 English 重启：菜单栏全英文（含 File/Edit/View/Window/Help）。
 - [ ] 应用内「检查更新」能识别当前为最新版（不误报）。
 
+
+**冒烟结果（2026-10-26，v1.0.1，逐项实测）**
+
+| 项 | 结果 | 证据 |
+| --- | --- | --- |
+| 从 DMG 安装、首启可打开 | ✅ | 挂载 `Kairo-v1.0.1.dmg` → 版本 1.0.1、双架构；`tools/install.sh` 安装后 `pgrep Kairo` 有进程，窗口正常渲染大纲 / 甘特 / 检查器 |
+| 基线分轨与偏差读数 | ✅ | 菜单「基线 → 初始基线 → 设为主对比」后，甘特每行出现两条轨道（灰 = 当前计划渐变、青 = 基线）；检查器出现「与基线对比」块。用**副本**把 5.2 时长 2→12 天，读数由 0 变为 **项目结束偏差 +10**，同名任务在导出 CSV 里也是 `planStartVariance/planFinishVariance = 10`（正=晚） |
+| 偏差 CSV 在表格软件打开 | ✅（Excel 未装，用两个独立解析器交叉验证） | App 菜单「基线 → 导出偏差 CSV…」→ 保存面板默认名 `kairo-variance.csv` → 写盘 5560 B：`EF BB BF` 开头、3 行基线身份、11 列固定表头、36 行数据每行列数均 11。**Numbers** 打开后 11 列 / 40 行、表头与中文标题原样；**LibreOffice** 转 xlsx 同样 40 行、中文保留；python `csv` 模块解析一致 |
+| 语言切英文重启后菜单栏全英文 | ✅（已切回简中） | 切 English → 弹「已切换语言：English / 退出并重新打开…」→ 重启后菜单栏 `Apple, Kairo, File, Edit, View, Task, Workspace, Baseline, Find, Window, Help`，界面 Plan/Outline、Filter tasks、Inspector、状态栏全英文；应用自弹提示也是英文（`Language saved: Chinese (Simplified)`）。最后已切回简体中文并确认菜单栏恢复中文 |
+| 应用内「检查更新」不误报 | ✅ | 点「检查更新…」→「当前版本 1.0.1 (Build 20261026.2252)，无需更新。」与服务器 manifest 的 1.0.1 一致 |
+
+未做：Excel 本体（本机未安装），BOM 的 Excel 语义靠字节断言 + Numbers/LibreOffice 双读替代。
+
 ## 5. 回滚预案
 
 | 场景 | 处置 |
