@@ -66,6 +66,57 @@ private func toolResult(_ value: JSONValue) throws -> JSONValue {
     #expect(taskAdd?.objectValue?["inputSchema"]?.objectValue?["required"]?.arrayValue?.first?.stringValue == "title")
 }
 
+// MARK: - tools/list 协议文本语言（v0.16 英文化）
+
+/// CJK 标点（句号、顿号、引号等）、基本汉字、扩展 A、兼容汉字与全角符号。
+/// 描述里允许出现 ASCII 与少量排版符号（如 `·`），但这些区段属于「中文残留」。
+private let cjkScalarRanges: [ClosedRange<UInt32>] = [
+    0x3000...0x303F,
+    0x3400...0x4DBF,
+    0x4E00...0x9FFF,
+    0xF900...0xFAFF,
+    0xFF00...0xFFEF,
+]
+
+/// 递归收集 JSON 文本里的 CJK 残留（含键名：键名同样是协议面）。
+private func cjkResidue(in value: JSONValue, path: String = "") -> [String] {
+    func hasCJK(_ text: String) -> Bool {
+        text.unicodeScalars.contains { scalar in
+            cjkScalarRanges.contains { $0.contains(scalar.value) }
+        }
+    }
+    switch value {
+    case .string(let text):
+        return hasCJK(text) ? ["\(path): \(text)"] : []
+    case .object(let fields):
+        return fields.sorted { $0.key < $1.key }.flatMap { key, child in
+            (hasCJK(key) ? ["\(path)/\(key) 键名含 CJK"] : [])
+                + cjkResidue(in: child, path: "\(path)/\(key)")
+        }
+    case .array(let items):
+        return items.enumerated().flatMap { cjkResidue(in: $0.element, path: "\(path)[\($0.offset)]") }
+    case .number, .bool, .null:
+        return []
+    }
+}
+
+/// MCP 是给 AI 客户端读的协议面：`tools/list` 里每个工具的名称、描述、
+/// 参数与枚举说明都必须是英文（US-E5-05 对等性门禁的一部分——同一份工具清单
+/// 供任意语言的模型消费，中文只出现在人类面向的 CLI 输出与冻结的错误 message 里）。
+@Test func toolsListProtocolTextIsEnglishOnly() throws {
+    let server = MCPServer()
+    let response = try send(server, #"{"jsonrpc":"2.0","id":3,"method":"tools/list"}"#)
+    let tools = try #require(response.objectValue?["result"]?.objectValue?["tools"]?.arrayValue)
+    #expect(!tools.isEmpty)
+    for tool in tools {
+        let name = try #require(tool.objectValue?["name"]?.stringValue)
+        let description = tool.objectValue?["description"]?.stringValue ?? ""
+        #expect(!description.isEmpty, "\(name) 的 description 为空")
+        let residue = cjkResidue(in: tool, path: name)
+        #expect(residue.isEmpty, "\(name) 的协议文本残留 CJK：\(residue.joined(separator: " | "))")
+    }
+}
+
 // MARK: - violations_list 文案（F-0720）
 
 /// 阶段一契约：violations_list 必须同时返回结构化字段与人类可读 message，

@@ -3,6 +3,26 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v1.0.2 — 2026-10-27
+
+### 变更
+
+- **MCP 工具描述切英文（F-0714）**：21 个工具的 description、参数说明与 schema 枚举说明全部改为英文 —— MCP 是给 AI 客户端读的协议面，此前 20 条是中文，非中文模型理解会偏差。需求号（`US-E1-01` 等）保留以便追溯。
+- **错误码一个未改**：`ToolFailure.code` 仍是 `{internal_error, invalid_argument}`，11 个 reason 稳定码逐项不变；v0.8.5 冻结文案逐字比对继续通过。
+
+### 新增门禁
+
+- `toolsListProtocolTextIsEnglishOnly`：递归扫描 `tools/list` 返回的每个工具名称、描述、schema 键名与枚举串，出现 CJK 即失败。该用例做过变异验证（把一条描述改回中文 → 变红），不是空转。
+
+### 判据与证据
+
+- `perl -CSD` 扫描 `Sources/KairoMCP/Tools.swift`：`description:` 行含 CJK = **0**；全文仍有 96 行含 CJK（注释与冻结错误文案），证明检测不是空转。
+- 全量 **1343 tests / 126 suites** 通过；build 零 warning。
+
+### 已知未做
+
+- **冻结的 MCP 错误文案仍是中文**：`Tests/Fixtures/mcp-errors-v085.json` 逐字锁定，改动需解冻 fixture 并单独评审，已登记为后续工作项。
+
 ## v1.0.1 — 2026-10-26
 
 ### 修复

@@ -88,7 +88,7 @@ struct ToolRegistry {
 
     private static let projectCreate = MCPTool(
         name: "project_create",
-        description: "新建项目并打开（US-E1-01）；可带项目时间线 projectStart/projectEnd（ISO8601），作为排期与违例的默认边界",
+        description: "Create and open a new project (US-E1-01). The optional project timeline projectStart/projectEnd (ISO8601) is the default window for scheduling and violations.",
         inputSchema: Schema.object(properties: [
             "title": Schema.string(),
             "projectStart": Schema.string(),
@@ -106,7 +106,7 @@ struct ToolRegistry {
 
     private static let projectOpen = MCPTool(
         name: "project_open",
-        description: "打开 .kairo 项目文件（US-E6-01）；formatVersion 为磁盘文件版本，needsUpgrade 表示保存后会升级",
+        description: "Open a .kairo project file (US-E6-01). formatVersion is the on-disk file version; needsUpgrade means the file will be upgraded when saved.",
         inputSchema: Schema.object(properties: ["path": Schema.string()], required: ["path"])
     ) { args, session in
         let a = try ToolArgs(args)
@@ -116,7 +116,7 @@ struct ToolRegistry {
 
     private static let projectSave = MCPTool(
         name: "project_save",
-        description: "保存当前项目为 .kairo（未指定路径时保存到已打开文件）；formatVersion 为写出文件的版本",
+        description: "Save the current project as .kairo (saves to the already opened file when path is omitted). formatVersion is the version written to disk.",
         inputSchema: Schema.object(properties: ["path": Schema.string()])
     ) { args, session in
         let a = try ToolArgs(args)
@@ -135,7 +135,7 @@ struct ToolRegistry {
 
     private static let taskAdd = MCPTool(
         name: "task_add",
-        description: "创建任务（US-E1-02；assignee 为负责人；constraint 格式 type:ISO8601，如 startNoLaterThan:2026-11-05T00:00:00Z；dependencies 元素 {\"predecessorID\":\"UUID\",\"type\":\"fs\",\"lagDays\":0}）",
+        description: "Create a task (US-E1-02). assignee is the owner. constraint uses type:ISO8601, e.g. startNoLaterThan:2026-11-05T00:00:00Z. Each dependencies entry is {\"predecessorID\":\"UUID\",\"type\":\"fs\",\"lagDays\":0}.",
         inputSchema: Schema.object(
             properties: [
                 "title": Schema.string(),
@@ -186,7 +186,7 @@ struct ToolRegistry {
 
     private static let taskList = MCPTool(
         name: "task_list",
-        description: "列出任务（可按父任务过滤 / 自然语言过滤，US-E4-01）",
+        description: "List tasks, optionally filtered by parent task or by a natural-language filter (US-E4-01).",
         inputSchema: Schema.object(properties: ["parentID": Schema.string(), "filter": Schema.string()])
     ) { args, session in
         let a = try ToolArgs(args)
@@ -199,7 +199,7 @@ struct ToolRegistry {
 
     private static let taskGet = MCPTool(
         name: "task_get",
-        description: "获取单个任务（US-E4-01）",
+        description: "Get a single task (US-E4-01).",
         inputSchema: Schema.object(properties: ["taskID": Schema.string()], required: ["taskID"])
     ) { args, session in
         let a = try ToolArgs(args)
@@ -209,7 +209,7 @@ struct ToolRegistry {
 
     private static let taskUpdate = MCPTool(
         name: "task_update",
-        description: "更新任务字段（US-E1-02；assignee 传空串可清空负责人）",
+        description: "Update task fields (US-E1-02). Pass an empty string for assignee to clear the owner.",
         inputSchema: Schema.object(
             properties: [
                 "taskID": Schema.string(),
@@ -272,7 +272,7 @@ struct ToolRegistry {
 
     private static let taskDelete = MCPTool(
         name: "task_delete",
-        description: "删除任务及其全部子任务，并移除指向它们的相关性（US-E1-02）",
+        description: "Delete a task and all of its subtasks, and drop the dependencies that point at them (US-E1-02).",
         inputSchema: Schema.object(properties: ["taskID": Schema.string()], required: ["taskID"])
     ) { args, session in
         let a = try ToolArgs(args)
@@ -284,7 +284,7 @@ struct ToolRegistry {
 
     private static let wbsImport = MCPTool(
         name: "wbs_import",
-        description: "批量导入 WBS 嵌套任务树（US-E1-04）",
+        description: "Bulk-import a nested WBS task tree (US-E1-04).",
         inputSchema: Schema.object(properties: ["nodes": Schema.arrayOf(Schema.object(properties: [:]))])
     ) { args, session in
         let a = try ToolArgs(args)
@@ -304,7 +304,7 @@ struct ToolRegistry {
 
     private static let scheduleCompute = MCPTool(
         name: "schedule_compute",
-        description: "计算排期（US-E2-02）：相关性传播 + ASAP/ALAP，返回每任务最早/最晚与选定安排",
+        description: "Compute the schedule (US-E2-02): propagate dependencies with ASAP/ALAP and return each task's earliest/latest dates plus the chosen schedule.",
         inputSchema: Schema.object(properties: [
             "projectStart": Schema.string(),
             "projectEnd": Schema.string(),
@@ -319,7 +319,7 @@ struct ToolRegistry {
 
     private static let scheduleCriticalPath = MCPTool(
         name: "schedule_critical_path",
-        description: "重要路径与宽延（US-E2-03）：总宽延 ≤ slackLimit 的任务集",
+        description: "Critical path and slack (US-E2-03): the set of tasks whose total slack is <= slackLimit.",
         inputSchema: Schema.object(properties: ["slackLimit": Schema.number()])
     ) { args, session in
         let a = try ToolArgs(args)
@@ -329,7 +329,7 @@ struct ToolRegistry {
 
     private static let violationsList = MCPTool(
         name: "violations_list",
-        description: "列出排期违例（US-E2-05）：环、时限冲突、超项目范围等",
+        description: "List scheduling violations (US-E2-05): cycles, deadline conflicts, dates outside the project range, and so on.",
         inputSchema: Schema.object(properties: [:])
     ) { _, session in
         let vs = try session.violations()
@@ -348,8 +348,8 @@ struct ToolRegistry {
 
     private static let statusUpdate = MCPTool(
         name: "status_update",
-        description: "单任务状态/进度回写（US-E3-01/02）；状态置 done 记录完成时间，"
-            + "置 cancelled（v0.16）必须给非空 cancelReason，返回群组聚合完成度",
+        description: "Write back status/progress for one task (US-E3-01/02). Setting done records the completion time;"
+            + " setting cancelled (v0.16) requires a non-empty cancelReason. Returns the group's aggregated completion.",
         inputSchema: Schema.object(
             properties: [
                 "taskID": Schema.string(),
@@ -377,7 +377,7 @@ struct ToolRegistry {
 
     private static let statusBatchUpdate = MCPTool(
         name: "status_batch_update",
-        description: "批量回写任务状态/进度（US-E3-02）：返回逐条成功与失败明细，失败项不中断后续条目",
+        description: "Bulk write-back of task status/progress (US-E3-02). Returns per-entry success and failure details; a failing entry does not stop the remaining ones.",
         inputSchema: Schema.object(
             properties: [
                 "tasks": Schema.arrayOf(Schema.object(properties: [
@@ -400,7 +400,7 @@ struct ToolRegistry {
 
     private static let resourceAdd = MCPTool(
         name: "resource_add",
-        description: "添加资源（US-E1-05）：人员/设备/素材，单位与效率参与投入换算",
+        description: "Add a resource (US-E1-05): person, equipment, or material. units and efficiency take part in effort conversion.",
         inputSchema: Schema.object(
             properties: [
                 "name": Schema.string(),
@@ -423,7 +423,7 @@ struct ToolRegistry {
 
     private static let resourceList = MCPTool(
         name: "resource_list",
-        description: "列出项目资源（US-E1-05）",
+        description: "List project resources (US-E1-05).",
         inputSchema: Schema.object(properties: [:])
     ) { _, session in
         let resources = try session.resourceList()
@@ -434,7 +434,7 @@ struct ToolRegistry {
 
     private static let baselineCreate = MCPTool(
         name: "baseline_create",
-        description: "对当前排期拍一次不可变快照（冻结计划起止与完成度），返回 baselineID/name/colorIndex/createdAt/entryCount；省略 name 用默认名「基线 N · yyyy-MM-dd」，空名报 model_baseline_name_empty（08-baselines §8、10-multi-baseline-gantt §4）",
+        description: "Take an immutable snapshot of the current schedule (freezing planned start/finish and completion). Returns baselineID/name/colorIndex/createdAt/entryCount. When name is omitted the default name \"Baseline N · yyyy-MM-dd\" is used; an empty name reports model_baseline_name_empty (08-baselines §8, 10-multi-baseline-gantt §4).",
         inputSchema: Schema.object(properties: ["name": Schema.string()])
     ) { args, session in
         let a = try ToolArgs(args)
@@ -444,7 +444,7 @@ struct ToolRegistry {
 
     private static let baselineList = MCPTool(
         name: "baseline_list",
-        description: "按创建顺序（早→晚）列出基线；每项含 baselineID/name/colorIndex/createdAt/entryCount，快照时无排期锚点则不返回 anchor；colorIndex 为 0…7 的调色板索引，旧文件缺该字段时按创建顺序派生（08-baselines §8、10-multi-baseline-gantt §4）",
+        description: "List baselines in creation order (oldest first). Each entry carries baselineID/name/colorIndex/createdAt/entryCount; anchor is omitted when no schedule anchor existed at snapshot time. colorIndex is a palette index in 0...7, derived from creation order for older files that lack the field (08-baselines §8, 10-multi-baseline-gantt §4).",
         inputSchema: Schema.object(properties: [:])
     ) { _, session in
         BaselineResults.list(try session.baselines())
@@ -452,7 +452,7 @@ struct ToolRegistry {
 
     private static let baselineDelete = MCPTool(
         name: "baseline_delete",
-        description: "按 baselineID 删除一条基线，其余基线与任务本身不受影响；返回 ok 与被删基线的 baselineID/name/colorIndex/createdAt，未知 ID 报 model_baseline_not_found（08-baselines §8）",
+        description: "Delete one baseline by baselineID; the other baselines and the tasks themselves are unaffected. Returns ok plus the removed baseline's baselineID/name/colorIndex/createdAt. An unknown ID reports model_baseline_not_found (08-baselines §8).",
         inputSchema: Schema.object(properties: ["baselineID": Schema.string()], required: ["baselineID"])
     ) { args, session in
         let a = try ToolArgs(args)
@@ -478,7 +478,7 @@ struct ToolRegistry {
 
     private static let baselineVariance = MCPTool(
         name: "baseline_variance",
-        description: "把当前计划与实际时间分别同基线比较（省略 baselineID = 最新一条）；必带 baselineID/baselineName/colorIndex/baselineCreatedAt；偏差为带符号日历天（正数 = 比承诺晚），空值省略键而不写 0；taskID 只收窄任务行，项目级聚合仍按全项目（08-baselines §4/§8）",
+        description: "Compare both the current plan and the actual dates against a baseline (baselineID omitted = the most recent one). Always carries baselineID/baselineName/colorIndex/baselineCreatedAt. Variances are signed calendar days (positive = later than committed); empty values omit the key instead of writing 0. taskID only narrows the returned task rows; project-level aggregates still cover the whole project (08-baselines §4/§8).",
         inputSchema: Schema.object(properties: [
             "baselineID": Schema.string(),
             "taskID": Schema.string(),
@@ -498,7 +498,7 @@ struct ToolRegistry {
 
     private static let baselineSetColor = MCPTool(
         name: "baseline_set_color",
-        description: "给一条基线换调色板颜色（只改颜色索引，不动快照条目与创建时刻）；参数 baselineID 为基线 UUID，colorIndex 为 0…7 的整数，越界或非整数分别报 model_baseline_color_index_invalid / mcp_wrong_type；返回 baselineID/name/colorIndex（10-multi-baseline-gantt §4）",
+        description: "Change the palette color of one baseline (only the color index changes; snapshot entries and creation time are untouched). baselineID is the baseline UUID and colorIndex an integer in 0...7; out-of-range and non-integer values report model_baseline_color_index_invalid / mcp_wrong_type respectively. Returns baselineID/name/colorIndex (10-multi-baseline-gantt §4).",
         inputSchema: Schema.object(
             properties: [
                 "baselineID": Schema.string(),
