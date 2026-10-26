@@ -63,11 +63,19 @@ if [[ "$SKIP_GATE" -eq 0 ]]; then
   bash "$ROOT/tools/gate-core.sh"
 fi
 
-echo "==> swift build -c $CONFIGURATION (warnings as errors)"
+echo "==> swift build -c $CONFIGURATION (universal: arm64 + x86_64, warnings as errors)"
 # 告警一律视为失败，避免带 warning 的产物进入 dist/
-swift build -c "$CONFIGURATION" -Xswiftc -warnings-as-errors
+# v1.0.1：默认出 universal。此前只构建宿主架构（arm64），而下载页没有任何「仅 Apple Silicon」说明，
+# Intel Mac 用户拿到 DMG 会直接遇到「应用无法打开」，属于交付缺陷而非可接受限制。
+# 交叉编译不可用时回退宿主架构并显式告警，不让发版卡死。
+ARCH_ARGS=(--arch arm64 --arch x86_64)
+if ! swift build -c "$CONFIGURATION" ${ARCH_ARGS[@]+"${ARCH_ARGS[@]}"} -Xswiftc -warnings-as-errors; then
+  echo "!! universal 构建失败，回退宿主架构（仅 $(uname -m)）—— 该产物不能在另一种 CPU 上运行" >&2
+  ARCH_ARGS=()
+  swift build -c "$CONFIGURATION" -Xswiftc -warnings-as-errors
+fi
 
-BUILD_DIR="$ROOT/.build/$CONFIGURATION"
+BUILD_DIR="$(swift build -c "$CONFIGURATION" ${ARCH_ARGS[@]+"${ARCH_ARGS[@]}"} --show-bin-path)"
 SRC_BIN="$BUILD_DIR/$BINARY_PRODUCT"
 if [[ ! -x "$SRC_BIN" ]]; then
   echo "未找到可执行文件: $SRC_BIN" >&2
@@ -117,7 +125,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.0.0</string>
+  <string>1.0.1</string>
   <key>CFBundleVersion</key>
   <string>${BUILD_STAMP}</string>
   <key>LSMinimumSystemVersion</key>

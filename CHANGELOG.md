@@ -3,6 +3,22 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v1.0.1 — 2026-10-26
+
+### 修复
+
+- **应用只有 arm64 一份，Intel Mac 打不开**：`tools/build.sh` 一直只构建宿主架构，而下载页没有任何「仅 Apple Silicon」说明 —— Intel 用户拿到 DMG 会直接遇到「应用无法打开」。现改为默认产出 **universal（arm64 + x86_64）**，app / `KairoCLI` / `KairoMCP` 三者一致；交叉编译不可用时回退宿主架构并显式告警。
+
+### 变更（发布链路）
+
+- **下载校验补齐**：DMG 与 ZIP 各出 `*.sha256`，另给汇总 `SHA256SUMS`（含 CLI tarball），随 Release 与 `artifacts/<tag>/`、`latest/` 一并归档。此前只有 CLI tarball 带校验和，而 DMG 才是用户实际下载安装的入口。
+
+### 判据与证据
+
+- `file dist/Kairo.app/Contents/MacOS/Kairo` → 双架构（x86_64 + arm64）；CLI / MCP 同。
+- 全量 **1342 tests / 126 suites** 通过；`-warnings-as-errors` 通过。
+- `update-manifest.json` 的 `sha256` 与发布的 zip 字节一致（OTA 载体完整性可自证）。
+
 ## v1.0.0 — 2026-10-26
 
 首个正式版：单机、单人、可交付的完整闭环 —— WBS → 排期 → 审阅 → 实际进度 → 基线对比 → 报表。完整范围与准入判据见 `docs/release-1.0-scope.md`，发布检查单见 `docs/release-1.0-checklist.md`。
