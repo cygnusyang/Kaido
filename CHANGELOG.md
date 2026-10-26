@@ -34,6 +34,7 @@
 - 全量 **1342 tests / 126 suites** 连续两次通过；`-warnings-as-errors` 零告警。
 - 性能：5,000 任务 × 3 基线 release decode 0.155 s（门槛 1 s）；1,000 行翻窗 4.9 ms（预算 16.7 ms）。
 - 缺陷表无「待修复」项。
+- 下载校验：附件提供 `Kairo-v1.0.0.dmg.sha256`、`Kairo-v1.0.0.zip.sha256` 与汇总 `SHA256SUMS`；`update-manifest.json` 的 `sha256` 与 zip 字节一致（OTA 载体完整性）。
 
 ### 已知限制
 
