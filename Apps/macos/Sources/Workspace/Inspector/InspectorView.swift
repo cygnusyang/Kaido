@@ -545,11 +545,13 @@ private struct TaskInspectorContent: View {
     ///
     /// 已在已取消状态再选已取消不重复弹层——原因已经存在，无需重填。
     private func select(_ status: TaskStatus) {
-        guard status == .cancelled, task.status != .cancelled else {
-            store.dispatch(.setStatus(task.taskID, status))
-            return
+        // 规则与大纲行内菜单共用一份（OutlineStatusAction），避免两个入口分叉（D-037）。
+        switch OutlineStatusAction.forSelection(status, current: task.status) {
+        case .apply(let target):
+            store.dispatch(.setStatus(task.taskID, target))
+        case .promptCancelReason:
+            showingCancelReason = true
         }
-        showingCancelReason = true
     }
 
     // MARK: - 日期字段

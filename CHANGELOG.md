@@ -3,6 +3,17 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v0.17.3 — 2026-10-25
+
+### 修复
+
+- **大纲行内状态菜单恢复「已取消」（D-037）**：v0.16.0 因为行内没有原因输入，暂时把该项藏了起来（选它会被会话拒绝弹错）。现在抽出唯一判据 `OutlineStatusAction.forSelection(_:current:)` —— 转取消必弹原因层、其余状态直写、已在取消状态再选不重复弹；大纲行内菜单与检查器 `select` **共用这一个函数**，两个入口规则不再可能分叉。
+
+### 判据与证据
+
+- 新增 4 例：四种状态转取消必弹原因层、已取消再选不弹、其余状态直写、行内取消经 `cancelTask` 落库且原因去首尾空白。
+- 全量 **1342 tests / 126 suites** 通过。
+
 ## v0.17.2 — 2026-10-25
 
 ### 修复（测试基建）

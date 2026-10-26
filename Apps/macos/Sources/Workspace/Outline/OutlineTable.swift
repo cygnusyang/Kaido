@@ -501,6 +501,8 @@ private struct OutlineRowView: View {
     @State private var hovering = false
     @State private var dropTargeted = false
     @FocusState private var titleFocused: Bool
+    /// 行内状态菜单选了「已取消」：先弹原因层（D-037），确认后才提交。
+    @State private var cancelPromptRow: UUID?
 
     private var isSelected: Bool { store.selection == row.id }
 
@@ -697,12 +699,16 @@ private struct OutlineRowView: View {
 
     private var statusCell: some View {
         Menu {
-            // 「已取消」需要填原因，检查器里有专门的弹层；行内菜单是「一点即改」的快速通道，
-            // 在这里直接提交会被会话以 model_cancel_reason_required 拒绝（点了报错）。先不在行内
-            // 提供该项，取消统一走检查器（v0.16.0 已知限制，见 defects D-037）。
-            ForEach(TaskStatus.allCases.filter { $0 != .cancelled }, id: \.self) { status in
+            // 「已取消」必须先填原因（D-037）：行内菜单同样走弹层，不再把该项藏起来 ——
+            // 判据由 `OutlineStatusAction` 统一给出，检查器与本处共用一份，避免两处规则分叉。
+            ForEach(TaskStatus.allCases, id: \.self) { status in
                 Button {
-                    store.dispatch(.setStatus(row.id, status))
+                    switch OutlineStatusAction.forSelection(status, current: row.status) {
+                    case .apply(let target):
+                        store.dispatch(.setStatus(row.id, target))
+                    case .promptCancelReason:
+                        cancelPromptRow = row.id
+                    }
                 } label: {
                     Label(
                         Display.statusTitle(status),
@@ -723,6 +729,17 @@ private struct OutlineRowView: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .help(Display.statusTitle(row.status))
+        .sheet(isPresented: Binding(
+            get: { cancelPromptRow != nil },
+            set: { if !$0 { cancelPromptRow = nil } }
+        )) {
+            CancelReasonDialog(taskTitle: row.title) { reason in
+                if let taskID = cancelPromptRow {
+                    store.dispatch(.cancelTask(taskID, reason: reason))
+                }
+                cancelPromptRow = nil
+            }
+        }
     }
 
     private var statusColor: Color {
