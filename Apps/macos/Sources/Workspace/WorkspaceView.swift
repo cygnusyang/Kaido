@@ -186,6 +186,14 @@ struct WorkspaceView: View {
             )) {
                 BaselinePanel(store: store)
             }
+            // 项目设置面板（F-22-06）：展开状态挂在 store 上，
+            // 因为菜单栏命令拿不到视图 @State（与基线面板同一个理由）。
+            .sheet(isPresented: Binding(
+                get: { store.isProjectSettingsPresented },
+                set: { if !$0 { store.dismissProjectSettings() } }
+            )) {
+                ProjectSettingsPanel(store: store)
+            }
     }
 
     // MARK: - 工具栏

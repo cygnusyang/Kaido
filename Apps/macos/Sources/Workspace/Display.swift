@@ -93,6 +93,24 @@ enum Display {
         text(date, template: "yMMMM", locale: locale)
     }
 
+    /// 单个星期的极短名（`Calendar` 序号 1 = 周日）：项目设置面板的星期开关与摘要共用。
+    ///
+    /// 与 `weekdaySymbols` 的区别是不做「周首轮转」——调用方给的是具体某一天，不是表头。
+    static func weekdayName(_ weekday: Int, locale: Locale = I18n.locale) -> String {
+        guard (1...7).contains(weekday) else { return placeholder }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = locale
+        return calendar.veryShortWeekdaySymbols[weekday - 1]
+    }
+
+    /// 星期的完整名（无障碍标签 / 上班日摘要）。
+    static func weekdayFullName(_ weekday: Int, locale: Locale = I18n.locale) -> String {
+        guard (1...7).contains(weekday) else { return placeholder }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = locale
+        return calendar.weekdaySymbols[weekday - 1]
+    }
+
     /// 星期表头短名，按 `calendar.firstWeekday` 起排（周首为周一则首项为「一」/「M」）。
     ///
     /// 名称取自 Calendar 的本地化符号表（zh `日一二…`，en `S M T…`），顺序仍由首周日决定。

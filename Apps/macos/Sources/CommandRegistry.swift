@@ -54,7 +54,7 @@ struct KairoShortcut {
 /// 用中文串当标识会让「菜单构建匹配分组」和「面板显示分组名」绑在同一份可变文案上——
 /// 换语言就会静默失配（菜单变空）。这里只留 case，文案由 `title` 查 Catalog。
 enum KairoCommandGroup: String, CaseIterable, Hashable, Sendable {
-    case file, edit, outline, task, view, baseline, find
+    case file, edit, outline, task, view, project, baseline, find
 
     /// 菜单标题 / 面板分组标签。
     var title: String {
@@ -64,6 +64,8 @@ enum KairoCommandGroup: String, CaseIterable, Hashable, Sendable {
         case .outline: return I18n.t("menu.group.outline", "Outline")
         case .task: return I18n.t("menu.group.task", "Task")
         case .view: return I18n.t("menu.group.view", "Workspace")
+        // 项目级设置（工作日历）与「任务」分开：前者作用于整个项目，不在某一行上。
+        case .project: return I18n.t("menu.group.project", "Project")
         case .baseline: return I18n.t("menu.group.baseline", "Baseline")
         case .find: return I18n.t("menu.group.find", "Find")
         }
@@ -222,6 +224,17 @@ enum KairoCommandCatalog {
                 group: .task,
                 shortcut: KairoShortcut(key: "m", modifiers: [.command, .option]),
                 action: { store.dispatch(.createTask(parentID: nil, kind: .milestone)) }
+            ),
+            // 项目设置（F-22-06）：工作日历的唯一编辑入口；菜单与 ⌘K 同源。
+            KairoCommand(
+                id: "project.settings",
+                title: I18n.t("menu.project.settings", "Project Settings…"),
+                group: .project,
+                aliases: [
+                    I18n.t("menu.project.settings.alias_calendar", "Work calendar"),
+                    I18n.t("menu.project.settings.alias_holidays", "Weekends and holidays"),
+                ],
+                action: { store.presentProjectSettings() }
             ),
             KairoCommand(
                 id: "view.plan",
@@ -527,6 +540,10 @@ struct KairoMenuCommands: Commands {
         CommandMenu(KairoCommandGroup.view.title) {
             items(group: .view)
         }
+        // 「项目」独立成顶级菜单：设置作用于整个项目，混在「任务」里语义不对。
+        CommandMenu(KairoCommandGroup.project.title) {
+            items(group: .project)
+        }
         // 「基线」独立成顶级菜单（v0.14 §5）：创建入口不再只靠工具栏溢出菜单（D-035）。
         CommandMenu(KairoCommandGroup.baseline.title) {
             BaselineMenuContent(store: store, commands: commands)
@@ -634,7 +651,7 @@ struct KairoMenuCommands: Commands {
     // MARK: - 关于面板
 
     /// 应用版本号：发版前更新。
-    static let appVersion = "1.0.2"
+    static let appVersion = "1.1.0"
 
     /// 版权与联系邮箱：法律声明，不随界面语言变化，也不进 String Catalog。
     static let copyrightNotice = "Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>"

@@ -327,6 +327,7 @@ public enum WorkspacePresenter {
             viewport: viewport,
             today: today,
             calendar: calendar,
+            workCalendar: state.metadata.calendar,
             locale: locale,
             childrenByParent: childrenByParent,
             criticalIDs: criticalIDs
@@ -352,6 +353,7 @@ public enum WorkspacePresenter {
             saveState: saveState,
             today: today,
             calendar: calendar,
+            calendarAdjustments: schedule?.calendarAdjustments ?? [],
             childrenByParent: childrenByParent,
             baselineReport: baselineReport,
             isLeaf: isLeaf,
@@ -443,6 +445,7 @@ public enum WorkspacePresenter {
             viewport: viewport,
             today: today,
             calendar: calendar,
+            workCalendar: state.metadata.calendar,
             locale: locale,
             childrenByParent: index.childrenByParent,
             criticalIDs: criticalIDs
@@ -513,6 +516,7 @@ public enum WorkspacePresenter {
         viewport: WorkspaceViewport,
         today: Date,
         calendar: Calendar,
+        workCalendar: WorkCalendar?,
         locale: Locale,
         childrenByParent: [UUID: [UUID]],
         criticalIDs: Set<UUID>
@@ -581,9 +585,11 @@ public enum WorkspacePresenter {
             zoom: engineZoom,
             viewWidth: max(viewport.canvasWidth, 1),
             windowStart: requestedStart,
-            // 非工作日着色（F-14-14 / #10）：默认不标，按日历天排期一周 7 天；
-            // 打开开关才把周末（周日=1、周六=7）画成非工作带。
-            nonWorkingWeekdays: viewState.showsNonWorkingDays ? [1, 7] : [],
+            // 非工作日着色（F-22-06 / 16-work-calendar §3）：数据源是项目工作日历——
+            // 工作日历的补集就是非工作带，与排期看同一份设置，不再由视图硬编码周末。
+            // 无日历（或日历为全周 7 天）时补集为空 ⇒ 一条带都不画，与本功能引入前逐像素一致；
+            // 此时仍保留「标出非工作日」这个纯视图开关（周末 = 周日 1 / 周六 7）作为兜底。
+            nonWorkingWeekdays: nonWorkingWeekdays(viewState: viewState, workCalendar: workCalendar),
             dayWidthOverride: dayWidthOverride,
             rowIndexByTaskID: rowIndexByID,
             rowHeight: 28,
@@ -674,6 +680,19 @@ public enum WorkspacePresenter {
             baselineLanes: overlay.lanes,
             baselineLegend: overlay.legend
         )
+    }
+
+    /// 甘特铺灰用的非工作星期集合（F-22-06）。
+    ///
+    /// 优先级只有一条：**项目日历存在就以它为准**（补集 = 非工作日），
+    /// 日历缺失时才回落到「标出非工作日」开关的周末口径。日历存在但为全周 7 天时补集为空，
+    /// 与「没有日历且开关关闭」完全同形——这是默认渲染逐像素不变的那条红线。
+    private static func nonWorkingWeekdays(
+        viewState: WorkspaceViewState,
+        workCalendar: WorkCalendar?
+    ) -> Set<Int> {
+        if let workCalendar { return workCalendar.nonWorkingWeekdays }
+        return viewState.showsNonWorkingDays ? [1, 7] : []
     }
 
     /// 多基线叠加层（v0.14 / docs/features/10-multi-baseline-gantt.md §7）。
@@ -786,6 +805,7 @@ public enum WorkspacePresenter {
         saveState: SaveState,
         today: Date,
         calendar: Calendar,
+        calendarAdjustments: [CalendarAdjustment],
         childrenByParent: [UUID: [UUID]],
         baselineReport: BaselineVarianceReport?,
         isLeaf: (TaskItem) -> Bool,
@@ -814,6 +834,7 @@ public enum WorkspacePresenter {
                 assignments: state.resources,
                 today: today,
                 calendar: calendar,
+                calendarAdjustments: calendarAdjustments,
                 childrenByParent: childrenByParent,
                 baselineReport: baselineReport,
                 isLeaf: isLeaf,
@@ -858,6 +879,7 @@ public enum WorkspacePresenter {
         assignments: [Resource],
         today: Date,
         calendar: Calendar,
+        calendarAdjustments: [CalendarAdjustment],
         childrenByParent: [UUID: [UUID]],
         baselineReport: BaselineVarianceReport?,
         isLeaf: (TaskItem) -> Bool,
@@ -964,7 +986,12 @@ public enum WorkspacePresenter {
             actualStart: isGroup ? nil : task.actualStart,
             baseline: baselineSection(for: task, report: baselineReport),
             // 原因只属于该终态；群组也取自身值（聚合状态由 aggregateStatus 表达）。
-            cancelReason: task.cancelReason
+            cancelReason: task.cancelReason,
+            // 顺延留痕（F-22-06 / D3）：只带本任务的记录，空数组 ⇒ 视图整段不显示。
+            calendarAdjustments: CalendarAdjustmentRow.rows(
+                from: calendarAdjustments,
+                taskID: task.id
+            )
         )
     }
 

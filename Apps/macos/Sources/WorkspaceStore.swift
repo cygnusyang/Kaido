@@ -383,6 +383,10 @@ final class WorkspaceStore: ObservableObject {
     /// 项目基线（有序 = 创建顺序）：基线菜单与检查器共用同一份。
     var baselines: [Baseline] { session.project?.baselines ?? [] }
 
+    /// 项目工作日历（F-22-06）：nil = 全周 7 天（与「没有日历」等价）。
+    /// 项目设置面板读它做初值，甘特铺灰与排期同源于它。
+    var workCalendar: WorkCalendar? { session.project?.calendar }
+
     /// 解析后的当前对比基线：ID 指向不存在的基线（换项目 / 已被删除）按「不比较」处理，
     /// 与 Presenter 的解析口径一致，避免视图显示「已选中」而列里全是占位符。
     var selectedBaseline: Baseline? {
@@ -918,6 +922,9 @@ final class WorkspaceStore: ObservableObject {
                 try self.session.updateProjectMetadata(direction: direction)
             }
 
+        case .setWorkCalendar(let calendar):
+            setWorkCalendar(calendar)
+
         case .undo:
             undo()
 
@@ -1105,6 +1112,42 @@ final class WorkspaceStore: ObservableObject {
             }
             // 展示卫生：删掉的基线不再占显示名额（不产生撤销点，撤销回来也不会自动复显）。
             viewState.visibleBaselineIDs.remove(pending.id)
+        } catch {
+            report(error)
+        }
+        refresh()
+    }
+
+    // MARK: - 项目设置 / 工作日历（F-22-06 / docs/features/16-work-calendar.md）
+
+    /// 项目设置面板是否展开（纯视图状态：不进撤销栈、不置脏、不写文件）。
+    @Published private(set) var isProjectSettingsPresented = false
+
+    /// 打开面板（菜单「项目 › 项目设置…」与 ⌘K 同一入口）。重复触发不叠出第二个面板。
+    func presentProjectSettings() {
+        isProjectSettingsPresented = true
+    }
+
+    func dismissProjectSettings() {
+        isProjectSettingsPresented = false
+    }
+
+    /// 整体替换项目工作日历（模板 / 工时 / 例外日都在同一个值里）。
+    ///
+    /// 走「快照 → 改元数据 → restore」而不是直接改 project.metadata：restore 是会话里
+    /// 唯一会给元数据变更打脏标记并清排期缓存的公开入口（updateProjectMetadata 没有
+    /// calendar 参数，那一层不在本模块范围内）。
+    ///
+    /// 值没变时不写入、不留撤销点：面板每敲一次都在提交，空提交不该污染撤销栈。
+    /// 撤销点按 mergeKey 在 500ms 内合并——连着改七个星期开关算一步。
+    private func setWorkCalendar(_ calendar: WorkCalendar?) {
+        let entry = captureUndoEntry()
+        do {
+            var state = try session.snapshot()
+            guard state.metadata.calendar != calendar else { return }
+            state.metadata.calendar = calendar
+            try session.restore(state)
+            appendUndo(entry, mergeKey: "work-calendar")
         } catch {
             report(error)
         }

@@ -754,7 +754,9 @@ public final class KairoSession {
             projectEnd: projectEnd ?? project.metadata.projectEnd,
             direction: project.metadata.direction,
             // 无日期任务以项目创建日期为锚（D-029）：不随「今天」漂移。
-            createdAt: project.metadata.createdAt
+            createdAt: project.metadata.createdAt,
+            // 工作日历（F-22-06）：应用内排期必须吃项目日历，否则 UI 改工作周只改阴影不改条。
+            workCalendar: project.calendar
         )
         lastSchedule = result
         return result

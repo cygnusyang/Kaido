@@ -256,6 +256,8 @@ public struct TaskInspector: Hashable, Sendable {
     public var assignmentNames: [String]
     /// 基线对比段（v0.13）；nil = 未选基线 / 基线后新增，视图整段不显示。
     public var baseline: BaselineSection?
+    /// 工作日历留痕（F-22-06 / D3）：输入日期被顺延的记录，空 = 该任务没有顺延，整段不显示。
+    public var calendarAdjustments: [CalendarAdjustmentRow]
 
     public init(
         taskID: UUID,
@@ -288,7 +290,8 @@ public struct TaskInspector: Hashable, Sendable {
         startDate: Date? = nil,
         actualStart: Date? = nil,
         baseline: BaselineSection? = nil,
-        cancelReason: String? = nil
+        cancelReason: String? = nil,
+        calendarAdjustments: [CalendarAdjustmentRow] = []
     ) {
         self.taskID = taskID
         self.title = title
@@ -321,6 +324,7 @@ public struct TaskInspector: Hashable, Sendable {
         self.actualStart = actualStart
         self.baseline = baseline
         self.cancelReason = cancelReason
+        self.calendarAdjustments = calendarAdjustments
     }
 }
 

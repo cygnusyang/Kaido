@@ -116,6 +116,11 @@ public enum WorkspaceAction: Equatable, Sendable {
     case setProjectStart(Date?)
     case setProjectEnd(Date?)
     case setProjectDirection(ScheduleDirection)
+    /// 项目工作日历（F-22-06）：整体替换（模板 / 每日工时 / 例外日都在这一个值里）。
+    ///
+    /// 传 `nil` = 等价「全周 7 天」：文件不写该键，排期与甘特渲染回到引入工作日历之前。
+    /// 写入经会话快照恢复，进撤销栈（面板每一步可一步回退）。
+    case setWorkCalendar(WorkCalendar?)
 
     // 历史与文件
     case undo

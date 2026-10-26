@@ -379,6 +379,24 @@ private struct TaskInspectorContent: View {
             }
         }
 
+        // 工作日历留痕（F-22-06 / D3）：只在该任务的输入日期被顺延过时出现，
+        // 没有留痕就整段不显示——不留一行「无顺延」，那只是噪音。
+        if !task.calendarAdjustments.isEmpty {
+            section(I18n.t("inspector.section.calendar", "Work calendar")) {
+                ForEach(task.calendarAdjustments) { row in
+                    Label(CalendarAdjustmentText.message(row), systemImage: "calendar.badge.clock")
+                        .font(.system(size: DesignTokens.captionFontSize))
+                        .foregroundStyle(DesignTokens.textSecondary)
+                }
+                Text(I18n.t(
+                    "inspector.calendar.help",
+                    "The date you entered fell on a non-working day, so scheduling moved it to the next working day."
+                ))
+                .font(.system(size: DesignTokens.captionFontSize))
+                .foregroundStyle(DesignTokens.textSecondary)
+            }
+        }
+
         // 实际时间（F-0719）：紧随排期分区；群组行不表达实际，整段不显示。
         if !task.isAggregate {
             section(I18n.t("inspector.section.actual", "Actual")) {
