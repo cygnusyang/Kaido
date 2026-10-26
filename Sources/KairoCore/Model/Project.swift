@@ -11,6 +11,9 @@ public struct ProjectMetadata: Codable, Hashable, Sendable {
     public var projectEnd: Date?
     /// 项目排期方向（ADR-011 / ADR-013）：默认向前排；旧文件缺省为 forward。
     public var direction: ScheduleDirection
+    /// 项目工作日历（F-22-06 / 16-work-calendar）：可选加法字段，缺失 = 全周 7 天。
+    /// 不升 `formatVersion`：旧文件读入为 nil（等价全周），旧客户端读到未知键会忽略。
+    public var calendar: WorkCalendar?
 
     public init(
         id: UUID = UUID(),
@@ -19,7 +22,8 @@ public struct ProjectMetadata: Codable, Hashable, Sendable {
         updatedAt: Date = Date(),
         projectStart: Date? = nil,
         projectEnd: Date? = nil,
-        direction: ScheduleDirection = .forward
+        direction: ScheduleDirection = .forward,
+        calendar: WorkCalendar? = nil
     ) {
         self.id = id
         self.title = title
@@ -28,12 +32,13 @@ public struct ProjectMetadata: Codable, Hashable, Sendable {
         self.projectStart = projectStart
         self.projectEnd = projectEnd
         self.direction = direction
+        self.calendar = calendar
     }
 
     // MARK: - Codable 兼容（ADR-011）
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, createdAt, updatedAt, projectStart, projectEnd, direction
+        case id, title, createdAt, updatedAt, projectStart, projectEnd, direction, calendar
     }
 
     public init(from decoder: Decoder) throws {
@@ -46,6 +51,7 @@ public struct ProjectMetadata: Codable, Hashable, Sendable {
         projectEnd = try c.decodeIfPresent(Date.self, forKey: .projectEnd)
         // 新增字段缺失给默认值（旧数据前向兼容）。
         direction = try c.decodeIfPresent(ScheduleDirection.self, forKey: .direction) ?? .forward
+        calendar = try c.decodeIfPresent(WorkCalendar.self, forKey: .calendar)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -57,6 +63,8 @@ public struct ProjectMetadata: Codable, Hashable, Sendable {
         try c.encodeIfPresent(projectStart, forKey: .projectStart)
         try c.encodeIfPresent(projectEnd, forKey: .projectEnd)
         try c.encode(direction, forKey: .direction)
+        // 无日历不写键：与 baselines 同一策略，避免给没有日历的项目凭空加噪音。
+        try c.encodeIfPresent(calendar, forKey: .calendar)
     }
 }
 
@@ -72,6 +80,12 @@ public final class Project {
     public var resources: [Resource] = []
     /// 基线快照（v0.13 / 08-baselines §3）：有序，索引即创建顺序；不可变（只增 / 改名 / 删）。
     public var baselines: [Baseline] = []
+    /// 项目工作日历（F-22-06）：落在 `metadata` 上，随 `.kairo` 的 `project` 段存读。
+    /// 读写都经元数据转发，避免两处各存一份后漂移。
+    public var calendar: WorkCalendar? {
+        get { metadata.calendar }
+        set { metadata.calendar = newValue }
+    }
 
     public init(metadata: ProjectMetadata = ProjectMetadata()) {
         self.metadata = metadata

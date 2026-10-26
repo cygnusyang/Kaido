@@ -67,3 +67,11 @@ public struct CalendarException: Codable, Equatable {
 - 资源级日历（每人不同作息）、一天多段工作时段、按小时排期 —— 全部留到后续。
 - 项目时区切换：仍用本机时区，`CalendarException.date` 按项目时区归一化存储。
 - MSPDI / `.oplx` 的日历映射：属于 v1.1 互操作任务，本项只保证模型与引擎能表达。
+
+## 6. 实现偏差（已裁决，2026-10-27）
+
+**D3 的「info 级违例」未做成 Violation，改为结构化留痕 `ScheduleResult.calendarAdjustments`。**
+
+原因：`Violation.Severity` 只有 warning / error，新增 info 与新的 `ViolationReason` 会连锁改动 ViolationText（Presentation）、CLI 的 severityLabel、App 检查器的两处 ViolationText 与 String Catalog —— 超出本任务的模块边界，且属于用户可见文案变更。
+
+裁决：**接受结构化留痕**，由 UI 任务消费渲染（检查器里显示「已从 X 顺延到 Y」）。这样引擎侧不引入新的用户可见文案，也不会因为一个 info 级别撕裂既有违例模型。若将来确实需要 info 级违例，单独评审 Violation 模型扩展。

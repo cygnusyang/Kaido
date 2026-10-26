@@ -53,6 +53,35 @@ public struct ScheduledTask: Codable, Hashable, Sendable {
     }
 }
 
+/// 一次排期里发生的「日期吸附」（F-22-06 / D3）。
+///
+/// 用户输入的约束日 / 开始日落在非工作日时，排期不拒绝、也不静默：日期向后滚到下一个
+/// 工作日继续排，同时在这里留一条记录。呈现层据此产出 info 级违例「已从 X 顺延到 Y」，
+/// 因此它是排期结果的一部分，而不是引擎内部的临时变量。
+public struct CalendarAdjustment: Codable, Hashable, Sendable {
+    public enum Kind: String, Codable, Hashable, Sendable {
+        /// 输入日期落在非工作日，已顺延到后一个工作日。
+        case nonWorkingDay
+        /// 日历本身不可用（`workingWeekdays` 为空），已退化为全周 7 天。
+        case invalidWeekdays
+    }
+
+    /// 涉及任务；项目级（`invalidWeekdays`）为 nil。
+    public var taskID: UUID?
+    public var kind: Kind
+    /// 用户给出的原始日期。
+    public var requested: Date
+    /// 实际参与排期的日期。
+    public var adjusted: Date
+
+    public init(taskID: UUID?, kind: Kind, requested: Date, adjusted: Date) {
+        self.taskID = taskID
+        self.kind = kind
+        self.requested = requested
+        self.adjusted = adjusted
+    }
+}
+
 /// 一次排期计算的完整结果（ADR-007 纯函数输出，可序列化给 MCP/CLI）。
 public struct ScheduleResult: Codable, Hashable, Sendable {
     public var tasks: [ScheduledTask]
@@ -67,6 +96,8 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
     public var projectStartSource: ScheduleAnchor.Source
     /// 无法排期的任务 ID（依赖环、空群组）；其 `tasks` 条目不代表有效安排。
     public var unscheduledTaskIDs: [UUID]
+    /// 本次排期发生的日期吸附（F-22-06 / D3）；空 = 没有输入落在非工作日。
+    public var calendarAdjustments: [CalendarAdjustment]
 
     public init(
         tasks: [ScheduledTask],
@@ -76,7 +107,8 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
         cycleTaskIDs: [UUID] = [],
         projectStartDerived: Bool = false,
         projectStartSource: ScheduleAnchor.Source = .projectStart,
-        unscheduledTaskIDs: [UUID] = []
+        unscheduledTaskIDs: [UUID] = [],
+        calendarAdjustments: [CalendarAdjustment] = []
     ) {
         self.tasks = tasks
         self.projectStart = projectStart
@@ -86,6 +118,7 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
         self.projectStartDerived = projectStartDerived
         self.projectStartSource = projectStartSource
         self.unscheduledTaskIDs = unscheduledTaskIDs
+        self.calendarAdjustments = calendarAdjustments
     }
 
     // MARK: - Codable 兼容（ADR-011）
@@ -93,6 +126,7 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case tasks, projectStart, projectEnd, direction, cycleTaskIDs
         case projectStartDerived, projectStartSource, unscheduledTaskIDs
+        case calendarAdjustments
     }
 
     public init(from decoder: Decoder) throws {
@@ -109,6 +143,9 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
             ScheduleAnchor.Source.self, forKey: .projectStartSource
         ) ?? (projectStartDerived ? .earliestTaskStart : .projectStart)
         unscheduledTaskIDs = try c.decodeIfPresent([UUID].self, forKey: .unscheduledTaskIDs) ?? []
+        calendarAdjustments = try c.decodeIfPresent(
+            [CalendarAdjustment].self, forKey: .calendarAdjustments
+        ) ?? []
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -121,6 +158,9 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
         try c.encode(projectStartDerived, forKey: .projectStartDerived)
         try c.encode(projectStartSource, forKey: .projectStartSource)
         try c.encode(unscheduledTaskIDs, forKey: .unscheduledTaskIDs)
+        if !calendarAdjustments.isEmpty {
+            try c.encode(calendarAdjustments, forKey: .calendarAdjustments)
+        }
     }
 
     /// 任务是否具有有效安排：存在调度条目且不在 `unscheduledTaskIDs` 中。
