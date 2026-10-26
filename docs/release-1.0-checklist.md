@@ -50,7 +50,32 @@
 | 用户数据兼容问题 | 1.0 写入的 `formatVersion 2` **不能被 0.12 及更早版本打开**（明确拒读）。降级指引：先在 1.0 里「另存为」留档，再装旧版只读旧文件；不得让旧版覆盖新文件 |
 | OTA 误推 | `update-manifest` 回滚到上一版本指针；已安装用户不会自动降级，需手动下载 |
 
-## 6. 决策记录
+
+## 6. 发布记录
+
+| 版本 | 日期 | 结果 | 备注 |
+| --- | --- | --- | --- |
+| v1.0.0 | 2026-10-26 | 已发布（arm64 only） | 首轮 CI/Release 因用例 `exportWritesBOMAndFixedHeader` 在 runner 上暴露「Foundation 是否保留 BOM」的环境差异而红；修复用例后**同号重发**（未产生任何 Release，无人下载）。产物只含 arm64，Intel Mac 打不开 → 由 v1.0.1 取代。 |
+| v1.0.1 | 2026-10-26 | 已发布（universal） | app / CLI / MCP 均为 arm64 + x86_64；DMG / ZIP 各带 `sha256`，另有 `SHA256SUMS`；`update-manifest.json` 的 sha256 与 zip 字节一致（已实测校验）。**Intel Mac 用这个版本。** |
+
+发布后校验（实测命令与结果）：
+
+```bash
+gh release download v1.0.1 --repo cygnusyang/Kairo --clobber
+shasum -a 256 -c SHA256SUMS            # 三行全 OK
+hdiutil attach -nobrowse -readonly Kairo-v1.0.1.dmg
+/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' '/Volumes/Kairo v1.0.1/Kairo.app/Contents/Info.plist'   # 1.0.1
+file '/Volumes/Kairo v1.0.1/Kairo.app/Contents/MacOS/Kairo'   # universal: x86_64 + arm64
+python3 - <<'PY'
+import json, hashlib
+m = json.load(open('update-manifest.json'))
+print(m['sha256'] == hashlib.sha256(open('Kairo-v1.0.1.zip','rb').read()).hexdigest())   # True
+PY
+```
+
+未覆盖的冒烟项（需人工在 GUI 里看）：新建项目建任务排期、基线分轨偏差读数、偏差 CSV 在 Excel 打开、语言切英文重启后菜单栏全英文、应用内「检查更新」不误报。
+
+## 7. 决策记录
 
 | 事项 | 结论 | 日期 | 决策人 |
 | --- | --- | --- | --- |
