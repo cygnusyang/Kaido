@@ -32,6 +32,7 @@ jobs:
         run: swift --version
 
       - name: 校验工具链版本（防 runner 镜像漂移）
+        shell: bash
         run: |
           set -euo pipefail
           PINNED="6.3.1"
@@ -86,6 +87,7 @@ jobs:
         run: swift --version
 
       - name: 校验工具链版本（防 runner 镜像漂移）
+        shell: bash
         run: |
           set -euo pipefail
           PINNED="6.3.1"
