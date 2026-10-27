@@ -377,6 +377,55 @@ struct InteropUITests {
         let store = makeStore()
         #expect(store.suggestedMSProjectFilename.hasSuffix(".xml"))
         #expect(!store.suggestedMSProjectFilename.hasSuffix(".kairo.xml"))
+        #expect(store.suggestedOmniPlanFilename.hasSuffix(".oplx"))
+        #expect(!store.suggestedOmniPlanFilename.hasSuffix(".kairo.oplx"))
+    }
+
+    /// 菜单项可点就必须真的做事：动作 → 选定目标 → 主文件 + 旁注落盘。
+    ///
+    /// 这里不走保存面板（exportDestinationPicker 换成立即返回路径），断言的是「菜单动作这条接线」
+    /// 而不是适配器本身——适配器的往返由 InteropOmniPlanTests 覆盖。
+    @Test func exportOmniPlanCommandWritesPackageAndNotes() throws {
+        let store = makeStore()
+        let session = store.sessionForTesting
+        _ = try session.createProject(title: "OmniPlan 导出")
+        _ = try session.addTask(title: "设计评审")
+        store.refresh()
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-oplx-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let oplxURL = directory.appendingPathComponent("OmniPlan 导出.oplx")
+
+        var requestedName: String?
+        store.exportDestinationPicker = { suggestedName, contentType in
+            requestedName = suggestedName
+            #expect(contentType == InteropFormats.oplxContentType)
+            return oplxURL
+        }
+
+        let commands = KairoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {})
+        let command = try #require(commands.first { $0.id == "project.exportOmniPlan" })
+        command.action()
+
+        #expect(requestedName == "OmniPlan 导出.oplx")
+        #expect(FileManager.default.fileExists(atPath: oplxURL.path))
+        let notesURL = directory.appendingPathComponent("OmniPlan 导出.kairo-export-notes.md")
+        #expect(FileManager.default.fileExists(atPath: notesURL.path))
+        #expect(store.exportedSnapshot?.fileName == "OmniPlan 导出.oplx")
+        #expect(store.exportedSnapshot?.notesURL == notesURL)
+        // Beta 边界必须出现在提示里：只人工验证过「能打开」，别让人以为是全量支持。
+        #expect(store.notice?.contains("Beta") == true)
+
+        // 产物是能读回的容器：标题与旁注格式都对得上。
+        let document = try OmniPlanAdapter().read(Data(contentsOf: oplxURL))
+        #expect(document.tasks.contains { $0.title == "设计评审" })
+        let notes = try String(contentsOf: notesURL, encoding: .utf8)
+        #expect(notes.contains("one-way snapshot"))
+        #expect(notes.contains("OmniPlan 导出.oplx"))
+        // 旁注头按通道写格式名与版本，不写裸 formatID。
+        #expect(notes.contains("OmniPlan (file-format-version 3)"))
     }
 
     // MARK: - 视图
@@ -419,12 +468,12 @@ struct InteropUITests {
         #expect(exportXML.group == .project)
         #expect(exportXML.isEnabled)
 
-        // OmniPlan 写还没实现：入口在、但置灰并带说明（不留「功能不存在」的错觉）。
+        // OmniPlan 写已实现：入口可点、无置灰说明（留一条过期提示比没有说明更误导）。
         let exportOmniPlan = try #require(commands.first { $0.id == "project.exportOmniPlan" })
         #expect(exportOmniPlan.group == .project)
-        #expect(exportOmniPlan.isEnabled == false)
-        #expect(exportOmniPlan.disabledHint?.isEmpty == false)
-        #expect(InteropFormats.canWrite(formatID: OmniPlanAdapter.formatID) == false)
+        #expect(exportOmniPlan.isEnabled)
+        #expect(exportOmniPlan.disabledHint == nil)
+        #expect(InteropFormats.canWrite(formatID: OmniPlanAdapter.formatID))
         #expect(InteropFormats.canWrite(formatID: MSPDIAdapter.formatID))
 
         // 「项目」分组：设置 + 导入 + 两个导出（逐条登记，数量变化会被看见）。
@@ -444,7 +493,9 @@ struct InteropUITests {
             "menu.project.import",
             "menu.project.export_mspdi",
             "menu.project.export_omniplan",
-            "menu.project.export_omniplan.hint",
+            "menu.project.export_omniplan.alias_save",
+            "menu.project.export_omniplan.alias_oplx",
+            "notice.export.omniplan.beta",
             "interop.import.title",
             "interop.import.confirm",
             "interop.import.copy",

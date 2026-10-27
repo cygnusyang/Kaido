@@ -131,12 +131,70 @@ public enum InstallerScript {
         return name.hasPrefix("kairo-ota-result-") && name.hasSuffix(".json")
     }
 
+    /// 替换脚本文件名形状校验：`kairo-ota-install-*.sh`（fail-closed 不误删）。
+    public static func isScriptShape(_ path: String) -> Bool {
+        let name = (path as NSString).lastPathComponent
+        return name.hasPrefix("kairo-ota-install-") && name.hasSuffix(".sh")
+    }
+
+    /// 下载落盘文件名形状校验：`kairo-ota-download-*.zip`（fail-closed 不误删）。
+    public static func isDownloadShape(_ path: String) -> Bool {
+        let name = (path as NSString).lastPathComponent
+        return name.hasPrefix("kairo-ota-download-") && name.hasSuffix(".zip")
+    }
+
     /// install 失败路径 best-effort 清理解压目录。安全边界：父目录名必须匹配
     /// 自建的 `kairo-ota-*` 前缀才删（绝不误删非本场目录）；失败静默。
     public static func cleanupFailedProductExtractionDir(of downloadedAppURL: URL) {
-        let dir = downloadedAppURL.deletingLastPathComponent()
-        guard dir.lastPathComponent.hasPrefix("kairo-ota-") else { return }
-        try? FileManager.default.removeItem(at: dir)
+        cleanupTransientArtifacts(extractionAppURL: downloadedAppURL)
+    }
+
+    /// 失败 / 超时 / 取消路径的临时产物清理（issue #19 单点入口）。
+    ///
+    /// 收口范围严格限定为「本次流程自建且形状匹配」的四类产物：解压目录
+    /// `kairo-ota-<uuid>/`、下载落盘 `kairo-ota-download-*.zip`、替换脚本
+    /// `kairo-ota-install-*.sh`、结果文件 `kairo-ota-result-*.json`。
+    /// 任何一条形状不匹配就跳过（fail-closed 绝不误删他人文件）。
+    ///
+    /// 备份目录 `Kairo-<stamp>.app` **刻意不在清单内**：那是替换脚本回滚的依据，
+    /// 成功与已武装路径都不允许删，这里也不给删除入口。
+    ///
+    /// - Parameters:
+    ///   - extractionAppURL: 解压出的 App（只取其父目录，且要求 `kairo-ota-` 前缀）。
+    ///   - archiveURL: 下载落盘的 zip。
+    ///   - scriptPath: 替换脚本本体路径。
+    ///   - resultPath: 脚本写回的 result 文件路径。
+    /// - Returns: 实际删除的路径（诊断日志用）。
+    @discardableResult
+    public static func cleanupTransientArtifacts(
+        extractionAppURL: URL? = nil,
+        archiveURL: URL? = nil,
+        scriptPath: String? = nil,
+        resultPath: String? = nil
+    ) -> [String] {
+        let fm = FileManager.default
+        var removed: [String] = []
+
+        if let extractionAppURL {
+            let dir = extractionAppURL.deletingLastPathComponent()
+            if dir.lastPathComponent.hasPrefix("kairo-ota-"),
+               (try? fm.removeItem(at: dir)) != nil {
+                removed.append(dir.path)
+            }
+        }
+        if let archiveURL, isDownloadShape(archiveURL.path),
+           (try? fm.removeItem(at: archiveURL)) != nil {
+            removed.append(archiveURL.path)
+        }
+        if let scriptPath, isScriptShape(scriptPath),
+           (try? fm.removeItem(at: URL(fileURLWithPath: scriptPath))) != nil {
+            removed.append(scriptPath)
+        }
+        if let resultPath, isResultShape(resultPath),
+           (try? fm.removeItem(at: URL(fileURLWithPath: resultPath))) != nil {
+            removed.append(resultPath)
+        }
+        return removed
     }
 
     /// 编码 result JSON（与脚本写入、App 首启读取同构；测试夹具复用）。

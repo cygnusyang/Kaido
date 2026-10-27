@@ -21,6 +21,10 @@ public struct ZipAppInstaller: Installing {
     public static let pendingBackupPathDefaultsKey = "kairo_ota_pending_backup_path"
     /// 备份目录 key（消费删备份前校验前缀，防误删）。
     public static let pendingBackupDirDefaultsKey = "kairo_ota_pending_backup_dir"
+    /// 替换脚本本体路径 key（issue #19：失败/超时后删脚本要靠它，跨进程也要能找回）。
+    public static let pendingScriptPathDefaultsKey = "kairo_ota_pending_script_path"
+    /// 解压出的 App 路径 key（issue #19：失败后连解压目录一起清，跨进程可追溯）。
+    public static let pendingExtractionPathDefaultsKey = "kairo_ota_pending_extraction_path"
 
     public init(
         backupDirectory: URL = FileManager.default.temporaryDirectory,
@@ -91,10 +95,13 @@ public struct ZipAppInstaller: Installing {
         } catch {
             throw InstallError.scriptWriteFailed("\(error)")
         }
-        // result/backup/backupDir 路径持久化：重启后的 App 首启据此找回并消费。
+        // result/backup/backupDir/脚本/解压目录路径持久化：重启后的 App 首启据此
+        // 找回并消费；失败/超时/取消清理也据此跨进程删产物（issue #19）。
         userDefaults.set(resultFilePath, forKey: Self.pendingResultPathDefaultsKey)
         userDefaults.set(backupPath, forKey: Self.pendingBackupPathDefaultsKey)
         userDefaults.set(backupDirectory.path, forKey: Self.pendingBackupDirDefaultsKey)
+        userDefaults.set(scriptURL.path, forKey: Self.pendingScriptPathDefaultsKey)
+        userDefaults.set(downloadedAppURL.path, forKey: Self.pendingExtractionPathDefaultsKey)
         do {
             try launchScript(scriptURL, [])
         } catch {
@@ -114,6 +121,8 @@ public struct ZipAppInstaller: Installing {
         userDefaults.removeObject(forKey: Self.pendingResultPathDefaultsKey)
         userDefaults.removeObject(forKey: Self.pendingBackupPathDefaultsKey)
         userDefaults.removeObject(forKey: Self.pendingBackupDirDefaultsKey)
+        userDefaults.removeObject(forKey: Self.pendingScriptPathDefaultsKey)
+        userDefaults.removeObject(forKey: Self.pendingExtractionPathDefaultsKey)
         try? FileManager.default.removeItem(at: scriptURL)
         try? FileManager.default.removeItem(at: URL(fileURLWithPath: resultFilePath))
     }

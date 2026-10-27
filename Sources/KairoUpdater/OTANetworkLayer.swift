@@ -76,8 +76,15 @@ public final class OTANetworkSession: ManifestFetching, DataDownloading {
         let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: .main)
         defer { session.invalidateAndCancel() }
         let task = session.dataTask(with: url)
-        return try await withCheckedThrowingContinuation { continuation in
-            delegate.start(task: task, continuation: continuation)
+        // 取消即中止（issue #21）：外层 Task 被 cancel 时立刻取消 URLSession 任务，
+        // 否则面板「取消」只是停止等待，流量照跑。
+        let handle = CancellationHandle(task: task)
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                delegate.start(task: task, continuation: continuation)
+            }
+        } onCancel: {
+            handle.cancel()
         }
     }
 
@@ -87,10 +94,26 @@ public final class OTANetworkSession: ManifestFetching, DataDownloading {
         let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: .main)
         defer { session.invalidateAndCancel() }
         let task = session.downloadTask(with: url)
-        return try await withCheckedThrowingContinuation { continuation in
-            delegate.start(task: task, continuation: continuation)
+        // 同 fetch：取消即中止下载任务（半截临时文件由 URLSession 自己回收）。
+        let handle = CancellationHandle(task: task)
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                delegate.start(task: task, continuation: continuation)
+            }
+        } onCancel: {
+            handle.cancel()
         }
     }
+}
+
+/// 取消用的极薄持有者：`withTaskCancellationHandler` 的 onCancel 是 @Sendable，
+/// 直接捕获 URLSessionTask（非 Sendable）会引入并发告警，故包一层。
+private final class CancellationHandle: @unchecked Sendable {
+    private let task: URLSessionTask
+
+    init(task: URLSessionTask) { self.task = task }
+
+    func cancel() { task.cancel() }
 }
 
 // MARK: - 白名单兜底（challenge + 重定向，URLSessionDelegate/TaskDelegate 共用）

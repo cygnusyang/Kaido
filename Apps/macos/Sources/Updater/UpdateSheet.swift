@@ -163,12 +163,24 @@ struct UpdateSheet: View {
     @ViewBuilder
     private var footer: some View {
         switch updater.state {
-        case .idle, .checking, .downloading, .installing:
+        case .idle, .installing:
             // 任何状态都必须有可点的出口（issue #17）：安装中只关面板，不打断
-            // 已启动的替换脚本；检查/下载中同理，只关面板不动状态机。
+            // 已启动的替换脚本。
             actionRow {
                 Button(I18n.t("action.close", "Close")) { onRequestClose() }
                     .buttonStyle(.bordered)
+            }
+        case .checking, .downloading:
+            // 两种语义并列（issue #21）：「关闭」只收起面板、任务继续跑；
+            // 「取消」才真中止并把半成品清掉。
+            actionRow {
+                Button(I18n.t("action.close", "Close")) { onRequestClose() }
+                    .buttonStyle(.bordered)
+                Button(I18n.t("action.cancel", "Cancel")) {
+                    updater.cancel()
+                    onRequestClose()
+                }
+                .buttonStyle(.bordered)
             }
         case .upToDate:
             actionRow {
@@ -200,8 +212,12 @@ struct UpdateSheet: View {
             .padding(.vertical, 14)
         case .downloaded:
             actionRow {
-                Button(I18n.t("action.cancel", "Cancel")) { close() }
-                    .buttonStyle(.bordered)
+                // 放弃这次已下载的更新：真取消并清掉解压产物（issue #21）。
+                Button(I18n.t("action.cancel", "Cancel")) {
+                    updater.cancel()
+                    onRequestClose()
+                }
+                .buttonStyle(.bordered)
                 Button(I18n.t("update.action.quit_and_install", "Quit and Install")) { install() }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
@@ -211,7 +227,8 @@ struct UpdateSheet: View {
             actionRow {
                 Button(I18n.t("action.close", "Close")) { close() }
                     .buttonStyle(.bordered)
-                Button(I18n.t("update.action.retry", "Retry")) { Task { await updater.check() } }
+                // 重试 = 承认已读过失败原因（清 #20 未读标记）后再查。
+                Button(I18n.t("update.action.retry", "Retry")) { Task { await updater.retry() } }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .tint(DesignTokens.accentBase)

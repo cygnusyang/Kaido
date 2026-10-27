@@ -91,6 +91,14 @@ public enum UpdaterState: Equatable {
 public final class UpdaterManager: ObservableObject {
     @Published public private(set) var state: UpdaterState = .idle
 
+    /// 首启消费到的安装失败**尚未被用户看到**（issue #20）。
+    ///
+    /// 为 true 时 `state` 停在 `.failed`，自动检查（`check()`）一律跳过——
+    /// 否则启动 5s 后的静默检查会把失败覆盖成 `.updateAvailable`，失败原因
+    /// 再也无处可查。只有用户显式关闭面板（`dismiss()`）或点「重试」（`retry()`）
+    /// 才清除标记。
+    @Published public private(set) var hasUnreadInstallFailure = false
+
     private let manifestURL: URL
     private let expectedAppId: String
     private let currentVersion: String
@@ -114,6 +122,12 @@ public final class UpdaterManager: ObservableObject {
     private var installScriptLaunched = false
     /// 安装结果观察任务（失败/成功/超时后退出）。
     private var installWatchTask: Task<Void, Never>?
+    /// 进行中的检查/下载任务（issue #21：`cancel()` 真中止它，不是只收起面板）。
+    private var flightTask: Task<Void, Never>?
+    /// 飞行代号：`cancel()` 自增，旧任务此后的任何状态回写都被丢弃。
+    private var flightID = 0
+    /// 本次下载落盘的 zip（取消/失败清理用；跨进程由持久化键兜底）。
+    private var pendingArchive: URL?
 
     /// 下载完成后的安装产物暂存（清单 info + 解压验签后的 App 路径）。
     /// `.downloaded` 态无关联值，install() 从本暂存消费；失败/dismiss/新 check 清空。
@@ -166,9 +180,23 @@ public final class UpdaterManager: ObservableObject {
     /// 检查更新：拉清单 → HTTPS+白名单 → canonical 验签 → 版本比较 → 状态迁移。
     /// 网络失败 → `.failed`（错误码 OTA-E-2001，可重查；绝不静默归「已是最新」）；
     /// 验签失败 / 不匹配 → `.failed`（fail-closed，不静默）。
+    ///
+    /// 未读的安装失败优先（issue #20）：还有没被用户看到的失败原因时直接返回，
+    /// 自动检查不得把它覆盖成 `.updateAvailable`。
     public func check() async {
         guard !isInFlight else { return }
+        guard !hasUnreadInstallFailure else {
+            log("存在未读的安装失败结果，跳过本次更新检查")
+            return
+        }
+        await runFlight { id in await self.performCheck(flightID: id) }
+    }
+
+    /// 检查主体：跑在 `runFlight` 起的可取消任务里，每个状态回写都先确认仍是
+    /// 「当前飞行」——`cancel()` 之后旧任务一律不得复活状态机（issue #21）。
+    private func performCheck(flightID id: Int) async {
         pendingProduct = nil
+        pendingArchive = nil
         state = .checking
         do {
             try policy.validate(manifestURL)
@@ -176,6 +204,7 @@ public final class UpdaterManager: ObservableObject {
             do {
                 data = try await fetcher.fetchManifest(from: manifestURL)
             } catch {
+                guard isCurrentFlight(id), !Self.isCancellation(error) else { return }
                 log("清单拉取失败 url=\(manifestURL.absoluteString) error=\(error)")
                 state = .failed(UpdaterFailure(
                     code: .checkFailed,
@@ -183,13 +212,16 @@ public final class UpdaterManager: ObservableObject {
                 ))
                 return
             }
+            try Task.checkCancellation()
             let manifest = try UpdateManifest.parse(data, expectedAppId: expectedAppId)
             _ = try ManifestVerifier.verify(manifestJSONData: data, publicKeyBase64: publicKeyBase64)
             let info = try UpdateInfo(manifest: manifest)
             // 纵深：下载地址也必须 https + 白名单（验签通过仍不例外）。
             try policy.validate(info.downloadUrl)
+            guard isCurrentFlight(id) else { return }
             resolveCheckOutcome(manifest: manifest, info: info)
         } catch {
+            guard isCurrentFlight(id), !Self.isCancellation(error) else { return }
             log("检查更新失败 error=\(error)")
             state = .failed(Self.failure(from: error))
         }
@@ -198,13 +230,23 @@ public final class UpdaterManager: ObservableObject {
     /// 仅下载：下载（进度）→ SHA256 校验 → 解压 → 验签 → downloaded，停在安装前。
     /// 安装一律经 .downloaded 态确认弹窗后调 install()——「退出+替换二进制」
     /// 动作确认纪律单点化。
+    /// 取消语义（issue #21）：`cancel()` 中止飞行任务后本方法不再回写状态，
+    /// 半成品由取消路径统一清理。
     public func download() async {
         guard case .updateAvailable(let info) = state else { return }
+        await runFlight { id in await self.performDownload(info: info, flightID: id) }
+    }
+
+    /// 下载主体：进度回写只在仍是「当前飞行」时生效（取消后不再写状态）。
+    private func performDownload(info: UpdateInfo, flightID id: Int) async {
         do {
             state = .downloading(0)
             let archive = try await downloader.download(from: info.downloadUrl) { progress in
+                guard self.isCurrentFlight(id) else { return }
                 self.state = .downloading(progress)
             }
+            pendingArchive = archive
+            try Task.checkCancellation()
             // 下载落盘后、解压前校验 zip SHA256：清单 sha256 存在且非空即强制
             // 比对，不匹配 fail-closed 拒装；缺省/空串跳过（向后兼容旧清单）。
             if let expected = info.sha256, !expected.isEmpty {
@@ -214,11 +256,18 @@ public final class UpdaterManager: ObservableObject {
                 }
             }
             let extractedApp = try await installer.prepare(downloadedArchive: archive)
+            guard isCurrentFlight(id) else {
+                // 解压途中被取消：刚解出的目录同样不能留（issue #19 / #21）。
+                InstallerScript.cleanupTransientArtifacts(extractionAppURL: extractedApp)
+                return
+            }
             try verifier.verifyApp(at: extractedApp, expectedCdHash: info.cdHash)
             pendingProduct = (info, extractedApp)
             state = .downloaded
         } catch {
+            guard isCurrentFlight(id), !Self.isCancellation(error) else { return }
             pendingProduct = nil
+            cleanupInstallArtifacts(after: "下载/验签失败")
             log("下载/验签失败 error=\(error)")
             state = .failed(Self.failure(from: error))
         }
@@ -240,6 +289,8 @@ public final class UpdaterManager: ObservableObject {
         }
         if let failure = preflight?() {
             log("安装前收口失败，未启动替换脚本 error=\(failure)")
+            // 脚本没启动 = 本次安装作废：解压目录与下载 zip 一并清掉（issue #19）。
+            cleanupInstallArtifacts(after: "安装前收口失败")
             pendingProduct = nil
             state = .failed(failure)
             return
@@ -254,6 +305,7 @@ public final class UpdaterManager: ObservableObject {
                 resultPath: userDefaults.string(
                     forKey: ZipAppInstaller.pendingResultPathDefaultsKey))
         } catch {
+            cleanupInstallArtifacts(after: "替换脚本启动失败")
             pendingProduct = nil
             log("安装失败 error=\(error)")
             state = .failed(Self.failure(from: error))
@@ -268,47 +320,80 @@ public final class UpdaterManager: ObservableObject {
     }
 
     /// 首启消费上次安装结果（宿主在启动早期调用；幂等）。成功：删备份 +
-    /// 静默（.upToDate）；失败：呈现 failed（含退出码文案）。UserDefaults key
-    /// 一次性消费后清除；result/备份仅在形状/父目录守卫通过时删除（fail-closed
+    /// 静默（.upToDate）；失败：呈现 failed 并打「未读」标记（issue #20：自动检查
+    /// 不得覆盖它），同时把本次安装的临时产物清干净（issue #19）。UserDefaults key
+    /// 一次性消费后清除；result/脚本/解压目录仅在形状守卫通过时删除（fail-closed
     /// 不误删）；无 pending 则 no-op（不打扰正常启动）。
     public func consumePendingInstallResult() {
         guard let resultPath = userDefaults.string(
             forKey: ZipAppInstaller.pendingResultPathDefaultsKey) else { return }
         let resultURL = URL(fileURLWithPath: resultPath)
         let backupDir = userDefaults.string(forKey: ZipAppInstaller.pendingBackupDirDefaultsKey)
-        defer {
-            userDefaults.removeObject(forKey: ZipAppInstaller.pendingResultPathDefaultsKey)
-            userDefaults.removeObject(forKey: ZipAppInstaller.pendingBackupPathDefaultsKey)
-            userDefaults.removeObject(forKey: ZipAppInstaller.pendingBackupDirDefaultsKey)
-            if let dir = backupDir,
-               resultPath.hasPrefix(dir + "/"),
-               InstallerScript.isResultShape(resultPath) {
-                try? FileManager.default.removeItem(at: resultURL)
+        let decoded = (try? Data(contentsOf: resultURL))
+            .flatMap { try? JSONDecoder().decode(InstallResult.self, from: $0) }
+
+        if decoded?.success != true {
+            // 失败（含结果不可读，fail-closed 一律按失败呈现）：先给用户看，
+            // 再清产物——清理要读 pending 键里的脚本/解压路径，故必须在清键之前。
+            hasUnreadInstallFailure = true
+            state = .failed(decoded.map(Self.failure(from:))
+                ?? UpdaterFailure(code: .installResultUnreadable))
+            cleanupInstallArtifacts(after: "首启消费安装失败结果")
+        } else {
+            // 成功：备份目录已过回滚窗口，删除；面板静默回到「已是最新」。
+            if let backupPath = userDefaults.string(forKey: ZipAppInstaller.pendingBackupPathDefaultsKey),
+               let dir = backupDir,
+               backupPath.hasPrefix(dir + "/"),
+               InstallerScript.isBackupShape(backupPath) {
+                try? FileManager.default.removeItem(at: URL(fileURLWithPath: backupPath))
             }
+            state = .upToDate
         }
-        guard let data = try? Data(contentsOf: resultURL),
-              let result = try? JSONDecoder().decode(InstallResult.self, from: data) else {
-            state = .failed(UpdaterFailure(code: .installResultUnreadable))
-            return
-        }
-        guard result.success else {
-            state = .failed(Self.failure(from: result))
-            return
-        }
-        if let backupPath = userDefaults.string(forKey: ZipAppInstaller.pendingBackupPathDefaultsKey),
-           let dir = backupDir,
-           backupPath.hasPrefix(dir + "/"),
-           InstallerScript.isBackupShape(backupPath) {
-            try? FileManager.default.removeItem(at: URL(fileURLWithPath: backupPath))
-        }
-        state = .upToDate
+        clearPendingInstallState()
     }
 
-    /// 关面板 / 清理失败态。
+    /// 收起面板 / 清理失败态（**不等于取消**，issue #21）。
+    ///
+    /// 检查中 / 下载中只收起面板，任务继续跑完；要中止请用 `cancel()`。
+    /// 其余状态回到 idle；用户显式关闭即视为「已读过失败原因」，清未读标记。
     public func dismiss() {
-        stopInstallWatch()
-        pendingProduct = nil
-        state = .idle
+        switch state {
+        case .checking, .downloading:
+            log("面板收起（检查/下载继续，取消请用 cancel）")
+        case .idle, .upToDate, .updateAvailable, .downloaded, .installing, .failed:
+            stopInstallWatch()
+            pendingProduct = nil
+            pendingArchive = nil
+            hasUnreadInstallFailure = false
+            state = .idle
+        }
+    }
+
+    /// 真正取消检查 / 下载（issue #21）：中止底层任务、清半成品与临时目录、回 idle。
+    ///
+    /// 与 `dismiss()`（只收起面板）语义分离。安装态已启动替换脚本，不在可取消
+    /// 范围（打断脚本会留下半替换的 App）。
+    public func cancel() {
+        switch state {
+        case .checking, .downloading, .downloaded:
+            // 先失效再取消：被取消任务的 catch 分支不会再回写状态。
+            flightID &+= 1
+            flightTask?.cancel()
+            flightTask = nil
+            cleanupInstallArtifacts(after: "用户取消")
+            pendingProduct = nil
+            pendingArchive = nil
+            log("已取消检查/下载，临时产物已清理")
+            state = .idle
+        case .idle, .upToDate, .updateAvailable, .failed, .installing:
+            break
+        }
+    }
+
+    /// 用户显式「重试」：先承认已读过失败原因（清 issue #20 的未读标记），再重查。
+    public func retry() async {
+        hasUnreadInstallFailure = false
+        await check()
     }
 
     /// 进行中状态（不可重复 check / install）。
@@ -416,27 +501,78 @@ public final class UpdaterManager: ObservableObject {
         installWatchTask = nil
     }
 
-    /// 安装失败收口：停观察、解除武装、清 pending 三键（下次启动不再消费同一失败）、
-    /// 面板进 `.failed`（有「重试 / 关闭」两个出口）。
+    /// 安装失败收口：停观察、解除武装、清临时产物与 pending 键、面板进 `.failed`
+    ///（有「重试 / 关闭」两个出口）。
+    ///
+    /// 产物清理在清 pending 键**之前**：清理入口要从键里读脚本/解压目录路径。
     private func failInstall(_ failure: UpdaterFailure) {
         stopInstallWatch()
         installScriptLaunched = false
+        cleanupInstallArtifacts(after: "安装失败 \(failure.code)")
         pendingProduct = nil
+        pendingArchive = nil
         clearPendingInstallState()
         log("安装失败（面板内呈现）error=\(failure)")
         state = .failed(failure)
     }
 
-    /// 清掉 pending 三键（result / backup / backupDir）并 best-effort 删结果文件。
-    /// 只删形状匹配的 result 文件，其余路径绝不误删（fail-closed）。
+    /// 清掉 pending 五键（result / backup / backupDir / 脚本 / 解压目录），
+    /// 结果文件已由 `cleanupInstallArtifacts` 按形状删除，这里只兜底再删一次
+    ///（幂等；形状不匹配绝不误删，fail-closed）。
     private func clearPendingInstallState() {
         let resultPath = userDefaults.string(forKey: ZipAppInstaller.pendingResultPathDefaultsKey)
         userDefaults.removeObject(forKey: ZipAppInstaller.pendingResultPathDefaultsKey)
         userDefaults.removeObject(forKey: ZipAppInstaller.pendingBackupPathDefaultsKey)
         userDefaults.removeObject(forKey: ZipAppInstaller.pendingBackupDirDefaultsKey)
+        userDefaults.removeObject(forKey: ZipAppInstaller.pendingScriptPathDefaultsKey)
+        userDefaults.removeObject(forKey: ZipAppInstaller.pendingExtractionPathDefaultsKey)
         if let resultPath, InstallerScript.isResultShape(resultPath) {
             try? FileManager.default.removeItem(at: URL(fileURLWithPath: resultPath))
         }
+    }
+
+    // MARK: - 临时产物清理（issue #19）与可取消飞行（issue #21）
+
+    /// 失败 / 超时 / 取消的临时产物清理统一入口（issue #19）。
+    ///
+    /// 只清本次流程自建的解压目录、下载 zip、替换脚本、结果文件（形状守卫在
+    /// `InstallerScript.cleanupTransientArtifacts` 内）。**备份目录 `Kairo-<stamp>.app`
+    /// 不在清理范围**——那是脚本回滚的依据，成功与已武装路径都不调用本方法。
+    private func cleanupInstallArtifacts(after reason: String) {
+        let extraction = pendingProduct?.appURL
+            ?? userDefaults.string(forKey: ZipAppInstaller.pendingExtractionPathDefaultsKey)
+            .map { URL(fileURLWithPath: $0) }
+        let removed = InstallerScript.cleanupTransientArtifacts(
+            extractionAppURL: extraction,
+            archiveURL: pendingArchive,
+            scriptPath: userDefaults.string(forKey: ZipAppInstaller.pendingScriptPathDefaultsKey),
+            resultPath: userDefaults.string(forKey: ZipAppInstaller.pendingResultPathDefaultsKey))
+        if !removed.isEmpty {
+            log("清理临时产物（\(reason)）count=\(removed.count)")
+        }
+    }
+
+    /// 在可取消的飞行任务里跑一次检查/下载（issue #21）。
+    ///
+    /// 句柄留给 `cancel()`；`flightID` 让取消后旧任务的任何回写都失效。
+    private func runFlight(_ operation: @escaping @MainActor (Int) async -> Void) async {
+        flightID &+= 1
+        let id = flightID
+        let task = Task { @MainActor in await operation(id) }
+        flightTask = task
+        await task.value
+        if flightID == id { flightTask = nil }
+    }
+
+    /// 该代号是否仍是当前飞行（取消 / 新任务后旧代号立即失效）。
+    private func isCurrentFlight(_ id: Int) -> Bool { id == flightID }
+
+    /// 取消判定：Swift 任务取消与 URLSession 取消（`URLError.cancelled`）同义，
+    /// 都属「用户取消」——不呈现为失败。
+    nonisolated private static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        return Task.isCancelled
     }
 
     /// 读一次脚本结果：文件尚未出现 → nil（继续等）。半截写入 / 坏 JSON 同样按
