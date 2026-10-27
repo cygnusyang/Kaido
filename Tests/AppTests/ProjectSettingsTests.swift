@@ -163,13 +163,13 @@ struct ProjectSettingsTests {
     @Test func scheduleStretchesWithANarrowerWorkingWeek() throws {
         let store = makeStore()
         // 比「最晚任务结束」而不是 projectEnd：示例数据里的 projectEnd 是显式值，不随排期伸缩。
-        let before = try #require(
-            store.sessionForTesting.lastSchedule?.tasks.map(\.scheduledFinish).max()
-        )
+        // 显式两步解包：单行的 try #require(链式可选) 在 CI 的 Swift 版本上会被推断成
+        // 需要对 [Date]? 解包（v1.1.0 首发就红在这里），拆开写两种工具链都能编。
+        let beforeTasks = try #require(store.sessionForTesting.lastSchedule?.tasks)
+        let before = try #require(beforeTasks.map(\.scheduledFinish).max())
         store.dispatch(.setWorkCalendar(WorkCalendar(workingWeekdays: [2])))
-        let after = try #require(
-            store.sessionForTesting.lastSchedule?.tasks.map(\.scheduledFinish).max()
-        )
+        let afterTasks = try #require(store.sessionForTesting.lastSchedule?.tasks)
+        let after = try #require(afterTasks.map(\.scheduledFinish).max())
         #expect(after > before, "每周只上一天班，最晚任务结束必须推后")
     }
 
