@@ -125,7 +125,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.1.1</string>
+  <string>1.2.0</string>
   <key>CFBundleVersion</key>
   <string>${BUILD_STAMP}</string>
   <key>LSMinimumSystemVersion</key>

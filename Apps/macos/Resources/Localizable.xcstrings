@@ -10539,6 +10539,23 @@
         }
       }
     },
+    "notice.export.omniplan.beta": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exported %1$@ (Beta): verified by opening in OmniPlan 4.10.3 only; baselines and multiple calendars are not covered yet — please confirm in OmniPlan."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已导出 %1$@（Beta）：仅在 OmniPlan 4.10.3 上人工打开验证过；基线、多日历等场景尚未覆盖，建议先在 OmniPlan 中确认。"
+          }
+        }
+      }
+    },
     "menu.project.import": {
       "extractionState": "manual",
       "localizations": {
@@ -10658,19 +10675,36 @@
         }
       }
     },
-    "menu.project.export_omniplan.hint": {
+    "menu.project.export_omniplan.alias_save": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "OmniPlan export is not implemented yet: this release only reads .oplx."
+            "value": "Save as OmniPlan"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "OmniPlan 导出尚未实现：本版只读取 .oplx。"
+            "value": "存储为 OmniPlan"
+          }
+        }
+      }
+    },
+    "menu.project.export_omniplan.alias_oplx": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OmniPlan export"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OmniPlan 导出"
           }
         }
       }

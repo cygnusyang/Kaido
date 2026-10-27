@@ -1,11 +1,13 @@
 import AppKit
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 import KairoCommands
 import KairoCore
 import KairoInterop
 import KairoPresentation
 import InteropMSPDI
+import InteropOmniPlan
 
 /// 应用适配层（ADR-013）：持有会话、视图状态与撤销栈，输出平台中立快照。
 ///
@@ -2343,15 +2345,39 @@ final class WorkspaceStore: ObservableObject {
         exportedSnapshot = nil
     }
 
+    /// 导出目标选择（默认弹 `NSSavePanel`；测试替换成直接给路径，避免在测试进程里弹窗）。
+    ///
+    /// 抽成闭包只为可测：菜单动作必须走完整导出路径，「点了没反应」这类缺陷只能用
+    /// 「调用动作 → 磁盘上真的多出两个文件」来担保。
+    var exportDestinationPicker: (_ suggestedName: String, _ contentType: UTType) -> URL? = WorkspaceStore.pickExportDestination
+
+    /// 默认选择器：标准保存面板。
+    static func pickExportDestination(suggestedName: String, contentType: UTType) -> URL? {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [contentType]
+        panel.nameFieldStringValue = suggestedName
+        guard panel.runModal() == .OK else { return nil }
+        return panel.url
+    }
+
     /// 导出面板的默认文件名：沿用另存为的标题清洗规则，后缀换成 `.xml`。
     var suggestedMSProjectFilename: String {
+        suggestedFilename(extension: "xml")
+    }
+
+    /// 同上，后缀换成 `.oplx`。
+    var suggestedOmniPlanFilename: String {
+        suggestedFilename(extension: "oplx")
+    }
+
+    private func suggestedFilename(extension suffix: String) -> String {
         let suggested = SaveFilenameSuggestion.suggest(
             currentURL: nil,
             title: session.project?.metadata.title ?? ""
         )
-        let suffix = ".kairo"
-        guard suggested.hasSuffix(suffix) else { return suggested + ".xml" }
-        return String(suggested.dropLast(suffix.count)) + ".xml"
+        let kairoSuffix = ".kairo"
+        guard suggested.hasSuffix(kairoSuffix) else { return suggested + ".\(suffix)" }
+        return String(suggested.dropLast(kairoSuffix.count)) + ".\(suffix)"
     }
 
     /// 菜单入口：保存面板 → 写 XML + 旁注 → 提示单向快照。
@@ -2361,15 +2387,39 @@ final class WorkspaceStore: ObservableObject {
             alertMessage = I18n.t("interop.export.unavailable", "This export format is not available yet.")
             return
         }
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.xml]
-        panel.nameFieldStringValue = suggestedMSProjectFilename
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let url = exportDestinationPicker(suggestedMSProjectFilename, .xml) else { return }
         do {
             let notesURL = try exportMSProjectXML(to: url)
             notice = I18n.t(
                 "notice.export.done",
                 "Exported %1$@ (one-way snapshot)",
+                url.lastPathComponent
+            )
+            exportedSnapshot = ExportedSnapshot(fileName: url.lastPathComponent, notesURL: notesURL)
+        } catch {
+            alertMessage = InteropFailure.message(for: error)
+        }
+    }
+
+    /// 菜单入口：保存面板 → 写 `.oplx` + 旁注 → 提示单向快照（带 Beta 边界说明）。
+    ///
+    /// 与 MSPDI 导出同一条路径，只换适配器；提示多一句保守说明：写出容器只在
+    /// OmniPlan 4.10.3 上人工打开验证过，基线与多日历场景没有覆盖。
+    @MainActor
+    func presentOmniPlanExport() {
+        guard InteropFormats.canWrite(formatID: OmniPlanAdapter.formatID) else {
+            alertMessage = I18n.t("interop.export.unavailable", "This export format is not available yet.")
+            return
+        }
+        guard let url = exportDestinationPicker(suggestedOmniPlanFilename, InteropFormats.oplxContentType) else {
+            return
+        }
+        do {
+            let notesURL = try exportOmniPlan(to: url)
+            notice = I18n.t(
+                "notice.export.omniplan.beta",
+                "Exported %1$@ (Beta): only opening the file in OmniPlan 4.10.3 has been verified; "
+                    + "baselines and multiple calendars are not covered yet — please confirm in OmniPlan.",
                 url.lastPathComponent
             )
             exportedSnapshot = ExportedSnapshot(fileName: url.lastPathComponent, notesURL: notesURL)
@@ -2384,30 +2434,61 @@ final class WorkspaceStore: ObservableObject {
     /// 否则换台机器回导时没人知道丢过什么（13 §5）。
     @discardableResult
     func exportMSProjectXML(to url: URL) throws -> URL {
+        let export: MSPDIExport
+        do {
+            export = try MSPDIAdapter().export(exportDocument())
+        } catch {
+            throw InteropFailure(message: InteropFailure.message(for: error))
+        }
+        return try writeExport(to: url, formatID: MSPDIAdapter.formatID, data: export.data, ledger: export.ledger)
+    }
+
+    /// 写 OmniPlan `.oplx` 主文件 + 同名旁注，返回旁注路径（测试不经面板直接调）。
+    ///
+    /// 与 MSPDI 导出共用同一条落盘路径：两条通道只在「用哪个适配器」上不同，
+    /// 旁注的存在意义（13 §5）与文件名规则不因格式而变。
+    @discardableResult
+    func exportOmniPlan(to url: URL) throws -> URL {
+        let export: OmniPlanExport
+        do {
+            export = try OmniPlanAdapter().export(exportDocument())
+        } catch {
+            throw InteropFailure(message: InteropFailure.message(for: error))
+        }
+        return try writeExport(to: url, formatID: OmniPlanAdapter.formatID, data: export.data, ledger: export.ledger)
+    }
+
+    /// Kairo 项目 → IR（导出方向的唯一入口）。
+    ///
+    /// 排期取当前结果；算不出来时按「无计划日期」导出（宁可少写日期，也不在这里现算一份）。
+    private func exportDocument() -> InteropDocument {
         let scheduled = (try? session.scheduleOrCompute())?.tasks
         let byTaskID = scheduled.map { tasks in
             Dictionary(tasks.map { ($0.taskID, $0) }, uniquingKeysWith: { first, _ in first })
         }
-        let document = InteropExportDocument.make(from: exportProject, scheduled: byTaskID)
-        let export: MSPDIExport
-        do {
-            export = try MSPDIAdapter().export(document)
-        } catch {
-            throw InteropFailure(message: InteropFailure.message(for: error))
-        }
+        return InteropExportDocument.make(from: exportProject, scheduled: byTaskID)
+    }
+
+    /// 主文件 + 旁注一起落盘：这是「一次单向快照」的物理形态。
+    private func writeExport(
+        to url: URL,
+        formatID: String,
+        data: Data,
+        ledger: FidelityLedger
+    ) throws -> URL {
         let notesURL = url
             .deletingLastPathComponent()
             .appendingPathComponent(InteropExportNotes.fileName(for: url))
         let notes = InteropExportNotes.markdown(
             projectTitle: exportProject.metadata.title,
-            formatID: MSPDIAdapter.formatID,
+            formatID: formatID,
             attachedFileName: url.lastPathComponent,
-            ledger: export.ledger,
+            ledger: ledger,
             exportedAt: Date(),
             appVersion: KairoMenuCommands.appVersion
         )
         do {
-            try export.data.write(to: url, options: .atomic)
+            try data.write(to: url, options: .atomic)
             try Data(notes.utf8).write(to: notesURL, options: .atomic)
         } catch {
             throw InteropFailure(message: error.localizedDescription)
