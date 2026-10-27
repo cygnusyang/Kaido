@@ -3,6 +3,20 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## [Unreleased]
+
+### 新增
+
+- **互操作骨架 + MSPDI 读（v1.2 P0）**：新增两个互不依赖的 target——`KairoInterop`（供应商无关 IR：任务树 / 时间 / 四型依赖 + 秒级 lag / 约束 / 资源与分配 / 日历 / 基线 / 自定义域；`FidelityLedger` 有损登记；`FormatAdapter` 协议 + `AdapterRegistry`；`KairoBridge` IR ↔ Kairo 模型）与 `InteropMSPDI`（MS Project XML 读）。适配器不 import `KairoCore`，工作日历换算只在 `KairoBridge` 一处。
+- **契约测试 `AdapterConformanceSuite`**：空计划 / 单任务 / 四类依赖 / lag / 里程碑 / 群组 / 多日历 / 基线 / 中文 emoji / 畸形 XML 共 12 个 MSPDI 样本，每次新增格式只加样本、不改断言。
+- **版本闸门**：`SaveVersion` 只接受 12–14，未知版本抛 `unsupportedFormatVersion`；命名空间必须是 `http://schemas.microsoft.com/project`。
+
+### 判据与证据
+
+- 真实样本 `/tmp/plb2012.xml`（客户文件，不入库）解析出 187 任务（37 汇总 / 2 里程碑）、126 依赖（全 FS、零 lag）、3 日历、4 基线（478 条任务级记录 + 346 条分配级基线登记为丢弃）。
+- `FidelityLedger` 登记 97 条硬约束降级（SNET 41 / FNET 56）、日历换算（周一至周五 5 天/周 × 8h，另 37 条例外日）、4 个自定义域（105 条任务上 214 个值）。
+- 全量 **1408 tests / 134 suites** 通过；新增 23 例，零 warning。
+
 ## v1.1.1 — 2026-10-27
 
 ### 修复

@@ -46,7 +46,11 @@ let package = Package(
         // 显式库产品：为 UI / CLI / MCP 之外的复用（如 iPadOS 壳）保留稳定入口。
         .library(name: "KairoCore", targets: ["KairoCore"]),
         .library(name: "KairoCommands", targets: ["KairoCommands"]),
-        .library(name: "KairoPresentation", targets: ["KairoPresentation"])
+        .library(name: "KairoPresentation", targets: ["KairoPresentation"]),
+        // 互操作 IR 与适配器契约（ADR-014：格式通道互相独立，UI/CLI/MCP 只认 capability）
+        .library(name: "KairoInterop", targets: ["KairoInterop"]),
+        // MS Project XML（MSPDI）通道：只依赖 KairoInterop，不 import KairoCore
+        .library(name: "InteropMSPDI", targets: ["InteropMSPDI"])
     ] + updaterProduct,
     targets: [
         // 跨平台核心（纯逻辑，ADR-004：零 AppKit/SwiftUI/Combine import）
@@ -65,6 +69,18 @@ let package = Package(
             name: "KairoPresentation",
             dependencies: ["KairoCore", "KairoCommands"],
             path: "Sources/KairoPresentation"
+        ),
+        // 互操作 IR：供应商无关文档模型 + 有损登记 + 适配器协议 + Kairo 桥接（ADR-014）
+        .target(
+            name: "KairoInterop",
+            dependencies: ["KairoCore"],
+            path: "Sources/KairoInterop"
+        ),
+        // MSPDI 适配器：只依赖 KairoInterop（硬规则 1/2：适配器之间零依赖、不碰 KairoCore 业务模型）
+        .target(
+            name: "InteropMSPDI",
+            dependencies: ["KairoInterop"],
+            path: "Sources/InteropMSPDI"
         ),
         // MCP 服务（stdio JSON-RPC，复用 KairoCore + KairoCommands）
         .executableTarget(
@@ -89,6 +105,12 @@ let package = Package(
             name: "KairoPresentationTests",
             dependencies: ["KairoPresentation", "KairoCore", "KairoCommands"],
             path: "Tests/KairoPresentationTests"
+        ),
+        // 互操作契约测试：同一套 AdapterConformanceSuite 跑每个适配器（硬规则 4）
+        .testTarget(
+            name: "InteropTests",
+            dependencies: ["KairoInterop", "InteropMSPDI", "KairoCore"],
+            path: "Tests/InteropTests"
         ),
         // MCP/CLI 对等性契约测试（US-E5-05）
         .testTarget(
