@@ -192,6 +192,22 @@ struct OmniPlanConformanceTests {
         }
     }
 
+    @Test("垃圾字节（非 zip）抛 malformedDocument，不把底层解压错误漏给调用方")
+    func rejectsGarbageBytes() throws {
+        // 随机字节：没有 zip 本地头，容器层就该拒绝，进不到 XML 解析。
+        let data = Data([0x00, 0xFF, 0x13, 0x37, 0x41, 0x7F, 0x80, 0x0A, 0xFE, 0x01])
+        #expect(!adapter.sniff(data))
+        do {
+            _ = try adapter.read(data)
+            Issue.record("垃圾字节应当被拒绝")
+        } catch let error as InteropError {
+            guard case .malformedDocument = error else {
+                Issue.record("错误类型不对：\(error)")
+                return
+            }
+        }
+    }
+
     @Test("能力声明：可读写、支持日历与基线、版本只有 3")
     func capabilities() {
         #expect(adapter.id == "omniplan")

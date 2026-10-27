@@ -58,6 +58,22 @@ struct MSPDIConformanceTests {
         }
     }
 
+    @Test("垃圾字节（非 XML）抛 malformedDocument，不把底层解析错误漏给调用方")
+    func rejectsGarbageBytes() throws {
+        // 随机字节：没有任何 XML 结构，两个平台的 `parse()` 都不该认为这是文档。
+        let data = Data([0x00, 0xFF, 0x13, 0x37, 0x41, 0x7F, 0x80, 0x0A, 0xFE, 0x01])
+        #expect(!adapter.sniff(data))
+        do {
+            _ = try adapter.read(data)
+            Issue.record("垃圾字节应当被拒绝")
+        } catch let error as InteropError {
+            guard case .malformedDocument = error else {
+                Issue.record("错误类型不对：\(error)")
+                return
+            }
+        }
+    }
+
     @Test("能力声明与版本范围")
     func capabilities() {
         #expect(adapter.id == "mspdi")

@@ -59,6 +59,24 @@ public enum InteropError: Error, Equatable, CustomStringConvertible {
     }
 }
 
+extension InteropError {
+    /// 把底层解析/解压错误归一到本枚举：`InteropError` 原样透传，其余一律当作结构不合法。
+    ///
+    /// 为什么需要它：XML / zip 的底层实现跨平台抛出的错误类型并不一致（同一份截断 XML，
+    /// macOS 与 Linux 的 FoundationXML 给出的错误码与 `parse()` 返回值都不同），而适配器
+    /// 契约（14 §2 硬规则 4）要求调用方只看见本枚举的三个 case。把 `read` 入口包一层，
+    /// 契约就与平台无关；版本闸门抛的 `unsupportedFormatVersion` 是 `InteropError`，透传不丢语义。
+    public static func normalized<T>(_ body: () throws -> T) throws -> T {
+        do {
+            return try body()
+        } catch let error as InteropError {
+            throw error
+        } catch {
+            throw InteropError.malformedDocument(error.localizedDescription)
+        }
+    }
+}
+
 /// 预检报告（13-mapping §5）：导入前给用户看的**不可跳过**清单。
 ///
 /// 只描述「会发生什么」，不做决策；「继续 / 取消」由界面层处理。

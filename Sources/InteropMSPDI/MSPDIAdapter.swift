@@ -39,8 +39,10 @@ public struct MSPDIAdapter: FormatAdapter {
         return text.contains("<Project") && text.contains(MSPDIReader.namespace)
     }
 
+    /// - Throws: 只会抛 `InteropError`（版本闸门或 `malformedDocument`）；
+    ///   底层解析错误由 `InteropError.normalized` 归一，平台差异不外泄。
     public func read(_ data: Data) throws -> InteropDocument {
-        try MSPDIReader().read(data).document
+        try InteropError.normalized { try MSPDIReader().read(data).document }
     }
 
     /// 写出 IR；丢弃导出侧登记（只需要字节时用它）。
@@ -63,7 +65,7 @@ public struct MSPDIAdapter: FormatAdapter {
     /// 有损清单走 `PreflightReport.assembling`：IR 侧登记 + `KairoBridge` 追加的登记，
     /// 与真正导入时产出的台账同源（约束降级、自定义域丢弃都在里面）。
     public func preflight(_ data: Data) throws -> PreflightReport {
-        let (document, saveVersion) = try MSPDIReader().read(data)
+        let (document, saveVersion) = try InteropError.normalized { try MSPDIReader().read(data) }
         return PreflightReport.assembling(
             formatID: id,
             formatVersion: "SaveVersion \(saveVersion)",

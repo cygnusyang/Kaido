@@ -34,7 +34,12 @@ struct MSPDIReader {
         let parser = XMLParser(data: data)
         parser.shouldProcessNamespaces = true
         parser.delegate = builder
-        guard parser.parse(), let root = builder.root else {
+        // Linux 的 FoundationXML（libxml2）带 recover 解析：截断文档的 `parse()` 仍返回 true，
+        // 只在委托里报一条「Premature end of data」。所以不能只看返回值——委托记录的解析错误
+        // 与返回值同等算失败，否则同一份坏文件在 Linux 会被读成「只有 SaveVersion 的空计划」。
+        // 顺序要紧：必须先 `parse()`，`failure` 才是解析后的值。
+        let parsed = parser.parse()
+        guard parsed, builder.failure == nil, let root = builder.root else {
             throw InteropError.malformedDocument(builder.failure ?? "XML 无法解析（文件被截断或不是 XML）")
         }
         return root

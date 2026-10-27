@@ -45,8 +45,10 @@ public struct OmniPlanAdapter: FormatAdapter {
             && bytes.containsASCII(OmniPlanReader.defaultScenarioMember)
     }
 
+    /// - Throws: 只会抛 `InteropError`（版本闸门或 `malformedDocument`）；
+    ///   zip / XML 底层错误由 `InteropError.normalized` 归一，平台差异不外泄。
     public func read(_ data: Data) throws -> InteropDocument {
-        try OmniPlanReader().read(data).document
+        try InteropError.normalized { try OmniPlanReader().read(data).document }
     }
 
     /// 写出 IR；丢弃导出侧登记（只需要字节时用它）。
@@ -71,7 +73,7 @@ public struct OmniPlanAdapter: FormatAdapter {
     /// 自己拼一份会少报（真实样本 IR 侧 2 条、桥接追加 8 条）。
     /// 版本号仍用本通道的口径（`file-format-version 3`），默认实现的「supported: 3」读不出实际版本。
     public func preflight(_ data: Data) throws -> PreflightReport {
-        let result = try OmniPlanReader().read(data)
+        let result = try InteropError.normalized { try OmniPlanReader().read(data) }
         return PreflightReport.assembling(
             formatID: id,
             formatVersion: "file-format-version \(result.formatVersion)",
