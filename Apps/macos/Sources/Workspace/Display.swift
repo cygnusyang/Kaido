@@ -173,6 +173,29 @@ enum Display {
         return days > 0 ? "+\(days)" : "\(days)"
     }
 
+    /// 工时偏差读数（v1.3 挣值 SV）：正 = 比计划提前（补 `+`），负 = 落后（自带 `-`）。
+    ///
+    /// 与 `varianceDays` 同一套符号约定；无值 / 非有限值走占位符——
+    /// 0 表示「正好按计划」，与「没有数据」不是一回事。
+    static func varianceHours(_ hours: Double?) -> String {
+        guard let hours, hours.isFinite else { return placeholder }
+        let rounded = (hours * 10).rounded() / 10
+        if abs(rounded) < 0.05 { return "0" }
+        let text = rounded == rounded.rounded()
+            ? String(Int(rounded))
+            : String(format: "%.1f", rounded)
+        return rounded > 0 ? "+\(text)" : text
+    }
+
+    /// 绩效指数读数（v1.3 SPI）：两位小数，与周报口径一致。
+    ///
+    /// 无值（ΣPV = 0，比值无定义）与非法值一律占位符，**不写 0**——
+    /// 0 会被读成「完全没进度」，那是另一个结论。
+    static func performanceIndex(_ value: Double?) -> String {
+        guard let value, value.isFinite else { return placeholder }
+        return String(format: "%.2f", value)
+    }
+
     /// 大纲列名：列显隐菜单与「显示/隐藏X列」命令共用同一份文案（F-14-20）。
     static func outlineColumnTitle(_ column: OutlineColumn) -> String {
         switch column {

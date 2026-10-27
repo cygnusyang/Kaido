@@ -3245,6 +3245,193 @@
         }
       }
     },
+    "inspector.evm.cost.disabled": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cost and rates are not enabled, so cost performance cannot be computed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未启用成本与费率，无法计算成本绩效"
+          }
+        }
+      }
+    },
+    "inspector.evm.cpi": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPI"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPI"
+          }
+        }
+      }
+    },
+    "inspector.evm.cv": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CV"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CV"
+          }
+        }
+      }
+    },
+    "inspector.evm.limit.effort_profile": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In hours terms, an early SPI runs high when the workload is front-loaded."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工时口径下，工作量前重后轻时早期 SPI 会偏高"
+          }
+        }
+      }
+    },
+    "inspector.evm.limit.spi_end": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SPI converges to 1 at the end of a project; use it for the trend while work is in progress."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SPI 在项目末期会回归 1，只适合观察进行中的趋势"
+          }
+        }
+      }
+    },
+    "inspector.evm.spi": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SPI"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SPI"
+          }
+        }
+      }
+    },
+    "inspector.evm.spi.no_planned_value": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No planned value yet (status date is before planned start)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尚无计划价值（数据日期早于计划开始）"
+          }
+        }
+      }
+    },
+    "inspector.evm.status_date": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status date"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据日期"
+          }
+        }
+      }
+    },
+    "inspector.evm.status_date.fixed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed: every look uses this date, so the report is reproducible."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已固定：每次查看都按该日期计算，报告可复现"
+          }
+        }
+      }
+    },
+    "inspector.evm.status_date.unfixed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not fixed: computed against today, so the same report differs tomorrow."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未固定：每次查看按当天计算"
+          }
+        }
+      }
+    },
+    "inspector.evm.sv": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SV (hours)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SV（小时）"
+          }
+        }
+      }
+    },
     "inspector.field.cancel_reason": {
       "extractionState": "manual",
       "localizations": {
@@ -4074,6 +4261,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "相关性"
+          }
+        }
+      }
+    },
+    "inspector.section.earned_value": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Earned value"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "挣值"
           }
         }
       }
@@ -6934,6 +7138,23 @@
         }
       }
     },
+    "panel.settings.section.status_date": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status date"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "数据日期"
+          }
+        }
+      }
+    },
     "panel.settings.section.week": {
       "extractionState": "manual",
       "localizations": {
@@ -6947,6 +7168,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "工作周"
+          }
+        }
+      }
+    },
+    "panel.settings.status_date.fixed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed to…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "固定为…"
+          }
+        }
+      }
+    },
+    "panel.settings.status_date.fixed_note": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fixed: the report is reproducible."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已固定：报告可复现"
+          }
+        }
+      }
+    },
+    "panel.settings.status_date.today": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today (not fixed)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天（未固定）"
+          }
+        }
+      }
+    },
+    "panel.settings.status_date.unfixed_note": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not fixed: every look is computed against today, so the same report differs tomorrow."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未固定：每次查看按当天计算"
           }
         }
       }

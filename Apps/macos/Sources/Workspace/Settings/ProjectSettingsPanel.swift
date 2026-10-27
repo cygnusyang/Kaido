@@ -36,16 +36,19 @@ struct ProjectSettingsPanel: View {
             VStack(alignment: .leading, spacing: 14) {
                 weekSection
                 hoursSection
+                statusDateSection
                 exceptionsSection
             }
             .padding(16)
-            // 固定三块之后不再有弹性内容：例外日再多也只滚动它自己的列表，
-            // 工作周与工时始终可见（不用整页滚动去找「今天改了没有」）。
+            // 固定几块之后不再有弹性内容：例外日再多也只滚动它自己的列表，
+            // 工作周、工时与数据日期始终可见（不用整页滚动去找「今天改了没有」）。
             Spacer(minLength: 0)
             Divider()
             footer
         }
-        .frame(width: 620, height: 620)
+        // 高度比 v1.2 多 80：新增的数据日期段需要整段可见，
+        // 例外日列表仍只滚自己那一块（上限不变），不会把工作周挤出视野。
+        .frame(width: 620, height: 700)
         .background(DesignTokens.surfaceBase)
         // 面板开着时撤销 / 重做会换掉项目日历：草稿跟上，否则下一次编辑会把旧值写回去。
         .onChange(of: store.workCalendar) { _, value in
@@ -165,6 +168,60 @@ struct ProjectSettingsPanel: View {
         }
     }
 
+    // MARK: - 数据日期
+
+    /// 数据日期（v1.3 / 17-evm-status-date §2）：**报告参数**，不是排期输入。
+    ///
+    /// 未固定时按当天算，同一份周报明天再看就不同——这句话必须当场说出来，
+    /// 用户才有理由去固定它；固定之后提示可复现，让「周报对得上」成为可验证的事。
+    private var statusDateSection: some View {
+        section(I18n.t("panel.settings.section.status_date", "Status date")) {
+            HStack(spacing: 8) {
+                Picker("", selection: statusDateModeBinding) {
+                    Text(I18n.t("panel.settings.status_date.today", "Today (not fixed)"))
+                        .tag(false)
+                    Text(I18n.t("panel.settings.status_date.fixed", "Fixed to…"))
+                        .tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 236)
+
+                if let statusDate = store.statusDate {
+                    DatePicker(
+                        "",
+                        selection: statusDatePickerBinding(statusDate),
+                        displayedComponents: .date
+                    )
+                    .labelsHidden()
+                    .frame(width: 124)
+                } else {
+                    Text(Display.date(Date()))
+                        .font(.system(size: DesignTokens.bodyFontSize))
+                        .foregroundStyle(DesignTokens.textSecondary)
+                }
+                Spacer(minLength: 0)
+            }
+            HStack(spacing: 6) {
+                Image(systemName: store.statusDate == nil ? "clock.arrow.circlepath" : "pin")
+                    .font(.system(size: DesignTokens.captionFontSize))
+                    .foregroundStyle(DesignTokens.textSecondary)
+                Text(store.statusDate == nil
+                    ? I18n.t(
+                        "panel.settings.status_date.unfixed_note",
+                        "Not fixed: every look is computed against today, so the same report differs tomorrow."
+                    )
+                    : I18n.t(
+                        "panel.settings.status_date.fixed_note",
+                        "Fixed: the report is reproducible."
+                    ))
+                .font(.system(size: DesignTokens.captionFontSize))
+                .foregroundStyle(DesignTokens.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
     // MARK: - 例外日
 
     private var exceptionsSection: some View {
@@ -281,6 +338,28 @@ struct ProjectSettingsPanel: View {
                 draft.select(template)
                 commit()
             }
+        )
+    }
+
+    /// 「今天（未固定）/ 固定为…」：切到固定时从「今天」起步，
+    /// 用户接下来只会微调日期，不该先面对一个空字段。切回未固定即清空字段。
+    private var statusDateModeBinding: Binding<Bool> {
+        Binding(
+            get: { store.statusDate != nil },
+            set: { isFixed in
+                guard isFixed else {
+                    store.dispatch(.setStatusDate(nil))
+                    return
+                }
+                store.dispatch(.setStatusDate(store.statusDate ?? Date()))
+            }
+        )
+    }
+
+    private func statusDatePickerBinding(_ current: Date) -> Binding<Date> {
+        Binding(
+            get: { store.statusDate ?? current },
+            set: { store.dispatch(.setStatusDate($0)) }
         )
     }
 

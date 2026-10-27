@@ -391,6 +391,10 @@ final class WorkspaceStore: ObservableObject {
     /// 项目设置面板读它做初值，甘特铺灰与排期同源于它。
     var workCalendar: WorkCalendar? { session.project?.calendar }
 
+    /// 数据日期（v1.3 / 17-evm-status-date §2）：nil = 未固定，每次查看按当天计算。
+    /// 项目设置面板读它决定「今天（未固定）/ 固定为…」与日期选择器的显隐。
+    var statusDate: Date? { session.project?.metadata.statusDate }
+
     /// 解析后的当前对比基线：ID 指向不存在的基线（换项目 / 已被删除）按「不比较」处理，
     /// 与 Presenter 的解析口径一致，避免视图显示「已选中」而列里全是占位符。
     var selectedBaseline: Baseline? {
@@ -929,6 +933,9 @@ final class WorkspaceStore: ObservableObject {
         case .setWorkCalendar(let calendar):
             setWorkCalendar(calendar)
 
+        case .setStatusDate(let date):
+            setStatusDate(date)
+
         case .undo:
             undo()
 
@@ -1152,6 +1159,28 @@ final class WorkspaceStore: ObservableObject {
             state.metadata.calendar = calendar
             try session.restore(state)
             appendUndo(entry, mergeKey: "work-calendar")
+        } catch {
+            report(error)
+        }
+        refresh()
+    }
+
+    /// 写入数据日期（v1.3 / 17-evm-status-date §2、§3）。
+    ///
+    /// 与工作日历同一条路径：`updateProjectMetadata` 没有 statusDate 参数，而 `restore`
+    /// 是会话里唯一会给元数据变更打脏标记的公开入口。
+    ///
+    /// 归一放在写入口：面板传的是带时分的 `Date`，直接落库会让「同一天设两次」得到
+    /// 不同时刻，PV 随小时漂移。同一天重复提交不留撤销步（面板每敲一次都在提交）。
+    private func setStatusDate(_ date: Date?) {
+        let entry = captureUndoEntry()
+        do {
+            var state = try session.snapshot()
+            let normalized = date.map { CalendarDayMath.startOfDay($0, calendar: calendar) }
+            guard state.metadata.statusDate != normalized else { return }
+            state.metadata.statusDate = normalized
+            try session.restore(state)
+            appendUndo(entry, mergeKey: "status-date")
         } catch {
             report(error)
         }

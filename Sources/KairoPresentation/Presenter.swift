@@ -341,6 +341,20 @@ public enum WorkspacePresenter {
             calendar: calendar
         )
 
+        // 挣值（v1.3 / 17-evm-status-date §3）：数据日期是**报告参数**，不是排期输入。
+        // 未固定（nil）时取 `now`，同一份报告明天再算会变——界面必须明说不可复现。
+        // 无排期结果就没有 PV，整块不显示（不拿空排期算出一排 0）。
+        let earnedValue = schedule.map { result in
+            EarnedValueSummary(report: EarnedValueEngine.report(
+                schedule: result,
+                tasks: tasks,
+                statusDate: state.metadata.normalizedStatusDate(calendar: calendar),
+                workCalendar: state.metadata.calendar,
+                calendar: calendar,
+                now: now
+            ))
+        }
+
         let inspector = makeInspector(
             state: state,
             tasks: tasks,
@@ -356,6 +370,7 @@ public enum WorkspacePresenter {
             calendarAdjustments: schedule?.calendarAdjustments ?? [],
             childrenByParent: childrenByParent,
             baselineReport: baselineReport,
+            earnedValue: earnedValue,
             isLeaf: isLeaf,
             plannedFinish: plannedFinish,
             deadlineRisk: deadlineRisk,
@@ -808,6 +823,7 @@ public enum WorkspacePresenter {
         calendarAdjustments: [CalendarAdjustment],
         childrenByParent: [UUID: [UUID]],
         baselineReport: BaselineVarianceReport?,
+        earnedValue: EarnedValueSummary?,
         isLeaf: (TaskItem) -> Bool,
         plannedFinish: (TaskItem) -> Date?,
         deadlineRisk: (TaskItem, Date?) -> Bool,
@@ -859,7 +875,8 @@ public enum WorkspacePresenter {
             recentCompletions: recentCompletions(tasks: tasks),
             saveState: saveState,
             baseline: baselinePanel(report: baselineReport),
-            baselineSummary: baselineSummary(report: baselineReport)
+            baselineSummary: baselineSummary(report: baselineReport),
+            earnedValue: earnedValue
         )
         return InspectorSnapshot(
             content: .project(project),

@@ -153,6 +153,9 @@ public struct ProjectInspector: Hashable, Sendable {
     /// 与 `baseline` 同源同生命周期——两者都由同一份偏差报表派生，
     /// 后者只负责孤儿明细，数字一律以本字段为准。
     public var baselineSummary: ProjectBaselineSummary?
+    /// 挣值块（v1.3 / 17-evm-status-date）：nil = 本次快照没有排期结果（项目尚无排期），
+    /// 没有 PV 就没有读数——整块不显示，不画一排 0。
+    public var earnedValue: EarnedValueSummary?
 
     public init(
         title: String,
@@ -163,7 +166,8 @@ public struct ProjectInspector: Hashable, Sendable {
         recentCompletions: [CompletedTask] = [],
         saveState: SaveState,
         baseline: BaselinePanel? = nil,
-        baselineSummary: ProjectBaselineSummary? = nil
+        baselineSummary: ProjectBaselineSummary? = nil,
+        earnedValue: EarnedValueSummary? = nil
     ) {
         self.title = title
         self.projectStart = projectStart
@@ -174,6 +178,7 @@ public struct ProjectInspector: Hashable, Sendable {
         self.saveState = saveState
         self.baseline = baseline
         self.baselineSummary = baselineSummary
+        self.earnedValue = earnedValue
     }
 }
 

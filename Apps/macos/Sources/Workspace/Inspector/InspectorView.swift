@@ -764,6 +764,35 @@ private struct ProjectInspectorContent: View {
             summaryLine(I18n.t("inspector.summary.remaining_days", "Days left"), project.summary.remainingDays.map { String($0) } ?? "—")
         }
 
+        // 挣值（v1.3 / 17-evm-status-date §3、§5）：读数全部来自快照，视图只排版。
+        // 三条口径由 EarnedValueRows 决定（缺 PV 不给数字 / CPI·CV 恒禁用 / 两句局限必现），
+        // 这里只负责置灰与说明的呈现——不在这里补任何计算。
+        if let earnedValue = project.earnedValue {
+            section(I18n.t("inspector.section.earned_value", "Earned value")) {
+                ForEach(EarnedValueRows.rows(for: earnedValue)) { row in
+                    readingRow(row)
+                }
+                Divider()
+                ForEach(EarnedValueRows.costRows()) { row in
+                    readingRow(row)
+                }
+                Text(I18n.t(
+                    EarnedValueRows.costDisabledNote.key,
+                    EarnedValueRows.costDisabledNote.fallback
+                ))
+                .font(.system(size: DesignTokens.captionFontSize))
+                .foregroundStyle(DesignTokens.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+                Divider()
+                ForEach(EarnedValueRows.limitations) { note in
+                    Text(I18n.t(note.key, note.fallback))
+                        .font(.system(size: DesignTokens.captionFontSize))
+                        .foregroundStyle(DesignTokens.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+
         section(I18n.t("inspector.section.recent", "Recently completed")) {
             if project.recentCompletions.isEmpty {
                 Text(I18n.t("inspector.recent.empty", "No completions yet"))
@@ -797,6 +826,30 @@ private struct ProjectInspectorContent: View {
             Text(value).monospacedDigit()
         }
         .font(.system(size: DesignTokens.captionFontSize))
+    }
+
+    /// 挣值读数行：`isDisabled` 的行整行置灰且不给数字（CPI / CV 恒为禁用态）。
+    private func readingRow(_ row: EarnedValueRows.Row) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(I18n.t(row.labelKey, row.labelFallback))
+                    .foregroundStyle(DesignTokens.textSecondary)
+                Spacer(minLength: 0)
+                Text(row.value ?? Display.placeholder)
+                    .monospacedDigit()
+            }
+            .font(.system(size: DesignTokens.captionFontSize))
+            if let noteKey = row.noteKey, let noteFallback = row.noteFallback {
+                Text(I18n.t(noteKey, noteFallback))
+                    .font(.system(size: DesignTokens.captionFontSize))
+                    .foregroundStyle(DesignTokens.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .opacity(row.isDisabled ? 0.45 : 1)
+        .help(row.isDisabled
+            ? I18n.t(EarnedValueRows.costDisabledNote.key, EarnedValueRows.costDisabledNote.fallback)
+            : "")
     }
 
     private func section<Content: View>(

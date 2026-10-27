@@ -121,6 +121,11 @@ public enum WorkspaceAction: Equatable, Sendable {
     /// 传 `nil` = 等价「全周 7 天」：文件不写该键，排期与甘特渲染回到引入工作日历之前。
     /// 写入经会话快照恢复，进撤销栈（面板每一步可一步回退）。
     case setWorkCalendar(WorkCalendar?)
+    /// 数据日期（v1.3 / 17-evm-status-date §2、§3）：`nil` = 未固定，每次查看按当天计算。
+    ///
+    /// 与工作日历同路径写入（进撤销栈、置脏）；写入前按项目日历归一到当日 00:00，
+    /// 否则「同一天设两次」会得到不同时刻，PV 跟着小时漂移。
+    case setStatusDate(Date?)
 
     // 历史与文件
     case undo
