@@ -3,7 +3,7 @@ import SwiftUI
 
 /// 导入预检 sheet（13-interop-mapping §5 硬要求：**不可跳过、不可默认折叠**）。
 ///
-/// 四块内容自上而下：将导入什么、日历怎么换算、依赖怎么降级、还丢了什么。默认按钮是
+/// 四块内容自上而下：将导入什么、日历怎么换算、哪些语义变了、依赖明细与其余损失。默认按钮是
 /// 「取消」：预检的意义是让人有机会说「不导」，所以回车不落地，Esc 也是取消。
 /// 面板形态沿用项目设置 / 基线管理：图标徽章 + 标题 + 说明的头部、分区卡片、右对齐按钮。
 struct ImportPreflightSheet: View {
@@ -26,9 +26,17 @@ struct ImportPreflightSheet: View {
                     if let calendar = preflight.calendar {
                         calendarSection(calendar)
                     }
+                    // 「已换算」排在日历之后、明细之前：语义变了的条目是用户最需要先看见的一类，
+                    // 只剩在下钻明细里等于没提醒（约束降级、自定义域丢弃都在这里）。
+                    if !preflight.conversionLosses.isEmpty {
+                        lossSection(
+                            I18n.t("interop.section.converted", "Converted (semantics changed)"),
+                            rows: preflight.conversionLosses
+                        )
+                    }
                     if !preflight.dependencyLosses.isEmpty {
                         lossSection(
-                            I18n.t("interop.section.dependencies", "Dependency downgrades"),
+                            I18n.t("interop.section.dependencies", "Dependency details"),
                             rows: preflight.dependencyLosses
                         )
                     }

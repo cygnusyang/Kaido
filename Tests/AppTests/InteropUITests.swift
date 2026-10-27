@@ -129,14 +129,21 @@ struct InteropUITests {
             fileName: "Plan.xml"
         )
 
-        // 三块清单互不重叠：其他有损项、依赖降级、日历项各自只出现一次。
+        // 四块清单互不重叠：其余损失、已换算、依赖明细、日历项各自只出现一次。
         #expect(preflight.losses.map(\.field) == ["cost"])
         #expect(preflight.losses.first?.kind == .dropped)
         #expect(preflight.losses.first?.count == 3)
         #expect(preflight.losses.first?.samples == ["标准费率", "固定成本"])
-        #expect(preflight.dependencyLosses.map(\.field) == ["constraint"])
-        #expect(preflight.dependencyLosses.first?.count == 2)
-        #expect(preflight.calendarLosses.map(\.field) == ["calendar.workingWeekdays"])
+        // converted / degraded 一律进「已换算」主清单：不管字段名长什么样，
+        // 语义变了的条目都不能只藏在下钻明细里。
+        #expect(preflight.conversionLosses.map(\.field) == ["constraint", "calendar.workingWeekdays"])
+        #expect(preflight.conversionLosses.first?.kind == .degraded)
+        #expect(preflight.conversionLosses.first?.count == 2)
+        #expect(preflight.dependencyLosses.isEmpty)
+        #expect(preflight.calendarLosses.isEmpty)
+        // 不变量：四块是 ledger 的分区（3 条登记 = 1 + 2 + 0 + 0）。
+        #expect(preflight.ledgerEntryCount == 3)
+        #expect(preflight.isLedgerPartitioned)
         #expect(preflight.taskCount == 3)
         #expect(preflight.formatName == InteropFormats.displayName(for: MSPDIAdapter.formatID))
         // 规模行直接来自 IR 计数。
@@ -162,9 +169,85 @@ struct InteropUITests {
         #expect(calendar.estimatedAdvanceDays == 4)
         #expect(preflight.calendarLine(calendar).contains("4"))
         // 真实样本里的 SNET 约束与任务 id 丢失都要出现在预检里。
-        #expect(preflight.dependencyLosses.contains { $0.field == "constraint" })
+        #expect(preflight.conversionLosses.contains { $0.field == "constraint" })
         #expect(preflight.losses.contains { $0.field == "taskID" })
         #expect(preflight.hasLosses)
+        #expect(preflight.isLedgerPartitioned)
+    }
+
+    /// 依赖明细不为「语义有变」让路：lag 取整（converted）与悬空边（dropped）仍留在依赖块，
+    /// 只有真正跨块的条目（约束降级）才进主清单。
+    @Test func dependencyDetailKeepsLagAndDanglingEdges() {
+        var ledger = FidelityLedger()
+        ledger.record(field: "dependency.lag", kind: .converted, count: 5, detail: "lag 取整")
+        ledger.record(field: "dependency", kind: .dropped, count: 2, detail: "悬空边")
+        ledger.record(field: "constraint", kind: .degraded, count: 97, detail: "硬约束转软")
+
+        let preflight = ImportPreflight(
+            document: InteropDocument(),
+            report: PreflightReport(
+                formatID: MSPDIAdapter.formatID,
+                formatVersion: "SaveVersion 14",
+                summary: "样本",
+                ledger: ledger
+            ),
+            ledger: ledger,
+            fileName: "Plan.xml"
+        )
+
+        #expect(preflight.dependencyLosses.map(\.field) == ["dependency.lag", "dependency"])
+        #expect(preflight.conversionLosses.map(\.field) == ["constraint"])
+        #expect(preflight.isLedgerPartitioned)
+    }
+
+    // MARK: - 真实样本：整份 ledger 必须全部出现在清单里
+
+    /// 真实样本（客户计划，**不进仓库**）：默认读 `/tmp/plb2012.xml`，
+    /// 可用环境变量 `KAIRO_MSPDI_SAMPLE` 指向别处；文件不存在时用例自动跳过。
+    /// `.enabled(if:)` 在 Sendable 闭包里求值，故显式 `nonisolated`（套件本身是 @MainActor）。
+    nonisolated private static let samplePath = ProcessInfo.processInfo.environment["KAIRO_MSPDI_SAMPLE"]
+        ?? "/tmp/plb2012.xml"
+
+    nonisolated private static var sampleAvailable: Bool {
+        FileManager.default.fileExists(atPath: samplePath)
+    }
+
+    /// 187 任务的真实计划里，97 条硬约束降级与 4 个自定义域（214 个值）必须能被用户看见，
+    /// 而且四块清单计数求和等于 ledger 条目数——漏报比不报更危险（v1.2 收尾）。
+    @Test("真实样本：四块清单覆盖整份 ledger", .enabled(if: sampleAvailable))
+    func realSampleLedgerIsFullyListed() throws {
+        let url = URL(fileURLWithPath: Self.samplePath)
+        let data = try Data(contentsOf: url)
+        let document = try MSPDIAdapter().read(data)
+        let report = try MSPDIAdapter().preflight(data)
+        let bridged = KairoBridge().makeProject(from: document)
+        let preflight = ImportPreflight(
+            document: document,
+            report: report,
+            ledger: bridged.ledger,
+            fileName: url.lastPathComponent
+        )
+
+        let constraint = try #require(preflight.conversionLosses.first { $0.field == "constraint" })
+        #expect(constraint.kind == .degraded)
+        #expect(constraint.count == 97)
+        #expect(!constraint.detail.isEmpty)
+
+        let customField = try #require(preflight.losses.first { $0.field == "customField" })
+        #expect(customField.kind == .dropped)
+        #expect(customField.count == 4)
+        #expect(customField.samples.contains("Text1=差异时间"))
+
+        // 计数求和 = ledger 条目数：四块不重不漏。
+        let sum = preflight.conversionLosses.count + preflight.dependencyLosses.count
+            + preflight.calendarLosses.count + preflight.losses.count
+        #expect(sum == bridged.ledger.entries.count)
+        #expect(preflight.ledgerEntryCount == bridged.ledger.entries.count)
+        #expect(preflight.isLedgerPartitioned)
+
+        // 复制文本与界面同源：这两条在文本里也必须查得到。
+        #expect(preflight.copyText.contains("constraint × 97"))
+        #expect(preflight.copyText.contains("customField × 4"))
     }
 
     // MARK: - 取消不改项目
@@ -369,8 +452,10 @@ struct InteropUITests {
             "interop.import.panel.message",
             "interop.section.scale",
             "interop.section.calendar",
+            "interop.section.converted",
             "interop.section.dependencies",
             "interop.section.losses",
+            "interop.copy.converted",
             "interop.calendar.summary",
             "interop.calendar.advance",
             "interop.losses.samples",

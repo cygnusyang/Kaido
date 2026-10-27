@@ -727,8 +727,12 @@ private struct MSPDIEncoder {
         }
     }
 
+    /// - Parameter name: **已去掉 `kairo.` 前缀**的字段名（`status` / `cancelReason`）。
+    ///
+    /// 比较时必须还原成原始键：直接拿 `status` 去比 `KairoOnlyKey.status`（`kairo.status`）
+    /// 永远不命中，两个专属说明就成了死分支，旁注只能看到兜底文案。
     private func kairoOnlyDetail(_ name: String) -> String {
-        switch name {
+        switch "\(KairoOnlyKey.prefix)\(name)" {
         case KairoOnlyKey.status:
             return "Kairo 的五态（pending / in_progress / done / blocked / cancelled）在 MSPDI 没有对应字段："
                 + "只保留完成度，状态本身丢弃；blocked / cancelled 的语义回导后不可恢复。"

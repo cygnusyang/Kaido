@@ -279,9 +279,14 @@ struct MSPDIWriteTests {
         let export = try adapter.export(document)
         let xml = text(export.data)
 
-        #expect(export.ledger.entry(field: "cancelReason")?.count == 1)
-        #expect(export.ledger.entry(field: "cancelReason")?.samples == ["客户取消：预算冻结"])
-        #expect(export.ledger.entry(field: "status")?.count == 1)
+        let cancelReason = try #require(export.ledger.entry(field: "cancelReason"))
+        #expect(cancelReason.count == 1)
+        #expect(cancelReason.samples == ["客户取消：预算冻结"])
+        // 专属说明必须命中：拿去掉前缀的名字去比 kairo.cancelReason 会永远落到兜底文案。
+        #expect(cancelReason.detail.contains("审计"))
+        let status = try #require(export.ledger.entry(field: "status"))
+        #expect(status.count == 1)
+        #expect(status.detail.contains("pending / in_progress / done / blocked / cancelled"))
         #expect(export.ledger.entry(field: "baseline.color")?.count == 1)
         let constraint = try #require(export.ledger.entry(field: "constraint"))
         #expect(constraint.kind == .degraded)

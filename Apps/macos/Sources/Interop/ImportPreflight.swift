@@ -3,10 +3,13 @@ import KairoInterop
 
 /// 导入预检报告（13-interop-mapping §5）：**先看再导**的唯一数据来源。
 ///
-/// 三块内容对应规格里的三条硬要求，逐块都能追到同一份 `FidelityLedger`，不另算一份：
-/// 1. `losses`：将丢失 / 降级的字段清单（计数 + 原值样例）；
+/// 四块内容逐块都能追到同一份 `FidelityLedger`，不另算一份；四块是对登记表的**分区**
+/// （每条登记恰好落进一块，见 `isLedgerPartitioned`）：
+/// 1. `conversionLosses`：已换算 / 语义有变的条目（硬约束转软、自定义域丢弃、工期换口径）——
+///    最容易被用户忽略、后果最持久的一类，必须摆在主清单里，不能只藏在下钻明细；
 /// 2. `calendar` / `calendarLosses`：日历换算方式与偏差预估（工作日 ↔ 日历天，最严重的语义鸿沟）；
-/// 3. `dependencyLosses`：依赖降级明细（lag 取整、硬约束转软、前驱缺失的悬空边）。
+/// 3. `dependencyLosses`：依赖明细（lag 取整、前驱缺失的悬空边）；
+/// 4. `losses`：其余丢失或按默认值补全的字段（计数 + 原值样例）。
 ///
 /// 纯值类型、不碰会话：视图只渲染它，取消时整个丢掉——「取消后项目零变化」就靠这条边界。
 struct ImportPreflight: Equatable {
@@ -48,16 +51,30 @@ struct ImportPreflight: Equatable {
     /// 适配器给的规模摘要（一句话，原样展示，不在这里重新拼）。
     let summary: String
     let scale: [ScaleRow]
+    /// 已换算 / 语义有变的条目（`converted` / `degraded`）。
+    let conversionLosses: [LossRow]
     let losses: [LossRow]
     let calendar: CalendarConversion?
     let calendarLosses: [LossRow]
     let dependencyLosses: [LossRow]
     /// 将导入的任务总数（含汇总与里程碑）：确认后的落地判据就是它。
     let taskCount: Int
+    /// 分块前的登记条数：四块计数之和必须等于它（防漏报的不变量基准）。
+    let ledgerEntryCount: Int
 
-    /// 有无任何有损项（含日历与依赖两块）。
+    /// 有无任何有损项（四块任一非空）。
     var hasLosses: Bool {
-        !losses.isEmpty || !calendarLosses.isEmpty || !dependencyLosses.isEmpty
+        !conversionLosses.isEmpty || !losses.isEmpty
+            || !calendarLosses.isEmpty || !dependencyLosses.isEmpty
+    }
+
+    /// 不变量：四块清单是 ledger 的**分区**——不重复、不遗漏。
+    ///
+    /// 归类写成对 `FidelityLedger.Kind` 的穷尽 `switch`，新增种类时编译器会先拦住；
+    /// 这条断言再兜一层，防止以后有人往里加「只进下钻明细」的分支把主清单掏空。
+    var isLedgerPartitioned: Bool {
+        let ids = (conversionLosses + dependencyLosses + calendarLosses + losses).map(\.id)
+        return ids.count == ledgerEntryCount && Set(ids).count == ids.count
     }
 
     // MARK: - 构造
@@ -89,7 +106,8 @@ struct ImportPreflight: Equatable {
             ScaleRow(id: "baselines", title: I18n.t("interop.scale.baselines", "Baselines"), value: document.baselines.count),
         ]
 
-        // 三块清单都从同一份登记切分：先切日历与依赖，剩下的归「其他有损项」。
+        // 四块清单都从同一份登记切分，每条只进一块（`bucket(for:)` 决定归属）。
+        var conversionRows: [LossRow] = []
         var calendarRows: [LossRow] = []
         var dependencyRows: [LossRow] = []
         var otherRows: [LossRow] = []
@@ -102,18 +120,51 @@ struct ImportPreflight: Equatable {
                 detail: entry.detail,
                 samples: entry.samples
             )
-            if entry.field.hasPrefix("calendar") {
-                calendarRows.append(row)
-            } else if entry.field.hasPrefix("dependency") || entry.field.hasPrefix("constraint") {
-                dependencyRows.append(row)
-            } else {
-                otherRows.append(row)
+            switch Self.bucket(for: entry) {
+            case .conversion: conversionRows.append(row)
+            case .calendar: calendarRows.append(row)
+            case .dependency: dependencyRows.append(row)
+            case .other: otherRows.append(row)
             }
         }
+        conversionLosses = conversionRows
         losses = otherRows
         calendarLosses = calendarRows
         dependencyLosses = dependencyRows
+        ledgerEntryCount = ledger.entries.count
         calendar = Self.makeCalendarConversion(document)
+        assert(isLedgerPartitioned, "预检清单漏报：\(ledgerEntryCount) 条登记没有全部落到四块清单里")
+    }
+
+    // MARK: - 分块
+
+    /// 条目归属的那一块清单。
+    private enum Bucket {
+        /// 依赖明细：lag 取整、前驱缺失的悬空边（用户核对依赖时要逐项对照）。
+        case dependency
+        /// 已换算 / 语义有变：主清单里必须自成一块，否则最持久的语义差会被下钻明细掩盖。
+        case conversion
+        /// 日历项：换算方式已在「日历换算」块里单独说明，这里只放残余条目。
+        case calendar
+        /// 其余丢失 / 补全项。
+        case other
+    }
+
+    /// 归类规则（顺序即优先级，每条登记只命中一个分支）：
+    /// 1. `dependency*` 归依赖明细——**即使**它是 `converted`（lag 取整）或 `dropped`（悬空边）；
+    /// 2. `converted` / `degraded` 归「已换算」——硬约束降级（`constraint`）与工期口径换算
+    ///    必须出现在主清单里，不能被字段前缀吞掉；
+    /// 3. `calendar*` 归日历块；
+    /// 4. 剩下的归「其余有损项」。
+    ///
+    /// 对 `Kind` 的 `switch` 是穷尽的：新增种类会编译失败，逼着先想清楚归哪一块。
+    private static func bucket(for entry: FidelityLedger.Entry) -> Bucket {
+        if entry.field.hasPrefix("dependency") { return .dependency }
+        switch entry.kind {
+        case .converted, .degraded: return .conversion
+        case .dropped, .derived:
+            return entry.field.hasPrefix("calendar") ? .calendar : .other
+        }
     }
 
     // MARK: - 日历换算
@@ -240,8 +291,9 @@ struct ImportPreflight: Equatable {
             lines.append("  " + calendarLine(calendar))
         }
         for section in [
+            (I18n.t("interop.copy.converted", "Converted (semantics changed):"), conversionLosses),
             (I18n.t("interop.copy.calendar_losses", "Calendar items:"), calendarLosses),
-            (I18n.t("interop.copy.dependency", "Dependency downgrades:"), dependencyLosses),
+            (I18n.t("interop.copy.dependency", "Dependency details:"), dependencyLosses),
             (I18n.t("interop.copy.losses", "Lost or downgraded fields:"), losses),
         ] where !section.1.isEmpty {
             lines.append("")

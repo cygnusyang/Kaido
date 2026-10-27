@@ -9859,19 +9859,36 @@
         }
       }
     },
+    "interop.copy.converted": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Converted (semantics changed):"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已换算（语义有变）："
+          }
+        }
+      }
+    },
     "interop.copy.dependency": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dependency downgrades:"
+            "value": "Dependency details:"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "依赖降级："
+            "value": "依赖明细："
           }
         }
       }
@@ -10250,19 +10267,36 @@
         }
       }
     },
+    "interop.section.converted": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Converted (semantics changed)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已换算（语义有变）"
+          }
+        }
+      }
+    },
     "interop.section.dependencies": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dependency downgrades"
+            "value": "Dependency details"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "依赖降级明细"
+            "value": "依赖明细"
           }
         }
       }
