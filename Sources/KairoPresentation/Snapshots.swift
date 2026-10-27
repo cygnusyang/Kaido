@@ -35,6 +35,7 @@ public enum OutlineColumn: String, Codable, Hashable, CaseIterable, Sendable {
         switch self {
         case .status, .violation: return 18
         // 44：要放下「10.12」这类三级序号（30pt 会被截断成「10…」或换行）。
+        // 这只是**无内容测量时的回退值**：应用层按当前项目最宽序号量宽后覆盖它（#48）。
         case .number: return 44
         case .title: return 160 * scale
         case .predecessors: return 96 * scale

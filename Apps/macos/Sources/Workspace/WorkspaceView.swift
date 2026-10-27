@@ -482,7 +482,9 @@ struct WorkspaceView: View {
             totalWidth: sizes.outlineWidth,
             focused: sizes.focused,
             widthOverrides: columnWidthOverrides,
-            liveResize: liveColumnResize
+            liveResize: liveColumnResize,
+            // 序号/前置列按当前项目实际内容量宽（#48）：折叠展开、增删任务后随 rows 重算。
+            contentWidths: OutlineContentWidth.widths(for: rows)
         )
         let bannerHeight: CGFloat = gantt.projectStartDerived && sizes.showsTimeline ? 24 : 0
         let bodyHeight = max(height - DesignTokens.headerHeight - 1 - bannerHeight, 1)

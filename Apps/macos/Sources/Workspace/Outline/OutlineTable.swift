@@ -59,13 +59,18 @@ struct OutlineColumnLayout {
     var widthOverrides: [OutlineColumn: Double] = [:]
     /// 拖拽中的预览草稿（列 + 点宽）：优先于覆盖值，松手才提交。
     var liveResize: (column: OutlineColumn, width: CGFloat)? = nil
+    /// 内容自适应宽度（点，#48）：键缺省 = 该列仍用派生宽（乘压缩系数）。
+    ///
+    /// 值**不乘**压缩系数：序号被压窄就是「显示不全」，宁可挤掉任务说明的余量。
+    /// 用户显式拖过的宽度仍然优先——那是用户看过内容后的主动选择（`widthRange` 兜住过窄的值）。
+    var contentWidths: [OutlineColumn: CGFloat] = [:]
 
     /// 压缩系数：以 600pt 为基准，最窄压到 0.6；聚焦标签栏不压缩。
     private var scale: CGFloat {
         focused ? 1 : min(max(totalWidth / 600, 0.6), 1)
     }
 
-    /// 列宽优先级：拖拽草稿 → 用户覆盖值（不压缩）→ 默认派生宽（乘压缩系数）。
+    /// 列宽优先级：拖拽草稿 → 用户覆盖值（不压缩）→ 内容自适应宽（不压缩）→ 默认派生宽（乘压缩系数）。
     /// 三者皆无、即无用户配置时与引入本机制前逐位一致。
     func width(of column: OutlineColumn) -> CGFloat {
         if column == .title {
@@ -77,6 +82,10 @@ struct OutlineColumnLayout {
         // 聚焦标签栏（180pt）忽略用户宽度，避免计划模式拖过的宽度在聚焦模式里串味。
         if !focused, let override = widthOverrides[column] {
             return CGFloat(override)
+        }
+        // 内容自适应（#48）：按当前项目实际内容量出来的宽度，不参与压缩。
+        if !focused, let content = contentWidths[column] {
+            return content
         }
         return CGFloat(column.width(bodyFontSize: 13)) * scale
     }
