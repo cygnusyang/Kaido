@@ -31,9 +31,30 @@ let macOSAppTargets: [Target] = [
 
 // KairoUpdater 产品仅在 Apple 平台导出（Security 框架依赖，Linux CI 不参与）。
 let updaterProduct: [Product] = [.library(name: "KairoUpdater", targets: ["KairoUpdater"])]
+
+// OmniPlan .oplx 通道：解压用 Compression framework（raw deflate），Linux 无此模块，
+// 故整块按 canImport 条件包含——Linux CI 不构建它，也就不为它装任何三方 zip 依赖。
+// 依赖只有 KairoInterop（14 §2 硬规则 1/2）：不 import InteropMSPDI、不 import KairoCore。
+let omniPlanTargets: [Target] = [
+    .target(
+        name: "InteropOmniPlan",
+        dependencies: ["KairoInterop"],
+        path: "Sources/InteropOmniPlan"
+    ),
+    // 独立测试 target：只依赖本通道 + IR（多一个 KairoCore 仅为桥接后的项目形态断言），
+    // 从 manifest 层面证明「删掉 InteropMSPDI 时本通道仍能编译并全绿」。
+    .testTarget(
+        name: "InteropOmniPlanTests",
+        dependencies: ["InteropOmniPlan", "KairoInterop", "KairoCore"],
+        path: "Tests/InteropOmniPlanTests"
+    )
+]
+let omniPlanProducts: [Product] = [.library(name: "InteropOmniPlan", targets: ["InteropOmniPlan"])]
 #else
 let macOSAppTargets: [Target] = []
 let updaterProduct: [Product] = []
+let omniPlanTargets: [Target] = []
+let omniPlanProducts: [Product] = []
 #endif
 
 let package = Package(
@@ -51,7 +72,7 @@ let package = Package(
         .library(name: "KairoInterop", targets: ["KairoInterop"]),
         // MS Project XML（MSPDI）通道：只依赖 KairoInterop，不 import KairoCore
         .library(name: "InteropMSPDI", targets: ["InteropMSPDI"])
-    ] + updaterProduct,
+    ] + updaterProduct + omniPlanProducts,
     targets: [
         // 跨平台核心（纯逻辑，ADR-004：零 AppKit/SwiftUI/Combine import）
         .target(
@@ -118,5 +139,5 @@ let package = Package(
             dependencies: ["KairoCore", "KairoCommands", "KairoMCP", "KairoCLI"],
             path: "Tests/InterfaceTests"
         )
-    ] + macOSAppTargets
+    ] + macOSAppTargets + omniPlanTargets
 )
