@@ -22,17 +22,29 @@ concurrency:
 
 jobs:
   release:
-    runs-on: macos-14
+    # 与 ci.yml 同一镜像与 Xcode 版本：发版产物必须由与本机一致的编译器产出。
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
 
-      - name: 选择 Xcode 16+（Swift Testing / notarytool 需要）
+      - name: 选择 Xcode（固定版本）
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: '26.4.1'
 
       - name: 检出 Swift 版本
         run: swift --version
+
+      - name: 校验工具链版本（防 runner 镜像漂移）
+        run: |
+          set -euo pipefail
+          PINNED="6.3.1"
+          ACTUAL="$(swift --version | sed -n 's/.*Swift version \([0-9][0-9.]*\).*/\1/p' | head -1)"
+          echo "pinned=${PINNED} actual=${ACTUAL}"
+          if [ "${ACTUAL}" != "${PINNED}" ]; then
+            echo "::error::CI 工具链 ${ACTUAL} 与本地 ${PINNED} 不一致（runner 镜像可能已漂移）。要么把本工作流的镜像/Xcode 固定回与本地一致，要么显式升级 PINNED 并在本机同步升级 Swift。v1.0.0 与 v1.1.0 各因这一漂移在发版门禁上红过一次。"
+            exit 1
+          fi
 
       # 发版不得绕过合入前门禁：tag 可能指向没走过 ci.yml 的提交。
       - name: 门禁 · 与 ci.yml 同源
