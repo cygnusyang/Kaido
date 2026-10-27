@@ -133,7 +133,7 @@ struct ImportPreflight: Equatable {
         dependencyLosses = dependencyRows
         ledgerEntryCount = ledger.entries.count
         calendar = Self.makeCalendarConversion(document)
-        assert(isLedgerPartitioned, "预检清单漏报：\(ledgerEntryCount) 条登记没有全部落到四块清单里")
+        assert(isLedgerPartitioned, "preflight ledger not fully partitioned: \(ledgerEntryCount) entries outside the four buckets")
     }
 
     // MARK: - 分块
