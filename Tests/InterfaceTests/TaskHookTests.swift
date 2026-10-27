@@ -71,7 +71,7 @@ struct TaskHookTests {
         let errors = Pipe()
         process.standardInput = input
         process.standardError = errors
-        process.standardOutput = Pipe()
+        process.standardOutput = FileHandle.nullDevice  // 同上：不读的管道不挂
 
         do {
             try process.run()

@@ -1033,7 +1033,7 @@ private func pythonCSVColumnWidths(_ path: String) throws -> [Int]? {
     process.arguments = ["-c", script, path]
     let output = Pipe()
     process.standardOutput = output
-    process.standardError = Pipe()
+    process.standardError = FileHandle.nullDevice  // 不读的管道 = 潜在死锁，直接丢弃
     try process.run()
     let data = output.fileHandleForReading.readDataToEndOfFile()
     process.waitUntilExit()
