@@ -15,6 +15,8 @@ import KairoUpdater
 /// 更新面板（由「检查更新…」菜单触发挂载）。
 struct UpdateSheet: View {
     @ObservedObject var updater: UpdaterManager
+    /// 安装前的收口（未保存修改裁决前移，#17）：false = 用户取消，不进入 installing。
+    let settleBeforeInstall: () -> Bool
     /// 关闭请求（.installing 确认后由本面板发起，交宿主执行退出序列）。
     let onRequestClose: () -> Void
 
@@ -231,15 +233,20 @@ struct UpdateSheet: View {
     }
 
     /// 下载完成后唯一的安装入口：退出 + 替换二进制 + 自动重启。
+    ///
+    /// 顺序纪律（#17）：**先**把「未保存修改」的裁决跑完，**再**落脚本进入
+    /// installing。反过来时，脚本 detached 等待的 60s 会被这个弹窗吃掉，超时后
+    /// 本进程既没退出也没收到通知，面板会永久停在「正在安装更新」。
     private func install() {
-        Task {
+        Task { @MainActor in
+            guard settleBeforeInstall() else { return }
             await updater.install()
             // install() 成功路径不返回状态迁移（保持 .installing）；
             // 失败会转 .failed，仅在 still installing 时执行退出序列。
-            if case .installing = updater.state {
-                try? await Task.sleep(nanoseconds: 500_000_000)
-                NSApp.terminate(nil)
-            }
+            // 卡死兜底由 UpdaterManager 的安装看门狗负责（超时转 failed）。
+            guard case .installing = updater.state else { return }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            NSApp.terminate(nil)
         }
     }
 

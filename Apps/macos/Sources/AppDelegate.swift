@@ -44,14 +44,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 退出裁决（不依赖 NSApplication 实例，测试直接调用）。
     func terminationReply() -> NSApplication.TerminateReply {
-        guard let store, store.hasUnsavedChanges else { return .terminateNow }
+        settleUnsavedChanges() ? .terminateNow : .terminateCancel
+    }
+
+    /// 退出前的未保存收口：⌘Q 与 OTA 安装共用同一套裁决。
+    ///
+    /// OTA 安装必须在**进入 installing 之前**就把它跑完（#17）：替换脚本是
+    /// detached 子进程，只等 60s，任何「退出前还要再问一次用户」的交互都会
+    /// 让它超时放弃 —— 本进程既没退出也没收到通知，面板就此永久卡在
+    /// 「正在安装更新」。收口前置后，installing 期间不再有弹窗插队的可能。
+    ///
+    /// - Returns: 是否可以立即退出（false = 用户取消 / 保存失败，不得退出）。
+    @MainActor func settleUnsavedChanges() -> Bool {
+        guard let store, store.hasUnsavedChanges else { return true }
         switch askQuitChoice(store) {
         case .saveAndQuit:
-            return saveAndTerminate(store)
+            return saveAndTerminate(store) == .terminateNow
         case .discardAndQuit:
-            return .terminateNow
+            return true
         case .cancel:
-            return .terminateCancel
+            return false
         }
     }
 

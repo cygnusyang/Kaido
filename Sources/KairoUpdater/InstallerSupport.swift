@@ -75,9 +75,13 @@ public struct InstallResult: Codable, Equatable {
 
 /// 替换脚本构造与文件形状守卫（纯函数，可独立测试）。
 public enum InstallerScript {
+    /// 「等不到旧进程退出」的退出码（脚本与看门狗共用同一常量，防漂移）。
+    public static let appNotQuittingExitCode = 4
+
     /// 替换脚本：等当前进程退出（上限 60s）→ 备份 → 替换 → relaunch →
     /// 写 result JSON（成功/失败均写，App 首启消费）。单引号包裹所有路径，
     /// 防空格与特殊字符拆参。
+
     public static func replacement(
         newAppPath: String, currentAppPath: String, backupPath: String,
         resultFilePath: String, pid: Int32
@@ -97,7 +101,7 @@ public enum InstallerScript {
           sleep 0.2
         done
         if kill -0 \(pid) 2>/dev/null; then
-          write_result 4 false "app_not_quitting"
+          write_result \(Self.appNotQuittingExitCode) false "app_not_quitting"
           exit 1
         fi
         rm -rf \(q(backupPath))

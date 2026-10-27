@@ -6,6 +6,9 @@
 import Foundation
 import os
 
+/// 默认安装超时：替换脚本自身上限 60s，再留 15s 余量后才判定卡死（#17）。
+public let kairoDefaultInstallTimeoutNanoseconds: UInt64 = 75 * 1_000_000_000
+
 /// 校验通过的更新信息（UI 展示用）。
 public struct UpdateInfo: Equatable {
     public let version: String
@@ -102,6 +105,10 @@ public final class UpdaterManager: ObservableObject {
     private let installer: Installing
     private let verifier: ProductVerifying
     private let userDefaults: UserDefaults
+    /// 安装看门狗：`.installing` 后本进程迟迟没被替换，说明替换协议已卡住
+    ///（脚本 60s 等不到退出即放弃，此时不再有竞争）。超时转 `.failed`。
+    private let installTimeoutNanoseconds: UInt64
+    private var installWatchdog: Task<Void, Never>?
     /// 诊断日志（默认 os.log）。
     private let log: @Sendable (String) -> Void
     /// 跳过版本的持久化 key（仅严格更新版本才重新提示；securityCritical 禁跳）。
@@ -123,6 +130,7 @@ public final class UpdaterManager: ObservableObject {
         installer: Installing,
         verifier: ProductVerifying,
         userDefaults: UserDefaults = .standard,
+        installTimeoutNanoseconds: UInt64 = kairoDefaultInstallTimeoutNanoseconds,
         skippedVersionKey: String = "kairo_ota_skipped_version",
         log: @escaping @Sendable (String) -> Void = ZipAppInstaller.defaultLogger
     ) {
@@ -137,6 +145,7 @@ public final class UpdaterManager: ObservableObject {
         self.installer = installer
         self.verifier = verifier
         self.userDefaults = userDefaults
+        self.installTimeoutNanoseconds = installTimeoutNanoseconds
         self.skippedVersionKey = skippedVersionKey
         self.log = log
     }
@@ -217,10 +226,29 @@ public final class UpdaterManager: ObservableObject {
             try await installer.perform(
                 info: product.info, downloadedAppURL: product.appURL, currentAppURL: currentAppURL)
             // 成功路径：脚本完成替换并 relaunch，本进程即将退出；保持 .installing。
+            startInstallWatchdog()
         } catch {
+            installWatchdog?.cancel()
             pendingProduct = nil
             log("安装失败 error=\(error)")
             state = .failed(Self.failure(from: error))
+        }
+    }
+
+    /// 启动安装看门狗：超时仍在 `.installing`（= 本进程既没被替换也没退出）
+    /// 即判失败并回到可操作态。脚本此时已放弃等待，不会与看门狗竞争。
+    private func startInstallWatchdog() {
+        installWatchdog?.cancel()
+        let timeout = installTimeoutNanoseconds
+        installWatchdog = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: timeout)
+            guard let self else { return }
+            guard case .installing = self.state else { return }
+            self.log("安装超时（\(timeout / 1_000_000_000)s）：本进程未被替换，转失败态")
+            self.state = .failed(UpdaterFailure(
+                code: .installAppStillRunning,
+                parameters: ["exitCode": String(InstallerScript.appNotQuittingExitCode)]
+            ))
         }
     }
 
@@ -282,6 +310,7 @@ public final class UpdaterManager: ObservableObject {
 
     /// 关面板 / 清理失败态。
     public func dismiss() {
+        installWatchdog?.cancel()
         pendingProduct = nil
         state = .idle
     }

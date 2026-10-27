@@ -30,9 +30,12 @@ struct UpdaterManagerTests {
     private final class StubInstaller: Installing, @unchecked Sendable {
         var appURL: URL
         var performed = 0
+        /// 注入安装失败（脚本落盘/启动失败等）。
+        var performError: Error?
         init(appURL: URL) { self.appURL = appURL }
         func prepare(downloadedArchive: URL) async throws -> URL { appURL }
         func perform(info: UpdateInfo, downloadedAppURL: URL, currentAppURL: URL) async throws {
+            if let performError { throw performError }
             performed += 1
         }
     }
@@ -49,6 +52,7 @@ struct UpdaterManagerTests {
         downloader: DataDownloading,
         installer: Installing,
         currentVersion: String = "1.0.0",
+        installTimeoutNanoseconds: UInt64 = kairoDefaultInstallTimeoutNanoseconds,
         userDefaults: UserDefaults
     ) -> UpdaterManager {
         UpdaterManager(
@@ -62,11 +66,15 @@ struct UpdaterManagerTests {
             downloader: downloader,
             installer: installer,
             verifier: StubVerifier(),
-            userDefaults: userDefaults
+            userDefaults: userDefaults,
+            installTimeoutNanoseconds: installTimeoutNanoseconds
         )
     }
 
-    private func makeFixture(version: String = "1.1.0") throws -> (
+    private func makeFixture(
+        version: String = "1.1.0",
+        installTimeoutNanoseconds: UInt64 = kairoDefaultInstallTimeoutNanoseconds
+    ) throws -> (
         UpdaterManager, StubDownloader, StubInstaller, UserDefaults, URL
     ) {
         let keys = TestKeys.makeKeyPair()
@@ -90,6 +98,7 @@ struct UpdaterManagerTests {
                 privateKeyBase64: keys.privateKeyBase64))),
             downloader: downloader,
             installer: installer,
+            installTimeoutNanoseconds: installTimeoutNanoseconds,
             userDefaults: defaults)
         return (manager, downloader, installer, defaults, archiveURL)
     }
@@ -304,5 +313,49 @@ extension UpdaterManagerTests {
         }
         #expect(failure.code == .installFailed)
         #expect(failure.parameters["detail"] == nil)
+    }
+
+    // MARK: - 安装看门狗（#17）
+
+    /// 脚本 detached 之后本进程迟迟没被替换/退出：看门狗必须把 `.installing`
+    /// 转成 `.failed`，否则更新面板会永久停在「正在安装更新」（无任何出口）。
+    @Test func installWatchdogTurnsStuckInstallIntoFailure() async throws {
+        let (updater, _, _, defaults, _) = try makeFixture(installTimeoutNanoseconds: 50_000_000)
+        defaults.removePersistentDomain(forName: "kairo.updatertests")
+        await updater.check()
+        await updater.download()
+        await updater.install()
+        #expect(updater.state == .installing)
+
+        try await Task.sleep(nanoseconds: 400_000_000)
+        guard case .failed(let failure) = updater.state else {
+            Issue.record("期望超时转 failed，实际 \(updater.state)")
+            return
+        }
+        #expect(failure.code == .installAppStillRunning)
+        #expect(failure.parameters["exitCode"] == String(InstallerScript.appNotQuittingExitCode))
+    }
+
+    /// 安装立即失败（脚本落盘/启动失败）：看门狗不得用超时码盖掉真实失败码。
+    @Test func installFailureKeepsItsOwnCodeAndCancelsWatchdog() async throws {
+        let (updater, _, installer, defaults, _) = try makeFixture(installTimeoutNanoseconds: 50_000_000)
+        defaults.removePersistentDomain(forName: "kairo.updatertests")
+        installer.performError = InstallError.scriptLaunchFailed("stub")
+        await updater.check()
+        await updater.download()
+        await updater.install()
+
+        guard case .failed(let failure) = updater.state else {
+            Issue.record("期望 failed，实际 \(updater.state)")
+            return
+        }
+        #expect(failure.code == .scriptLaunchFailed)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        // 看门狗已取消：超时后仍是原始失败码。
+        guard case .failed(let after) = updater.state else {
+            Issue.record("期望保持 failed，实际 \(updater.state)")
+            return
+        }
+        #expect(after.code == .scriptLaunchFailed)
     }
 }

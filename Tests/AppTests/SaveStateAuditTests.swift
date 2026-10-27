@@ -313,4 +313,66 @@ struct SaveStateAuditTests {
         #expect(cancelDelegate.terminationReply() == .terminateCancel)
         #expect(cancelStore.hasUnsavedChanges)
     }
+
+    // MARK: - OTA 安装前的收口（#17）
+
+    /// 干净项目：安装前收口直接放行，且不得再弹一次退出裁决。
+    @Test func installSettlePassesCleanProjectWithoutPrompt() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = makeStore()
+        store.save(to: directory.appendingPathComponent("clean.kairo"))
+
+        let delegate = AppDelegate()
+        delegate.store = store
+        delegate.askQuitChoice = { _ in
+            Issue.record("干净项目在安装前不应询问用户")
+            return .cancel
+        }
+        #expect(delegate.settleUnsavedChanges())
+    }
+
+    /// 脏项目 + 取消：不得进入 installing（返回 false），内容保持原样。
+    @Test func installSettleCancelsWhenUserDeclines() throws {
+        let store = makeStore()
+        store.dispatch(.setProjectTitle("未保存标题"))
+        let delegate = makeAppDelegate(store, choice: .cancel)
+
+        #expect(delegate.settleUnsavedChanges() == false)
+        #expect(store.hasUnsavedChanges)
+        #expect(store.exportProject.metadata.title == "未保存标题")
+    }
+
+    /// 脏项目 + 丢弃：放行。收口前置后 installing 期间不会再有弹窗插队，
+    /// 脚本 detached 等待的 60s 不会被吃掉。
+    @Test func installSettlePassesWhenUserDiscards() throws {
+        let store = makeStore()
+        store.dispatch(.setProjectTitle("未保存标题"))
+        let delegate = makeAppDelegate(store, choice: .discardAndQuit)
+
+        #expect(delegate.settleUnsavedChanges())
+    }
+
+    /// 脏项目 + 保存：落盘成功才放行；保存失败则一律不得放行。
+    @Test func installSettleSavesBeforeProceeding() throws {
+        let directory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("saved.kairo")
+        let store = makeStore()
+        store.save(to: url)
+        store.dispatch(.setProjectTitle("安装前保存"))
+        let delegate = makeAppDelegate(store, choice: .saveAndQuit)
+
+        #expect(delegate.settleUnsavedChanges())
+        #expect(!store.hasUnsavedChanges)
+
+        // 落盘必然失败时（目标目录已消失），不得放行。
+        let failing = makeStore()
+        failing.save(to: url)
+        failing.dispatch(.setProjectTitle("保存会失败"))
+        try FileManager.default.removeItem(at: directory)
+        let failingDelegate = makeAppDelegate(failing, choice: .saveAndQuit)
+        failingDelegate.showSaveError = { _ in }
+        #expect(failingDelegate.settleUnsavedChanges() == false)
+    }
 }

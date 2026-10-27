@@ -22,7 +22,10 @@ struct KairoApp: App {
                 .onAppear {
                     appDelegate.store = store
                     // 首启消费上次 OTA 安装结果（幂等；无 pending 则 no-op）。
+                    // 上次安装失败必须被看见（#17）：否则 5s 后的自动检查会把它
+                    // 直接覆盖成「有更新」，用户永远拿不到反馈。
                     updater.consumePendingInstallResult()
+                    if case .failed = updater.state { showUpdateSheet = true }
                     scheduleAutoUpdateChecks()
                     scheduleLaunchOpen()
                 }
@@ -30,6 +33,7 @@ struct KairoApp: App {
                 .sheet(isPresented: $showUpdateSheet) {
                     UpdateSheet(
                         updater: updater,
+                        settleBeforeInstall: { appDelegate.settleUnsavedChanges() },
                         onRequestClose: { showUpdateSheet = false }
                     )
                 }
@@ -118,6 +122,8 @@ struct KairoApp: App {
 
     @MainActor
     private func silentCheck() async {
+        // 上次安装失败的面板还在屏上时，自动检查不得把它覆盖成「有更新」（#17）。
+        if case .failed = updater.state, showUpdateSheet { return }
         await updater.check()
         if case .updateAvailable(let info) = updater.state,
            autoPresentedVersion != info.version {
