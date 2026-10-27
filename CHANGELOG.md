@@ -3,6 +3,22 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
 
+## v1.1.1 — 2026-10-27
+
+### 修复
+
+- **OTA「退出并安装」永久卡死（#17）**：点「退出并安装」后进程不退出，60s 后脚本写 `app_not_quitting`，面板停在「正在安装更新」且**没有任何按钮**。根因是把「旧进程会不会退出」交给了未保存守卫——`NSApp.terminate` 触发 `applicationShouldTerminate` 的保存模态框，用户不答/取消/保存失败都返回 `.terminateCancel`，脚本等不到进程退出。
+- 修法：① **装前先同步保存**，保存失败直接中止安装并报错（不再把人拦在模态框里）；② OTA 武装后 `applicationShouldTerminate` 返回 `.terminateNow` 旁路；③ 安装中轮询结果文件，失败即进 failed 态并可重试/关闭，同时清理 pending 三键；④ **75s 超时兜底**，任何状态都有按钮，不再出现无路可走的死界面。
+
+### 判据与证据
+
+- 新增 5 例 `OTAInstallGuardTests`：装前保存、保存失败不装、旁路生效、失败结果驱动面板、超时离开安装中。
+- 全量 **1385 tests / 131 suites** 通过；零 warning。
+
+### 已知未做
+
+- 脚本超时后 `$TMPDIR` 里的解压目录仍会残留；下次启动 `consumePendingInstallResult()` 的失败仍可能被 5s 自动检查覆盖。两条已记入 issue #17 的后续项。
+
 ## v1.1.0 — 2026-10-27
 
 ### 新增

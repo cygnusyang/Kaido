@@ -1,9 +1,9 @@
 // UpdateSheet.swift —— 更新面板（状态化头部 + 详情 + 尾部动作）。
 //
 // 纪律（沿 COFFER 裁定）：安装唯一入口为 .downloaded 态确认弹窗——
-// 「退出 + 替换二进制」动作单点化确认；.installing 态放开交互关闭
-//（关闭即走「关面板 → 0.5s → terminate」序列）；检查失败绝不静默归
-// 「已是最新」。
+// 「退出 + 替换二进制」动作单点化确认；装前先落盘未保存修改（issue #17），
+// 落盘失败就不装、由 .failed 说明原因；任何状态都留可点出口，绝不停在
+// 无按钮的「正在安装更新」；检查失败绝不静默归「已是最新」。
 //
 // 视觉（ui-redesign §2 表面/字号 token）：头部 = 语义图标徽章 + 标题 + 说明，
 // 详情区按状态给进度/版本说明/错误，尾部按钮右对齐；不再用「一行文字 + 好」
@@ -17,6 +17,8 @@ struct UpdateSheet: View {
     @ObservedObject var updater: UpdaterManager
     /// 关闭请求（.installing 确认后由本面板发起，交宿主执行退出序列）。
     let onRequestClose: () -> Void
+    /// 装前收口（生产 = 落盘未保存修改；返回失败则不安装，见 issue #17）。
+    let prepareForInstall: () -> UpdaterFailure?
 
     private enum Layout {
         static let width: CGFloat = 400
@@ -162,7 +164,12 @@ struct UpdateSheet: View {
     private var footer: some View {
         switch updater.state {
         case .idle, .checking, .downloading, .installing:
-            EmptyView()
+            // 任何状态都必须有可点的出口（issue #17）：安装中只关面板，不打断
+            // 已启动的替换脚本；检查/下载中同理，只关面板不动状态机。
+            actionRow {
+                Button(I18n.t("action.close", "Close")) { onRequestClose() }
+                    .buttonStyle(.bordered)
+            }
         case .upToDate:
             actionRow {
                 Button(I18n.t("action.ok", "OK")) { close() }
@@ -230,16 +237,15 @@ struct UpdateSheet: View {
         onRequestClose()
     }
 
-    /// 下载完成后唯一的安装入口：退出 + 替换二进制 + 自动重启。
+    /// 下载完成后唯一的安装入口：装前落盘 → 退出 + 替换二进制 + 自动重启。
     private func install() {
         Task {
-            await updater.install()
-            // install() 成功路径不返回状态迁移（保持 .installing）；
-            // 失败会转 .failed，仅在 still installing 时执行退出序列。
-            if case .installing = updater.state {
-                try? await Task.sleep(nanoseconds: 500_000_000)
-                NSApp.terminate(nil)
-            }
+            await updater.install(preflight: prepareForInstall)
+            // 只有武装成功（脚本已启动）才进入退出序列；失败/收口被拒时停在
+            // .failed，用户可重试或关闭——绝不把面板留在无按钮的安装态。
+            guard updater.isInstallingUpdate else { return }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            NSApp.terminate(nil)
         }
     }
 
@@ -273,7 +279,10 @@ struct UpdateSheet: View {
         case .downloading: return I18n.t("update.state.downloading.title", "Downloading the update")
         case .downloaded: return I18n.t("update.state.downloaded.title", "Update downloaded and verified")
         case .installing: return I18n.t("update.state.installing.title", "Installing the update")
-        case .failed: return I18n.t("update.state.failed.title", "Update check failed")
+        case .failed(let failure):
+            return UpdaterFailureText.isInstallFailure(failure)
+                ? I18n.t("update.state.install_failed.title", "The update could not be installed")
+                : I18n.t("update.state.failed.title", "Update check failed")
         }
     }
 
@@ -290,9 +299,11 @@ struct UpdateSheet: View {
         case .downloaded:
             return I18n.t("update.state.downloaded.subtitle", "Kairo will quit, replace the binary, and restart automatically.")
         case .installing:
-            return I18n.t("update.state.installing.subtitle", "The app is about to quit and restart automatically; do not close it manually.")
-        case .failed:
-            return I18n.t("update.state.failed.subtitle", "The update check could not be completed; try again later.")
+            return I18n.t("update.state.installing.subtitle", "The app is about to quit and restart automatically; if it stays here, close this panel or download the update manually.")
+        case .failed(let failure):
+            return UpdaterFailureText.isInstallFailure(failure)
+                ? I18n.t("update.state.install_failed.subtitle", "Kairo is still running the current version. Retry, or download the latest version from the release page.")
+                : I18n.t("update.state.failed.subtitle", "The update check could not be completed; try again later.")
         }
     }
 

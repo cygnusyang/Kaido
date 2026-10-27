@@ -106,6 +106,14 @@ public final class UpdaterManager: ObservableObject {
     private let log: @Sendable (String) -> Void
     /// 跳过版本的持久化 key（仅严格更新版本才重新提示；securityCritical 禁跳）。
     private let skippedVersionKey: String
+    /// 安装观察窗口（issue #17）：超时即离开「安装中」态，面板给出手动下载出口。
+    private let installWatchTimeout: TimeInterval
+    /// 安装结果文件轮询间隔。
+    private let installWatchInterval: TimeInterval
+    /// 替换脚本已成功启动（武装）。仅与 `.installing` 同时成立才算「OTA 武装」。
+    private var installScriptLaunched = false
+    /// 安装结果观察任务（失败/成功/超时后退出）。
+    private var installWatchTask: Task<Void, Never>?
 
     /// 下载完成后的安装产物暂存（清单 info + 解压验签后的 App 路径）。
     /// `.downloaded` 态无关联值，install() 从本暂存消费；失败/dismiss/新 check 清空。
@@ -124,6 +132,8 @@ public final class UpdaterManager: ObservableObject {
         verifier: ProductVerifying,
         userDefaults: UserDefaults = .standard,
         skippedVersionKey: String = "kairo_ota_skipped_version",
+        installWatchTimeout: TimeInterval = 75,
+        installWatchInterval: TimeInterval = 0.5,
         log: @escaping @Sendable (String) -> Void = ZipAppInstaller.defaultLogger
     ) {
         self.manifestURL = manifestURL
@@ -138,7 +148,19 @@ public final class UpdaterManager: ObservableObject {
         self.verifier = verifier
         self.userDefaults = userDefaults
         self.skippedVersionKey = skippedVersionKey
+        self.installWatchTimeout = installWatchTimeout
+        self.installWatchInterval = installWatchInterval
         self.log = log
+    }
+
+    /// OTA 已武装（issue #17）：替换脚本成功启动、本进程仍在 `.installing`。
+    ///
+    /// 退出守卫（`AppDelegate.terminationReply`）为真时直接放行退出：安装前
+    /// 已强制落盘未保存修改，退出路径上不该再出现需要人参与的模态裁决——
+    /// 否则脚本等 60s 拿不到退出就 `app_not_quitting` 放弃，面板死在安装态。
+    public var isInstallingUpdate: Bool {
+        guard case .installing = state else { return false }
+        return installScriptLaunched
     }
 
     /// 检查更新：拉清单 → HTTPS+白名单 → canonical 验签 → 版本比较 → 状态迁移。
@@ -202,21 +224,35 @@ public final class UpdaterManager: ObservableObject {
         }
     }
 
-    /// 安装更新：落盘替换脚本并 detached 启动 → installing。App 侧随即退出
-    ///（脚本等退出后备份/替换/relaunch，结果经 result 文件在下次启动消费）。
+    /// 安装更新：装前收口 → 落盘替换脚本并 detached 启动 → installing。
+    /// App 侧随即退出（脚本等退出后备份/替换/relaunch，结果经 result 文件消费）。
+    ///
     /// UI 唯一入口为 .downloaded 态确认弹窗；起点为 .updateAvailable 时先补 download()。
-    public func install() async {
+    /// - Parameter preflight: 启动脚本**之前**的收口（生产 = 落盘未保存修改）。
+    ///   返回失败则整体拒绝安装：脚本不落盘、不启动，面板进 `.failed` 说明原因
+    ///   （issue #17：绝不把「能不能退」交给退出守卫的模态框）。
+    public func install(preflight: (@MainActor () -> UpdaterFailure?)? = nil) async {
         if case .updateAvailable = state {
             await download()
         }
         guard case .downloaded = state, let product = pendingProduct else {
             return
         }
+        if let failure = preflight?() {
+            log("安装前收口失败，未启动替换脚本 error=\(failure)")
+            pendingProduct = nil
+            state = .failed(failure)
+            return
+        }
         do {
             state = .installing
             try await installer.perform(
                 info: product.info, downloadedAppURL: product.appURL, currentAppURL: currentAppURL)
-            // 成功路径：脚本完成替换并 relaunch，本进程即将退出；保持 .installing。
+            // 成功路径：脚本已启动（武装），本进程即将退出；保持 .installing。
+            installScriptLaunched = true
+            startInstallWatch(
+                resultPath: userDefaults.string(
+                    forKey: ZipAppInstaller.pendingResultPathDefaultsKey))
         } catch {
             pendingProduct = nil
             log("安装失败 error=\(error)")
@@ -256,19 +292,7 @@ public final class UpdaterManager: ObservableObject {
             return
         }
         guard result.success else {
-            // F-0719：脚本写的是稳定码，映射成独立错误码；**只带退出码**——
-            // 旧版本脚本写下的中文文案绝不进 UI（英文界面不得漏中文）。
-            let code: UpdaterErrorCode
-            switch result.reason {
-            case .appNotQuitting: code = .installAppStillRunning
-            case .backupFailed: code = .installBackupFailed
-            case .replaceFailed: code = .installReplaceFailed
-            case .relaunchFailed, nil: code = .installFailed
-            }
-            state = .failed(UpdaterFailure(
-                code: code,
-                parameters: ["exitCode": String(result.code)]
-            ))
+            state = .failed(Self.failure(from: result))
             return
         }
         if let backupPath = userDefaults.string(forKey: ZipAppInstaller.pendingBackupPathDefaultsKey),
@@ -282,6 +306,7 @@ public final class UpdaterManager: ObservableObject {
 
     /// 关面板 / 清理失败态。
     public func dismiss() {
+        stopInstallWatch()
         pendingProduct = nil
         state = .idle
     }
@@ -331,6 +356,21 @@ public final class UpdaterManager: ObservableObject {
     /// 检查失败的诊断号（完整错误只进日志；界面按 code + 该诊断号出提示）。
     nonisolated public static let checkFailureReference = "OTA-E-2001"
 
+    /// 脚本结果 → 结构化失败（issue #17 面板内呈现与首启消费共用同一映射）。
+    ///
+    /// F-0719：脚本写的是稳定码，映射成独立错误码；**只带退出码**——
+    /// 旧版本脚本写下的中文文案绝不进 UI（英文界面不得漏中文）。
+    nonisolated static func failure(from result: InstallResult) -> UpdaterFailure {
+        let code: UpdaterErrorCode
+        switch result.reason {
+        case .appNotQuitting: code = .installAppStillRunning
+        case .backupFailed: code = .installBackupFailed
+        case .replaceFailed: code = .installReplaceFailed
+        case .relaunchFailed, nil: code = .installFailed
+        }
+        return UpdaterFailure(code: code, parameters: ["exitCode": String(result.code)])
+    }
+
     /// 任意错误 → 结构化失败（实现 UpdaterCodedError 的错误保留码与参数，其余兜底）。
     nonisolated public static func failure(from error: Error) -> UpdaterFailure {
         if let failure = error as? UpdaterFailure { return failure }
@@ -340,5 +380,71 @@ public final class UpdaterManager: ObservableObject {
         // 未知错误（URLError 等）：只给稳定码 + 诊断号，绝不把 error 的 description 拼给界面。
         // 原始错误由调用方写日志（updater.check 的 os.Logger），界面拿到的永远是可翻译的码。
         return UpdaterFailure(code: .checkFailed, parameters: ["ref": Self.checkFailureReference])
+    }
+
+    // MARK: - 安装结果观察（issue #17）
+
+    /// `.installing` 期间的兜底观察：脚本的成功/失败结果只写在 result 文件里，
+    /// 而旧进程一旦退出就再也读不到——所以「本进程还活着」时由本进程读。
+    ///
+    /// 三条出口：读到 success=false → 面板 failed（含退出码）；读到 success=true →
+    /// 停观察（进程随即被替换/relaunch）；超过时限没有任何结果 → failed(.installTimeout)。
+    /// 任何一条都保证面板不会停在「安装中」这个无按钮可点的状态。
+    private func startInstallWatch(resultPath: String?) {
+        stopInstallWatch()
+        installWatchTask = Task { [weak self] in
+            guard let self else { return }
+            let deadline = Date().addingTimeInterval(self.installWatchTimeout)
+            while !Task.isCancelled {
+                if Date() >= deadline {
+                    self.failInstall(UpdaterFailure(code: .installTimeout))
+                    return
+                }
+                try? await Task.sleep(
+                    nanoseconds: UInt64(max(self.installWatchInterval, 0.01) * 1_000_000_000))
+                guard !Task.isCancelled else { return }
+                guard let result = Self.readInstallResult(atPath: resultPath) else { continue }
+                if result.success { return }
+                self.failInstall(Self.failure(from: result))
+                return
+            }
+        }
+    }
+
+    private func stopInstallWatch() {
+        installWatchTask?.cancel()
+        installWatchTask = nil
+    }
+
+    /// 安装失败收口：停观察、解除武装、清 pending 三键（下次启动不再消费同一失败）、
+    /// 面板进 `.failed`（有「重试 / 关闭」两个出口）。
+    private func failInstall(_ failure: UpdaterFailure) {
+        stopInstallWatch()
+        installScriptLaunched = false
+        pendingProduct = nil
+        clearPendingInstallState()
+        log("安装失败（面板内呈现）error=\(failure)")
+        state = .failed(failure)
+    }
+
+    /// 清掉 pending 三键（result / backup / backupDir）并 best-effort 删结果文件。
+    /// 只删形状匹配的 result 文件，其余路径绝不误删（fail-closed）。
+    private func clearPendingInstallState() {
+        let resultPath = userDefaults.string(forKey: ZipAppInstaller.pendingResultPathDefaultsKey)
+        userDefaults.removeObject(forKey: ZipAppInstaller.pendingResultPathDefaultsKey)
+        userDefaults.removeObject(forKey: ZipAppInstaller.pendingBackupPathDefaultsKey)
+        userDefaults.removeObject(forKey: ZipAppInstaller.pendingBackupDirDefaultsKey)
+        if let resultPath, InstallerScript.isResultShape(resultPath) {
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: resultPath))
+        }
+    }
+
+    /// 读一次脚本结果：文件尚未出现 → nil（继续等）。半截写入 / 坏 JSON 同样按
+    /// nil 处理（下一拍再读），不把瞬态读失败误报成安装失败。
+    nonisolated private static func readInstallResult(atPath path: String?) -> InstallResult? {
+        guard let path, let data = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(InstallResult.self, from: data)
     }
 }

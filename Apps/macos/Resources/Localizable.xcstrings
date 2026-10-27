@@ -7988,6 +7988,57 @@
         }
       }
     },
+    "update.error.install_save_failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot install the update because the current project could not be saved: %1$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前项目无法保存，更新未安装：%1$@"
+          }
+        }
+      }
+    },
+    "update.error.install_save_no_location": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "the project has not been saved to disk yet; save it first and try again"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "项目尚未保存到磁盘，请先保存再试"
+          }
+        }
+      }
+    },
+    "update.error.install_timeout": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The update did not finish installing in time. Download the latest version from the release page and install it manually."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安装超时，未能完成。请从发布页手动下载最新版本安装。"
+          }
+        }
+      }
+    },
     "update.error.launch_path_mismatch": {
       "extractionState": "manual",
       "localizations": {
@@ -8464,19 +8515,53 @@
         }
       }
     },
+    "update.state.install_failed.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kairo is still running the current version. Retry, or download the latest version from the release page."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kairo 仍是当前版本。可以重试，或从发布页手动下载最新版本。"
+          }
+        }
+      }
+    },
+    "update.state.install_failed.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The update could not be installed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新未能安装"
+          }
+        }
+      }
+    },
     "update.state.installing.subtitle": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The app is about to quit and restart automatically; do not close it manually."
+            "value": "The app is about to quit and restart automatically; if it stays here, close this panel or download the update manually."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "应用即将退出并自动重启，请勿手动关闭。"
+            "value": "应用即将退出并自动重启；若停在此处，可关闭面板或手动下载更新。"
           }
         }
       }

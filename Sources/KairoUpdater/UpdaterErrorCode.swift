@@ -69,6 +69,10 @@ public enum UpdaterErrorCode: String, Codable, Hashable, Sendable, CaseIterable 
     case installBackupFailed = "updater_install_backup_failed"
     /// 替换失败并已回滚。
     case installReplaceFailed = "updater_install_replace_failed"
+    /// 安装脚本在观察窗口内没写任何结果（面板据此离开安装态，提示手动下载）。
+    case installTimeout = "updater_install_timeout"
+    /// 安装前保存未保存修改失败，替换脚本未启动（issue #17）。
+    case installSaveFailed = "updater_install_save_failed"
 }
 
 /// 可自述错误码的错误类型（Updater 内部各错误枚举统一实现）。

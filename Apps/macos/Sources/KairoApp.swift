@@ -21,6 +21,7 @@ struct KairoApp: App {
                 )
                 .onAppear {
                     appDelegate.store = store
+                    appDelegate.updater = updater
                     // 首启消费上次 OTA 安装结果（幂等；无 pending 则 no-op）。
                     updater.consumePendingInstallResult()
                     scheduleAutoUpdateChecks()
@@ -30,7 +31,8 @@ struct KairoApp: App {
                 .sheet(isPresented: $showUpdateSheet) {
                     UpdateSheet(
                         updater: updater,
-                        onRequestClose: { showUpdateSheet = false }
+                        onRequestClose: { showUpdateSheet = false },
+                        prepareForInstall: { OTAInstallPreflight.run(store: store) }
                     )
                 }
                 .fileImporter(

@@ -94,6 +94,30 @@ enum UpdaterFailureText {
                 param(failure, "exitCode"),
                 param(failure, "detail")
             )
+        case .installTimeout:
+            return I18n.t(
+                "update.error.install_timeout",
+                "The update did not finish installing in time. Download the latest version from the release page and install it manually."
+            )
+        case .installSaveFailed:
+            return I18n.t(
+                "update.error.install_save_failed",
+                "Cannot install the update because the current project could not be saved: %1$@",
+                param(failure, "detail")
+            )
+        }
+    }
+
+    /// 安装期失败（与「检查失败」共用 .failed 态，但标题与建议不同）。
+    static func isInstallFailure(_ failure: UpdaterFailure) -> Bool {
+        switch failure.code {
+        case .unzipFailed, .appNotFound, .scriptWriteFailed, .scriptLaunchFailed,
+             .launchPathMismatch, .installResultUnreadable, .installFailed,
+             .installAppStillRunning, .installBackupFailed, .installReplaceFailed,
+             .installTimeout, .installSaveFailed:
+            return true
+        default:
+            return false
         }
     }
 

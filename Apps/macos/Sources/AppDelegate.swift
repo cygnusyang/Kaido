@@ -1,4 +1,5 @@
 import AppKit
+import KairoUpdater
 import UniformTypeIdentifiers
 
 /// 退出守卫（ADR-013）：有未保存修改时，⌘Q 前必须由用户选择保存、丢弃或取消。
@@ -15,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     weak var store: WorkspaceStore?
+    /// OTA 状态机（只读一处：安装已武装时退出走旁路）。
+    weak var updater: UpdaterManager?
 
     /// 退出裁决提示（测试注入桩，避免模态阻塞）。
     var askQuitChoice: @MainActor (WorkspaceStore) -> QuitChoice = {
@@ -44,6 +47,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 退出裁决（不依赖 NSApplication 实例，测试直接调用）。
     func terminationReply() -> NSApplication.TerminateReply {
+        // OTA 已武装 = 非交互退出（issue #17）：替换脚本已启动，项目已在安装前
+        // 强制落盘。此时若再弹「保存 / 不保存 / 取消」，脚本 60s 等不到退出就会
+        // 写 app_not_quitting 放弃，面板死在安装态。
+        if updater?.isInstallingUpdate == true { return .terminateNow }
         guard let store, store.hasUnsavedChanges else { return .terminateNow }
         switch askQuitChoice(store) {
         case .saveAndQuit:
