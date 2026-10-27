@@ -120,10 +120,14 @@ public enum OutlineColumnPreferences {
     ///
     /// 下界必须同时包住「默认宽」与「最窄窗口下的压缩宽」（×0.6），否则拖动
     /// 手柄第一个像素就会跳变：status 10.8 / number 18 / 其余 ≤33.6。
+    ///
+    /// 序号上界 120：内容自适应（#48）算出的宽度可达 80 以上——六级含两位数的
+    /// 「1.2.3.10.4.11」在 11pt 等宽数字下约 73pt，加内边距后 83pt，若上界仍是 80，
+    /// 用户一拖就被夹回去、又变成截断。120 可容下约 16 字符的序号。
     public static func widthRange(for column: OutlineColumn) -> ClosedRange<Double> {
         switch column {
         case .status, .violation: return 10...60
-        case .number: return 18...80
+        case .number: return 18...120
         default: return 24...320
         }
     }

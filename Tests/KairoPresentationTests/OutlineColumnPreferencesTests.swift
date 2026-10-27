@@ -180,13 +180,14 @@ struct OutlineColumnPreferencesTests {
 
     // MARK: - 宽度区间与默认宽
 
-    /// 状态/违例是窄图标列（18–60）、序号是短编号列（24–80）、其余为文本列（40–320）。
+    /// 状态/违例是窄图标列（10–60）、序号是短编号列（18–120）、其余为文本列（24–320）。
     @Test func widthRangeSplitsIconAndTextColumns() {
         for column in OutlineColumn.allCases {
             let expected: ClosedRange<Double>
             switch column {
             case .status, .violation: expected = 10...60
-            case .number: expected = 18...80
+            // 序号上界 120：内容自适应要放得下六级含两位数的序号（#48）。
+            case .number: expected = 18...120
             default: expected = 24...320
             }
             #expect(OutlineColumnPreferences.widthRange(for: column) == expected,

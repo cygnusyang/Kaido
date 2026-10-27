@@ -1101,7 +1101,7 @@ struct WorkspaceStoreTests {
         defaults.set(Data(json.utf8), forKey: WorkspaceStore.preferencesKey)
     }
 
-    /// 列宽写入按 `widthRange` 夹取：图标列 10–60、序号 18–80、文本列 24–320；边界值原样保留。
+    /// 列宽写入按 `widthRange` 夹取：图标列 10–60、序号 18–120、文本列 24–320；边界值原样保留。
     @Test func setOutlineColumnWidthClampsToPerColumnRange() {
         let store = makeStore(seedsDemoData: false)
 
@@ -1124,9 +1124,9 @@ struct WorkspaceStoreTests {
         store.dispatch(.setOutlineColumnWidth(.violation, -5))
         #expect(store.viewState.outlineColumnWidths["violation"] == 10)
 
-        // 序号列：18–80（默认 30 与压缩宽 18 都在区间内）。
+        // 序号列：18–120（上界要放得下内容自适应算出的六级序号宽，#48）。
         store.dispatch(.setOutlineColumnWidth(.number, 500))
-        #expect(store.viewState.outlineColumnWidths["number"] == 80)
+        #expect(store.viewState.outlineColumnWidths["number"] == 120)
 
         // 文本列（前置/开始/结束/持续/负责人/完成）共用 24–320。
         store.dispatch(.setOutlineColumnWidth(.duration, 10))
