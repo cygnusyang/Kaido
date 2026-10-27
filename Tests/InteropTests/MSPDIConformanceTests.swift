@@ -62,22 +62,28 @@ struct MSPDIConformanceTests {
     func capabilities() {
         #expect(adapter.id == "mspdi")
         #expect(adapter.capabilities.canRead)
-        #expect(!adapter.capabilities.canWrite)
+        #expect(adapter.capabilities.canWrite)
         #expect(adapter.supportedVersions == [12, 13, 14])
     }
 
-    @Test("写出未实现时给出明确错误，不静默成功")
-    func writeNotSupported() {
-        do {
-            _ = try adapter.write(InteropDocument())
-            Issue.record("P0 阶段写出应当抛 operationNotSupported")
-        } catch let error as InteropError {
-            guard case .operationNotSupported = error else {
-                Issue.record("错误类型不对：\(error)")
-                return
-            }
-        } catch {
-            Issue.record("抛出了非 InteropError：\(error)")
+    @Test("写出后能被自己读回（契约级往返）")
+    func writeRoundTrip() throws {
+        for testCase in MSPDIFixtures.all {
+            if case .rejection = testCase.expectation { continue }
+            let document = try adapter.read(testCase.data)
+            let reread = try adapter.read(try adapter.write(document))
+            #expect(
+                reread.tasks.count == document.tasks.count,
+                "\(testCase.label)：任务数往返后从 \(document.tasks.count) 变成 \(reread.tasks.count)"
+            )
+            #expect(
+                reread.tasks.map(\.title) == document.tasks.map(\.title),
+                "\(testCase.label)：任务标题往返后不一致"
+            )
+            #expect(
+                reread.tasks.map(\.kind) == document.tasks.map(\.kind),
+                "\(testCase.label)：任务种类往返后不一致"
+            )
         }
     }
 

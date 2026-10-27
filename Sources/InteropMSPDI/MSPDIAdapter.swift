@@ -9,7 +9,7 @@ import KairoInterop
 /// - 不 import 任何别的适配器，删掉别的 target 仍能编译；
 /// - 版本前置：`SaveVersion` 不在支持范围内一律拒绝。
 ///
-/// 本阶段（P0）只有读；写（P1）落在此 target 内，届时把 `capabilities.canWrite` 打开。
+/// P1 起同时支持写出（`MSPDIWriter`）：写只在 XML ↔ IR 之间转换，日期按 IR 原样落盘。
 public struct MSPDIAdapter: FormatAdapter {
     /// 稳定的格式标识。
     public static let formatID = "mspdi"
@@ -21,7 +21,7 @@ public struct MSPDIAdapter: FormatAdapter {
     public var capabilities: AdapterCapabilities {
         AdapterCapabilities(
             canRead: true,
-            canWrite: false,
+            canWrite: true,
             canPreflight: true,
             supportsBaselines: true,
             supportsCalendars: true,
@@ -43,8 +43,19 @@ public struct MSPDIAdapter: FormatAdapter {
         try MSPDIReader().read(data).document
     }
 
+    /// 写出 IR；丢弃导出侧登记（只需要字节时用它）。
+    ///
+    /// 需要「哪些 Kairo 独有信息带不走」时改用 `export(_:)`，把登记渲染成导出旁注文件。
     public func write(_ document: InteropDocument) throws -> Data {
-        throw InteropError.operationNotSupported("MSPDI 写出（P1 阶段实现）")
+        try export(document).data
+    }
+
+    /// 写出 IR 并返回导出侧有损登记（13-mapping §5 的导出旁注来源）。
+    ///
+    /// - Parameter document: 供应商无关的计划文档。
+    /// - Throws: 当前实现不会失败；保留 `throws` 以便与 `FormatAdapter` 契约同形。
+    public func export(_ document: InteropDocument) throws -> MSPDIExport {
+        MSPDIWriter().write(document)
     }
 
     /// 预检：版本号 + 规模 + 有损清单，不产出 Kairo 项目。

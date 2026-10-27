@@ -4,7 +4,8 @@ import InteropMSPDI
 
 /// MSPDI 契约测试样本（手写最小 XML）。
 ///
-/// 刻意不做「导出再读」的往返：MSPDI 写属于 P1，本阶段的判据是「读得对、拒绝得明确」。
+/// P0 阶段只验证「读得对、拒绝得明确」；P1 的写出往返由 MSPDIWriteTests 用同一批样本
+/// 再跑一遍（MSPDIConformanceTests.writeRoundTrip），样本不必另写。
 /// 写法上只保留判据需要的元素，避免样本一改就要跟着改断言。
 enum MSPDIFixtures {
     static let all: [AdapterConformanceCase] = [
