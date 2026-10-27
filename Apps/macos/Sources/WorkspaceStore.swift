@@ -3,7 +3,9 @@ import Foundation
 import SwiftUI
 import KairoCommands
 import KairoCore
+import KairoInterop
 import KairoPresentation
+import InteropMSPDI
 
 /// 应用适配层（ADR-013）：持有会话、视图状态与撤销栈，输出平台中立快照。
 ///
@@ -2223,6 +2225,195 @@ final class WorkspaceStore: ObservableObject {
         }
     }
 
+    // MARK: - 互操作：导入预检（v1.2 / 13-interop-mapping §5、14-interop-architecture P4）
+
+    /// 待确认的导入预检；非 nil 时预检 sheet 展开。
+    ///
+    /// **预检前不动项目**：桥接出的项目只挂在这里，用户在预检里按「导入」才进会话。
+    @Published private(set) var importPreflight: ImportPreflight?
+
+    /// 预检期间不能落地的原因（如当前项目有未保存修改）。nil = 可以导入。
+    @Published private(set) var importBlockedReason: String?
+
+    /// 预检通过、等待确认的项目。用户取消即丢弃，会话零改动。
+    private var pendingImportProject: Project?
+
+    /// 菜单入口：选文件 → 读 → 预检。项目在此阶段一律不变。
+    @MainActor
+    func presentImport() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = InteropFormats.importableContentTypes
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = I18n.t(
+            "interop.import.panel.message",
+            "Choose an MS Project XML file or an OmniPlan .oplx package."
+        )
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try beginImport(from: url)
+        } catch {
+            alertMessage = InteropFailure.message(for: error)
+        }
+    }
+
+    /// 预检入口（不经面板）：读文件 → 按扩展名与内容选通道 → 桥接出项目并生成报告。
+    ///
+    /// 读入解析两次（一次为预检拿来源版本，一次为桥接拿结构）：两者都是纯读，不改项目；
+    /// 省掉这次解析就要把 IR 挂在状态里跨 sheet 生命周期保活，代价更差。
+    func beginImport(from url: URL) throws {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            throw InteropFailure(message: error.localizedDescription)
+        }
+
+        let registry = InteropFormats.registry()
+        do {
+            let adapter = try InteropFormats.importAdapter(for: url, data: data, registry: registry)
+            let document = try adapter.read(data)
+            let report = try adapter.preflight(data)
+            let bridged = KairoBridge().makeProject(from: document)
+            pendingImportProject = bridged.project
+            importPreflight = ImportPreflight(
+                document: document,
+                report: report,
+                ledger: bridged.ledger,
+                fileName: url.lastPathComponent
+            )
+            // 导入落地是「新建项目」：当前项目的未保存修改会被换掉。不动磁盘，
+            // 但内存里的改动会丢，所以先把话说清楚（sheet 底部提示 + 导入按钮置灰）。
+            importBlockedReason = session.hasUnsavedChanges
+                ? I18n.t(
+                    "interop.import.unsaved",
+                    "The current project has unsaved changes. Save it first (⌘S), then import again."
+                )
+                : nil
+        } catch {
+            throw InteropFailure(message: InteropFailure.message(for: error))
+        }
+    }
+
+    /// 取消导入：丢掉预检与桥接结果，会话与项目零改动。
+    func cancelImport() {
+        pendingImportProject = nil
+        importPreflight = nil
+        importBlockedReason = nil
+    }
+
+    /// 确认导入：**新建项目**承载导入内容，不覆盖当前文档（不写盘、不改 projectURL）。
+    func confirmImport() {
+        guard let project = pendingImportProject else { return }
+        guard importBlockedReason == nil else { return }
+        do {
+            _ = try session.createProject(title: project.metadata.title)
+            try session.restore(ProjectState(project: project))
+        } catch {
+            cancelImport()
+            report(error)
+            return
+        }
+        resetViewStateForLoadedProject()
+        undoStack.removeAll()
+        redoStack.removeAll()
+        pendingDeletion = nil
+        saveState = session.hasUnsavedChanges ? .unsaved : .saved
+        needsFormatUpgrade = session.needsFormatUpgrade
+        let imported = importPreflight
+        cancelImport()
+        notice = I18n.t(
+            "notice.import.done",
+            "Imported %1$ld tasks from %2$@",
+            imported?.taskCount ?? project.tasks.count,
+            imported?.fileName ?? ""
+        )
+        refresh()
+    }
+
+    // MARK: - 互操作：导出（v1.2）
+
+    /// 上一次导出的结果；non-nil 时弹「单向快照」提示（带打开旁注的入口）。
+    @Published var exportedSnapshot: ExportedSnapshot?
+
+    func dismissExportedSnapshot() {
+        exportedSnapshot = nil
+    }
+
+    /// 导出面板的默认文件名：沿用另存为的标题清洗规则，后缀换成 `.xml`。
+    var suggestedMSProjectFilename: String {
+        let suggested = SaveFilenameSuggestion.suggest(
+            currentURL: nil,
+            title: session.project?.metadata.title ?? ""
+        )
+        let suffix = ".kairo"
+        guard suggested.hasSuffix(suffix) else { return suggested + ".xml" }
+        return String(suggested.dropLast(suffix.count)) + ".xml"
+    }
+
+    /// 菜单入口：保存面板 → 写 XML + 旁注 → 提示单向快照。
+    @MainActor
+    func presentMSProjectXMLExport() {
+        guard InteropFormats.canWrite(formatID: MSPDIAdapter.formatID) else {
+            alertMessage = I18n.t("interop.export.unavailable", "This export format is not available yet.")
+            return
+        }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.xml]
+        panel.nameFieldStringValue = suggestedMSProjectFilename
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let notesURL = try exportMSProjectXML(to: url)
+            notice = I18n.t(
+                "notice.export.done",
+                "Exported %1$@ (one-way snapshot)",
+                url.lastPathComponent
+            )
+            exportedSnapshot = ExportedSnapshot(fileName: url.lastPathComponent, notesURL: notesURL)
+        } catch {
+            alertMessage = InteropFailure.message(for: error)
+        }
+    }
+
+    /// 写 MSPDI 主文件 + 同名旁注，返回旁注路径（测试不经面板直接调）。
+    ///
+    /// 旁注与主文件同目录、同基名：导出是一次单向快照，「哪些信息带不走」必须与产物一起走，
+    /// 否则换台机器回导时没人知道丢过什么（13 §5）。
+    @discardableResult
+    func exportMSProjectXML(to url: URL) throws -> URL {
+        let scheduled = (try? session.scheduleOrCompute())?.tasks
+        let byTaskID = scheduled.map { tasks in
+            Dictionary(tasks.map { ($0.taskID, $0) }, uniquingKeysWith: { first, _ in first })
+        }
+        let document = InteropExportDocument.make(from: exportProject, scheduled: byTaskID)
+        let export: MSPDIExport
+        do {
+            export = try MSPDIAdapter().export(document)
+        } catch {
+            throw InteropFailure(message: InteropFailure.message(for: error))
+        }
+        let notesURL = url
+            .deletingLastPathComponent()
+            .appendingPathComponent(InteropExportNotes.fileName(for: url))
+        let notes = InteropExportNotes.markdown(
+            projectTitle: exportProject.metadata.title,
+            formatID: MSPDIAdapter.formatID,
+            attachedFileName: url.lastPathComponent,
+            ledger: export.ledger,
+            exportedAt: Date(),
+            appVersion: KairoMenuCommands.appVersion
+        )
+        do {
+            try export.data.write(to: url, options: .atomic)
+            try Data(notes.utf8).write(to: notesURL, options: .atomic)
+        } catch {
+            throw InteropFailure(message: error.localizedDescription)
+        }
+        return notesURL
+    }
 
     // MARK: - 外部更新检测
 

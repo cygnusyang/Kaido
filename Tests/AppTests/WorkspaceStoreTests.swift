@@ -128,7 +128,8 @@ struct WorkspaceStoreTests {
         // v0.14 G8：两条基线静态命令（新建 / 不对比）从视图组迁到「基线」组，总数不变；
         // 逐条基线的 12 条动态命令（显示 / 对比 / 8 色 / 改名 / 删除）随基线数量增长。
         // F-22-06 增加「项目设置…」1 条（新开「项目」分组）。
-        #expect(commands.count == 47)
+        // v1.2 互操作增加 3 条：「导入…」「导出为 MS Project XML…」「导出为 OmniPlan…」（置灰）。
+        #expect(commands.count == 50)
         #expect(Set(commands.map(\.id)).count == commands.count)
         #expect(Set(commands.map(\.group)) == Set(KairoCommandGroup.allCases))
         #expect(commands.allSatisfy { !$0.title.isEmpty })

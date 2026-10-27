@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import KairoCore
 import KairoPresentation
+import InteropOmniPlan
 
 /// 就地编辑时的原生文本撤销。
 ///
@@ -87,6 +88,13 @@ struct KairoCommand: Identifiable {
     let isPaletteHidden: Bool
     /// 菜单项按破坏性操作渲染（删除基线）。
     let isDestructive: Bool
+    /// 是否可执行。false = 菜单与 ⌘K 都置灰（如尚未实现的导出通道）。
+    ///
+    /// 取舍是「留条目 + 置灰」而不是「干脆不注册」：入口缺失时用户以为功能不存在，
+    /// 置灰加说明才看得出「这条路存在，只是还没通」。
+    let isEnabled: Bool
+    /// 置灰原因（菜单与面板的 tooltip）。
+    let disabledHint: String?
     let action: @MainActor () -> Void
 
     init(
@@ -97,6 +105,8 @@ struct KairoCommand: Identifiable {
         aliases: [String] = [],
         isPaletteHidden: Bool = false,
         isDestructive: Bool = false,
+        isEnabled: Bool = true,
+        disabledHint: String? = nil,
         action: @escaping @MainActor () -> Void
     ) {
         self.id = id
@@ -106,6 +116,8 @@ struct KairoCommand: Identifiable {
         self.aliases = aliases
         self.isPaletteHidden = isPaletteHidden
         self.isDestructive = isDestructive
+        self.isEnabled = isEnabled
+        self.disabledHint = disabledHint
         self.action = action
     }
 }
@@ -235,6 +247,39 @@ enum KairoCommandCatalog {
                     I18n.t("menu.project.settings.alias_holidays", "Weekends and holidays"),
                 ],
                 action: { store.presentProjectSettings() }
+            ),
+            // 互操作（v1.2 / 14 §P4）：导入必须先过预检再落地；导出是单向快照 + 旁注。
+            // 三个入口都在「项目」分组下：它们作用于整份计划，不在某一行任务上。
+            KairoCommand(
+                id: "project.import",
+                title: I18n.t("menu.project.import", "Import…"),
+                group: .project,
+                aliases: [
+                    I18n.t("menu.project.import.alias_msproject", "Import MS Project XML"),
+                    I18n.t("menu.project.import.alias_omniplan", "Import OmniPlan"),
+                ],
+                action: { store.presentImport() }
+            ),
+            KairoCommand(
+                id: "project.exportMSProjectXML",
+                title: I18n.t("menu.project.export_mspdi", "Export as MS Project XML…"),
+                group: .project,
+                aliases: [
+                    I18n.t("menu.project.export_mspdi.alias_save", "Save as MS Project XML"),
+                    I18n.t("menu.project.export_mspdi.alias_mspdi", "MSPDI export"),
+                ],
+                action: { store.presentMSProjectXMLExport() }
+            ),
+            KairoCommand(
+                id: "project.exportOmniPlan",
+                title: I18n.t("menu.project.export_omniplan", "Export as OmniPlan…"),
+                group: .project,
+                isEnabled: InteropFormats.canWrite(formatID: OmniPlanAdapter.formatID),
+                disabledHint: I18n.t(
+                    "menu.project.export_omniplan.hint",
+                    "OmniPlan export is not implemented yet: this release only reads .oplx."
+                ),
+                action: {}
             ),
             KairoCommand(
                 id: "view.plan",
@@ -501,6 +546,18 @@ enum KairoCommandCatalog {
     }
 }
 
+extension View {
+    /// 只有需要说明时才挂 tooltip：空字符串会挂出一个空气泡。
+    @ViewBuilder
+    func helpIfPresent(_ text: String?) -> some View {
+        if let text, !text.isEmpty {
+            help(text)
+        } else {
+            self
+        }
+    }
+}
+
 /// 由注册表生成菜单栏（US-E4-05 验收 3：菜单命令与面板同源）。
 struct KairoMenuCommands: Commands {
     let commands: [KairoCommand]
@@ -643,8 +700,12 @@ struct KairoMenuCommands: Commands {
         if let shortcut = command.shortcut {
             Button(command.title) { command.action() }
                 .keyboardShortcut(shortcut.key, modifiers: shortcut.modifiers)
+                .disabled(!command.isEnabled)
+                .helpIfPresent(command.disabledHint)
         } else {
             Button(command.title) { command.action() }
+                .disabled(!command.isEnabled)
+                .helpIfPresent(command.disabledHint)
         }
     }
 

@@ -102,14 +102,19 @@ struct CommandPalette: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // 置灰项留在面板里（看得出「有这条路」），但不开火。
+        .disabled(!command.isEnabled)
+        .helpIfPresent(command.disabledHint)
     }
 
     private func runFirstMatch() {
-        guard let first = filtered.first else { return }
+        // 回车跑第一条**可执行**的命中：置灰项不该抢走回车。
+        guard let first = filtered.first(where: \.isEnabled) else { return }
         run(first)
     }
 
     private func run(_ command: KairoCommand) {
+        guard command.isEnabled else { return }
         command.action()
         onDismiss()
     }

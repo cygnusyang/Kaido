@@ -194,6 +194,40 @@ struct WorkspaceView: View {
             )) {
                 ProjectSettingsPanel(store: store)
             }
+            // 导入预检（v1.2 / 13 §5）：报告不可跳过——sheet 关闭即取消，不落地任何改动。
+            .sheet(isPresented: Binding(
+                get: { store.importPreflight != nil },
+                set: { if !$0 { store.cancelImport() } }
+            )) {
+                if let preflight = store.importPreflight {
+                    ImportPreflightSheet(
+                        preflight: preflight,
+                        blockedReason: store.importBlockedReason,
+                        onCancel: { store.cancelImport() },
+                        onConfirm: { store.confirmImport() }
+                    )
+                }
+            }
+            // 导出完成提示：说清单向快照的边界，并给出旁注文件的打开入口（13 §5 验收 3）。
+            .alert(
+                I18n.t("alert.export.done.title", "Export finished"),
+                isPresented: Binding(
+                    get: { store.exportedSnapshot != nil },
+                    set: { if !$0 { store.dismissExportedSnapshot() } }
+                ),
+                presenting: store.exportedSnapshot
+            ) { snapshot in
+                Button(I18n.t("action.open_notes", "Open Notes")) {
+                    NSWorkspace.shared.open(snapshot.notesURL)
+                }
+                Button(I18n.t("action.ok", "OK"), role: .cancel) {}
+            } message: { snapshot in
+                Text(I18n.t(
+                    "alert.export.done.message",
+                    "%1$@ is a one-way snapshot: importing it back will not restore cancel reasons, baseline colors or blocked states. The companion notes file lists everything that could not travel.",
+                    snapshot.fileName
+                ))
+            }
     }
 
     // MARK: - 工具栏

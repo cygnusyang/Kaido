@@ -10,15 +10,22 @@ let macOSAppTargets: [Target] = [
         path: "Sources/KairoUpdater"
     ),
     // macOS SwiftUI 应用（import KairoCore；经 KairoCommands 命令层实现 .kairo 读写）
+    // 互操作入口（14 §2）同样落在这一层：适配器按 capability 取用，UI 不认识具体格式的解析细节。
     .executableTarget(
         name: "KairoMacApp",
-        dependencies: ["KairoCore", "KairoCommands", "KairoPresentation", "KairoUpdater"],
+        dependencies: [
+            "KairoCore", "KairoCommands", "KairoPresentation", "KairoUpdater",
+            "KairoInterop", "InteropMSPDI", "InteropOmniPlan",
+        ],
         path: "Apps/macos/Sources"
     ),
     // 应用层（GUI）测试：视图渲染、门面状态与键盘交互
     .testTarget(
         name: "AppTests",
-        dependencies: ["KairoMacApp", "KairoCore", "KairoCommands", "KairoPresentation", "KairoUpdater"],
+        dependencies: [
+            "KairoMacApp", "KairoCore", "KairoCommands", "KairoPresentation", "KairoUpdater",
+            "KairoInterop", "InteropMSPDI", "InteropOmniPlan",
+        ],
         path: "Tests/AppTests"
     ),
     // OTA 更新模块测试（验签/版本比较/状态机/白名单/安装脚本）
