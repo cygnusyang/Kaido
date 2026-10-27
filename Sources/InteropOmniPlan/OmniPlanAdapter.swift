@@ -9,8 +9,8 @@ import KairoInterop
 /// - 容器与 XML 解析各自持有（`ZipArchive` / `OmniPlanXML`），不向别的通道借代码；
 /// - 版本前置：`file-format-version` 不是 3 一律抛 `unsupportedFormatVersion`。
 ///
-/// 本期只实现读（P2）。写（P3）要补基线 scenario、日历、分配与最小容器落盘，
-/// 在补齐之前 `canWrite == false`、`write` 明确抛 `operationNotSupported`——不假装能写。
+/// 读写都实现（P2 读 + P3 写）：写出端是 `OmniPlanWriter`，容器按 11 §7 实测的最小必需集
+/// 落盘（`__TOC.xml` + `Actual.xml`）。写不回去的 Kairo 独有信息登记在 `OmniPlanExport.ledger`。
 public struct OmniPlanAdapter: FormatAdapter {
     /// 稳定的格式标识。
     public static let formatID = "omniplan"
@@ -22,7 +22,7 @@ public struct OmniPlanAdapter: FormatAdapter {
     public var capabilities: AdapterCapabilities {
         AdapterCapabilities(
             canRead: true,
-            canWrite: false,
+            canWrite: true,
             canPreflight: true,
             supportsBaselines: true,
             supportsCalendars: true,
@@ -49,26 +49,33 @@ public struct OmniPlanAdapter: FormatAdapter {
         try OmniPlanReader().read(data).document
     }
 
-    /// 写出：P3 才做（11 §7 已验证最小容器可行，但基线/日历/分配尚未补齐）。
+    /// 写出 IR；丢弃导出侧登记（只需要字节时用它）。
+    ///
+    /// 需要「哪些 Kairo 独有信息带不走」时改用 `export(_:)`，把登记渲染成导出旁注文件。
     public func write(_ document: InteropDocument) throws -> Data {
-        throw InteropError.operationNotSupported("OmniPlan .oplx 写（v1.2 只做读）")
+        try export(document).data
     }
 
-    /// 预检：版本号 + 规模 + 有损清单，不产出 Kairo 项目。
+    /// 写出 IR 并返回导出侧有损登记（13-mapping §5 的导出旁注来源）。
+    ///
+    /// - Parameter document: 供应商无关的计划文档。
+    /// - Throws: `InteropError.operationNotSupported`（内容超出单卷 zip 上限）。
+    public func export(_ document: InteropDocument) throws -> OmniPlanExport {
+        try OmniPlanWriter().write(document)
+    }
+
+    /// 预检：版本号 + 规模 + **完整**有损台账，不产出 Kairo 项目。
+    ///
+    /// 台账交给 `PreflightReport.assembling` 装配：适配器只看得见「来源 → IR」的损失，
+    /// 桥接层追加的项（约束降级、自定义域丢弃等）只有 `KairoBridge` 算得出来，
+    /// 自己拼一份会少报（真实样本 IR 侧 2 条、桥接追加 8 条）。
+    /// 版本号仍用本通道的口径（`file-format-version 3`），默认实现的「supported: 3」读不出实际版本。
     public func preflight(_ data: Data) throws -> PreflightReport {
         let result = try OmniPlanReader().read(data)
-        let document = result.document
-        let groups = document.tasks.filter { $0.kind == .group }.count
-        let milestones = document.tasks.filter { $0.kind == .milestone }.count
-        let summary = "\(document.tasks.count) 任务（\(groups) 汇总 / \(milestones) 里程碑）/ "
-            + "\(document.resources.count) 资源 / \(document.assignments.count) 分配 / "
-            + "\(document.tasks.flatMap { $0.dependencies }.count) 相关性 / "
-            + "\(document.calendars.count) 日历"
-        return PreflightReport(
+        return PreflightReport.assembling(
             formatID: id,
             formatVersion: "file-format-version \(result.formatVersion)",
-            summary: summary,
-            ledger: document.ledger
+            document: result.document
         )
     }
 }

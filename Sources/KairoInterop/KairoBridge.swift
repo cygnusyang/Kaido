@@ -18,10 +18,16 @@ public struct KairoBridge: Sendable {
         public var project: Project
         /// 合并后的有损登记（来源读到 IR 时的损失 + IR 落到 Kairo 时的损失）。
         public var ledger: FidelityLedger
+        /// 本次桥接**追加**的登记（只含 IR → Kairo 阶段，不含 IR 侧已有的条目）。
+        ///
+        /// 预检报告要按「适配器层 / 桥接层」分别交代来源时用这一份；
+        /// `ledger` 始终是它与 `document.ledger` 的合并，渲染清单只认 `ledger`。
+        public var bridgeLedger: FidelityLedger
 
-        public init(project: Project, ledger: FidelityLedger) {
+        public init(project: Project, ledger: FidelityLedger, bridgeLedger: FidelityLedger = FidelityLedger()) {
             self.project = project
             self.ledger = ledger
+            self.bridgeLedger = bridgeLedger
         }
     }
 
@@ -32,7 +38,8 @@ public struct KairoBridge: Sendable {
     /// 幂等性与身份：每次调用都会生成新的任务 UUID（来源 id 无法在 Kairo 中保留，
     /// 见 `taskUID` 登记）；重复导入同一文件会得到两份互不相干的任务。
     public func makeProject(from document: InteropDocument) -> Result {
-        var ledger = document.ledger
+        // 桥接层只往这一份里记：最后再与 IR 侧登记合并，报告才能区分「谁丢的」。
+        var bridgeLedger = FidelityLedger()
 
         // 1. 日历：先把每个来源日历换算成 Kairo 的工作日历（唯一换算点）。
         let calendarsByID = makeCalendars(document.calendars)
@@ -108,7 +115,7 @@ public struct KairoBridge: Sendable {
                     interop.dependencies,
                     taskIDs: taskIDs,
                     hoursPerDay: hoursPerDay,
-                    ledger: &ledger
+                    ledger: &bridgeLedger
                 ),
                 progress: interop.progress,
                 constraint: constraint,
@@ -126,7 +133,7 @@ public struct KairoBridge: Sendable {
             document.baselines,
             taskIDs: taskIDs,
             milestoneIDs: milestoneIDs,
-            ledger: &ledger
+            ledger: &bridgeLedger
         )
 
         // 6. 项目元数据。
@@ -146,9 +153,9 @@ public struct KairoBridge: Sendable {
         project.resources = resources.map(\.entry)
         project.baselines = baselines
 
-        recordCalendarConversions(document: document, calendarsByID: calendarsByID, ledger: &ledger)
+        recordCalendarConversions(document: document, calendarsByID: calendarsByID, ledger: &bridgeLedger)
         if degradedConstraints > 0 {
-            ledger.record(
+            bridgeLedger.record(
                 field: "constraint",
                 kind: .degraded,
                 count: degradedConstraints,
@@ -160,7 +167,7 @@ public struct KairoBridge: Sendable {
             let samples = document.customFields.map { field in
                 field.alias.map { "\(field.fieldName)=\($0)" } ?? field.fieldName
             }
-            ledger.record(
+            bridgeLedger.record(
                 field: "customField",
                 kind: .dropped,
                 count: document.customFields.count,
@@ -169,7 +176,7 @@ public struct KairoBridge: Sendable {
             )
         }
         if !document.tasks.isEmpty {
-            ledger.record(
+            bridgeLedger.record(
                 field: "taskID",
                 kind: .dropped,
                 count: document.tasks.count,
@@ -178,7 +185,7 @@ public struct KairoBridge: Sendable {
             )
         }
         if droppedAssignments > 0 {
-            ledger.record(
+            bridgeLedger.record(
                 field: "assignment",
                 kind: .dropped,
                 count: droppedAssignments,
@@ -187,7 +194,7 @@ public struct KairoBridge: Sendable {
             )
         }
         if unnamedTasks > 0 {
-            ledger.record(
+            bridgeLedger.record(
                 field: "task.title",
                 kind: .derived,
                 count: unnamedTasks,
@@ -195,7 +202,7 @@ public struct KairoBridge: Sendable {
             )
         }
         if resources.contains(where: { $0.wasUnnamed }) {
-            ledger.record(
+            bridgeLedger.record(
                 field: "resource.name",
                 kind: .derived,
                 count: resources.filter { $0.wasUnnamed }.count,
@@ -203,7 +210,7 @@ public struct KairoBridge: Sendable {
             )
         }
         if resources.contains(where: { $0.wasCost }) {
-            ledger.record(
+            bridgeLedger.record(
                 field: "resource.kind",
                 kind: .degraded,
                 count: resources.filter { $0.wasCost }.count,
@@ -211,7 +218,7 @@ public struct KairoBridge: Sendable {
             )
         }
 
-        return Result(project: project, ledger: ledger)
+        return Result(project: project, ledger: document.ledger.merging(bridgeLedger), bridgeLedger: bridgeLedger)
     }
 
     // MARK: - 日历换算

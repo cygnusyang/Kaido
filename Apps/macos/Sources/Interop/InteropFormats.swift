@@ -33,12 +33,15 @@ enum InteropFormats {
     /// 把 .xml 改名的 .oplx 不该被当成 MSPDI 硬解一遍。
     static let importableExtensions = ["xml", "oplx"]
 
+    /// `.oplx` 的内容类型：未注册正式 UTType，按扩展名取动态类型，取不到就按 zip 容器处理
+    /// （它本来就是 zip）。导入面板与导出保存面板共用这一处，避免两处写法漂移。
+    static var oplxContentType: UTType {
+        UTType(filenameExtension: "oplx") ?? .zip
+    }
+
     /// 导入面板允许的内容类型。
     static var importableContentTypes: [UTType] {
-        var types: [UTType] = [.xml]
-        // .oplx 未注册正式 UTType：按扩展名取动态类型，取不到就按 zip 容器放行（它本来就是 zip）。
-        types.append(UTType(filenameExtension: "oplx") ?? .zip)
-        return types
+        [.xml, oplxContentType]
     }
 
     /// 扩展名 → 通道 id（只是提示，不是判据）。

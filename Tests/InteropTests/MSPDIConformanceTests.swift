@@ -97,6 +97,35 @@ struct MSPDIConformanceTests {
         #expect(report.summary.contains("1 汇总"))
     }
 
+    /// `preflight()` 是「拿清单的人」唯一入口，清单不能只有 IR 侧登记：
+    /// 约束降级、任务 id 丢失这些只在 IR → Kairo 阶段发生，必须由装配处补齐。
+    @Test("预检台账 = IR 登记 + 桥接追加，不重不漏")
+    func preflightLedgerIsComplete() throws {
+        let data = try #require(MSPDIFixtures.all.first { $0.label.hasPrefix("群组") }?.data)
+        let document = try adapter.read(data)
+        let report = try adapter.preflight(data)
+        let bridged = KairoBridge().makeProject(from: document)
+
+        // 两份来源各自的出处不变：IR 侧就是文档登记，桥接层就是桥接追加。
+        #expect(report.irLedger == document.ledger)
+        #expect(report.bridgeLedger == bridged.bridgeLedger)
+        #expect(report.ledger == bridged.ledger)
+        // 桥接层确实往台账里加了东西（任务 id 无法保留只在 IR → Kairo 阶段发生）。
+        #expect(report.irLedger.entry(field: "taskID") == nil)
+        #expect(report.ledger.entry(field: "taskID")?.count == 3)
+
+        // 不重不漏：键集合是两份来源的并集，每条的计数是两份之和。
+        let irIDs = Set(report.irLedger.entries.map(\.id))
+        let bridgeIDs = Set(report.bridgeLedger.entries.map(\.id))
+        #expect(Set(report.ledger.entries.map(\.id)) == irIDs.union(bridgeIDs))
+        #expect(report.ledger.entries.count == irIDs.union(bridgeIDs).count)
+        for entry in report.ledger.entries {
+            let irCount = report.irLedger.entries.first { $0.id == entry.id }?.count ?? 0
+            let bridgeCount = report.bridgeLedger.entries.first { $0.id == entry.id }?.count ?? 0
+            #expect(entry.count == irCount + bridgeCount, "\(entry.id) 计数与两份来源之和不符")
+        }
+    }
+
     @Test("注册表按 id 与内容都能选中适配器")
     func registry() {
         let registry = AdapterRegistry(adapters: [MSPDIAdapter()])

@@ -64,6 +64,39 @@ struct MSPDIRealSampleTests {
         #expect(report.summary.contains("2 里程碑"))
     }
 
+    /// 只拿 `adapter.preflight()` 渲染清单时，**桥接层**的损失也必须在里面：
+    /// 97 条硬约束降级与 4 个自定义域是真实样本里最容易被漏报的两类。
+    @Test("预检台账含桥接层登记：约束 97、自定义域 4", .enabled(if: sampleAvailable))
+    func preflightLedgerIncludesBridgeEntries() throws {
+        let data = try Data(contentsOf: URL(fileURLWithPath: Self.samplePath))
+        let document = try MSPDIAdapter().read(data)
+        let report = try MSPDIAdapter().preflight(data)
+
+        let constraint = try #require(report.ledger.entry(field: "constraint"))
+        #expect(constraint.kind == .degraded)
+        #expect(constraint.count == 97)
+
+        let customField = try #require(report.ledger.entry(field: "customField"))
+        #expect(customField.kind == .dropped)
+        #expect(customField.count == 4)
+        #expect(customField.samples.contains("Text1=差异时间"))
+
+        // 两份来源对得上：预检的 IR 层就是文档自己的登记，桥接层就是桥接追加的那一份。
+        #expect(report.irLedger == document.ledger)
+        #expect(report.bridgeLedger == KairoBridge().makeProject(from: document).bridgeLedger)
+
+        // 不重不漏：合并后的每一条计数恰好等于两份来源之和，键集合恰好是二者并集。
+        let irIDs = Set(report.irLedger.entries.map(\.id))
+        let bridgeIDs = Set(report.bridgeLedger.entries.map(\.id))
+        #expect(Set(report.ledger.entries.map(\.id)) == irIDs.union(bridgeIDs))
+        #expect(report.ledger.entries.count == irIDs.union(bridgeIDs).count)
+        for entry in report.ledger.entries {
+            let irCount = report.irLedger.entries.first { $0.id == entry.id }?.count ?? 0
+            let bridgeCount = report.bridgeLedger.entries.first { $0.id == entry.id }?.count ?? 0
+            #expect(entry.count == irCount + bridgeCount, "\(entry.id) 计数与两份来源之和不符")
+        }
+    }
+
     @Test("桥接后的有损登记：硬约束、日历换算、自定义域", .enabled(if: sampleAvailable))
     func bridgeLedger() throws {
         let result = KairoBridge().makeProject(from: try loadDocument())

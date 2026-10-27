@@ -192,30 +192,38 @@ struct OmniPlanConformanceTests {
         }
     }
 
-    @Test("能力声明：只读、支持日历与基线、版本只有 3")
+    @Test("能力声明：可读写、支持日历与基线、版本只有 3")
     func capabilities() {
         #expect(adapter.id == "omniplan")
         #expect(adapter.capabilities.canRead)
-        #expect(adapter.capabilities.canWrite == false)
+        #expect(adapter.capabilities.canWrite)
         #expect(adapter.capabilities.supportsCalendars)
         #expect(adapter.capabilities.supportsBaselines)
         #expect(adapter.supportedVersions == [3])
     }
 
-    @Test("写出未实现时明确抛 operationNotSupported")
-    func writeNotSupported() throws {
-        do {
-            _ = try adapter.write(InteropDocument())
-            Issue.record("canWrite == false 时 write 必须抛错")
-        } catch let error as InteropError {
-            guard case .operationNotSupported = error else {
-                Issue.record("错误类型不对：\(error)")
-                return
-            }
-        }
+    @Test("能力声明与行为一致：canWrite 为真时写出的容器能被自己读回")
+    func writeProducesReadableContainer() throws {
+        let document = try adapter.read(
+            OPLXFixture.archive(
+                toc: OPLXFixture.toc(),
+                scenario: OPLXFixture.scenario(
+                    tasks: """
+                    <task id="t-1"><type>group</type><child-task idref="t1"/></task>
+                    <task id="t1"><title>设计</title><effort>28800</effort></task>
+                    """,
+                    resources: OPLXFixture.projectResource()
+                )
+            )
+        )
+        let data = try adapter.write(document)
+        #expect(adapter.sniff(data))
+        let reread = try adapter.read(data)
+        #expect(reread.tasks.map(\.title) == document.tasks.map(\.title))
+        #expect(reread.tasks.map(\.outlineLevel) == document.tasks.map(\.outlineLevel))
     }
 
-    @Test("预检报告带版本、规模与有损清单")
+    @Test("预检报告带版本、规模与完整有损台账（适配器层 + 桥接追加）")
     func preflight() throws {
         let data = try OPLXFixture.committed("omniplan-four-dependencies.oplx")
         let report = try adapter.preflight(data)
@@ -223,8 +231,14 @@ struct OmniPlanConformanceTests {
         #expect(report.formatVersion == "file-format-version 3")
         #expect(report.summary.contains("7 任务"))
         #expect(report.summary.contains("2 汇总"))
-        #expect(report.summary.contains("4 相关性"))
-        #expect(report.ledger.entry(field: "task.duration") != nil)
+        #expect(report.irLedger.entry(field: "task.duration") != nil)
+
+        // 台账必须包含桥接层追加项：只报 IR 侧会让用户看不见导入时才发生的损失。
+        let document = try adapter.read(data)
+        #expect(report.irLedger == document.ledger)
+        #expect(report.ledger.entries.count >= document.ledger.entries.count)
+        #expect(report.bridgeLedger.entries.isEmpty == false)
+        #expect(report.ledger.entry(field: "constraint") != nil)
     }
 
     @Test("注册表按 id 与内容都能选中适配器，别的 zip 不误判")

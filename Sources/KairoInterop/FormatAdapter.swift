@@ -69,14 +69,67 @@ public struct PreflightReport: Sendable, Equatable {
     public var formatVersion: String
     /// 一句话结论（如「可导入：187 任务 / 3 日历 / 4 基线」）。
     public var summary: String
-    /// 有损清单。
-    public var ledger: FidelityLedger
+    /// 适配器层（来源 → IR）的有损登记。
+    public var irLedger: FidelityLedger
+    /// 桥接层（IR → Kairo）追加的有损登记。
+    public var bridgeLedger: FidelityLedger
 
-    public init(formatID: String, formatVersion: String, summary: String, ledger: FidelityLedger) {
+    /// 完整有损台账：`irLedger` 与 `bridgeLedger` 的合并，**渲染清单只认这一份**。
+    ///
+    /// 只报 IR 侧登记会让用户看不见「硬约束降级 / 自定义域丢弃」这类只在桥接时才发生的损失
+    /// （真实样本 187 任务：IR 侧 2 条、桥接追加 8 条）。需要分辨出处时用 `irLedger` / `bridgeLedger`。
+    public var ledger: FidelityLedger { irLedger.merging(bridgeLedger) }
+
+    public init(
+        formatID: String,
+        formatVersion: String,
+        summary: String,
+        irLedger: FidelityLedger,
+        bridgeLedger: FidelityLedger = FidelityLedger()
+    ) {
         self.formatID = formatID
         self.formatVersion = formatVersion
         self.summary = summary
-        self.ledger = ledger
+        self.irLedger = irLedger
+        self.bridgeLedger = bridgeLedger
+    }
+
+    /// 兼容旧调用：单份 `ledger` 按适配器层登记解释，`ledger` 的结果与传入值相同。
+    ///
+    /// 适配器若走 `FormatAdapter` 的默认预检或 `assembling(...)`，拿到的就是合并后的完整台账；
+    /// 该入口只为「已有自己装配逻辑、只产 IR 侧登记」的适配器保留编译兼容。
+    public init(formatID: String, formatVersion: String, summary: String, ledger: FidelityLedger) {
+        self.init(
+            formatID: formatID,
+            formatVersion: formatVersion,
+            summary: summary,
+            irLedger: ledger
+        )
+    }
+}
+
+public extension PreflightReport {
+    /// 由 IR 文档装配**完整**预检报告：适配器层登记 + `KairoBridge` 追加的登记。
+    ///
+    /// 桥接只用来算账，产出的项目随 `Result` 丢弃——预检仍不产出 Kairo 项目。
+    /// 适配器自己算不出桥接层损失，所以这一步必须由本模块统一做，否则用户看到的清单会少报。
+    static func assembling(
+        formatID: String,
+        formatVersion: String,
+        document: InteropDocument
+    ) -> PreflightReport {
+        let groups = document.tasks.filter { $0.kind == .group }.count
+        let milestones = document.tasks.filter { $0.kind == .milestone }.count
+        let summary = "\(document.tasks.count) 任务（\(groups) 汇总 / \(milestones) 里程碑）/ "
+            + "\(document.calendars.count) 日历 / \(document.baselines.count) 基线 / "
+            + "\(document.assignments.count) 分配"
+        return PreflightReport(
+            formatID: formatID,
+            formatVersion: formatVersion,
+            summary: summary,
+            irLedger: document.ledger,
+            bridgeLedger: KairoBridge().makeProject(from: document).bridgeLedger
+        )
     }
 }
 
@@ -108,19 +161,13 @@ public protocol FormatAdapter: Sendable {
 public extension FormatAdapter {
     /// 默认预检实现：读一遍 IR，用它的登记与规模生成报告。
     ///
+    /// 报告里的 `ledger` 是完整台账（IR 侧 + 桥接追加），与真正导入时的登记同源。
     /// 适配器只有在「预检比读入更便宜」时才需要覆写。
     func preflight(_ data: Data) throws -> PreflightReport {
-        let document = try read(data)
-        let groups = document.tasks.filter { $0.kind == .group }.count
-        let milestones = document.tasks.filter { $0.kind == .milestone }.count
-        let summary = "\(document.tasks.count) 任务（\(groups) 汇总 / \(milestones) 里程碑）/ "
-            + "\(document.calendars.count) 日历 / \(document.baselines.count) 基线 / "
-            + "\(document.assignments.count) 分配"
-        return PreflightReport(
+        PreflightReport.assembling(
             formatID: id,
             formatVersion: "supported: \(supportedVersions.map(String.init).joined(separator: ","))",
-            summary: summary,
-            ledger: document.ledger
+            document: try read(data)
         )
     }
 }

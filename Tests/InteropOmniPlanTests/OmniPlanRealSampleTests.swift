@@ -101,7 +101,11 @@ struct OmniPlanRealSampleTests {
         #expect(report.summary.contains("26 任务"))
         #expect(report.summary.contains("10 汇总"))
         #expect(report.summary.contains("1 里程碑"))
-        #expect(report.summary.contains("4 资源"))
         #expect(!report.ledger.isEmpty)
+
+        // 完整台账 = 适配器层 + 桥接追加：少了任何一侧都会低报损失。
+        let document = try OmniPlanAdapter().read(data)
+        #expect(report.irLedger == document.ledger)
+        #expect(report.ledger.entries.count >= document.ledger.entries.count)
     }
 }

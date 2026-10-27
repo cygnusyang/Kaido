@@ -59,18 +59,15 @@ public struct MSPDIAdapter: FormatAdapter {
     }
 
     /// 预检：版本号 + 规模 + 有损清单，不产出 Kairo 项目。
+    ///
+    /// 有损清单走 `PreflightReport.assembling`：IR 侧登记 + `KairoBridge` 追加的登记，
+    /// 与真正导入时产出的台账同源（约束降级、自定义域丢弃都在里面）。
     public func preflight(_ data: Data) throws -> PreflightReport {
         let (document, saveVersion) = try MSPDIReader().read(data)
-        let groups = document.tasks.filter { $0.kind == .group }.count
-        let milestones = document.tasks.filter { $0.kind == .milestone }.count
-        let summary = "\(document.tasks.count) 任务（\(groups) 汇总 / \(milestones) 里程碑）/ "
-            + "\(document.calendars.count) 日历 / \(document.baselines.count) 基线 / "
-            + "\(document.assignments.count) 分配"
-        return PreflightReport(
+        return PreflightReport.assembling(
             formatID: id,
             formatVersion: "SaveVersion \(saveVersion)",
-            summary: summary,
-            ledger: document.ledger
+            document: document
         )
     }
 }

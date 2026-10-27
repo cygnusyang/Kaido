@@ -274,12 +274,12 @@ enum KairoCommandCatalog {
                 id: "project.exportOmniPlan",
                 title: I18n.t("menu.project.export_omniplan", "Export as OmniPlan…"),
                 group: .project,
+                aliases: [
+                    I18n.t("menu.project.export_omniplan.alias_save", "Save as OmniPlan"),
+                    I18n.t("menu.project.export_omniplan.alias_oplx", "OmniPlan export"),
+                ],
                 isEnabled: InteropFormats.canWrite(formatID: OmniPlanAdapter.formatID),
-                disabledHint: I18n.t(
-                    "menu.project.export_omniplan.hint",
-                    "OmniPlan export is not implemented yet: this release only reads .oplx."
-                ),
-                action: {}
+                action: { store.presentOmniPlanExport() }
             ),
             KairoCommand(
                 id: "view.plan",
