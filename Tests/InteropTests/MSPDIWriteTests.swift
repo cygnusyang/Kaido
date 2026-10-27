@@ -346,8 +346,10 @@ struct MSPDIWriteTests {
         let pipe = Pipe()
         process.standardError = pipe
         try process.run()
-        process.waitUntilExit()
+        // 先读空管道再等退出：xmllint 的 stderr 超过管道缓冲(64KB)时会写阻塞，
+        // 若先 waitUntilExit 就与读端互等 —— 本机 stderr 为空永不触发，CI 上会挂死。
         let message = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        process.waitUntilExit()
         #expect(process.terminationStatus == 0, "xmllint 报错：\(message)")
     }
 }
