@@ -34,21 +34,99 @@ enum UpdaterConfiguration {
     static let autoCheckIntervalNanoseconds: UInt64 = 4 * 3_600 * 1_000_000_000
 
     /// 生产装配：真实网络层 / 安装器 / 验签器。
+    ///
+    /// DEBUG 构建下可被 `LocalOverride`（环境变量）整体替换端点，供
+    /// tools/ota-local-verify.sh 跑完整 OTA；release 构建里那段分支不存在，
+    /// 装配结果与常量逐字相同。
     @MainActor
     static func makeUpdater() -> UpdaterManager {
+        #if DEBUG
+        if let override = localOverride() {
+            return makeUpdater(
+                manifestURL: override.manifestURL,
+                allowedHosts: override.allowedHosts,
+                publicKeyBase64: override.publicKeyBase64,
+                currentAppURL: URL(fileURLWithPath: override.appPath),
+                allowsInsecureHTTP: override.allowsInsecureHTTP
+            )
+        }
+        #endif
+        return makeUpdater(
+            manifestURL: manifestURL,
+            allowedHosts: allowedHosts,
+            publicKeyBase64: updatePublicKeyBase64,
+            currentAppURL: installedAppURL,
+            allowsInsecureHTTP: false
+        )
+    }
+
+    /// 装配本体（端点参数化：生产常量或 DEBUG 覆盖）。
+    @MainActor
+    private static func makeUpdater(
+        manifestURL: URL,
+        allowedHosts: Set<String>,
+        publicKeyBase64: String,
+        currentAppURL: URL,
+        allowsInsecureHTTP: Bool
+    ) -> UpdaterManager {
         let version = Bundle.main.object(
             forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+        let policy = UpdateEndpointPolicy(
+            allowedHosts: allowedHosts, allowsInsecureHTTP: allowsInsecureHTTP)
         return UpdaterManager(
             manifestURL: manifestURL,
             expectedAppId: appId,
             currentVersion: version,
-            currentAppURL: installedAppURL,
-            publicKeyBase64: updatePublicKeyBase64,
-            policy: UpdateEndpointPolicy(allowedHosts: allowedHosts),
-            fetcher: OTANetworkSession(policy: UpdateEndpointPolicy(allowedHosts: allowedHosts)),
-            downloader: OTANetworkSession(policy: UpdateEndpointPolicy(allowedHosts: allowedHosts)),
+            currentAppURL: currentAppURL,
+            publicKeyBase64: publicKeyBase64,
+            policy: policy,
+            fetcher: OTANetworkSession(policy: policy),
+            downloader: OTANetworkSession(policy: policy),
             installer: ZipAppInstaller(),
             verifier: AppProductVerifier(expectedIdentifier: appId)
         )
     }
+
+    #if DEBUG
+    /// 本地 OTA 验证的环境变量覆盖（仅 DEBUG 编译存在）。
+    ///
+    /// 五个变量都可由 tools/ota-local-verify.sh 注入，缺省即生产值：
+    /// - `KAIRO_OTA_MANIFEST_URL`：清单地址。**设了它才启用覆盖**，未设一律走生产常量。
+    /// - `KAIRO_OTA_ALLOWED_HOSTS`：逗号分隔白名单；缺省 = 清单 URL 的 host。
+    ///   放宽白名单必须显式列出，不做「生产集 ∪ 本次 host」的隐式合并。
+    /// - `KAIRO_OTA_PUBKEY_BASE64`：验签公钥（本地密钥对由脚本现生成，绝不碰生产私钥）。
+    /// - `KAIRO_OTA_APP_PATH`：安装目标 .app。**本地验证必须指向临时副本**，
+    ///   否则替换脚本会就地覆盖 /Applications/Kairo.app。
+    /// - `KAIRO_OTA_ALLOW_HTTP=1`：放行 http（回环服务没有可信证书）。
+    struct LocalOverride: Equatable {
+        let manifestURL: URL
+        let allowedHosts: Set<String>
+        let publicKeyBase64: String
+        let appPath: String
+        let allowsInsecureHTTP: Bool
+    }
+
+    /// 读取环境变量；未设清单地址或地址无 host 时返回 nil（= 用生产常量）。
+    static func localOverride(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> LocalOverride? {
+        guard let raw = environment["KAIRO_OTA_MANIFEST_URL"],
+              let url = URL(string: raw),
+              let host = url.host,
+              !host.isEmpty else {
+            return nil
+        }
+        let listed = (environment["KAIRO_OTA_ALLOWED_HOSTS"] ?? "")
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return LocalOverride(
+            manifestURL: url,
+            allowedHosts: Set(listed.isEmpty ? [host] : listed),
+            publicKeyBase64: environment["KAIRO_OTA_PUBKEY_BASE64"] ?? updatePublicKeyBase64,
+            appPath: environment["KAIRO_OTA_APP_PATH"] ?? installedAppURL.path,
+            allowsInsecureHTTP: environment["KAIRO_OTA_ALLOW_HTTP"] == "1"
+        )
+    }
+    #endif
 }

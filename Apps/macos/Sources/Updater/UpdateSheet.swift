@@ -255,13 +255,36 @@ struct UpdateSheet: View {
     }
 
     /// 下载完成后唯一的安装入口：装前落盘 → 退出 + 替换二进制 + 自动重启。
+    ///
+    /// 每一步都在 OTAInstallLog 留痕（#17 复发的取证链）：收口结果 → 武装时刻 →
+    /// terminate。留痕不改变任何判定：guard 与 sleep 的顺序、时长与原实现一致。
     private func install() {
+        let requestedAt = Date()
+        OTAInstallLog.note("install requested", "state=\(OTAInstallLog.name(updater.state))")
         Task {
-            await updater.install(preflight: prepareForInstall)
+            await updater.install(preflight: {
+                // 包一层只为记收口结论：失败时脚本根本没启动，这是与「退了但没装上」
+                // 完全不同的两种现场。
+                let failure = prepareForInstall()
+                OTAInstallLog.note("preflight", failure.map { "failed=\($0)" } ?? "ok")
+                return failure
+            })
             // 只有武装成功（脚本已启动）才进入退出序列；失败/收口被拒时停在
             // .failed，用户可重试或关闭——绝不把面板留在无按钮的安装态。
-            guard updater.isInstallingUpdate else { return }
+            guard updater.isInstallingUpdate else {
+                OTAInstallLog.note(
+                    "install not armed; terminate skipped",
+                    "state=\(OTAInstallLog.name(updater.state))"
+                )
+                return
+            }
+            OTAInstallLog.note(
+                "install armed",
+                "after_ms=\(Int(Date().timeIntervalSince(requestedAt) * 1000))"
+                    + " state=\(OTAInstallLog.name(updater.state))"
+            )
             try? await Task.sleep(nanoseconds: 500_000_000)
+            OTAInstallLog.note("NSApp.terminate called")
             NSApp.terminate(nil)
         }
     }

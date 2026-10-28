@@ -46,7 +46,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// 退出裁决（不依赖 NSApplication 实例，测试直接调用）。
+    ///
+    /// 裁决本体在 `resolveTerminationReply()`；这里只加一层「出口留痕」：
+    /// 进入时快照武装/脏状态，退出时记下返回值。**判定逻辑一行未改**——
+    /// 2026-10-28 那次 app_not_quitting 之所以只能靠 ps 反推，就是因为没有这行。
     func terminationReply() -> NSApplication.TerminateReply {
+        let armed = updater?.isInstallingUpdate == true
+        let unsaved = store?.hasUnsavedChanges == true
+        let reply = resolveTerminationReply()
+        OTAInstallLog.note(
+            "termination reply",
+            "armed=\(armed) unsaved=\(unsaved) reply=\(Self.logName(of: reply))"
+        )
+        return reply
+    }
+
+    /// 裁决本体。
+    private func resolveTerminationReply() -> NSApplication.TerminateReply {
         // OTA 已武装 = 非交互退出（issue #17）：替换脚本已启动，项目已在安装前
         // 强制落盘。此时若再弹「保存 / 不保存 / 取消」，脚本 60s 等不到退出就会
         // 写 app_not_quitting 放弃，面板死在安装态。
@@ -59,6 +75,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .terminateNow
         case .cancel:
             return .terminateCancel
+        }
+    }
+
+    /// 裁决值的日志短名（日志只认稳定名，不打印 rawValue）。
+    private static func logName(of reply: NSApplication.TerminateReply) -> String {
+        switch reply {
+        case .terminateNow: return "terminateNow"
+        case .terminateCancel: return "terminateCancel"
+        case .terminateLater: return "terminateLater"
+        @unknown default: return "unknown(\(reply.rawValue))"
         }
     }
 

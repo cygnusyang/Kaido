@@ -14,8 +14,23 @@ public struct UpdateEndpointPolicy {
     /// 白名单端点 host 集合（发布查询 / 下载重定向源 / Release asset CDN）。
     public let allowedHosts: Set<String>
 
-    public init(allowedHosts: Set<String>) {
+    /// 是否放行 `http://`。默认 false（生产恒为 https）；只有本地 OTA 验证
+    /// （tools/ota-local-verify.sh 起的回环服务，没有可信证书）才显式置 true。
+    /// 放宽必须是显式入参，不做「连不上就降级」的隐式回退。
+    public let allowsInsecureHTTP: Bool
+
+    public init(allowedHosts: Set<String>, allowsInsecureHTTP: Bool = false) {
         self.allowedHosts = allowedHosts
+        self.allowsInsecureHTTP = allowsInsecureHTTP
+    }
+
+    /// scheme 是否放行：恒放 https；`allowsInsecureHTTP` 时额外放行 http。
+    private func isAllowedScheme(_ scheme: String?) -> Bool {
+        switch scheme?.lowercased() {
+        case "https": return true
+        case "http": return allowsInsecureHTTP
+        default: return false
+        }
     }
 
     /// 显式错误（fail-closed：非白名单一律拒绝，不静默降级）。
@@ -46,9 +61,9 @@ public struct UpdateEndpointPolicy {
         allowedHosts.contains(host.lowercased())
     }
 
-    /// URL 是否放行：强制 https + host ∈ 白名单（纯函数）。
+    /// URL 是否放行：https（或显式放行的 http）+ host ∈ 白名单（纯函数）。
     public func isAllowedURL(_ url: URL) -> Bool {
-        guard url.scheme?.lowercased() == "https", let host = url.host else {
+        guard isAllowedScheme(url.scheme), let host = url.host else {
             return false
         }
         return isAllowedHost(host)
@@ -56,7 +71,7 @@ public struct UpdateEndpointPolicy {
 
     /// 校验并抛错（fail-closed）；不通过即拒绝发起连接。
     public func validate(_ url: URL) throws {
-        guard url.scheme?.lowercased() == "https" else {
+        guard isAllowedScheme(url.scheme) else {
             throw PolicyError.insecureScheme(url.scheme ?? "（无 scheme）")
         }
         guard let host = url.host, isAllowedHost(host) else {
