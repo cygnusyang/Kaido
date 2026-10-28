@@ -62,7 +62,7 @@ jobs:
       # warnings-as-errors 由下一步的 build.sh 施加在产出目标上（release 构建），
       # 这里只跑测试，避免测试代码的 unused 提示阻断发版。
       - name: 测试
-        run: swift test
+        run: bash tools/test.sh --scratch-path /tmp/kairo-ci-tests
 
       # build.sh 内部先做 ad-hoc 签名（本地也能 open）；凭据齐全时下一步会用
       # Developer ID 覆盖它，因此这里只是「有可用包」，不是最终签名。
