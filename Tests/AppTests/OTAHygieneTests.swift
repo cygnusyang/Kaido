@@ -115,6 +115,34 @@ struct OTAHygieneTests {
         }
     }
 
+    /// 只记「有没有真的开始下载」的下载器（issue #28：取消后不得再发起下载）。
+    private final class SpyDownloader: DataDownloading, @unchecked Sendable {
+        private let lock = NSLock()
+        private var starts = 0
+        private let archiveURL: URL
+
+        init(archiveURL: URL) { self.archiveURL = archiveURL }
+
+        var startCount: Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return starts
+        }
+
+        func download(from url: URL, progress: @escaping (Double) -> Void) async throws -> URL {
+            noteStart()
+            progress(1)
+            return archiveURL
+        }
+
+        /// 计数在同步上下文里做（NSLock 的 lock/unlock 不进 async 上下文，避免可选性警告）。
+        private func noteStart() {
+            lock.lock()
+            defer { lock.unlock() }
+            starts += 1
+        }
+    }
+
     /// 按生产顺序落 pending 键（含脚本与解压目录路径）的假安装器。
     private final class StubInstaller: Installing, @unchecked Sendable {
         let products: Products
@@ -501,5 +529,116 @@ struct OTAHygieneTests {
         downloader.finish()
         await flight.value
         #expect(updater.state == .downloaded, "收起面板后下载应照常完成")
+    }
+
+    // MARK: - #28 点「下载」后、进入下载前取消
+
+    @Test func cancelAtUpdateAvailableGoesIdleAndNeverDownloads() async throws {
+        let env = try makeEnv()
+        let products = try makeProducts(env)
+        defer { tearDown(env, products) }
+
+        let manifest = try makeManifest(archive: products.archive)
+        let downloader = SpyDownloader(archiveURL: products.archive)
+        let updater = makeManager(
+            env,
+            manifest: manifest,
+            downloader: downloader,
+            installer: StubInstaller(products: products, defaults: env.defaults))
+
+        await updater.check()
+        guard case .updateAvailable = updater.state else {
+            Issue.record("期望 updateAvailable，实际 \(updater.state)")
+            return
+        }
+
+        // 点「下载」后立刻点「取消」：下载任务还没跑到第一次状态回写。
+        let flight = Task { await updater.download() }
+        updater.cancel()
+        #expect(updater.state == .idle, "updateAvailable 态取消必须生效（不得空转）")
+
+        await flight.value
+        // 取消后给旧任务足够时间复活（若有 bug，这里会看到 downloading/downloaded）。
+        try? await Task.sleep(nanoseconds: 150_000_000)
+        #expect(updater.state == .idle, "取消后不得再进入下载/已下载，实际 \(updater.state)")
+        #expect(downloader.startCount == 0, "取消后不得发起下载")
+    }
+
+    // MARK: - #24 跨版本残留：旧 pending 缺键
+
+    /// v1.1.0 的 pending 只有 result / backup / backupDir 三键：解压目录与脚本路径
+    /// 一概没有，而且解压目录的 uuid 与脚本/result 的 uuid 不是同一个。
+    @Test func legacyPendingWithoutKeysSweepsArtifactsByShape() async throws {
+        let env = try makeEnv()
+        let products = try makeProducts(env)
+        defer { tearDown(env, products) }
+
+        let fm = FileManager.default
+        let extractionDir = env.root.appendingPathComponent(
+            "kairo-ota-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(
+            at: extractionDir.appendingPathComponent("Kairo.app", isDirectory: true),
+            withIntermediateDirectories: true)
+        // 残留是「上一版留下的」：把 mtime 拨到一岁以外（陈旧解压目录判据）。
+        try fm.setAttributes(
+            [.modificationDate: Date(timeIntervalSinceNow: -7200)],
+            ofItemAtPath: extractionDir.path)
+        let legacyScript = env.root.appendingPathComponent(
+            "kairo-ota-install-\(UUID().uuidString).sh")
+        try Data("#!/bin/bash\n".utf8).write(to: legacyScript)
+
+        // 旧版 pending：三个键，且 result 的 uuid 与脚本/解压目录都对不上。
+        try InstallerScript.encodeResult(
+            InstallResult(success: false, code: 3, message: "backup_failed")
+        ).write(to: products.result)
+        env.defaults.set(products.result.path, forKey: ZipAppInstaller.pendingResultPathDefaultsKey)
+        env.defaults.set(products.backup.path, forKey: ZipAppInstaller.pendingBackupPathDefaultsKey)
+        env.defaults.set(products.backupDir.path, forKey: ZipAppInstaller.pendingBackupDirDefaultsKey)
+
+        let manifest = try makeManifest(archive: products.archive)
+        let updater = makeManager(
+            env,
+            manifest: manifest,
+            downloader: StubDownloader(archiveURL: products.archive),
+            installer: StubInstaller(products: products, defaults: env.defaults))
+        updater.consumePendingInstallResult()
+
+        #expect(!fm.fileExists(atPath: products.result.path), "result 必须清掉")
+        #expect(!fm.fileExists(atPath: legacyScript.path), "旧脚本必须清掉")
+        #expect(!fm.fileExists(atPath: extractionDir.path), "旧解压目录必须清掉")
+        #expect(fm.fileExists(atPath: products.backup.path), "备份目录是回滚依据，必须保留")
+    }
+
+    /// 清扫只认自己的形状：同目录里别的文件与新鲜解压目录一律不动。
+    @Test func legacySweepDoesNotTouchForeignOrFreshArtifacts() async throws {
+        let env = try makeEnv()
+        let products = try makeProducts(env)
+        defer { tearDown(env, products) }
+
+        let fm = FileManager.default
+        let freshDir = env.root.appendingPathComponent(
+            "kairo-ota-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(
+            at: freshDir.appendingPathComponent("Kairo.app", isDirectory: true),
+            withIntermediateDirectories: true)
+        let foreign = env.root.appendingPathComponent("kairo-ota-notes.txt")
+        try Data("keep".utf8).write(to: foreign)
+
+        try InstallerScript.encodeResult(
+            InstallResult(success: false, code: 3, message: "backup_failed")
+        ).write(to: products.result)
+        env.defaults.set(products.result.path, forKey: ZipAppInstaller.pendingResultPathDefaultsKey)
+        env.defaults.set(products.backupDir.path, forKey: ZipAppInstaller.pendingBackupDirDefaultsKey)
+
+        let manifest = try makeManifest(archive: products.archive)
+        let updater = makeManager(
+            env,
+            manifest: manifest,
+            downloader: StubDownloader(archiveURL: products.archive),
+            installer: StubInstaller(products: products, defaults: env.defaults))
+        updater.consumePendingInstallResult()
+
+        #expect(fm.fileExists(atPath: freshDir.path), "新鲜解压目录可能正在用，不得删")
+        #expect(fm.fileExists(atPath: foreign.path), "非本模块文件不得误删")
     }
 }

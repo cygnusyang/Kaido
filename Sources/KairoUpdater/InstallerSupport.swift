@@ -197,6 +197,123 @@ public enum InstallerScript {
         return removed
     }
 
+    // MARK: - 跨版本残留清扫（issue #24）
+
+    /// 陈旧解压目录的判定年龄：解压目录只在「下载完成 → 安装」之间短暂存在，
+    /// 超龄即视为残留（5.5 MB 包的下载 + 解压远达不到这个量级）。
+    public static let staleExtractionMinAge: TimeInterval = 3600
+
+    private static let extractionDirPrefix = "kairo-ota-"
+    private static let scriptNamePrefix = "kairo-ota-install-"
+    private static let resultNamePrefix = "kairo-ota-result-"
+
+    /// 从 pending 记下的产物路径里取本次安装的 uuid（跨版本清扫用）。
+    ///
+    /// 认三种形状：解压目录 `kairo-ota-<uuid>/`（入参通常是目录里的 .app，也可传目录
+    /// 本身）、替换脚本 `kairo-ota-install-<uuid>.sh`、结果文件
+    /// `kairo-ota-result-<uuid>.json`。uuid 段不是合法 UUID 时返回 nil——旧版本写过
+    /// 非常规文件名，此时调用方降级为形状清扫，绝不按前缀猜目录。
+    public static func transientArtifactID(fromPath path: String) -> String? {
+        let url = URL(fileURLWithPath: path)
+        let name = url.lastPathComponent
+        if name.hasPrefix(scriptNamePrefix), name.hasSuffix(".sh") {
+            return validID(String(name.dropFirst(scriptNamePrefix.count).dropLast(".sh".count)))
+        }
+        if name.hasPrefix(resultNamePrefix), name.hasSuffix(".json") {
+            return validID(String(name.dropFirst(resultNamePrefix.count).dropLast(".json".count)))
+        }
+        for candidate in [name, url.deletingLastPathComponent().lastPathComponent] {
+            if candidate.hasPrefix(extractionDirPrefix) {
+                return validID(String(candidate.dropFirst(extractionDirPrefix.count)))
+            }
+        }
+        return nil
+    }
+
+    private static func validID(_ candidate: String) -> String? {
+        UUID(uuidString: candidate) == nil ? nil : candidate
+    }
+
+    /// 目录名是否解压目录形状：`kairo-ota-<uuid>`（`kairo-ota-download-*.zip` 等不算）。
+    private static func isExtractionDirName(_ name: String) -> Bool {
+        guard name.hasPrefix(extractionDirPrefix) else { return false }
+        return validID(String(name.dropFirst(extractionDirPrefix.count))) != nil
+    }
+
+    /// 按形状清扫一次安装留下的产物（issue #24：跨版本 pending 可能缺键）。
+    ///
+    /// - `id` 非 nil：只删**同一 uuid** 的三件套——`kairo-ota-<id>/`、
+    ///   `kairo-ota-install-<id>.sh`、`kairo-ota-result-<id>.json`。相邻 uuid 的产物
+    ///   一个都不碰（历史残留与并行安装互不连带）。
+    /// - `id` 为 nil（uuid 无法确定）：只删脚本与 result，**目录一律不动**——
+    ///   按 `kairo-ota-*` 前缀批量删目录是禁止的，那会把别人的解压目录一起带走。
+    ///
+    /// - Parameters:
+    ///   - directory: 待清扫目录（生产 = pending 里记下的备份/临时目录）。
+    ///   - id: 本次安装的 uuid；nil = 未知。
+    /// - Returns: 实际删除的路径（诊断日志用）。
+    @discardableResult
+    public static func sweepTransientArtifacts(in directory: URL, id: String?) -> [String] {
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: directory.path) else { return [] }
+        var removed: [String] = []
+        for name in names {
+            let matched: Bool
+            if let id {
+                matched = name == "\(extractionDirPrefix)\(id)"
+                    || name == "\(scriptNamePrefix)\(id).sh"
+                    || name == "\(resultNamePrefix)\(id).json"
+            } else {
+                matched = isScriptShape(name) || isResultShape(name)
+            }
+            guard matched else { continue }
+            let url = directory.appendingPathComponent(name)
+            if (try? fm.removeItem(at: url)) != nil {
+                removed.append(url.path)
+            }
+        }
+        return removed
+    }
+
+    /// 陈旧解压目录的兜底清扫（issue #24 的另一半）。
+    ///
+    /// 解压目录的 uuid 由 `prepare()` 另生成，与脚本/result 的 uuid **不是同一个**，
+    /// 旧版本 pending 又不记它的路径——「同一 uuid」匹配不到，只能按形状 + 年龄收敛。
+    /// 三个条件缺一不删：
+    /// ① 名字严格是 `kairo-ota-<UUID>`（脚本、下载 zip 等不在此列）；
+    /// ② 内容是「恰好一个 .app」的解压形状（空目录/别的内容不猜）；
+    /// ③ mtime 早于 `olderThan`（默认 1 小时）——正在用的解压目录一定比这新。
+    ///
+    /// 仍然不做 `kairo-ota-*` 前缀批量删：那是「把别人的东西一起删」，不是清理。
+    ///
+    /// - Parameters:
+    ///   - directory: 待清扫目录（生产 = 临时目录）。
+    ///   - olderThan: 判定残留的最小年龄（秒）。
+    /// - Returns: 实际删除的路径（诊断日志用）。
+    @discardableResult
+    public static func sweepStaleExtractionDirectories(
+        in directory: URL, olderThan minAge: TimeInterval = staleExtractionMinAge
+    ) -> [String] {
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: directory.path) else { return [] }
+        var removed: [String] = []
+        for name in names where isExtractionDirName(name) {
+            let url = directory.appendingPathComponent(name)
+            guard let attributes = try? fm.attributesOfItem(atPath: url.path),
+                  attributes[.type] as? FileAttributeType == .typeDirectory,
+                  let modified = attributes[.modificationDate] as? Date,
+                  Date().timeIntervalSince(modified) >= minAge else { continue }
+            guard let contents = try? fm.contentsOfDirectory(
+                at: url, includingPropertiesForKeys: nil),
+                contents.count == 1,
+                contents[0].pathExtension == "app" else { continue }
+            if (try? fm.removeItem(at: url)) != nil {
+                removed.append(url.path)
+            }
+        }
+        return removed
+    }
+
     /// 编码 result JSON（与脚本写入、App 首启读取同构；测试夹具复用）。
     public static func encodeResult(_ result: InstallResult) throws -> Data {
         let encoder = JSONEncoder()

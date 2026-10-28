@@ -194,7 +194,11 @@ public final class UpdaterManager: ObservableObject {
 
     /// 检查主体：跑在 `runFlight` 起的可取消任务里，每个状态回写都先确认仍是
     /// 「当前飞行」——`cancel()` 之后旧任务一律不得复活状态机（issue #21）。
+    ///
+    /// 入口先验代号（issue #28）：`runFlight` 建完任务到本方法执行之间有一个调度点，
+    /// 用户在这个窗口点取消后，任务不得再把状态写回 `.checking`。
     private func performCheck(flightID id: Int) async {
+        guard isCurrentFlight(id) else { return }
         pendingProduct = nil
         pendingArchive = nil
         state = .checking
@@ -238,7 +242,12 @@ public final class UpdaterManager: ObservableObject {
     }
 
     /// 下载主体：进度回写只在仍是「当前飞行」时生效（取消后不再写状态）。
+    ///
+    /// 入口先验代号（issue #28）：用户点了「下载」、飞行任务还没跑到这里就点了取消——
+    /// 这时取消已经把状态打回 `.idle`，本方法绝不能再用 `.downloading(0)` 把它拽回来，
+    /// 下载也不得开始。
     private func performDownload(info: UpdateInfo, flightID id: Int) async {
+        guard isCurrentFlight(id) else { return }
         do {
             state = .downloading(0)
             let archive = try await downloader.download(from: info.downloadUrl) { progress in
@@ -369,13 +378,19 @@ public final class UpdaterManager: ObservableObject {
         }
     }
 
-    /// 真正取消检查 / 下载（issue #21）：中止底层任务、清半成品与临时目录、回 idle。
+    /// 真正取消检查 / 下载（issue #21 / #28）：中止底层任务、清半成品与临时目录、回 idle。
     ///
-    /// 与 `dismiss()`（只收起面板）语义分离。安装态已启动替换脚本，不在可取消
-    /// 范围（打断脚本会留下半替换的 App）。
+    /// 与 `dismiss()`（只收起面板）语义分离。**可取消范围 = 一切非终态**：
+    /// `.checking` / `.updateAvailable` / `.downloading` / `.downloaded`。
+    /// `.updateAvailable` 必须算在内（issue #28）：用户点了「下载」、飞行任务还没跑到
+    /// 第一次状态回写时点取消，等同于「别下了」——代号失效让该任务自己退出，
+    /// 不会再进入 `.downloading`。
+    ///
+    /// 唯一不可取消的是 `.installing`（替换脚本可能已武装，打断会留下半替换的 App）；
+    /// 面板在该态不给取消按钮，只给「关闭」，且关闭不影响已启动的脚本。
     public func cancel() {
         switch state {
-        case .checking, .downloading, .downloaded:
+        case .checking, .updateAvailable, .downloading, .downloaded:
             // 先失效再取消：被取消任务的 catch 分支不会再回写状态。
             flightID &+= 1
             flightTask?.cancel()
@@ -385,7 +400,7 @@ public final class UpdaterManager: ObservableObject {
             pendingArchive = nil
             log("已取消检查/下载，临时产物已清理")
             state = .idle
-        case .idle, .upToDate, .updateAvailable, .failed, .installing:
+        case .idle, .upToDate, .failed, .installing:
             break
         }
     }
@@ -533,20 +548,48 @@ public final class UpdaterManager: ObservableObject {
 
     // MARK: - 临时产物清理（issue #19）与可取消飞行（issue #21）
 
-    /// 失败 / 超时 / 取消的临时产物清理统一入口（issue #19）。
+    /// 失败 / 超时 / 取消的临时产物清理统一入口（issue #19 / #24）。
     ///
     /// 只清本次流程自建的解压目录、下载 zip、替换脚本、结果文件（形状守卫在
     /// `InstallerScript.cleanupTransientArtifacts` 内）。**备份目录 `Kairo-<stamp>.app`
     /// 不在清理范围**——那是脚本回滚的依据，成功与已武装路径都不调用本方法。
+    ///
+    /// 跨版本兜底（issue #24）：v1.1.0 写的 pending 只有 result / backup / backupDir
+    /// 三键，脚本与解压目录的路径一概没有，按本版键名逐个删就一个都删不掉。键不全
+    /// 时降级为形状清扫：脚本与 result 按本模块专属前缀清（旧脚本的 uuid 无从匹配），
+    /// 解压目录只认「形状 `kairo-ota-<UUID>` + 单个 .app + 超过一岁数」——
+    /// 绝不按 `kairo-ota-*` 前缀批量删目录。
     private func cleanupInstallArtifacts(after reason: String) {
+        let extractionKeyPath = userDefaults.string(
+            forKey: ZipAppInstaller.pendingExtractionPathDefaultsKey)
         let extraction = pendingProduct?.appURL
-            ?? userDefaults.string(forKey: ZipAppInstaller.pendingExtractionPathDefaultsKey)
-            .map { URL(fileURLWithPath: $0) }
-        let removed = InstallerScript.cleanupTransientArtifacts(
+            ?? extractionKeyPath.map { URL(fileURLWithPath: $0) }
+        let scriptPath = userDefaults.string(forKey: ZipAppInstaller.pendingScriptPathDefaultsKey)
+        let resultPath = userDefaults.string(forKey: ZipAppInstaller.pendingResultPathDefaultsKey)
+        var removed = InstallerScript.cleanupTransientArtifacts(
             extractionAppURL: extraction,
             archiveURL: pendingArchive,
-            scriptPath: userDefaults.string(forKey: ZipAppInstaller.pendingScriptPathDefaultsKey),
-            resultPath: userDefaults.string(forKey: ZipAppInstaller.pendingResultPathDefaultsKey))
+            scriptPath: scriptPath,
+            resultPath: resultPath)
+
+        let pendingComplete = extractionKeyPath != nil && scriptPath != nil && resultPath != nil
+        if !pendingComplete,
+           let sweepDir = userDefaults.string(forKey: ZipAppInstaller.pendingBackupDirDefaultsKey) {
+            let root = URL(fileURLWithPath: sweepDir)
+            // ① 脚本与 result 是本模块专属名字：缺键时无从 uuid 匹配，按形状清。
+            var swept = InstallerScript.sweepTransientArtifacts(in: root, id: nil)
+            // ② 还能从既有键推出 uuid 时，再按同一 uuid 收一次（解压目录会被这条命中）。
+            let id = [resultPath, scriptPath, extractionKeyPath]
+                .compactMap { $0 }
+                .compactMap { InstallerScript.transientArtifactID(fromPath: $0) }
+                .first
+            if let id {
+                swept += InstallerScript.sweepTransientArtifacts(in: root, id: id)
+            }
+            // ③ 解压目录的 uuid 由 prepare() 另生成、与脚本不同：只认形状 + 单 .app + 超龄。
+            swept += InstallerScript.sweepStaleExtractionDirectories(in: root)
+            removed += swept.filter { !removed.contains($0) }
+        }
         if !removed.isEmpty {
             log("清理临时产物（\(reason)）count=\(removed.count)")
         }

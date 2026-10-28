@@ -98,6 +98,106 @@ struct InstallerTests {
         #expect(!InstallerScript.isResultShape("/tmp/other-file.json"))
     }
 
+    // MARK: - issue #24 跨版本残留清扫
+
+    /// 造一套「一次安装的产物」：解压目录 / 脚本 / result 共用同一个 uuid。
+    private func makeArtifactSet(in root: URL, id: String = UUID().uuidString) throws -> (
+        id: String, dir: URL, script: URL, result: URL
+    ) {
+        let fm = FileManager.default
+        let dir = root.appendingPathComponent("kairo-ota-\(id)", isDirectory: true)
+        try fm.createDirectory(
+            at: dir.appendingPathComponent("Kairo.app", isDirectory: true),
+            withIntermediateDirectories: true)
+        let script = root.appendingPathComponent("kairo-ota-install-\(id).sh")
+        let result = root.appendingPathComponent("kairo-ota-result-\(id).json")
+        try Data("#!/bin/bash\n".utf8).write(to: script)
+        try Data("{}".utf8).write(to: result)
+        return (id, dir, script, result)
+    }
+
+    private func makeSweepRoot() throws -> URL {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kairo-ota-sweep-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        return root
+    }
+
+    /// 同一 uuid 的三件套被清掉，相邻 uuid 的产物一个都不动。
+    @Test func sweepRemovesSameUUIDArtifactsOnly() throws {
+        let root = try makeSweepRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let target = try makeArtifactSet(in: root)
+        let neighbour = try makeArtifactSet(in: root)
+
+        let removed = InstallerScript.sweepTransientArtifacts(in: root, id: target.id)
+
+        let fm = FileManager.default
+        #expect(!fm.fileExists(atPath: target.dir.path))
+        #expect(!fm.fileExists(atPath: target.script.path))
+        #expect(!fm.fileExists(atPath: target.result.path))
+        #expect(removed.count == 3, "应恰好删掉目标 uuid 的三件套，实际 \(removed)")
+        #expect(fm.fileExists(atPath: neighbour.dir.path), "相邻 uuid 的目录不得误删")
+        #expect(fm.fileExists(atPath: neighbour.script.path), "相邻 uuid 的脚本不得误删")
+        #expect(fm.fileExists(atPath: neighbour.result.path), "相邻 uuid 的 result 不得误删")
+    }
+
+    /// uuid 无法确定时只清脚本与 result，目录保留（禁止宽前缀批量删目录）。
+    @Test func sweepWithoutUUIDKeepsDirectories() throws {
+        let root = try makeSweepRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let set = try makeArtifactSet(in: root)
+        let decoy = root.appendingPathComponent("notes.txt")
+        try Data("keep".utf8).write(to: decoy)
+
+        InstallerScript.sweepTransientArtifacts(in: root, id: nil)
+
+        let fm = FileManager.default
+        #expect(!fm.fileExists(atPath: set.script.path))
+        #expect(!fm.fileExists(atPath: set.result.path))
+        #expect(fm.fileExists(atPath: set.dir.path), "uuid 未知时不得按前缀删解压目录")
+        #expect(fm.fileExists(atPath: decoy.path), "非本模块文件不得误删")
+    }
+
+    /// 陈旧解压目录：形状 + 单 .app + 超龄三条同时成立才删。
+    @Test func staleExtractionSweepRequiresShapeContentAndAge() throws {
+        let root = try makeSweepRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let stale = try makeArtifactSet(in: root)
+        let fresh = try makeArtifactSet(in: root)
+        // 空目录 / 名字不是 UUID 的目录：形状不成立，即使超龄也不动。
+        let emptyDir = root.appendingPathComponent("kairo-ota-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: emptyDir, withIntermediateDirectories: true)
+        let bogusDir = root.appendingPathComponent("kairo-ota-not-a-uuid")
+        try FileManager.default.createDirectory(at: bogusDir, withIntermediateDirectories: true)
+        let old = Date(timeIntervalSinceNow: -7200)
+        for path in [stale.dir.path, emptyDir.path, bogusDir.path] {
+            try FileManager.default.setAttributes(
+                [.modificationDate: old], ofItemAtPath: path)
+        }
+
+        InstallerScript.sweepStaleExtractionDirectories(in: root, olderThan: 3600)
+
+        let fm = FileManager.default
+        #expect(!fm.fileExists(atPath: stale.dir.path), "超龄的解压目录必须清掉")
+        #expect(fm.fileExists(atPath: fresh.dir.path), "新鲜目录可能正在用，不得删")
+        #expect(fm.fileExists(atPath: emptyDir.path), "空目录不是解压形状，不猜")
+        #expect(fm.fileExists(atPath: bogusDir.path), "名字不是 UUID，不猜")
+        #expect(fm.fileExists(atPath: stale.script.path), "脚本不归这条规则管")
+    }
+
+    /// 路径 → uuid 的解析（三种形状 + 非法 uuid 一律 nil）。
+    @Test func transientArtifactIDParsesKnownShapes() {
+        let id = UUID().uuidString
+        #expect(InstallerScript.transientArtifactID(fromPath: "/tmp/kairo-ota-install-\(id).sh") == id)
+        #expect(InstallerScript.transientArtifactID(fromPath: "/tmp/kairo-ota-result-\(id).json") == id)
+        #expect(InstallerScript.transientArtifactID(fromPath: "/tmp/kairo-ota-\(id)/Kairo.app") == id)
+        #expect(InstallerScript.transientArtifactID(fromPath: "/tmp/kairo-ota-\(id)") == id)
+        #expect(InstallerScript.transientArtifactID(fromPath: "/tmp/kairo-ota-download-\(id).zip") == nil)
+        #expect(InstallerScript.transientArtifactID(fromPath: "/tmp/kairo-ota-install-abc.sh") == nil)
+        #expect(InstallerScript.transientArtifactID(fromPath: "/Applications/Kairo.app") == nil)
+    }
+
     @Test func launchPathMismatchFailsFast() async throws {
         let keys = TestKeys.makeKeyPair()
         let suite = "kairo.updatertests.mismatch.\(UUID().uuidString)"
