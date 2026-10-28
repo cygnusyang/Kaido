@@ -17,6 +17,22 @@
 - `FidelityLedger` 登记 97 条硬约束降级（SNET 41 / FNET 56）、日历换算（周一至周五 5 天/周 × 8h，另 37 条例外日）、4 个自定义域（105 条任务上 214 个值）。
 - 全量 **1408 tests / 134 suites** 通过；新增 23 例，零 warning。
 
+## v1.3.2 — 2026-10-28
+
+### 修复
+
+- **OTA 安装后进程不退出（#23 复发）**：更新面板作为 sheet 会推迟 AppKit 的终止流程，导致 terminate 从未进入裁决。改为先关面板、等一个 runloop 回合、再 terminate；判定逻辑未改。已用本地升级链路实证：日志出现 sheet dismissed → terminate → reply=terminateNow，版本 1.3.1 → 1.3.2、进程 PID 实测切换。
+- **CI 偶发死锁（约 50%）**：并行跑时 OTA 两条下载态用例的 waitUntil 到期返回 false，而下载器的 finish() 早于 continuation 注册、信号被静默丢弃，waiter 永久等一个不会 resume 的 continuation。修法：GateDownloader 先记状态、注册即兑现；新增 waitUntilStarted() 事件信号；用例删掉 3s 轮询判定。串行 0 挂、并行挂一半 → 修复后 10 次全新 scratch 0 挂。
+
+### 新增
+
+- **测试看门狗**：tools/test.sh 输出停滞 120s → sample 抓栈 → 报告含「最后 started / 最后 ended / 仍在进行中」归因段 → 退出 124。自检入口可复跑。
+
+### 判据
+
+- 全量 **1533 tests / 155 suites**；10 次全新 scratch 连跑 0 挂；build 零 warning；gate-i18n 与全角检查通过。
+- 已知红：GanttRenderPerformanceTests 的 50ms 墙钟阈值在共享机器上假红（已单独立项）。
+
 ## v1.3.1 — 2026-10-28
 
 ### 修复
