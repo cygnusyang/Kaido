@@ -10,6 +10,7 @@
 #   KAIRO_TEST_STALL_TIMEOUT=120  连续多少秒日志无新增字节即判挂死（0 关闭看门狗）
 #   KAIRO_TEST_STALL_POLL=5       采样间隔（秒）
 #   KAIRO_TEST_LOG=<path>         指定日志文件（默认 /tmp/kairo-test-<时间戳>.log）
+#   KAIRO_TEST_EVENT_STREAM=<path> 指定 Swift Testing 事件流文件（默认 /tmp/kairo-test-events-<时间戳>.jsonl）
 #
 # 为什么有看门狗：v1.3.0 / v1.3.1 的 CI「test · macOS」卡在测试步骤十余分钟且零输出，
 # 日志要等作业结束才取得到，而作业结束恰恰是因为它挂死——挂死现场什么都没留下。
@@ -21,13 +22,18 @@ set -uo pipefail
 
 SELF_CHECK=0
 HAS_FILTER=0
+HAS_EVENT_STREAM=0
 ARGS=()
+EVENT_ARGS=()
 for a in "$@"; do
   if [ "${a}" = "--self-check" ]; then
     SELF_CHECK=1
     continue
   fi
-  case "${a}" in --filter*|--skip*) HAS_FILTER=1 ;; esac
+  case "${a}" in
+    --filter*|--skip*) HAS_FILTER=1 ;;
+    --event-stream-output-path*) HAS_EVENT_STREAM=1 ;;
+  esac
   ARGS+=("${a}")
 done
 
@@ -63,6 +69,20 @@ else
   LOG="${KAIRO_TEST_LOG:-/tmp/kairo-test-$(date +%Y%m%d-%H%M%S)-$$.log}"
 fi
 : > "${LOG}"
+
+# Swift Testing 事件流（JSONL）：用例级 started/ended 的权威顺序。日志里的进度行会被并行输出
+# 冲乱、也看不出「有没有用例还在跑」，挂死时靠它回答「卡在谁后面 / 是真在跑还是已经空转」。
+# 版本 1 = 当前 Swift Testing 输出格式；只在非自检时启用（自检跑的是假命令）。
+EVENT_LOG=""
+if [ "${SELF_CHECK}" = 0 ] && [ "${HAS_EVENT_STREAM}" = 0 ]; then
+  EVENT_LOG="${KAIRO_TEST_EVENT_STREAM:-/tmp/kairo-test-events-$(date +%Y%m%d-%H%M%S)-$$.jsonl}"
+  if : > "${EVENT_LOG}" 2>/dev/null; then
+    EVENT_ARGS+=(--event-stream-output-path "${EVENT_LOG}" --event-stream-version 1)
+  else
+    echo "==> 警告：事件流文件不可写（${EVENT_LOG}），本次挂死将缺少用例级归因" >&2
+    EVENT_LOG=""
+  fi
+fi
 
 TOTAL=0
 if [ "${SELF_CHECK}" = 0 ]; then
@@ -123,6 +143,104 @@ collect_tree() {
   echo "${pid}"
 }
 
+# 事件流归因：最后 started / 最后 ended / 仍在进行中的用例。
+# 看门狗只知道「没输出了」；要判断是某个用例把主线程吊住、还是所有用例都结束了进程却不退，
+# 只能看 Swift Testing 的事件流——日志里的进度行会被并行输出冲乱，事件流是权威顺序。
+summarize_event_stream() {
+  echo "== 事件流归因 =="
+  if [ -z "${EVENT_LOG}" ] || [ ! -s "${EVENT_LOG}" ]; then
+    echo "（事件流为空或未启用：无法归因到用例）"
+    return 0
+  fi
+  echo "文件：${EVENT_LOG}（$(wc -c < "${EVENT_LOG}" | tr -d ' ') 字节）"
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "（无 python3，退化为上面的日志末尾）"
+    return 0
+  fi
+  python3 - "${EVENT_LOG}" <<'PY'
+import json
+import sys
+from collections import Counter
+
+path = sys.argv[1]
+kinds = {}
+started, ended = Counter(), Counter()
+order_started, order_ended = [], []
+last_ts = None
+bad_lines = 0
+
+with open(path, encoding="utf-8", errors="replace") as handle:
+    for line in handle:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            bad_lines += 1
+            continue
+        if record.get("kind") == "test":
+            payload = record.get("payload", {})
+            kinds[payload.get("id")] = payload.get("kind")
+            continue
+        payload = record.get("payload", {})
+        kind = payload.get("kind")
+        test_id = payload.get("testID")
+        timestamp = payload.get("instant", {}).get("since1970")
+        if timestamp is not None:
+            last_ts = timestamp
+        if kind == "testStarted" and test_id:
+            started[test_id] += 1
+            order_started.append(test_id)
+        elif kind == "testEnded" and test_id:
+            ended[test_id] += 1
+            order_ended.append(test_id)
+
+
+def label(test_id):
+    kind = kinds.get(test_id, "?")
+    if kind == "suite":
+        return test_id + "  [suite]"
+    return test_id.split("/", 1)[0] + " / " + test_id.split("/", 1)[-1].split("/")[0] + "  [test]"
+
+
+def last_of(kind_needed, sequence):
+    for test_id in reversed(sequence):
+        if kinds.get(test_id) == kind_needed:
+            return test_id
+    return None
+
+
+test_started = [t for t in order_started if kinds.get(t) != "suite"]
+test_ended = [t for t in order_ended if kinds.get(t) != "suite"]
+print("用例事件：started %d / ended %d（含套件共 started %d / ended %d）"
+      % (len(test_started), len(test_ended), len(order_started), len(order_ended)))
+
+in_flight = []
+for test_id, count in started.items():
+    remaining = count - ended.get(test_id, 0)
+    if remaining > 0:
+        in_flight.append((remaining, test_id))
+
+last_started_test = last_of("function", order_started)
+last_ended_test = last_of("function", order_ended)
+print("最后 started 的用例：%s" % (label(last_started_test) if last_started_test else "（无）"))
+print("最后 ended   的用例：%s" % (label(last_ended_test) if last_ended_test else "（无）"))
+
+if in_flight:
+    print("仍在进行中：%d 个 —— 挂死点在这些用例内部或其后继收尾" % len(in_flight))
+    for remaining, test_id in in_flight[:8]:
+        print("  · %s（未结束 %d 次）" % (label(test_id), remaining))
+    if len(in_flight) > 8:
+        print("  · …另有 %d 个" % (len(in_flight) - 8))
+else:
+    print("仍在进行中：0 个 —— 所有已开始的用例都已结束，挂死发生在用例之外（收尾 / 主线程空转）")
+
+if bad_lines:
+    print("（事件流有 %d 行无法解析：进程被杀时最后一行可能被截断）" % bad_lines)
+PY
+}
+
 # 抓栈：$1 为看门狗观察的根 pid。报告路径写入全局 REPORT。
 capture_stacks() {
   local root="$1" stamp report sample_file pid
@@ -138,6 +256,8 @@ capture_stacks() {
     echo
     echo "== 日志末尾 20 行（定位最后开始的用例）=="
     tail -20 "${LOG}" 2>/dev/null
+    echo
+    summarize_event_stream
     echo
     echo "== 进程树（pid ppid stat etime command）=="
     for pid in $(collect_tree "${root}"); do
@@ -161,9 +281,10 @@ capture_stacks() {
     if [ -s "${sample_file}" ]; then
       {
         echo
-        echo "== sample pid ${pid}（栈顶 40 行）=="
+        echo "== sample pid ${pid}（调用栈前 160 行，含各线程）=="
         # 栈顶 40 行；Binary Images 段只是内存布局，先到先停，免得把前 40 行位子占掉。
-        awk '/Call graph:/{show=1} show && /Binary Images:/{exit} show{print; n++} n>=40{exit}' "${sample_file}"
+        # 160 行而非 40：主线程的 CFRunLoopRun 只是「在等」，真正吊住它的线程往往在第 2 段之后。
+        awk '/Call graph:/{show=1} show && /Binary Images:/{exit} show{print; n++} n>=160{exit}' "${sample_file}"
       } >> "${report}"
     fi
     rm -f "${sample_file}"
@@ -184,9 +305,9 @@ start_suite() {
     # 演示：先写一行再彻底静默，模拟「跑着跑着不出声」。
     bash -c 'echo "自检假命令：已输出一行，随后 sleep 200"; sleep 200' > "${LOG}" 2>&1 &
   elif [ "${KAIRO_TEST_NO_SANDBOX:-1}" = "1" ]; then
-    swift test --disable-sandbox "${ARGS[@]}" > "${LOG}" 2>&1 &
+    swift test --disable-sandbox "${EVENT_ARGS[@]}" "${ARGS[@]}" > "${LOG}" 2>&1 &
   else
-    swift test "${ARGS[@]}" > "${LOG}" 2>&1 &
+    swift test "${EVENT_ARGS[@]}" "${ARGS[@]}" > "${LOG}" 2>&1 &
   fi
   SUITE_PID=$!
 }

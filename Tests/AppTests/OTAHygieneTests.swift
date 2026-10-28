@@ -29,11 +29,22 @@ struct OTAHygieneTests {
         }
     }
 
-    /// 挂起的下载器：一直不返回，直到被取消（模拟大包下载中被用户取消）。
+    /// 挂起的下载器：一直不返回，直到被取消或被放行（模拟大包下载中被用户取消）。
+    ///
+    /// 两条纪律，缺一条用例就会永久挂住（v1.3.2 CI 现场）：
+    /// ① **信号不丢**：放行与被取消都可能早于 download 注册 continuation 到达——
+    ///    并行全量下主 actor 被上千个用例争用，Task 的启动可以推迟数秒。两个信号都
+    ///    先记成状态，后到的注册立即兑现，绝不静默丢弃。
+    /// ② **时序由事件驱动**：waitUntilStarted() 是无超时的显式「已进入下载」信号。
+    ///    原先靠轮询 published state + 3s 截止，满载时会假失败，用例随即按错误的前置
+    ///    条件调用 finish/cancel，最后永久等一个再也不会被 resume 的 continuation。
     private final class GateDownloader: DataDownloading, @unchecked Sendable {
         private let lock = NSLock()
         private var continuation: CheckedContinuation<URL, Error>?
+        private var startedWaiters: [CheckedContinuation<Void, Never>] = []
+        private var started = false
         private var cancelled = false
+        private var finished = false
         private let archiveURL: URL
 
         init(archiveURL: URL) { self.archiveURL = archiveURL }
@@ -44,18 +55,44 @@ struct OTAHygieneTests {
             return cancelled
         }
 
+        /// 等到 download 真正进来并挂起为止（无超时；由下载器事件唤醒）。
+        func waitUntilStarted() async {
+            await withCheckedContinuation { waiter in
+                lock.lock()
+                if started {
+                    lock.unlock()
+                    waiter.resume()
+                    return
+                }
+                startedWaiters.append(waiter)
+                lock.unlock()
+            }
+        }
+
         func download(from url: URL, progress: @escaping (Double) -> Void) async throws -> URL {
             progress(0.2)
             return try await withTaskCancellationHandler {
                 try await withCheckedThrowingContinuation { continuation in
                     lock.lock()
+                    started = true
+                    let waiters = startedWaiters
+                    startedWaiters.removeAll()
                     if cancelled {
                         lock.unlock()
+                        waiters.forEach { $0.resume() }
                         continuation.resume(throwing: CancellationError())
+                        return
+                    }
+                    if finished {
+                        // 放行早于注册：立即兑现，否则这个 continuation 永远不会被 resume。
+                        lock.unlock()
+                        waiters.forEach { $0.resume() }
+                        continuation.resume(returning: archiveURL)
                         return
                     }
                     self.continuation = continuation
                     lock.unlock()
+                    waiters.forEach { $0.resume() }
                 }
             } onCancel: {
                 lock.lock()
@@ -67,9 +104,10 @@ struct OTAHygieneTests {
             }
         }
 
-        /// 模拟下载正常跑完。
+        /// 模拟下载正常跑完。早于注册到达时记下来，注册那一刻立即兑现。
         func finish() {
             lock.lock()
+            finished = true
             let pending = continuation
             continuation = nil
             lock.unlock()
@@ -400,8 +438,10 @@ struct OTAHygieneTests {
 
         await updater.check()
         let flight = Task { await updater.download() }
-        let downloading = await waitUntil { self.isDownloading(updater) }
-        #expect(downloading, "应进入下载态")
+        // 等下载器真正进来，不靠轮询 published state：满载下 3s 轮询会假失败，
+        // 随后 cancel() 落在 .updateAvailable 上空转，下载照跑，flight 永久等下去。
+        await downloader.waitUntilStarted()
+        #expect(isDownloading(updater), "应进入下载态")
 
         updater.cancel()
         #expect(updater.state == .idle, "取消后必须回到 idle")
@@ -449,7 +489,9 @@ struct OTAHygieneTests {
 
         await updater.check()
         let flight = Task { await updater.download() }
-        #expect(await waitUntil { self.isDownloading(updater) })
+        // 同上：显式等下载器进来，再关面板/放行，避免 finish() 早于 continuation 注册被丢弃。
+        await downloader.waitUntilStarted()
+        #expect(isDownloading(updater))
 
         // 「关闭」= 收起面板：任务不受影响，下载继续跑到完成。
         updater.dismiss()
