@@ -28,3 +28,14 @@ bash tools/gate-i18n.sh
 - 不读的话设 `FileHandle.nullDevice`，不要建 `Pipe`
 
 否则子进程输出超过 64KB 缓冲即死锁。
+
+## 改「同名重复行」必须锚定上下文
+
+`.github/workflows/ci.yml` 里第 60 行（macOS 作业）与第 128 行（Linux 作业）文本完全相同，都是 `        run: swift test`。
+
+未锚定的 sed / 字符串替换会同时改掉两处，把 Linux 作业也接上看门狗（那里没有 sample，会失效）。
+
+做法：
+1. 替换时带上上下文锚点，例如定位 `- name: 测试` 所在的步骤，或整段多行匹配；
+2. 改完用 `git diff --stat` 核对只有 1 行变化；出现 2 处就是改错了，先还原；
+3. 不要只靠同一条通道的 stdout 判断改没改——本仓库出现过 exitCode=0 但 stdout 为空的情况，会让人误判「没改成」。验证一律用 `git diff` / `grep -n` 这类独立证据。
