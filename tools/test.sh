@@ -1,23 +1,85 @@
 #!/usr/bin/env bash
-# tools/test.sh —— swift test 进度包装：总用例数 + 实时完成数 + 进度条。
-# 用法：tools/test.sh [swift test 参数...]；KAIRO_TEST_NO_SANDBOX=0 关闭本机默认 --disable-sandbox。
-# 失败用例即时上屏；套件与汇总正常打印；退出码透传 swift test。
+# tools/test.sh —— swift test 进度包装：总用例数 + 实时完成数 + 进度条 + 挂死看门狗。
+#
+# 用法：
+#   tools/test.sh [swift test 参数...]   包装运行：进度条 + 看门狗，退出码透传
+#   tools/test.sh --self-check           看门狗自检：假命令静默挂住，确认能抓栈并非零退出
+#
+# 环境变量：
+#   KAIRO_TEST_NO_SANDBOX=0       关闭本机默认 --disable-sandbox（CI 口径 = 0）
+#   KAIRO_TEST_STALL_TIMEOUT=120  连续多少秒日志无新增字节即判挂死（0 关闭看门狗）
+#   KAIRO_TEST_STALL_POLL=5       采样间隔（秒）
+#   KAIRO_TEST_LOG=<path>         指定日志文件（默认 /tmp/kairo-test-<时间戳>.log）
+#
+# 为什么有看门狗：v1.3.0 / v1.3.1 的 CI「test · macOS」卡在测试步骤十余分钟且零输出，
+# 日志要等作业结束才取得到，而作业结束恰恰是因为它挂死——挂死现场什么都没留下。
+# 现在改成输出落盘 + 后台运行 + 连续无增长即 sample 抓栈，把现场留在
+# /tmp/kairo-ci-hang-<时间戳>.txt，本轮作业自己失败并带出证据。
+#
+# 失败用例即时上屏；套件与汇总正常打印。
 set -uo pipefail
 
+SELF_CHECK=0
 HAS_FILTER=0
+ARGS=()
 for a in "$@"; do
-  case "$a" in --filter*|--skip*) HAS_FILTER=1 ;; esac
+  if [ "${a}" = "--self-check" ]; then
+    SELF_CHECK=1
+    continue
+  fi
+  case "${a}" in --filter*|--skip*) HAS_FILTER=1 ;; esac
+  ARGS+=("${a}")
 done
 
-TOTAL=0
-if [ "$HAS_FILTER" = 0 ]; then
-  echo "==> 统计用例总数（swift test list）…"
-  TOTAL="$(swift test list "$@" 2>/dev/null | grep -c . || true)"
-fi
-if [ "$TOTAL" -gt 0 ]; then
-  echo "==> 共 $TOTAL 个用例，开始运行…"
+is_uint() {
+  case "${1}" in ''|*[!0-9]*) return 1 ;; *) return 0 ;; esac
+}
+
+if [ "${SELF_CHECK}" = 1 ]; then
+  DEFAULT_STALL_TIMEOUT=8
+  DEFAULT_STALL_POLL=2
 else
-  echo "==> 总数未知（过滤运行或 list 失败），按完成计数显示"
+  DEFAULT_STALL_TIMEOUT=120
+  DEFAULT_STALL_POLL=5
+fi
+STALL_TIMEOUT="${KAIRO_TEST_STALL_TIMEOUT:-${DEFAULT_STALL_TIMEOUT}}"
+STALL_POLL="${KAIRO_TEST_STALL_POLL:-${DEFAULT_STALL_POLL}}"
+if ! is_uint "${STALL_TIMEOUT}" || ! is_uint "${STALL_POLL}" || [ "${STALL_POLL}" -lt 1 ]; then
+  echo "tools/test.sh: KAIRO_TEST_STALL_TIMEOUT / KAIRO_TEST_STALL_POLL 必须是非负整数（收到 ${STALL_TIMEOUT} / ${STALL_POLL}）" >&2
+  exit 2
+fi
+
+# 必须用绝对路径：PATH 上常有同名的第三方脚本（本机 python 版 sample 即直接报错退出）。
+SAMPLE_BIN=""
+for candidate in /usr/bin/sample /usr/bin/spindump; do
+  if [ -x "${candidate}" ]; then SAMPLE_BIN="${candidate}"; break; fi
+done
+SAMPLE_TOP_SECS=5
+SAMPLE_MAX_PIDS=4
+
+if [ "${SELF_CHECK}" = 1 ]; then
+  LOG="${KAIRO_TEST_LOG:-/tmp/kairo-test-selfcheck-$(date +%Y%m%d-%H%M%S)-$$.log}"
+else
+  LOG="${KAIRO_TEST_LOG:-/tmp/kairo-test-$(date +%Y%m%d-%H%M%S)-$$.log}"
+fi
+: > "${LOG}"
+
+TOTAL=0
+if [ "${SELF_CHECK}" = 0 ]; then
+  if [ "${HAS_FILTER}" = 0 ]; then
+    echo "==> 统计用例总数（swift test list；首次会编译测试目标，静默数分钟属正常，不计入看门狗）…"
+    TOTAL="$(swift test list "${ARGS[@]}" 2>/dev/null | grep -c . || true)"
+  fi
+  if [ "${TOTAL}" -gt 0 ]; then
+    echo "==> 共 ${TOTAL} 个用例，运行中…"
+  else
+    echo "==> 总数未知（过滤运行或 list 失败），按完成计数显示"
+  fi
+else
+  echo "==> 自检：用静默 200s 的假命令走同一条看门狗路径（判定阈值 ${STALL_TIMEOUT}s）"
+fi
+if [ "${STALL_TIMEOUT}" -gt 0 ]; then
+  echo "==> 看门狗：连续 ${STALL_TIMEOUT}s 无输出即抓栈·日志 ${LOG}"
 fi
 
 AWK_PROG='
@@ -30,33 +92,181 @@ AWK_PROG='
   }
   function report(color,   line) {
     if (total > 0) {
-      line = sprintf("%s %d/%d 完成 · 失败 %d · 运行中 %d",
+      line = sprintf("%s %d/%d 完成 · 失败 %d · 进行 %d",
           bar(done, total), done, total, failed, started - done)
     } else {
-      line = sprintf("已完成 %d · 失败 %d · 运行中 %d", done, failed, started - done)
+      line = sprintf("已完成 %d · 失败 %d · 进行 %d", done, failed, started - done)
     }
     if (color) printf "\r\033[%sm%-70s\033[0m", color, line
     else printf "\r%-70s", line
   }
-  /◇ Test .* started/ { started++ }
-  /✔ Test .* passed after/ && $0 !~ /Test run with/ { done++; report() }
-  /✘ Test .* failed after/ && $0 !~ /Test run with/ {
+  /Test .* started/ { started++ }
+  /Test .* passed after/ && $0 !~ /Test run with/ { done++; report() }
+  /Test .* failed after/ && $0 !~ /Test run with/ {
     failed++; done++
-    printf "\r\033[31m✘ 失败：%s\033[0m\n", $0
+    printf "\r\033[31m✗ 失败：%s\033[0m\n", $0
     report("31")
   }
-  /✔ Suite .* passed after/ { printf "\r\033[32m%s\033[0m\n", $0 }
-  /✘ Suite .* failed after/ { printf "\r\033[31m%s\033[0m\n", $0 }
+  /Suite .* passed after/ { printf "\r\033[32m%s\033[0m\n", $0 }
+  /Suite .* failed after/ { printf "\r\033[31m%s\033[0m\n", $0 }
   /Test run with/ { printf "\r\033[1m%s\033[0m\n\n", $0 }
   END { printf "\n" }
 '
 
-if [ "${KAIRO_TEST_NO_SANDBOX:-1}" = "1" ]; then
-  swift test --disable-sandbox "$@" 2>&1 | awk -v total="$TOTAL" "$AWK_PROG"
-else
-  swift test "$@" 2>&1 | awk -v total="$TOTAL" "$AWK_PROG"
+# 递归收集进程树，后序输出（子进程在父进程之前）—— 杀进程和抓栈都要叶子优先：
+# 真正卡住的是 swift-testing / XCTest 子进程，父 shell 的栈只是 wait4。
+collect_tree() {
+  local pid="$1" kid
+  for kid in $(pgrep -P "${pid}" 2>/dev/null); do
+    collect_tree "${kid}"
+  done
+  echo "${pid}"
+}
+
+# 抓栈：$1 为看门狗观察的根 pid。报告路径写入全局 REPORT。
+capture_stacks() {
+  local root="$1" stamp report sample_file pid
+  stamp="$(date +%Y%m%d-%H%M%S)"
+  report="/tmp/kairo-ci-hang-${stamp}-$$.txt"
+  REPORT="${report}"
+
+  {
+    echo "== 疑似挂死：连续 ${STALL_TIMEOUT}s 无输出 =="
+    echo "时间  : $(date)"
+    echo "根 pid: ${root}"
+    echo "日志  : ${LOG}"
+    echo
+    echo "== 日志末尾 20 行（定位最后开始的用例）=="
+    tail -20 "${LOG}" 2>/dev/null
+    echo
+    echo "== 进程树（pid ppid stat etime command）=="
+    for pid in $(collect_tree "${root}"); do
+      ps -o pid=,ppid=,stat=,etime=,command= -p "${pid}" 2>/dev/null | cut -c1-240
+    done
+  } > "${report}"
+
+  if [ -z "${SAMPLE_BIN}" ]; then
+    echo "== 未找到 /usr/bin/sample，跳过抓栈 ==" >> "${report}"
+    echo "==> 警告：未找到 sample/spindump，无栈可抓，仅保留日志 ${LOG}" >&2
+    return 0
+  fi
+
+  local count=0
+  for pid in $(collect_tree "${root}"); do
+    [ "${count}" -ge "${SAMPLE_MAX_PIDS}" ] && break
+    count=$((count + 1))
+    sample_file="${report}.pid${pid}.sample"
+    # sample 自带采样窗口；进程已退出时失败无妨。
+    "${SAMPLE_BIN}" "${pid}" "${SAMPLE_TOP_SECS}" -file "${sample_file}" >/dev/null 2>&1 || true
+    if [ -s "${sample_file}" ]; then
+      {
+        echo
+        echo "== sample pid ${pid}（栈顶 40 行）=="
+        # 栈顶 40 行；Binary Images 段只是内存布局，先到先停，免得把前 40 行位子占掉。
+        awk '/Call graph:/{show=1} show && /Binary Images:/{exit} show{print; n++} n>=40{exit}' "${sample_file}"
+      } >> "${report}"
+    fi
+    rm -f "${sample_file}"
+  done
+}
+
+kill_tree() {
+  local root="$1" pid pids
+  pids="$(collect_tree "${root}" | tr '\n' ' ')"
+  # 先 TERM 整棵树（叶子优先），再补 KILL：根先死的话子进程被 init 收养还会攥着 .build 锁。
+  for pid in ${pids}; do kill -TERM "${pid}" 2>/dev/null || true; done
+  sleep 1
+  for pid in ${pids}; do kill -KILL "${pid}" 2>/dev/null || true; done
+}
+
+start_suite() {
+  if [ "${SELF_CHECK}" = 1 ]; then
+    # 演示：先写一行再彻底静默，模拟「跑着跑着不出声」。
+    bash -c 'echo "自检假命令：已输出一行，随后 sleep 200"; sleep 200' > "${LOG}" 2>&1 &
+  elif [ "${KAIRO_TEST_NO_SANDBOX:-1}" = "1" ]; then
+    swift test --disable-sandbox "${ARGS[@]}" > "${LOG}" 2>&1 &
+  else
+    swift test "${ARGS[@]}" > "${LOG}" 2>&1 &
+  fi
+  SUITE_PID=$!
+}
+
+DISPLAY_PID=""
+REPORT=""
+start_suite
+
+if [ "${SELF_CHECK}" = 0 ]; then
+  # 进度条从日志文件跟随：swift test 自己直接落盘，所以 $! 就是真进程 pid，
+  # 抓栈与杀进程都打在它身上；显示侧只是旁观者。tail 是后台命令，$! 即 tail 的 pid。
+  tail -n +1 -F "${LOG}" 2>/dev/null > >(awk -v total="${TOTAL}" "${AWK_PROG}") &
+  DISPLAY_PID=$!
 fi
 
-STATUS="${PIPESTATUS[0]}"
-echo "==> swift test 退出码：$STATUS"
-exit "$STATUS"
+WATCHDOG_STATUS=0
+if [ "${STALL_TIMEOUT}" -gt 0 ]; then
+  LAST_SIZE=-1
+  IDLE_SINCE=${SECONDS}
+  while kill -0 "${SUITE_PID}" 2>/dev/null; do
+    sleep "${STALL_POLL}"
+    kill -0 "${SUITE_PID}" 2>/dev/null || break
+    NOW_SIZE="$(wc -c < "${LOG}" 2>/dev/null | tr -d ' ' || echo 0)"
+    if [ "${NOW_SIZE:-0}" != "${LAST_SIZE}" ]; then
+      LAST_SIZE="${NOW_SIZE}"
+      IDLE_SINCE=${SECONDS}
+      continue
+    fi
+    if [ $((SECONDS - IDLE_SINCE)) -ge "${STALL_TIMEOUT}" ]; then
+      echo >&2
+      echo "==> 看门狗：连续 $((SECONDS - IDLE_SINCE))s 无输出，判定挂死，开始抓栈…" >&2
+      capture_stacks "${SUITE_PID}"
+      echo "==> 现场报告：${REPORT}" >&2
+      echo "==> ---- 报告 ----" >&2
+      cat "${REPORT}" >&2
+      echo "==> ---- 报告结束 ----" >&2
+      kill_tree "${SUITE_PID}"
+      WATCHDOG_STATUS=124
+      break
+    fi
+  done
+fi
+
+wait "${SUITE_PID}" 2>/dev/null
+STATUS=$?
+if [ "${WATCHDOG_STATUS}" -ne 0 ]; then
+  STATUS="${WATCHDOG_STATUS}"
+fi
+
+if [ -n "${DISPLAY_PID}" ]; then
+  kill "${DISPLAY_PID}" 2>/dev/null || true
+  wait "${DISPLAY_PID}" 2>/dev/null || true
+  # 给 awk 一拍把末尾的汇总行刷出来。
+  sleep 0.3
+fi
+
+if [ "${SELF_CHECK}" = 1 ]; then
+  FAILURES=""
+  [ "${STATUS}" -eq 124 ] || FAILURES="${FAILURES}看门狗未以 124 退出（实得 ${STATUS}）；"
+  [ -s "${REPORT}" ] || FAILURES="${FAILURES}未生成现场报告；"
+  if [ -n "${REPORT}" ] && ! grep -q 'Call graph:' "${REPORT}" 2>/dev/null; then
+    FAILURES="${FAILURES}报告里没有 sample 调用栈；"
+  fi
+  grep -q '自检假命令' "${LOG}" 2>/dev/null || FAILURES="${FAILURES}日志缺假命令输出；"
+  if kill -0 "${SUITE_PID}" 2>/dev/null; then
+    FAILURES="${FAILURES}挂死进程未被清理（pid ${SUITE_PID} 仍存活）；"
+  fi
+  echo "==> 自检日志：${LOG}"
+  echo "==> 自检报告：${REPORT:-（无）}"
+  if [ -n "${FAILURES}" ]; then
+    echo "==> 看门狗自检失败：${FAILURES}" >&2
+    exit 1
+  fi
+  echo "==> 看门狗自检通过：静默 ${STALL_TIMEOUT}s 后被判定挂死、抓到调用栈、进程已清理、退出码 124"
+  exit 0
+fi
+
+if [ "${STATUS}" -ne 0 ]; then
+  echo "==> swift test 退出码：${STATUS}（完整日志 ${LOG}）" >&2
+else
+  echo "==> swift test 退出码：0（日志 ${LOG}）"
+fi
+exit "${STATUS}"

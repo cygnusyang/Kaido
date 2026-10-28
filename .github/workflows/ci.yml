@@ -69,8 +69,16 @@ jobs:
         run: bash tools/check-shell-fullwidth.sh
 
       # 与 release.yml 共用 tools/gate-i18n.sh：发版门禁口径必须等于合入前口径。
-      - name: 门禁 · 多语言（零硬编码中文 / 无 Bundle.module / 键完整 / 白名单为空）
-        run: bash tools/gate-i18n.sh
+      - name: 门禁 · 多语言（硬编码中文 / Bundle.module / 键完整性）
+        run: |
+          set -euo pipefail
+          CATALOG="Apps/macos/Resources/Localizable.xcstrings"
+          if [[ ! -f "$CATALOG" ]]; then
+            echo "::error title=i18n::缺少 $CATALOG —— 键完整性无法校验。F-0705（视图接入 Catalog）未合入前本步骤保持红色，这是门禁的预期行为，不要加跳过开关。"
+            exit 1
+          fi
+          bash tools/i18n-compile.sh "$RUNNER_TEMP/kairo-lproj"
+          bash tools/i18n-lint.sh --require-catalog --lproj-dir "$RUNNER_TEMP/kairo-lproj"
 
       - name: 自测 · 多语言门禁自身（用例只增不减）
         run: bash tools/i18n-lint-selftest.sh
