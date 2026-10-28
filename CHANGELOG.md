@@ -17,6 +17,22 @@
 - `FidelityLedger` 登记 97 条硬约束降级（SNET 41 / FNET 56）、日历换算（周一至周五 5 天/周 × 8h，另 37 条例外日）、4 个自定义域（105 条任务上 214 个值）。
 - 全量 **1408 tests / 134 suites** 通过；新增 23 例，零 warning。
 
+## v1.3.1 — 2026-10-28
+
+### 修复
+
+- **大纲序号过长被截断（#25）**：序号列原为固定 44pt，窄窗再乘压缩系数至 26pt，六级以上序号被行裁掉。改为按表格实际字体的最长序号串度量加内边距，随折叠/增删同步；列宽上限 80→120，避免用户拖宽时被夹回。
+- **跨版本 OTA 残留（#24）**：旧版写入的 pending 缺 script/extraction 键，新版清理不到解压目录与替换脚本——改为按形状加同一 uuid 匹配兜底，不做宽前缀批量删。
+
+### 新增
+
+- **OTA 决策留痕（#23）**：terminationReply 记录 armed/unsaved 快照与 reply 结果，install 记录 requested → preflight → armed → terminate 全过程，os_log 与 ~/Library/Logs/Kairo/ota.log 同步双写。判定逻辑一字未改。
+- **本地升级验证脚手架**：tools/ota-local-verify.sh 加 DEBUG-only 清单覆盖，可在本机走完整 OTA 链路（清残留 → 现签清单 → 本地服务 → 临时副本启动），不覆盖 /Applications；启动前若发现旧 build 在跑会 WARN。
+
+### 判据
+
+- 全量 **1531 tests / 154 suites** 通过（独占运行），零 warning；release 双架构构建通过；gate-i18n 与全角检查通过。
+
 ## v1.3.0 — 2026-10-27
 
 ### 新增
