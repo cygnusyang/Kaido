@@ -1,0 +1,1320 @@
+{
+  "baselines": [
+    {
+      "anchor": "2026-10-24T16:00:00Z",
+      "colorIndex": 0,
+      "createdAt": "2026-10-25T13:30:25Z",
+      "entries": [
+        {
+          "finish": "2026-10-25T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-10-24T16:00:00Z",
+          "taskID": "AD96017C-D5EE-4D28-BFC3-855BCC060FB9"
+        },
+        {
+          "finish": "2026-10-25T16:00:00Z",
+          "isMilestone": false,
+          "progress": 1,
+          "start": "2026-10-24T16:00:00Z",
+          "taskID": "F89F6B63-D7F3-49D5-BA2F-DF9607A75513"
+        },
+        {
+          "finish": "2026-10-25T16:00:00Z",
+          "isMilestone": false,
+          "progress": 1,
+          "start": "2026-10-24T16:00:00Z",
+          "taskID": "9B8B2FB9-6483-4EB3-AFC4-CB6DE5276E4F"
+        },
+        {
+          "finish": "2026-10-25T16:00:00Z",
+          "isMilestone": false,
+          "progress": 1,
+          "start": "2026-10-24T16:00:00Z",
+          "taskID": "E70BDA18-775B-463D-B7FF-596CD038513A"
+        },
+        {
+          "finish": "2026-10-25T16:00:00Z",
+          "isMilestone": false,
+          "progress": 1,
+          "start": "2026-10-24T16:00:00Z",
+          "taskID": "F645A73D-FD78-4100-B9A1-5E140254C833"
+        },
+        {
+          "finish": "2026-11-02T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-10-24T16:00:00Z",
+          "taskID": "7DE5C0AC-9FF8-4967-8A80-BEB148E05097"
+        },
+        {
+          "finish": "2026-10-26T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-10-24T16:00:00Z",
+          "taskID": "CE14365D-8825-46FA-8B53-AEB6506CA193"
+        },
+        {
+          "finish": "2026-10-28T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-10-26T16:00:00Z",
+          "taskID": "04C23BA9-2D34-4888-AF1D-8B54549FA08F"
+        },
+        {
+          "finish": "2026-10-30T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-10-28T16:00:00Z",
+          "taskID": "07287081-D200-4DB5-8681-51709CA468D6"
+        },
+        {
+          "finish": "2026-11-02T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-10-30T16:00:00Z",
+          "taskID": "1485209C-3C74-4DC6-8BA9-F1631812F69B"
+        },
+        {
+          "finish": "2026-11-20T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-02T16:00:00Z",
+          "taskID": "73D46551-2D5A-4633-8457-82323B5E33C4"
+        },
+        {
+          "finish": "2026-11-06T16:00:00Z",
+          "isMilestone": false,
+          "progress": 1,
+          "start": "2026-11-02T16:00:00Z",
+          "taskID": "2AB0A516-8570-417C-82B4-5A63EDBD35AB"
+        },
+        {
+          "finish": "2026-11-09T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-06T16:00:00Z",
+          "taskID": "D68B6978-03D2-46BA-953B-BBCC7AF0D9FE"
+        },
+        {
+          "finish": "2026-11-12T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-09T16:00:00Z",
+          "taskID": "73B31EEA-0CE7-4DF4-A349-88C0568D8376"
+        },
+        {
+          "finish": "2026-11-15T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-12T16:00:00Z",
+          "taskID": "7CEE59CC-C609-4671-AFE5-8B44A35B64C5"
+        },
+        {
+          "finish": "2026-11-17T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-15T16:00:00Z",
+          "taskID": "01B40813-A2DF-45AF-92E7-36D2F5BF4413"
+        },
+        {
+          "finish": "2026-11-19T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-17T16:00:00Z",
+          "taskID": "FE1C4E26-F5C0-4446-B6EB-2B25C7F4419C"
+        },
+        {
+          "finish": "2026-11-20T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-19T16:00:00Z",
+          "taskID": "CA924746-0CD1-4C03-A207-6AF62EDCC87D"
+        },
+        {
+          "finish": "2026-11-24T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-20T16:00:00Z",
+          "taskID": "54F19D8E-57F7-44A8-9FF7-AB3E9E5F7F65"
+        },
+        {
+          "finish": "2026-11-22T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-20T16:00:00Z",
+          "taskID": "A6F029AC-6EC3-4085-9D52-577E340C3A5A"
+        },
+        {
+          "finish": "2026-11-24T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-22T16:00:00Z",
+          "taskID": "11A7DF39-E57E-4D6A-A25D-94DDB2D2F79B"
+        },
+        {
+          "finish": "2026-12-05T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-24T16:00:00Z",
+          "taskID": "04C2CDEE-7E17-4669-9DF8-A25941E7DC7C"
+        },
+        {
+          "finish": "2026-11-27T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-24T16:00:00Z",
+          "taskID": "AA4E15F3-7140-4447-A839-2A8FB75D2EFB"
+        },
+        {
+          "finish": "2026-11-29T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-27T16:00:00Z",
+          "taskID": "B0C04909-BD31-4510-B82A-579785A8DC3D"
+        },
+        {
+          "finish": "2026-12-01T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-11-29T16:00:00Z",
+          "taskID": "7765831A-AD83-46F6-A4EA-FCD141404634"
+        },
+        {
+          "finish": "2026-12-03T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-12-01T16:00:00Z",
+          "taskID": "38D2792B-661D-49A9-9ED5-ADAD86B76C4A"
+        },
+        {
+          "finish": "2026-12-05T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-12-03T16:00:00Z",
+          "taskID": "AA00B706-CD9C-4707-984D-7EEAFF21449D"
+        },
+        {
+          "finish": "2026-12-11T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-12-05T16:00:00Z",
+          "taskID": "76C6818E-56CB-4FD7-B325-F707100DD56D"
+        },
+        {
+          "finish": "2026-12-07T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-12-05T16:00:00Z",
+          "taskID": "29E05579-17F8-4870-8C85-AC513B475394"
+        },
+        {
+          "finish": "2026-12-09T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-12-07T16:00:00Z",
+          "taskID": "45BFF8E1-BB13-494A-A42E-D828C354E8E1"
+        },
+        {
+          "finish": "2026-12-11T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-12-09T16:00:00Z",
+          "taskID": "D68153A0-DAD5-4BEA-9665-C75C00BDBF67"
+        },
+        {
+          "finish": "2026-12-24T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-12-11T16:00:00Z",
+          "taskID": "A7BA0FBA-F077-416A-AE4C-248065488F76"
+        },
+        {
+          "finish": "2026-12-16T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-12-11T16:00:00Z",
+          "taskID": "BF7B262D-194E-4549-A0AA-C3B2B2642474"
+        },
+        {
+          "finish": "2026-12-21T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-12-16T16:00:00Z",
+          "taskID": "3AEA908D-2691-4330-805D-14C18B7CBE18"
+        },
+        {
+          "finish": "2026-12-24T16:00:00Z",
+          "isMilestone": false,
+          "progress": 0,
+          "start": "2026-12-21T16:00:00Z",
+          "taskID": "52AF4BF7-DC94-428A-B84D-67FD42080856"
+        },
+        {
+          "finish": "2026-10-25T16:00:00Z",
+          "isMilestone": false,
+          "progress": 1,
+          "start": "2026-10-24T16:00:00Z",
+          "taskID": "3A17C2E5-679E-48A0-AAEF-7C2377B525B3"
+        }
+      ],
+      "id": "AD46D7EF-0995-488C-AD04-0E1BD6BACCF0",
+      "name": "初始基线（v0.14.5 收口）"
+    }
+  ],
+  "formatVersion": 2,
+  "project": {
+    "createdAt": "2026-10-25T12:07:19Z",
+    "direction": "forward",
+    "id": "AE97C0E9-BDEE-45BB-984E-004E56105268",
+    "projectStart": "2026-10-24T16:00:00Z",
+    "title": "Kairo 1.0 路线图",
+    "updatedAt": "2026-10-28T12:43:12Z"
+  },
+  "resources": [],
+  "tasks": [
+    {
+      "assignments": [],
+      "dependencies": [],
+      "id": "AD96017C-D5EE-4D28-BFC3-855BCC060FB9",
+      "kind": "group",
+      "notes": "",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "已完成（v0.12 → v0.14.1）"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T12:07:48Z",
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "F89F6B63-D7F3-49D5-BA2F-DF9607A75513",
+      "kind": "task",
+      "notes": "",
+      "parentID": "AD96017C-D5EE-4D28-BFC3-855BCC060FB9",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "v0.12 实际开始 / 实际结束"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T12:07:48Z",
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "9B8B2FB9-6483-4EB3-AFC4-CB6DE5276E4F",
+      "kind": "task",
+      "notes": "",
+      "parentID": "AD96017C-D5EE-4D28-BFC3-855BCC060FB9",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "v0.13 基线快照、偏差与格式 v2"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T12:07:48Z",
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "E70BDA18-775B-463D-B7FF-596CD038513A",
+      "kind": "task",
+      "notes": "",
+      "parentID": "AD96017C-D5EE-4D28-BFC3-855BCC060FB9",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "v0.14 多基线甘特叠加与配色"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T12:07:48Z",
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "F645A73D-FD78-4100-B9A1-5E140254C833",
+      "kind": "task",
+      "notes": "",
+      "parentID": "AD96017C-D5EE-4D28-BFC3-855BCC060FB9",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "v0.14.1 系统菜单语言对齐（#15）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "id": "7DE5C0AC-9FF8-4967-8A80-BEB148E05097",
+      "kind": "group",
+      "notes": "",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "v0.15 基线报表化"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T13:35:05Z",
+      "dependencies": [],
+      "durationDays": 2,
+      "id": "CE14365D-8825-46FA-8B53-AEB6506CA193",
+      "kind": "task",
+      "notes": "",
+      "parentID": "7DE5C0AC-9FF8-4967-8A80-BEB148E05097",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "基线面板：列表 / 重命名 / 删除 / 孤儿清单"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T13:35:05Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "CE14365D-8825-46FA-8B53-AEB6506CA193",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "04C23BA9-2D34-4888-AF1D-8B54549FA08F",
+      "kind": "task",
+      "notes": "",
+      "parentID": "7DE5C0AC-9FF8-4967-8A80-BEB148E05097",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "基线偏差 CSV 导出（列名与符号同 BaselineVariance）"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T13:35:05Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "04C23BA9-2D34-4888-AF1D-8B54549FA08F",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "07287081-D200-4DB5-8681-51709CA468D6",
+      "kind": "task",
+      "notes": "",
+      "parentID": "7DE5C0AC-9FF8-4967-8A80-BEB148E05097",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "项目摘要偏差块（检查器 + CLI project summary）"
+    },
+    {
+      "assignments": [],
+      "cancelReason": "1.0 范围决策：不做（见 docs/release-1.0-scope.md §4.1）。保留条目作为决策痕迹，需要时可撤销回待办。",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "07287081-D200-4DB5-8681-51709CA468D6",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 3,
+      "id": "1485209C-3C74-4DC6-8BA9-F1631812F69B",
+      "kind": "task",
+      "notes": "",
+      "parentID": "7DE5C0AC-9FF8-4967-8A80-BEB148E05097",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "cancelled",
+      "tags": [],
+      "title": "基线 A vs B 对比（可选，视反馈）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "7DE5C0AC-9FF8-4967-8A80-BEB148E05097",
+          "type": "fs"
+        }
+      ],
+      "id": "73D46551-2D5A-4633-8457-82323B5E33C4",
+      "kind": "group",
+      "notes": "",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "v0.16 列表与状态词汇"
+    },
+    {
+      "actualStart": "2026-10-25T12:36:37Z",
+      "assignments": [],
+      "completedAt": "2026-10-25T12:53:22Z",
+      "dependencies": [],
+      "durationDays": 4,
+      "id": "2AB0A516-8570-417C-82B4-5A63EDBD35AB",
+      "kind": "task",
+      "notes": "",
+      "parentID": "73D46551-2D5A-4633-8457-82323B5E33C4",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "修复群组依赖不传播与群组跨度显示（#16）"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T14:26:21Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "2AB0A516-8570-417C-82B4-5A63EDBD35AB",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 3,
+      "id": "D68B6978-03D2-46BA-953B-BBCC7AF0D9FE",
+      "kind": "task",
+      "notes": "",
+      "parentID": "73D46551-2D5A-4633-8457-82323B5E33C4",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "大纲表头拖拽重排（#12）"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T14:26:21Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "D68B6978-03D2-46BA-953B-BBCC7AF0D9FE",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 3,
+      "id": "73B31EEA-0CE7-4DF4-A349-88C0568D8376",
+      "kind": "task",
+      "notes": "",
+      "parentID": "73D46551-2D5A-4633-8457-82323B5E33C4",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "列显隐模型合并为单一「顺序 + 可见性」并迁移旧偏好（#12）"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T14:26:21Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "73B31EEA-0CE7-4DF4-A349-88C0568D8376",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 3,
+      "id": "7CEE59CC-C609-4671-AFE5-8B44A35B64C5",
+      "kind": "task",
+      "notes": "",
+      "parentID": "73D46551-2D5A-4633-8457-82323B5E33C4",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "新增终态「已取消」：模型与引擎排除（排期/进度分母/违例/关键路径）"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T14:26:21Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "7CEE59CC-C609-4671-AFE5-8B44A35B64C5",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "01B40813-A2DF-45AF-92E7-36D2F5BF4413",
+      "kind": "task",
+      "notes": "",
+      "parentID": "73D46551-2D5A-4633-8457-82323B5E33C4",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "取消原因必填 + 取消可撤销回待办"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T14:26:21Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "01B40813-A2DF-45AF-92E7-36D2F5BF4413",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "FE1C4E26-F5C0-4446-B6EB-2B25C7F4419C",
+      "kind": "task",
+      "notes": "",
+      "parentID": "73D46551-2D5A-4633-8457-82323B5E33C4",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "CLI / MCP 状态词汇与 i18n 同步"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T14:26:21Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "FE1C4E26-F5C0-4446-B6EB-2B25C7F4419C",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 1,
+      "id": "CA924746-0CD1-4C03-A207-6AF62EDCC87D",
+      "kind": "task",
+      "notes": "",
+      "parentID": "73D46551-2D5A-4633-8457-82323B5E33C4",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "工具栏基线菜单补显隐 / 改色（v0.14.1 顺延）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "73D46551-2D5A-4633-8457-82323B5E33C4",
+          "type": "fs"
+        }
+      ],
+      "id": "54F19D8E-57F7-44A8-9FF7-AB3E9E5F7F65",
+      "kind": "group",
+      "notes": "",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "v0.16 MCP 英文化（F-0714）"
+    },
+    {
+      "actualStart": "2026-10-26T23:19:43Z",
+      "assignments": [],
+      "completedAt": "2026-10-26T23:24:43Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "73D46551-2D5A-4633-8457-82323B5E33C4",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "A6F029AC-6EC3-4085-9D52-577E340C3A5A",
+      "kind": "task",
+      "notes": "",
+      "parentID": "54F19D8E-57F7-44A8-9FF7-AB3E9E5F7F65",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "20 个 MCP 工具描述与错误消息切英文"
+    },
+    {
+      "actualStart": "2026-10-26T23:19:43Z",
+      "assignments": [],
+      "completedAt": "2026-10-26T23:24:43Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "A6F029AC-6EC3-4085-9D52-577E340C3A5A",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "11A7DF39-E57E-4D6A-A25D-94DDB2D2F79B",
+      "kind": "task",
+      "notes": "",
+      "parentID": "54F19D8E-57F7-44A8-9FF7-AB3E9E5F7F65",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "code 集合不变 + 对等性基线与断言更新"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "54F19D8E-57F7-44A8-9FF7-AB3E9E5F7F65",
+          "type": "fs"
+        }
+      ],
+      "id": "04C2CDEE-7E17-4669-9DF8-A25941E7DC7C",
+      "kind": "group",
+      "notes": "",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "v0.17 稳定化与可发布"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "54F19D8E-57F7-44A8-9FF7-AB3E9E5F7F65",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 3,
+      "id": "AA4E15F3-7140-4447-A839-2A8FB75D2EFB",
+      "kind": "task",
+      "notes": "",
+      "parentID": "04C2CDEE-7E17-4669-9DF8-A25941E7DC7C",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "blocked",
+      "tags": [],
+      "title": "Developer ID 签名与公证流程实测"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-26T15:15:18Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "AA4E15F3-7140-4447-A839-2A8FB75D2EFB",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "B0C04909-BD31-4510-B82A-579785A8DC3D",
+      "kind": "task",
+      "notes": "",
+      "parentID": "04C2CDEE-7E17-4669-9DF8-A25941E7DC7C",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "性能 NFR 复测：5k 任务 / 1k 行渲染 / 3 基线"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-26T15:15:18Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "B0C04909-BD31-4510-B82A-579785A8DC3D",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "7765831A-AD83-46F6-A4EA-FCD141404634",
+      "kind": "task",
+      "notes": "",
+      "parentID": "04C2CDEE-7E17-4669-9DF8-A25941E7DC7C",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "崩溃恢复与自动保存审计"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-26T15:15:18Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "7765831A-AD83-46F6-A4EA-FCD141404634",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "38D2792B-661D-49A9-9ED5-ADAD86B76C4A",
+      "kind": "task",
+      "notes": "",
+      "parentID": "04C2CDEE-7E17-4669-9DF8-A25941E7DC7C",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "文档一致性：QUICKSTART / README 双语与变更日志规范"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-26T15:15:18Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "38D2792B-661D-49A9-9ED5-ADAD86B76C4A",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "AA00B706-CD9C-4707-984D-7EEAFF21449D",
+      "kind": "task",
+      "notes": "",
+      "parentID": "04C2CDEE-7E17-4669-9DF8-A25941E7DC7C",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "Linux CI 与本地 macOS 口径一致（含 warnings-as-errors）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "04C2CDEE-7E17-4669-9DF8-A25941E7DC7C",
+          "type": "fs"
+        }
+      ],
+      "id": "76C6818E-56CB-4FD7-B325-F707100DD56D",
+      "kind": "group",
+      "notes": "",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "v1.0 发布闸门"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-26T15:15:05Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "04C2CDEE-7E17-4669-9DF8-A25941E7DC7C",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "29E05579-17F8-4870-8C85-AC513B475394",
+      "kind": "task",
+      "notes": "",
+      "parentID": "76C6818E-56CB-4FD7-B325-F707100DD56D",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "定义 1.0 判据与格式冻结承诺（formatVersion 2 起向后兼容）"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-26T15:15:05Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "29E05579-17F8-4870-8C85-AC513B475394",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "45BFF8E1-BB13-494A-A42E-D828C354E8E1",
+      "kind": "task",
+      "notes": "",
+      "parentID": "76C6818E-56CB-4FD7-B325-F707100DD56D",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "连续两个版本无阻断缺陷的稳定性证据"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-26T15:15:05Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "45BFF8E1-BB13-494A-A42E-D828C354E8E1",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "D68153A0-DAD5-4BEA-9665-C75C00BDBF67",
+      "kind": "task",
+      "notes": "",
+      "parentID": "76C6818E-56CB-4FD7-B325-F707100DD56D",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "发布检查单与回滚预案"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "76C6818E-56CB-4FD7-B325-F707100DD56D",
+          "type": "fs"
+        }
+      ],
+      "id": "A7BA0FBA-F077-416A-AE4C-248065488F76",
+      "kind": "group",
+      "notes": "",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "1.0 之后再议（非目标）"
+    },
+    {
+      "actualStart": "2026-10-26T23:33:04Z",
+      "assignments": [],
+      "completedAt": "2026-10-26T23:56:38Z",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "76C6818E-56CB-4FD7-B325-F707100DD56D",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 5,
+      "id": "BF7B262D-194E-4549-A0AA-C3B2B2642474",
+      "kind": "task",
+      "notes": "",
+      "parentID": "2E23F5DC-EC1F-4A3C-9757-E1C16B019860",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "工作日历模型 F-22-06（周末/节假日非工作）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "BF7B262D-194E-4549-A0AA-C3B2B2642474",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 5,
+      "id": "3AEA908D-2691-4330-805D-14C18B7CBE18",
+      "kind": "task",
+      "notes": "",
+      "parentID": "A7BA0FBA-F077-416A-AE4C-248065488F76",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "挣值指标 SV / SPI / CV / CPI"
+    },
+    {
+      "assignments": [],
+      "cancelReason": "1.0 范围决策：不做（见 docs/release-1.0-scope.md §4.1）。保留条目作为决策痕迹，需要时可撤销回待办。",
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "3AEA908D-2691-4330-805D-14C18B7CBE18",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 3,
+      "id": "52AF4BF7-DC94-428A-B84D-67FD42080856",
+      "kind": "task",
+      "notes": "",
+      "parentID": "A7BA0FBA-F077-416A-AE4C-248065488F76",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "cancelled",
+      "tags": [],
+      "title": "甘特「仅基线」「分割日程」视图"
+    },
+    {
+      "assignments": [],
+      "completedAt": "2026-10-25T12:10:32Z",
+      "dependencies": [],
+      "id": "3A17C2E5-679E-48A0-AAEF-7C2377B525B3",
+      "kind": "task",
+      "notes": "",
+      "parentID": "AD96017C-D5EE-4D28-BFC3-855BCC060FB9",
+      "priority": "normal",
+      "progress": 1,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "README 补项目名读音与国际音标"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "76C6818E-56CB-4FD7-B325-F707100DD56D",
+          "type": "fs"
+        }
+      ],
+      "id": "2E23F5DC-EC1F-4A3C-9757-E1C16B019860",
+      "kind": "group",
+      "notes": "",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "v1.2 互操作（MS Project / OmniPlan）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "BF7B262D-194E-4549-A0AA-C3B2B2642474",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 10,
+      "id": "E6B797C6-0722-4892-97BF-9D60A3B92119",
+      "kind": "task",
+      "notes": "",
+      "parentID": "2E23F5DC-EC1F-4A3C-9757-E1C16B019860",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "MSPDI 读：导入 MS Project XML（含预检报告）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "E6B797C6-0722-4892-97BF-9D60A3B92119",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 8,
+      "id": "61E8DC5D-9A0D-440D-8FB9-614ABA720B3F",
+      "kind": "task",
+      "notes": "",
+      "parentID": "2E23F5DC-EC1F-4A3C-9757-E1C16B019860",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "MSPDI 写：导出 XML + 旁注文件"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "BF7B262D-194E-4549-A0AA-C3B2B2642474",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 4,
+      "id": "119C30E5-2EA1-4DAD-8066-DC8482250572",
+      "kind": "task",
+      "notes": "",
+      "parentID": "2E23F5DC-EC1F-4A3C-9757-E1C16B019860",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "OmniPlan .oplx 读：解析真实样本与 4 类依赖"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "119C30E5-2EA1-4DAD-8066-DC8482250572",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 6,
+      "id": "E0E5B3BF-0CB1-48CD-B896-C19C64F6172E",
+      "kind": "task",
+      "notes": "",
+      "parentID": "2E23F5DC-EC1F-4A3C-9757-E1C16B019860",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "OmniPlan .oplx 写：最小容器 → 完整基线/日历/分配"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "durationDays": 2,
+      "id": "2694AF1F-2C46-47DF-BC84-A983054AEF5A",
+      "kind": "task",
+      "notes": "",
+      "parentID": "54F19D8E-57F7-44A8-9FF7-AB3E9E5F7F65",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "MCP 错误文案英文化（需解冻 v0.8.5 fixture，单独评审）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "id": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "kind": "group",
+      "notes": "",
+      "parentID": "2E23F5DC-EC1F-4A3C-9757-E1C16B019860",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "v1.2 维护：OTA 三条尾巴（#19/#20/#21）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "E0E5B3BF-0CB1-48CD-B896-C19C64F6172E",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "FDA0F1E1-A4E7-4975-BA46-36AA840626CF",
+      "kind": "task",
+      "notes": "",
+      "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "OTA 失败/超时清理 $TMPDIR 残留（#19）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "FDA0F1E1-A4E7-4975-BA46-36AA840626CF",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "E8BE960F-3B45-4EDF-9DD5-29A366C0EA02",
+      "kind": "task",
+      "notes": "",
+      "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "OTA 失败结果不被启动自动检查覆盖（#20）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "E8BE960F-3B45-4EDF-9DD5-29A366C0EA02",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 3,
+      "id": "3A79249D-FF8F-4FA8-90D6-CF4C126EF80A",
+      "kind": "task",
+      "notes": "",
+      "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "更新面板检查/下载态真取消（#21）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "E13834F7-C14E-4181-A8F3-6E4C580D49DB",
+      "kind": "task",
+      "notes": "",
+      "parentID": "2E23F5DC-EC1F-4A3C-9757-E1C16B019860",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "KairoInterop.assembling 支持自定义 summary（预检保留资源/相关性计数）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "id": "8B243B47-82C7-41A9-B4AB-60A02C3391F9",
+      "kind": "group",
+      "notes": "",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "v1.3.2 发版阻塞（CI 挂死 + OTA sheet）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "E7BA1E69-7329-4FFC-B053-27094547D119",
+      "kind": "task",
+      "notes": "",
+      "parentID": "8B243B47-82C7-41A9-B4AB-60A02C3391F9",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "查 ci.yml 改动不落地的原因（三种改法 mtime 变、内容不变）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "E7BA1E69-7329-4FFC-B053-27094547D119",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 3,
+      "id": "9FA8CEFD-0CFE-451D-9AB0-4EB0C58992D7",
+      "kind": "task",
+      "notes": "",
+      "parentID": "8B243B47-82C7-41A9-B4AB-60A02C3391F9",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "用 CI 抓回的栈定位并行用例 continuation 丢失点"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "9FA8CEFD-0CFE-451D-9AB0-4EB0C58992D7",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 1,
+      "id": "AE67BAD3-47A8-4321-AB3C-B15A62E90C5B",
+      "kind": "task",
+      "notes": "",
+      "parentID": "8B243B47-82C7-41A9-B4AB-60A02C3391F9",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "done",
+      "tags": [],
+      "title": "发 v1.3.2（含 OTA 先关 sheet 再 terminate，已实证可用）"
+    },
+    {
+      "dependencies": [],
+      "durationDays": 2,
+      "id": "C4912F72-52A7-4392-9734-2EBFD6203282",
+      "kind": "task",
+      "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "status": "done",
+      "title": "大纲序号列宽按内容自适应（#25）"
+    },
+    {
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "00628CF4-27EE-4FF9-BF74-932BA675CAE1",
+      "kind": "task",
+      "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "status": "done",
+      "title": "OTA 判定链加 os_log：版本/preflight/武装/reply/terminate"
+    },
+    {
+      "dependencies": [],
+      "durationDays": 2,
+      "id": "88AABFF4-D2F3-4BD0-AB32-0EAF5A1F267D",
+      "kind": "task",
+      "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "status": "done",
+      "title": "tools/ota-local-verify.sh：本地 manifest 走完整升级链路"
+    },
+    {
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "4AC7E653-8153-4469-B4DB-CD9F0EE9CBEE",
+      "kind": "task",
+      "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "status": "done",
+      "title": "真升级验收：1.3.x → 本地 dev 包，看版本与进程真的切换"
+    },
+    {
+      "dependencies": [],
+      "durationDays": 2,
+      "id": "7E6766CB-1304-49F4-9805-37D9819761B6",
+      "kind": "task",
+      "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "status": "pending",
+      "title": "跨版本 OTA 残留：旧版 pending 键缺失致产物清不掉（#24）"
+    }
+  ]
+}
