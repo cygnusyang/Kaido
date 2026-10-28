@@ -21,8 +21,9 @@
 #   tools/ota-local-verify.sh --stop       # 停本地服务并清场
 #
 # 判据（--check 自动核对，顺序不可颠倒）：
-#   install requested -> preflight ok -> install armed -> NSApp.terminate called
-#   -> termination reply ... armed=true ... reply=terminateNow
+#   install requested -> preflight ok -> install armed -> sheet dismissed
+#   -> NSApp.terminate called -> termination reply ... armed=true ... reply=terminateNow
+# （sheet dismissed 必须在 terminate 之前：面板是 sheet，AppKit 会因此推迟终止流程）
 set -o pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -231,8 +232,8 @@ check_log() {
   start=$(grep -n "install requested" "$LOG" | tail -1 | cut -d: -f1)
   if [ -z "$start" ]; then die "日志里没有 install requested（还没点过 Quit and Install）"; fi
   rest=$(tail -n +"$start" "$LOG")
-  expect_in_order "$rest" "install requested" "preflight ok" "install armed" "NSApp.terminate called" "reply=terminateNow" || exit 1
-  say "PASS: 武装 -> terminate -> terminateNow 序列完整"
+  expect_in_order "$rest" "install requested" "preflight ok" "install armed" "sheet dismissed" "NSApp.terminate called" "reply=terminateNow" || exit 1
+  say "PASS: 武装 -> 收面板 -> terminate -> terminateNow 序列完整"
   printf "%s" "$rest" | sed -n "1,12p"
 }
 

@@ -257,7 +257,7 @@ struct UpdateSheet: View {
     /// 下载完成后唯一的安装入口：装前落盘 → 退出 + 替换二进制 + 自动重启。
     ///
     /// 每一步都在 OTAInstallLog 留痕（#17 复发的取证链）：收口结果 → 武装时刻 →
-    /// terminate。留痕不改变任何判定：guard 与 sleep 的顺序、时长与原实现一致。
+    /// 收面板 → terminate。留痕不改变任何判定：guard 与 sleep 的顺序、时长与原实现一致。
     private func install() {
         let requestedAt = Date()
         OTAInstallLog.note("install requested", "state=\(OTAInstallLog.name(updater.state))")
@@ -284,8 +284,13 @@ struct UpdateSheet: View {
                     + " state=\(OTAInstallLog.name(updater.state))"
             )
             try? await Task.sleep(nanoseconds: 500_000_000)
-            OTAInstallLog.note("NSApp.terminate called")
-            NSApp.terminate(nil)
+            // 先收面板再退：面板是 sheet，AppKit 会因窗口仍挂着 sheet 推迟终止流程，
+            // terminate 走不到 applicationShouldTerminate（2026-10-28 现场：armed 之后
+            // 没有任何 reply）。收面板走宿主的关闭请求而非 updater.dismiss()——后者会把
+            // 状态打回 idle，武装旁路失效。
+            OTAInstallExit.run(
+                dismiss: onRequestClose,
+                terminate: { NSApp.terminate(nil) })
         }
     }
 
