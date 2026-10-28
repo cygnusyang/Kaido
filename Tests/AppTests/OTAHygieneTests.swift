@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import Combine
 import CryptoKit
 import KairoUpdater
 
@@ -562,6 +563,55 @@ struct OTAHygieneTests {
         try? await Task.sleep(nanoseconds: 150_000_000)
         #expect(updater.state == .idle, "取消后不得再进入下载/已下载，实际 \(updater.state)")
         #expect(downloader.startCount == 0, "取消后不得发起下载")
+    }
+
+    /// 取消后**全程**不得再出现 `.downloading`（issue #28 的反例判据）。
+    ///
+    /// 只拍「取消那一刻」的快照会漏：飞行任务可能在几十毫秒后才把下载拉起来。
+    /// 这里订阅 `$state`，取消后持续观察 2s，断言整段序列里一次 `.downloading`
+    /// 都没有，且下载器一次都没被调用。
+    @Test func cancelNeverResurrectsDownloading() async throws {
+        let env = try makeEnv()
+        let products = try makeProducts(env)
+        defer { tearDown(env, products) }
+
+        let manifest = try makeManifest(archive: products.archive)
+        let downloader = SpyDownloader(archiveURL: products.archive)
+        let updater = makeManager(
+            env,
+            manifest: manifest,
+            downloader: downloader,
+            installer: StubInstaller(products: products, defaults: env.defaults))
+        await updater.check()
+        guard case .updateAvailable = updater.state else {
+            Issue.record("期望 updateAvailable，实际 \(updater.state)")
+            return
+        }
+
+        var observed: [UpdaterState] = []
+        let token = updater.$state.sink { observed.append($0) }
+        defer { token.cancel() }
+
+        // 复刻「同一轮里连点下载 + 取消」：两个 MainActor 作业先入队再放行。
+        // 下载作业执行到 runFlight 的等待点后，取消作业会插在飞行任务之前跑——
+        // 这正是「已武装、还没开始下载」的窗口，也是最容易漏掉的那条路径。
+        let flight = Task { @MainActor in await updater.download() }
+        let cancelJob = Task { @MainActor in updater.cancel() }
+        await cancelJob.value
+        await flight.value
+        // 观察窗口必须长于任何可能的延迟启动点：2s 内若被拉起来必然抓得到。
+        let deadline = Date().addingTimeInterval(2)
+        while Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+
+        let downloading = observed.contains { state in
+            if case .downloading = state { return true }
+            return false
+        }
+        #expect(!downloading, "取消后整段序列不得出现 downloading，实际 \(observed)")
+        #expect(downloader.startCount == 0, "取消后下载器不得被调用")
+        #expect(updater.state == .idle, "取消后 2s 仍须停在 idle，实际 \(updater.state)")
     }
 
     // MARK: - #24 跨版本残留：旧 pending 缺键
