@@ -57,7 +57,7 @@ jobs:
         run: swift build -Xswiftc -warnings-as-errors
 
       - name: 测试
-        run: swift test
+        run: bash tools/test.sh --scratch-path /tmp/kairo-ci-tests
 
       - name: 门禁 · 核心层不得依赖 UI 框架（ADR-004 / ADR-013）
         run: bash tools/gate-core.sh
