@@ -26,6 +26,16 @@ struct KairoApp: App {
                     updater.consumePendingInstallResult()
                     scheduleAutoUpdateChecks()
                     scheduleLaunchOpen()
+                    #if DEBUG
+                    // 闭环验证的驱动端（tools/ota-loop-verify.sh）：未设
+                    // KAIRO_OTA_AUTOPILOT=1 时完全 no-op。
+                    OTAAutopilot.start(
+                        updater: updater,
+                        present: { showUpdateSheet = true },
+                        dismiss: { showUpdateSheet = false },
+                        preflight: { OTAInstallPreflight.run(store: store) }
+                    )
+                    #endif
                 }
                 .onOpenURL { handleDeepLink($0) }
                 .sheet(isPresented: $showUpdateSheet) {

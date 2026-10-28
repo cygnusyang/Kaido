@@ -13,6 +13,10 @@
 #     生产私钥（GitHub secret UPDATE_SIGNING_KEY_BASE64）不参与；
 #   * 必须没有任何旧 Kairo 进程在跑 —— OTA 由旧 build 执行会重演 #17。
 #
+# 要「无人值守跑 N 轮并自动判定成败/失败阶段」，用 tools/ota-loop-verify.sh：
+# 它靠 DEBUG 构建的 KAIRO_OTA_AUTOPILOT=1 自己按面板那条内部序列走，不需要人点按钮。
+# 本脚本保留「人工点按钮」的用法：现场排查、想亲眼看每一步步进时仍然有用。
+#
 # 用法：
 #   tools/ota-local-verify.sh              # 清场 + 构建 + 起服务 + 启动 App
 #   tools/ota-local-verify.sh --no-build   # 复用上次构建（改代码后要重新构建）

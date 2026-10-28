@@ -256,41 +256,16 @@ struct UpdateSheet: View {
 
     /// 下载完成后唯一的安装入口：装前落盘 → 退出 + 替换二进制 + 自动重启。
     ///
-    /// 每一步都在 OTAInstallLog 留痕（#17 复发的取证链）：收口结果 → 武装时刻 →
-    /// 收面板 → terminate。留痕不改变任何判定：guard 与 sleep 的顺序、时长与原实现一致。
+    /// 驱动体在 `OTAInstallSequence`（与 DEBUG 自动驾驶共用同一份实现）：
+    /// 收口 → 武装 → 收面板 → terminate，每一步都由它留痕。面板只提供两件
+    /// 只属于界面的东西：收口闭包与「收起本面板」的宿主请求。
     private func install() {
-        let requestedAt = Date()
-        OTAInstallLog.note("install requested", "state=\(OTAInstallLog.name(updater.state))")
         Task {
-            await updater.install(preflight: {
-                // 包一层只为记收口结论：失败时脚本根本没启动，这是与「退了但没装上」
-                // 完全不同的两种现场。
-                let failure = prepareForInstall()
-                OTAInstallLog.note("preflight", failure.map { "failed=\($0)" } ?? "ok")
-                return failure
-            })
-            // 只有武装成功（脚本已启动）才进入退出序列；失败/收口被拒时停在
-            // .failed，用户可重试或关闭——绝不把面板留在无按钮的安装态。
-            guard updater.isInstallingUpdate else {
-                OTAInstallLog.note(
-                    "install not armed; terminate skipped",
-                    "state=\(OTAInstallLog.name(updater.state))"
-                )
-                return
-            }
-            OTAInstallLog.note(
-                "install armed",
-                "after_ms=\(Int(Date().timeIntervalSince(requestedAt) * 1000))"
-                    + " state=\(OTAInstallLog.name(updater.state))"
+            await OTAInstallSequence.run(
+                updater: updater,
+                preflight: { prepareForInstall() },
+                dismiss: onRequestClose
             )
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            // 先收面板再退：面板是 sheet，AppKit 会因窗口仍挂着 sheet 推迟终止流程，
-            // terminate 走不到 applicationShouldTerminate（2026-10-28 现场：armed 之后
-            // 没有任何 reply）。收面板走宿主的关闭请求而非 updater.dismiss()——后者会把
-            // 状态打回 idle，武装旁路失效。
-            OTAInstallExit.run(
-                dismiss: onRequestClose,
-                terminate: { NSApp.terminate(nil) })
         }
     }
 
