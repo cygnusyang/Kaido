@@ -586,18 +586,21 @@ final class WorkspaceStore: ObservableObject {
         notice = nil
     }
 
-    /// 横向平移：按整天推进窗口起点（正数 = 内容右移 / 看更早日期）。
+    /// 横向平移：推进窗口起点（正数 = 内容右移 / 看更早日期）。
     ///
-    /// 唯一真源是 `viewState.windowStart`：连续滚动事件都以当前已提交的起点为基准，
-    /// 视图层不再自行推进（D-028 —— 旧实现在上下文里乐观 `advance`，store 一旦
-    /// 不认这次提交就会越滑越偏）。`usesFitZoom` 关闭，与「适合项目」互斥。
-    /// 固定跨度在这里原样保留：平移只挪起点，窗口宽度仍是跨度定义的 N 天。
-    func panWindow(byDays days: Int) {
+    /// **位移带亚日精度**（v1.3.7 / D-049）：起点不再归一为整天，连续滚动才能跟手。
+    /// 唯一真源仍是 `viewState.windowStart`：连续滚动事件都以当前已提交的起点为基准，
+    /// 视图层不自行推进（D-028 —— 旧实现在上下文里乐观 `advance`，store 一旦不认
+    /// 这次提交就会越滑越偏）。`usesFitZoom` 关闭，与「适合项目」互斥。
+    /// 固定跨度原样保留：平移只挪起点，窗口宽度仍是跨度定义的 N 天。
+    func panWindow(byDays days: Double) {
         guard days != 0 else { return }
         let base = viewState.windowStart ?? snapshot.gantt.windowStart
-        let shifted = calendar.date(byAdding: .day, value: -days, to: base) ?? base
+        // 用秒折算而不是 `date(byAdding: .day)`：后者作用于非零点时会保留时分秒，
+        // 但整数天以外的位移根本没有对应的日历运算，统一按 86 400 秒更直接。
+        let shifted = base.addingTimeInterval(-days * 86_400)
         mutateView(scope: .windowPan) {
-            $0.windowStart = calendar.startOfDay(for: shifted)
+            $0.windowStart = shifted
             $0.usesFitZoom = false
         }
     }
@@ -723,8 +726,9 @@ final class WorkspaceStore: ObservableObject {
 
         case .panWindow(let date):
             // 只改起点：跨度模式下的窗口宽度由 `windowSpanDays` 决定，平移不动它。
+            // 日期原样落库，不归一为整天——鼠标拖拽平移也走这条，归一就退回整日蹦（D-049）。
             mutateView(scope: .windowPan) {
-                $0.windowStart = calendar.startOfDay(for: date)
+                $0.windowStart = date
                 $0.usesFitZoom = false
             }
 

@@ -99,6 +99,13 @@ public struct GanttLayout: Equatable, Sendable {
     }
 
     public var windowStart: Date
+    /// 窗口起点所在自然日的零点（日界网格原点）。
+    ///
+    /// `windowStart` 允许亚日精度：连续滚动时窗口起点落在一天中间的任意位置，
+    /// 画布才跟手（v1.3.7）。刻度与非工作带以**日界**为基准铺，所以它们始终与
+    /// 真实的午夜对齐，而不是随窗口相位漂移；`windowStart == dayOrigin` 时与
+    /// 改动前逐位一致（A7 冻结基线）。
+    public var dayOrigin: Date
     /// 窗口结束（不含）。
     public var windowEnd: Date
     public var dayWidth: Double
@@ -189,9 +196,11 @@ public enum GanttLayoutEngine {
         let content = contentRange(tasks: tasks, schedule: schedule, calendar: calendar)
         let width = max(viewWidth, 1)
         let dayWidth = max(dayWidthOverride ?? zoom.dayWidth, 0.5)
-        let windowStart = calendar.startOfDay(
-            for: requestedStart ?? content?.start ?? Date()
-        )
+        // 起点不再归一为整天：亚日位移是连续滚动的原料（v1.3.7）。
+        // 缺省起点（内容起点 / 今天）本身已是零点，回落路径行为不变。
+        let windowStart = requestedStart ?? content?.start ?? Date()
+        // 日界网格原点：刻度 / 非工作带 / 今天线以它为准，不随窗口相位漂移。
+        let dayOrigin = calendar.startOfDay(for: windowStart)
         var labels = TickLabels(calendar: calendar, locale: locale)
         let windowSeconds = width / dayWidth * 86_400
         let windowEnd = windowStart.addingTimeInterval(windowSeconds)
@@ -236,30 +245,32 @@ public enum GanttLayoutEngine {
             ))
         }
 
-        let firstDay = calendar.component(.day, from: windowStart)
-        let firstMonth = calendar.component(.month, from: windowStart)
+        let firstDay = calendar.component(.day, from: dayOrigin)
+        let firstMonth = calendar.component(.month, from: dayOrigin)
         switch zoom {
         case .day, .week:
             // 窗口起点不在月初时补当月上层标签，避免上层表头空白。
             if firstDay != 1 {
                 appendUpper(
-                    windowStart,
+                    dayOrigin,
                     x: 0,
-                    label: firstMonth == 1 ? labels.monthYear(windowStart) : labels.month(windowStart)
+                    label: firstMonth == 1 ? labels.monthYear(dayOrigin) : labels.month(dayOrigin)
                 )
             }
         case .month:
             if firstMonth != 1 {
-                appendUpper(windowStart, x: 0, label: labels.year(windowStart))
+                appendUpper(dayOrigin, x: 0, label: labels.year(dayOrigin))
             }
         }
 
-        var cursor = windowStart
+        // 从日界起步：窗口起点带亚日相位时，第一格刻度会落在负坐标（当天已滑出左缘），
+        // 这正是连续滚动该有的样子——刻度与非工作带始终贴着真实午夜。
+        var cursor = dayOrigin
         if zoom == .month {
             // 快路径（D-017）：month 档仅在每月 1 日产生刻度/上层标签，非工作带
             // 已隐藏（上方 zoom != .month 守卫）——按月首迭代输出与逐日循环
             // 完全一致，长项目不再逐日扫描（fit 路径窗口可达数千天）。
-            var monthCursor = windowStart
+            var monthCursor = dayOrigin
             if calendar.component(.day, from: monthCursor) != 1 {
                 let daysInMonth = calendar.range(of: .day, in: .month, for: monthCursor)?.count ?? 30
                 monthCursor = calendar.date(
@@ -334,8 +345,13 @@ public enum GanttLayoutEngine {
 
         let todayX: Double? = {
             guard let today else { return nil }
+            // 判定用「今天这一天与窗口是否相交」，不是「今天的零点 >= 窗口起点」：
+            // 窗口起点带亚日相位时（连续滚动，v1.3.7），零点可能刚好滑出左缘而当天
+            // 仍有大半在屏内——旧式半开区间判定会把今天线整条吞掉，同时错误地亮出
+            // 「回到今天」胶囊（D-046 的方向提示反而误导）。
+            // 返回的 x 允许为负：线画在真实零点上，超出视口的部分由视图裁剪。
             let day = calendar.startOfDay(for: today)
-            guard day >= windowStart, day < windowEnd else { return nil }
+            guard day.addingTimeInterval(86_400) > windowStart, day < windowEnd else { return nil }
             return x(for: day, windowStart: windowStart, dayWidth: dayWidth)
         }()
 
@@ -349,6 +365,7 @@ public enum GanttLayoutEngine {
 
         return GanttLayout(
             windowStart: windowStart,
+            dayOrigin: dayOrigin,
             windowEnd: windowEnd,
             dayWidth: dayWidth,
             windowWidth: width,

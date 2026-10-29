@@ -12,12 +12,29 @@ final class CanvasDragSession {
     /// 提交节流间隔（秒）：拖动中最多每 100ms 提交一次。
     static let commitInterval: TimeInterval = 0.1
 
-    /// 拖拽起点锚定的几何：条 + 当前持续时间 + 窗口起点 + 生效日宽。
+    /// 拖拽起点锚定的几何：条 + 当前持续时间 + 窗口起点 + 日界 + 生效日宽。
+    ///
+    /// `dayOrigin` 是窗口起点所在自然日的零点。窗口起点允许亚日精度（连续滚动，
+    /// v1.3.7 / D-049），日的边界仍按真实午夜算，所以日偏移与落库日期都以它为准；
+    /// 相位只影响「画在哪一像素」，不影响「算哪一天」。
     struct Anchor {
         let bar: GanttBar
         let durationDays: Double
         let windowStart: Date
+        let dayOrigin: Date
         let dayWidth: Double
+
+        /// 窗口相位移（天，0..<1）。
+        var dayPhase: Double { windowStart.timeIntervalSince(dayOrigin) / 86_400 }
+
+        /// `dayOrigin` 缺省回落到窗口起点（整天对齐的旧调用点相位移为 0）。
+        init(bar: GanttBar, durationDays: Double, windowStart: Date, dayOrigin: Date? = nil, dayWidth: Double) {
+            self.bar = bar
+            self.durationDays = durationDays
+            self.windowStart = windowStart
+            self.dayOrigin = dayOrigin ?? windowStart
+            self.dayWidth = dayWidth
+        }
     }
 
     /// 单笔提交请求；视图层映射为 WorkspaceAction。
@@ -191,9 +208,12 @@ final class CanvasDragSession {
 
     // MARK: - 纯函数（提交值计算）
 
-    /// 锚定条的起点日偏移（相对 windowStart）。
+    /// 锚定条的起点日偏移（相对**日界**：0 = 窗口起点所在那一天）。
+    ///
+    /// 条在画布上的横坐标是 `(天数 − 相位) × 日宽`，所以要先把相位加回来再取整，
+    /// 否则窗口滑到半天时所有日期标签都会差一天。
     static func startDay(anchor: Anchor) -> Int {
-        Int((anchor.bar.x / max(anchor.dayWidth, 0.5)).rounded())
+        Int((anchor.bar.x / max(anchor.dayWidth, 0.5) + anchor.dayPhase).rounded())
     }
 
     static func movePreview(anchor: Anchor, offsetDays: Int) -> BarPreview {
@@ -216,7 +236,7 @@ final class CanvasDragSession {
     }
 
     static func moveStartDate(anchor: Anchor, offsetDays: Int) -> Date {
-        anchor.windowStart.addingTimeInterval(Double(startDay(anchor: anchor) + offsetDays) * 86_400)
+        anchor.dayOrigin.addingTimeInterval(Double(startDay(anchor: anchor) + offsetDays) * 86_400)
     }
 
     /// 左端拖拽的位移夹取：end 不变 ⇒ 新 duration ≥ 1 天。
@@ -231,7 +251,7 @@ final class CanvasDragSession {
             let offset = clampStartOffset(anchor: anchor, offsetDays: offsetDays)
             return .resize(
                 id: id,
-                startDate: anchor.windowStart.addingTimeInterval(
+                startDate: anchor.dayOrigin.addingTimeInterval(
                     Double(startDay(anchor: anchor) + Int(offset)) * 86_400
                 ),
                 durationDays: max(1, anchor.durationDays - offset)

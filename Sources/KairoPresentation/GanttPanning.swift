@@ -1,41 +1,20 @@
 import Foundation
 
-/// 画布横向平移的亚日余量累积器（F-14-18）。
+/// 画布横向平移的像素 → 天换算（F-14-18）。
 ///
-/// 布局把窗口起点归一为整天（`GanttLayoutEngine.make` 的 `startOfDay`），
-/// 因此触摸板/滚轮的连续像素位移必须先累积、跨整天才提交，否则逐事件取整
-/// 会让慢速滑动「一天天蹦」且丢失不足一天的位移。
+/// **亚日精度是刻意的**（v1.3.7 / D-049）：窗口起点自 v1.3.7 起允许落在一天
+/// 中间的任意位置，所以一段像素位移直接折算成小数天提交即可，画布逐帧跟手。
+/// 旧实现把起点归一为整天、位移先攒满一天再提交，代价是「整日蹦」——跨度模式
+/// 一天 171pt，手指滑了 160pt 画面纹丝不动，然后整幅跳一天，用户感受就是拖不动。
 ///
-/// 语义：`consume` 返回正数 = 内容右移（窗口起点减小）；负数反之。
-public struct HorizontalPanAccumulator: Equatable, Sendable {
-    /// 尚未凑满一整天的位移余量（天）。
-    public private(set) var remainderDays: Double = 0
+/// 语义：返回值正 = 内容右移（窗口起点减小）；负 = 内容左移。
+public enum HorizontalPan {
+    /// 日宽下限 0.5pt（与 `GanttLayoutEngine.make` 的夹取同式）。
+    public static let minimumDayWidth: Double = 0.5
 
-    public init() {}
-
-    /// 消费一段横向像素位移，返回本段可提交的整天数（余量留存到下次）。
-    public mutating func consume(deltaX: Double, dayWidth: Double) -> Int {
-        remainderDays += deltaX / max(dayWidth, 0.5)
-        let whole = remainderDays.rounded(.towardZero)
-        remainderDays -= whole
-        return Int(whole)
-    }
-
-    /// 清空余量（窗口被外部重置、切换缩放档位等场景）。
-    public mutating func reset() {
-        remainderDays = 0
-    }
-
-    /// 手势结束时把「过半天的余量」补成一天。
-    ///
-    /// 为什么需要它：整天提交的口径下，慢速小幅滑动松手时若余量不足一天，
-    /// 画面一天都不动（跨度模式 74pt/天时尤甚）。过半即提交，并使用户的
-    /// 主观位移不白费；余量里扣掉这一天，避免反向时多走。
-    public mutating func flushGesture(threshold: Double = 0.5) -> Int {
-        guard abs(remainderDays) >= threshold else { return 0 }
-        let days = remainderDays < 0 ? -1 : 1
-        remainderDays -= Double(days)
-        return days
+    /// 像素位移 → 天位移。
+    public static func days(deltaX: Double, dayWidth: Double) -> Double {
+        deltaX / max(dayWidth, minimumDayWidth)
     }
 }
 

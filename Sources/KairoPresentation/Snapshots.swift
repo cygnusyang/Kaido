@@ -393,6 +393,13 @@ public enum TodaySide: String, Hashable, Sendable {
 /// 时间画布快照。
 public struct GanttSnapshot: Hashable, Sendable {
     public var windowStart: Date
+    /// 窗口起点所在自然日的零点（日界网格原点）。
+    ///
+    /// 窗口起点允许亚日精度（连续滚动，v1.3.7）：拖拽预览、日期标签这类
+    /// 「按天对齐」的换算必须以它为准，否则相位不为零时标签会差一天。
+    public var dayOrigin: Date
+    /// 窗口相位（0..<1 天）：窗口起点距日界的偏移。0 = 起点正好在午夜。
+    public var dayPhase: Double { (windowStart.timeIntervalSince(dayOrigin)) / 86_400 }
     public var windowEnd: Date
     public var contentStart: Date?
     public var contentEnd: Date?
@@ -441,6 +448,7 @@ public struct GanttSnapshot: Hashable, Sendable {
     public init(
         windowStart: Date,
         windowEnd: Date,
+        dayOrigin: Date? = nil,
         contentStart: Date? = nil,
         contentEnd: Date? = nil,
         dayWidth: Double,
@@ -466,6 +474,8 @@ public struct GanttSnapshot: Hashable, Sendable {
         baselineLegend: [BaselineLegendItem] = []
     ) {
         self.windowStart = windowStart
+        // 缺省回落到起点自身：整天对齐的窗口（旧构造点）相位恒为 0，行为不变。
+        self.dayOrigin = dayOrigin ?? windowStart
         self.windowEnd = windowEnd
         self.contentStart = contentStart
         self.contentEnd = contentEnd

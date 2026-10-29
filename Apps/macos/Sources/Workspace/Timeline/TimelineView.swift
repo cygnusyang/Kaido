@@ -14,7 +14,7 @@ struct TimelineHeaderView: View {
     let width: CGFloat
 
     @State private var panBaseDate: Date?
-    @State private var lastPanDays: Int?
+    @State private var lastPanDays: Double?
 
     /// 表头下层标签上限：超出后按 stride 抽稀（网格线不抽稀，保持时间网格完整）。
     private static let maxHeaderLabels = 200
@@ -81,12 +81,13 @@ struct TimelineHeaderView: View {
                         lastPanDays = nil
                     }
                     guard let base = panBaseDate else { return }
+                    // 连续位移（v1.3.7 / D-049）：表头拖动与两指滚动同一口径，画布逐帧跟手，
+                    // 不再取整到整天（整日提交在跨度模式下要拖满 171pt 才动一次）。
                     let dayWidth = max(gantt.dayWidth, 1)
-                    let days = Int((-value.translation.width / dayWidth).rounded())
-                    guard days != lastPanDays else { return }
+                    let days = -value.translation.width / dayWidth
+                    if let last = lastPanDays, abs(days - last) < 0.0005 { return }
                     lastPanDays = days
-                    let target = Calendar.current.date(byAdding: .day, value: days, to: base) ?? base
-                    store.dispatch(.panWindow(to: target))
+                    store.dispatch(.panWindow(to: base.addingTimeInterval(days * 86_400)))
                 }
                 .onEnded { _ in
                     panBaseDate = nil
@@ -316,6 +317,7 @@ struct TimelineBody: View {
             bar: bar,
             durationDays: max(bar.width / max(gantt.dayWidth, 0.5), 0),
             windowStart: gantt.windowStart,
+            dayOrigin: gantt.dayOrigin,
             dayWidth: gantt.dayWidth
         )
     }
@@ -404,7 +406,8 @@ struct TimelineBody: View {
         let bar = preview.bar
         let top = CGFloat(bar.rowIndex) * DesignTokens.rowHeight - offset
         guard top > -DesignTokens.rowHeight, top < size.height else { return }
-        let x = CGFloat(preview.startDay) * gantt.dayWidth
+        // 预览起点与正式条同一换算：(天数 − 窗口相位) × 日宽（v1.3.7 / D-049）。
+        let x = CGFloat(Double(preview.startDay) - gantt.dayPhase) * gantt.dayWidth
         let previewWidth = CGFloat(preview.durationDays) * gantt.dayWidth
 
         if bar.kind == .milestone {
@@ -425,7 +428,7 @@ struct TimelineBody: View {
             )
             drawPreviewLabel(
                 context: &context, size: size,
-                text: Self.previewDateText(startDay: preview.startDay, windowStart: gantt.windowStart),
+                text: Self.previewDateText(startDay: preview.startDay, dayOrigin: gantt.dayOrigin),
                 x: center.x + 9, y: center.y
             )
             return
@@ -442,7 +445,7 @@ struct TimelineBody: View {
             with: .color(DesignTokens.accentStrong.opacity(0.8)),
             style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])
         )
-        var label = Self.previewDateText(startDay: preview.startDay, windowStart: gantt.windowStart)
+        var label = Self.previewDateText(startDay: preview.startDay, dayOrigin: gantt.dayOrigin)
         if preview.durationDays > 0 {
             let days = Int(preview.durationDays.rounded())
             label += I18n.t("timeline.preview.duration", " · %1$ld days", days)
@@ -490,8 +493,8 @@ struct TimelineBody: View {
     }
 
     /// 拖拽预览的日期标签：展示格式，按生效 Locale 出（zh `11月6日`，en `Nov 6`，F-0712）。
-    private static func previewDateText(startDay: Int, windowStart: Date) -> String {
-        Display.shortMonthDay(windowStart.addingTimeInterval(Double(startDay) * 86_400))
+    private static func previewDateText(startDay: Int, dayOrigin: Date) -> String {
+        Display.shortMonthDay(dayOrigin.addingTimeInterval(Double(startDay) * 86_400))
     }
 
     private func drawPreviewLabel(

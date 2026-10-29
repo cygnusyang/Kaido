@@ -22,8 +22,8 @@ import os
 struct GanttScrollSurface: NSViewRepresentable {
     /// 当前生效日宽（像素 → 整天的换算基准）。
     let dayWidth: Double
-    /// 提交整天数：正 = 内容右移（看更早日期）。
-    let onDays: (Int) -> Void
+    /// 提交位移天数（亚日精度）：正 = 内容右移（看更早日期）。
+    let onDays: (Double) -> Void
 
     func makeNSView(context: Context) -> ScrollSurfaceView {
         let view = ScrollSurfaceView()
@@ -54,7 +54,7 @@ struct GanttScrollSurface: NSViewRepresentable {
 
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
-        func update(dayWidth: Double, onDays: @escaping (Int) -> Void) {
+        func update(dayWidth: Double, onDays: @escaping (Double) -> Void) {
             if let controller {
                 controller.update(dayWidth: dayWidth, onDays: onDays)
             } else {
@@ -119,17 +119,18 @@ struct GanttScrollSurface: NSViewRepresentable {
         /// （< 1pt）时才吞掉事件，避免重复滚动。
         func handle(_ event: NSEvent) -> NSEvent? {
             guard let controller else { return event }
-            let deltaY = Double(event.scrollingDeltaY)
+            // 传统滚轮（鼠标）的 delta 单位是「行」而非像素：不换算的话一次滚格只走
+            // 1pt，跨度模式要 171 格才动一天，实测就是「滚不动」。触摸板是精确像素，1:1。
+            let scale = event.hasPreciseScrollingDeltas ? 1 : GanttScrollController.lineScrollPoints
+            let deltaX = Double(event.scrollingDeltaX) * scale
+            let deltaY = Double(event.scrollingDeltaY) * scale
             let consumed = controller.handle(
-                deltaX: Double(event.scrollingDeltaX),
+                deltaX: deltaX,
                 deltaY: deltaY,
                 shift: event.modifierFlags.contains(.shift),
                 cursorInside: cursorInsideBounds()
             )
-            if event.phase == .ended || event.phase == .cancelled || event.momentumPhase == .ended {
-                controller.endGesture()
-            }
-            let hasVertical = abs(deltaY) >= 1
+            let hasVertical = abs(event.scrollingDeltaY) >= 1
             return (consumed && !hasVertical) ? nil : event
         }
 
@@ -142,36 +143,24 @@ struct GanttScrollSurface: NSViewRepresentable {
     }
 }
 
-/// 横向平移的判定与位移累积（纯逻辑 + 闭包出口，单测直接调用）。
+/// 横向平移的判定与位移换算（纯逻辑 + 闭包出口，单测直接调用）。
 @MainActor
 final class GanttScrollController {
     private static let logger = Logger(subsystem: "ai.kairo.app", category: "gantt-pan")
-    /// 首次成功平移只记一条（现场核对「事件到底有没有到」）。
-    private static var reportedFirstPan = false
-    private var accumulator = HorizontalPanAccumulator()
+    /// 传统滚轮一「行」折算的点数（AppKit 的非精确 delta 以行为单位）。
+    static let lineScrollPoints: Double = 10
     private var dayWidth: Double
-    private var onDays: (Int) -> Void
+    private var onDays: (Double) -> Void
 
-    init(dayWidth: Double, onDays: @escaping (Int) -> Void) {
-        self.dayWidth = max(dayWidth, 0.5)
+    init(dayWidth: Double, onDays: @escaping (Double) -> Void) {
+        self.dayWidth = max(dayWidth, HorizontalPan.minimumDayWidth)
         self.onDays = onDays
     }
 
-    /// 尺度变化后旧余量失去意义，清空避免跳变。
-    func update(dayWidth: Double, onDays: @escaping (Int) -> Void) {
-        let width = max(dayWidth, 0.5)
-        // 只在「日宽真的变了」时清余量：跨度模式下日宽 = 画布宽/7 是浮点值，
-        // 布局抖动会让它每帧微变，绝对不等会把用户攒下的位移反复清零（v1.3.6 反馈的「拖不动」）。
-        if abs(width - self.dayWidth) / max(self.dayWidth, 0.5) > 0.01 { accumulator.reset() }
-        self.dayWidth = width
+    /// 日宽变化（缩放 / 画布改宽）：只换换算基准，无余量可清（连续位移不需要累积）。
+    func update(dayWidth: Double, onDays: @escaping (Double) -> Void) {
+        self.dayWidth = max(dayWidth, HorizontalPan.minimumDayWidth)
         self.onDays = onDays
-    }
-
-    /// 手势结束（抬手/取消）：把过半天的余量补成一天，避免慢速小幅滑动白费。
-    func endGesture() {
-        let days = accumulator.flushGesture()
-        guard days != 0 else { return }
-        onDays(days)
     }
 
     /// 消费一条滚动输入；返回值表示「横向分量是否已被本层用掉」。
@@ -189,14 +178,18 @@ final class GanttScrollController {
             isEditingText: false
         ))
         guard case .pan(let pixels) = decision else { return false }
-        let days = accumulator.consume(deltaX: pixels, dayWidth: dayWidth)
-        if days != 0 {
-            if !Self.reportedFirstPan {
-                Self.reportedFirstPan = true
-                Self.logger.notice("first pan: \(pixels, privacy: .public)pt / \(self.dayWidth, privacy: .public)pt-per-day = \(days, privacy: .public) days")
-            }
-            onDays(days)
-        }
+        let days = HorizontalPan.days(deltaX: pixels, dayWidth: dayWidth)
+        guard days != 0 else { return true }
+        Self.logFirstPan(pixels: pixels, dayWidth: dayWidth, days: days)
+        onDays(days)
         return true
+    }
+
+    /// 首次成功平移只记一条（现场核对「事件到底有没有到」）。
+    private static var reportedFirstPan = false
+    private static func logFirstPan(pixels: Double, dayWidth: Double, days: Double) {
+        guard !reportedFirstPan else { return }
+        reportedFirstPan = true
+        logger.notice("first pan: \(pixels, privacy: .public)pt / \(dayWidth, privacy: .public)pt-per-day = \(days, privacy: .public) days")
     }
 }

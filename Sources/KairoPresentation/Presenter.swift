@@ -698,6 +698,7 @@ public enum WorkspacePresenter {
         return GanttSnapshot(
             windowStart: layout.windowStart,
             windowEnd: layout.windowEnd,
+            dayOrigin: layout.dayOrigin,
             contentStart: layout.contentStart,
             contentEnd: layout.contentEnd,
             dayWidth: layout.dayWidth,

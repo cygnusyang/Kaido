@@ -3,72 +3,38 @@ import Testing
 import KairoCore
 import KairoPresentation
 
-// F-14-18 横向平移余量累积器单测。
+// F-14-18 / D-049 横向平移的像素 → 天换算。
 //
-// 契约：窗口起点整天归一 ⇒ 亚日位移留余量，跨整天才释放；方向正 = 内容右移；
-// dayWidth 下限 0.5 兜底（与 pannedWindowStart 同式）。
+// 契约：亚日精度（连续滚动）、正 = 内容右移、日宽下限 0.5 兜底（与布局夹取同式）。
+// 旧实现是「攒满整天再提交」的累积器，跨度模式一天 171pt，画面一言不发然后整格跳，
+// 用户体验就是拖不动；换成无状态换算后每一帧都推进。
 
 @Suite struct GanttPanningTests {
-    @Test func subDayDeltasAccumulateUntilWholeDay() {
-        var accumulator = HorizontalPanAccumulator()
-        // 日宽 10：每次 5pt = 0.5 天，两次才凑满一天。
-        #expect(accumulator.consume(deltaX: 5, dayWidth: 10) == 0)
-        #expect(accumulator.consume(deltaX: 5, dayWidth: 10) == 1)
-        #expect(accumulator.remainderDays == 0)
-    }
-
-    @Test func remainderIsPreservedAcrossCalls() {
-        var accumulator = HorizontalPanAccumulator()
-        #expect(accumulator.consume(deltaX: 3, dayWidth: 10) == 0)
-        #expect(accumulator.remainderDays == 0.3)
-        #expect(accumulator.consume(deltaX: 8, dayWidth: 10) == 1)
-        #expect(abs(accumulator.remainderDays - 0.1) < 0.0001)
+    @Test func pixelsConvertToFractionalDays() {
+        #expect(HorizontalPan.days(deltaX: 5, dayWidth: 10) == 0.5)
+        #expect(HorizontalPan.days(deltaX: 1, dayWidth: 100) == 0.01)
     }
 
     @Test func negativeDeltasMoveContentLeft() {
-        var accumulator = HorizontalPanAccumulator()
-        #expect(accumulator.consume(deltaX: -30, dayWidth: 10) == -3)
-        #expect(accumulator.consume(deltaX: -25, dayWidth: 10) == -2)
-        #expect(abs(accumulator.remainderDays + 0.5) < 0.0001)
+        #expect(HorizontalPan.days(deltaX: -30, dayWidth: 10) == -3)
+        #expect(HorizontalPan.days(deltaX: -25, dayWidth: 10) == -2.5)
     }
 
-    @Test func largeDeltaReleasesMultipleDays() {
-        var accumulator = HorizontalPanAccumulator()
-        #expect(accumulator.consume(deltaX: 95, dayWidth: 10) == 9)
-        #expect(abs(accumulator.remainderDays - 0.5) < 0.0001)
+    @Test func largeDeltaKeepsWholeAndFraction() {
+        #expect(HorizontalPan.days(deltaX: 95, dayWidth: 10) == 9.5)
     }
 
     @Test func zeroDayWidthFallsBackToHalfPoint() {
-        var accumulator = HorizontalPanAccumulator()
         // 日宽兜底 0.5：1pt = 2 天。
-        #expect(accumulator.consume(deltaX: 1, dayWidth: 0) == 2)
+        #expect(HorizontalPan.days(deltaX: 1, dayWidth: 0) == 2)
+        #expect(HorizontalPan.minimumDayWidth == 0.5)
     }
 
-    @Test func resetClearsRemainder() {
-        var accumulator = HorizontalPanAccumulator()
-        _ = accumulator.consume(deltaX: 7, dayWidth: 10)
-        accumulator.reset()
-        #expect(accumulator.remainderDays == 0)
-    }
-
-    /// 手势结束：过半天的余量补成一天（v1.3.6：慢速小幅滑动松手不再白费）。
-    @Test func gestureEndCommitsHalfDayRemainder() {
-        var accumulator = HorizontalPanAccumulator()
-        // 跨度模式 74pt/天，滑 45pt ≈ 0.61 天，未满一天。
-        #expect(accumulator.consume(deltaX: 45, dayWidth: 74) == 0)
-        #expect(accumulator.flushGesture() == 1)
-        #expect(abs(accumulator.remainderDays + 0.39) < 0.01)
-
-        // 反向同理：负余量过半 → 提交 -1 天。
-        #expect(accumulator.consume(deltaX: -50, dayWidth: 74) == -1)
-        #expect(accumulator.flushGesture() == 0)
-    }
-
-    /// 余量不足半天：松手不补，避免「轻扫一下就跳一天」。
-    @Test func gestureEndIgnoresTinyRemainder() {
-        var accumulator = HorizontalPanAccumulator()
-        _ = accumulator.consume(deltaX: 20, dayWidth: 74)
-        #expect(accumulator.flushGesture() == 0)
-        #expect(abs(accumulator.remainderDays - 0.2703) < 0.001)
+    /// 换算必须与布局的「日宽 → 米」同源：同一天数在两端抵出同样的像素。
+    @Test func roundTripDaysAndPixelsAgree() {
+        let dayWidth = 74.0
+        let pixels = 45.0
+        let days = HorizontalPan.days(deltaX: pixels, dayWidth: dayWidth)
+        #expect(abs(days * dayWidth - pixels) < 1e-9)
     }
 }

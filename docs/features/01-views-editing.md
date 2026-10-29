@@ -404,15 +404,15 @@
 ### F-14-18 甘特图横向平移（触摸板 / 滚轮 / 画布拖拽）
 - **手册依据**：第14章「滚动甘特图」（含平移查看前后日期以检查相关性）
 - **OmniPlan 行为**：触摸板双指横向滚动或拖动滚动条左右移动时间轴；缩放后仍可平移到任意日期区间。
-- **核心数据/逻辑**：横向位移 → 时间窗起点（`windowStart`）位移；整天归一。
+- **核心数据/逻辑**：横向位移 → 时间窗起点（`windowStart`）位移；**亚日精度**（v1.3.7 起，起点可落在一天中间，日界网格 `dayOrigin` 仍按午夜）。
 - **Kairo 实现方案**（2026-10-22，v0.6.0）：画布是「视口即时间窗」模型（无横向滚动容器），横向输入统一换算成 `windowStart` 位移。
-  - **触摸板/滚轮**：`NSEvent` 本地监听捕获 `scrollWheel`，光标在画布内且横向分量占优（或 Shift+纵向）时消费；`HorizontalPanAccumulator` 累积亚日余量、跨整天才提交（布局把窗口起点归一整天），慢速滑动不丢位移也不「一天天蹦」。
+  - **触摸板/滚轮**：`NSEvent` 本地监听捕获 `scrollWheel`，光标在画布内且横向分量占优（或 Shift+纵向）时消费；像素位移经 `HorizontalPan.days` 直接折算成小数天提交（v1.3.7 / D-049：旧实现攒满整天再提交，跨度模式一天 171pt，画面一言不发然后整格跳）。非精确滚动（鼠标滚轮，delta 以「行」为单位）按 10pt/行 折算，否则一次滚格只走 1pt。
   - **画布空白拖拽**：复用 F-14-09 的拖拽手势槽位，起点命中 `.none` 且该行无条时进入 `PanDragSession`；条/端点/依赖线上的拖拽仍归 F-14-09。
   - 方向内容跟手（右移看更早日期）；任何平移退出「适合项目」；Escape 取消本段拖拽（已提交的平移不回滚，同表头拖拽）。
   - **命中四条硬约束（v0.8.4 · D-027 二次排查定型）**：① **坐标同源** —— 视口由 `CanvasViewportProbe`（NSView `convert(bounds, to: nil)`）上报 AppKit **窗口坐标**，光标用 `window.convertPoint(fromScreen:)` 换算，禁止拿 SwiftUI `.global` 矩形比对 `locationInWindow`；② **单实例** —— `HorizontalScrollMonitor.shared` / `HorizontalPanContext.shared` 全进程各一份，视图重建只重复 `start()`（接管语义），避免监听绑在已销毁实例上（视口恒 nil）；③ **不按事件窗口身份判定** —— `scrollWheel` 的 `event.window` 常为 nil、`keyWindow` 可能指向辅助窗口，改由「光标是否在画布视口内」定位；④ **「编辑中」按光标落点判定** —— 不能只看首响应者是不是 `NSTextView`（SwiftUI 工作台窗口在无输入焦点时首响应者仍是窗口共用 field editor，会把每条滚动误判为编辑中）。
-  - **判定可测**：规则抽为纯函数 `GanttScrollRouter`（方向 → 几何已知 → 编辑 → 视口命中 → 平移），事件层只采集窗口/光标/视口并执行结论；`advance(byDays:)` 就地推进窗口起点（连续事件不会反复派发同一目标），整天推进用 `Calendar` 加法（跨 DST 安全）。
+  - **判定可测**：规则抽为纯函数 `GanttScrollRouter`（方向 → 几何已知 → 编辑 → 视口命中 → 平移），事件层只采集窗口/光标/视口并执行结论；`WorkspaceStore.panWindow(byDays:)` 是唯一推进入口，按 86 400 秒折算（与 `GanttLayoutEngine.x(for:)` 同一把尺子），窗口起点保留相位。
   - **可测性边界与现场诊断**：真机双指手势无法在离屏测试复现，故用 `os.Logger`（subsystem `ai.kairo.app` / category `gantt-pan`）记录「监听已安装 / 首个滚动事件（含视口、光标、inside）/ 每种放行原因（仅首次）/ 首次消费 / 每次平移提交」，现场可用 `log stream --predicate 'subsystem == "ai.kairo.app"'` 定位是哪道闸放行。
-  - 不做：横向滚动条、子日粒度窗口（会破坏 A7 黄金基线）。
+  - 不做：横向滚动条。子日粒度窗口自 v1.3.7 起支持：起点带相位、刻度与非工作带仍贴真实午夜，`windowStart == dayOrigin` 时与改动前逐位一致，A7 黄金基线不受影响。
 - **优先级**：P1（v0.6.0 完成；v0.8.4 回归修复 D-027）
 
 ### F-14-19 大纲开始/结束日期列可编辑（日历弹层）

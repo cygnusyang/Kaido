@@ -10,7 +10,7 @@ import KairoPresentation
 final class PanDragSession {
     private var baseStart: Date?
     private var dayWidth: Double = 1
-    private var lastDays: Int?
+    private var lastDays: Double?
 
     /// 是否处于拖拽平移中。
     var isActive: Bool { baseStart != nil }
@@ -22,14 +22,15 @@ final class PanDragSession {
         lastDays = nil
     }
 
-    /// 拖动位移 → 目标窗口起点；天数未变返回 nil（避免无谓 dispatch）。
+    /// 拖动位移 → 目标窗口起点；位移没变返回 nil（避免无谓 dispatch）。
     /// 内容跟手：向右拖（正位移）看更早日期 ⇒ 窗口起点减小。
+    /// 亚日精度（v1.3.7 / D-049）：取整到整天会让鼠标拖拽一格一格跳。
     func update(translationX: Double) -> Date? {
         guard let baseStart else { return nil }
-        let days = Int((translationX / dayWidth).rounded())
-        guard days != lastDays else { return nil }
+        let days = -translationX / max(dayWidth, 0.5)
+        if let last = lastDays, abs(days - last) < 0.0005 { return nil }
         lastDays = days
-        return baseStart.addingTimeInterval(-Double(days) * 86_400)
+        return baseStart.addingTimeInterval(days * 86_400)
     }
 
     /// 松手收尾。

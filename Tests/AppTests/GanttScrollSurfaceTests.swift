@@ -5,7 +5,7 @@ import KairoPresentation
 import Testing
 @testable import KairoMacApp
 
-/// 横向平移：判定/累积（controller）、视图级消费（NSView）、store 级整天推进。
+/// 横向平移：判定/换算（controller）、视图级消费（NSView）、store 级连续推进。
 ///
 /// D-028 的教训：这条链路前两轮都「逻辑单测全绿、真机全灭」，因为断言只覆盖了
 /// 纯函数，真正的胶水层（谁消费事件、命中的是谁的 bounds、谁收到整天数）没有断言。
@@ -37,7 +37,7 @@ struct GanttScrollSurfaceTests {
 
     private func makeSurface(
         dayWidth: Double = 10,
-        onDays: @escaping (Int) -> Void = { _ in }
+        onDays: @escaping (Double) -> Void = { _ in }
     ) -> GanttScrollSurface.ScrollSurfaceView {
         let view = GanttScrollSurface.ScrollSurfaceView(frame: CGRect(x: 100, y: 100, width: 400, height: 300))
         view.update(dayWidth: dayWidth, onDays: onDays)
@@ -58,62 +58,59 @@ struct GanttScrollSurfaceTests {
         return NSEvent(cgEvent: cg)!
     }
 
-    // MARK: - controller：判定与累积
+    // MARK: - controller：判定与连续换算
 
-    @Test func slowScrollAccumulatesWholeDays() {
-        var days: [Int] = []
+    /// 亚日位移立刻提交（v1.3.7 / D-049）：旧实现攒满整天再提交，跨度模式一天 171pt，
+    /// 手指滑半天画面纹丝不动 —— 这才是用户说的「不顺畅」。
+    @Test func subDayScrollIsCommittedImmediately() {
+        var days: [Double] = []
         let controller = GanttScrollController(dayWidth: 10) { days.append($0) }
 
         #expect(controller.handle(deltaX: 4, deltaY: 0, shift: false, cursorInside: true))
         #expect(controller.handle(deltaX: 4, deltaY: 0, shift: false, cursorInside: true))
-        #expect(days.isEmpty, "不足一天不提交，避免慢速滑动「一天天蹦」")
-
-        #expect(controller.handle(deltaX: 4, deltaY: 0, shift: false, cursorInside: true))
-        #expect(days == [1])
+        #expect(days == [0.4, 0.4], "每一帧都要推进：0.4 天 = 0.4 × 日宽像素")
     }
 
     @Test func cursorOutsideIsPassedThrough() {
-        var days: [Int] = []
+        var days: [Double] = []
         let controller = GanttScrollController(dayWidth: 10) { days.append($0) }
 
         #expect(!controller.handle(deltaX: 30, deltaY: 0, shift: false, cursorInside: false))
         #expect(days.isEmpty, "画布外不得吞事件，否则外层容器滚不动")
     }
 
-    /// 纵向占优的手势：横向分量仍然被累积（v1.3.6 起不再二选一），
-    /// 但不足一天不提交；事件是否放行给纵向滚动由视图层按 |deltaY| 判定。
+    /// 纵向占优的手势：横向分量照样平移（v1.3.6 起不再二选一）；
+    /// 事件是否放行给纵向滚动由视图层按 |deltaY| 判定。
     @Test func verticalDominantEventStillUsesHorizontalComponent() {
-        var days: [Int] = []
+        var days: [Double] = []
         let controller = GanttScrollController(dayWidth: 10) { days.append($0) }
 
         #expect(controller.handle(deltaX: 1, deltaY: 30, shift: false, cursorInside: true))
-        #expect(days.isEmpty, "1pt ≈ 0.1 天，不足一天不提交")
+        #expect(days == [0.1], "1pt ≈ 0.1 天，横向分量不得丢")
     }
 
     @Test func shiftWheelActsAsHorizontal() {
-        var days: [Int] = []
+        var days: [Double] = []
         let controller = GanttScrollController(dayWidth: 10) { days.append($0) }
 
         #expect(controller.handle(deltaX: 0, deltaY: 30, shift: true, cursorInside: true))
         #expect(days == [3], "无横向滚轮的鼠标：Shift + 滚轮转横向")
     }
 
-    @Test func dayWidthChangeResetsRemainder() {
-        var days: [Int] = []
+    /// 缩放换日宽后，同样的像素位移按新日宽折算（连续口径没有余量可清）。
+    @Test func dayWidthChangeUsesNewScaleImmediately() {
+        var days: [Double] = []
         let controller = GanttScrollController(dayWidth: 10) { days.append($0) }
         _ = controller.handle(deltaX: 9, deltaY: 0, shift: false, cursorInside: true)
+        #expect(days == [0.9])
 
-        // 切到日宽 5：旧余量清零，单次 4pt 不足一天。
         controller.update(dayWidth: 5) { days.append($0) }
         _ = controller.handle(deltaX: 4, deltaY: 0, shift: false, cursorInside: true)
-        #expect(days.isEmpty)
-
-        _ = controller.handle(deltaX: 1, deltaY: 0, shift: false, cursorInside: true)
-        #expect(days == [1])
+        #expect(days == [0.9, 0.8])
     }
 
     @Test func tinyDayWidthFallsBackToHalfPoint() {
-        var days: [Int] = []
+        var days: [Double] = []
         let controller = GanttScrollController(dayWidth: 0) { days.append($0) }
         _ = controller.handle(deltaX: 1, deltaY: 0, shift: false, cursorInside: true)
         #expect(days == [2], "日宽异常按 0.5 兜底，避免除零")
@@ -126,7 +123,7 @@ struct GanttScrollSurfaceTests {
         let surface = makeSurface()
         window.contentView?.addSubview(surface)
 
-        var days: [Int] = []
+        var days: [Double] = []
         surface.update(dayWidth: 10) { days.append($0) }
         surface.cursorInScreen = { window.convertPoint(toScreen: CGPoint(x: 200, y: 200)) }
 
@@ -143,7 +140,7 @@ struct GanttScrollSurfaceTests {
         let surface = makeSurface()
         window.contentView?.addSubview(surface)
 
-        var days: [Int] = []
+        var days: [Double] = []
         surface.update(dayWidth: 10) { days.append($0) }
         surface.cursorInScreen = { window.convertPoint(toScreen: CGPoint(x: 200, y: 200)) }
 
@@ -159,7 +156,7 @@ struct GanttScrollSurfaceTests {
         let surface = makeSurface()
         window.contentView?.addSubview(surface)
 
-        var days: [Int] = []
+        var days: [Double] = []
         surface.update(dayWidth: 10) { days.append($0) }
         // 视口在 (100,100,400,300)，光标放到 (800,650)。
         surface.cursorInScreen = { window.convertPoint(toScreen: CGPoint(x: 800, y: 650)) }
@@ -207,7 +204,7 @@ struct GanttScrollSurfaceTests {
         #expect(!surface.isMonitoring)
     }
 
-    // MARK: - store 级：整天推进（双向）
+    // MARK: - store 级：连续推进（双向）
 
     @Test func panningRightShowsEarlierDates() {
         let store = makeStore()
@@ -233,6 +230,19 @@ struct GanttScrollSurfaceTests {
         store.panWindow(byDays: 3)
         let after = store.snapshot.gantt.windowStart
         #expect(Calendar.current.dateComponents([.day], from: after, to: before).day == 5)
+    }
+
+    /// 亚日平移：窗口起点带相位，画布才连续跟手（v1.3.7 / D-049）。
+    /// 旧口径把起点归一为整天，逐帧位移全被取整吃掉——这就是「不顺畅」的根。
+    @Test func subDayPanKeepsFractionalWindowStart() {
+        let store = makeStore()
+        let before = store.snapshot.gantt.windowStart
+        store.panWindow(byDays: 0.25)
+        let after = store.snapshot.gantt.windowStart
+
+        #expect(abs(after.timeIntervalSince(before) + 0.25 * 86_400) < 0.001, "位移不得被取整")
+        #expect(abs(store.snapshot.gantt.dayPhase - 0.25) < 1e-6, "日界不动，相位只落在窗口起点上")
+        #expect(store.snapshot.gantt.dayOrigin == before)
     }
 
     @Test func zeroDaysIsNoOp() {

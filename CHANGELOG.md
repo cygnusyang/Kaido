@@ -17,6 +17,26 @@
 - `FidelityLedger` 登记 97 条硬约束降级（SNET 41 / FNET 56）、日历换算（周一至周五 5 天/周 × 8h，另 37 条例外日）、4 个自定义域（105 条任务上 214 个值）。
 - 全量 **1408 tests / 134 suites** 通过；新增 23 例，零 warning。
 
+## v1.3.7 — 2026-10-30
+
+### 修复
+
+- **甘特横向滚动「不顺畅」（D-049）**：手指在滑、画面不动，攒满一天后整幅跳一格。根因是窗口起点被归一为整天、位移先攒满一天才提交——跨度模式一天 ≈ 171pt，滑 60pt 画面纹丝不动，跨过门槛后整幅瞬移一天宽；鼠标滚轮（非精确 delta，以「行」为单位）一格只折算 1pt，几乎不动。改法：**亚日精度连续平移**——
+  - 布局不再把窗口起点 `startOfDay`，`GanttLayout` 新增 `dayOrigin`（日界网格原点）；刻度 / 非工作带 / 今天线改以日界铺，相位不为零时仍贴真实午夜。`windowStart == dayOrigin` 时与改动前逐位一致，A7 冻结基线不变。
+  - `HorizontalPanAccumulator`（攒满一天再提交）→ 无状态 `HorizontalPan.days(deltaX:dayWidth:)`，每帧直接提交小数天。
+  - `WorkspaceStore.panWindow(byDays: Double)` 按 86 400 秒折算（与 `GanttLayoutEngine.x(for:)` 同一把尺子），落库不归一；表头拖动、画布空白拖拽同口径连续。
+  - 鼠标滚轮按 10pt/行 折算（Shift + 纵向同式），触摸板精确 delta 保持 1:1。
+  - 拖拽预览与提交日期改以 `dayOrigin` 换算（`GanttSnapshot.dayPhase` / `CanvasDragSession.Anchor.dayOrigin`），相位不为零时日期标签不再差一天；今天线改按「今天这一天与窗口是否相交」判定，零点刚滑出左缘时不再误报「今天在窗口外」并弹出方向胶囊。
+
+### 判据
+
+- `GanttContinuousPanTests`（5 例）：整日起点相位为 0；滑半天条左移半格；相位不为零时刻度仍从真实午夜铺起且等距；今天线在零点滑出左缘后仍判可见；整窗都在今天之前才报窗口外。
+- `GanttPanningTests`（5 例）：像素 ↔ 天换算、负位移、日宽 0.5 兜底、往返一致。
+- `GanttScrollSurfaceTests`：controller 每帧提交（4pt/10pt = 0.4 天）、日宽切换即时生效、store 亚日平移 0.25 天保留相位。
+- `PanDragSessionTests`：拖拽平移亚日精度与同值抑制。
+- 本地 KairoCore + KairoPresentation **825 例全绿**；App 层（AppTests / 真机构建）随 CI macOS 作业验证。
+
+
 ## v1.3.6 — 2026-10-29
 
 ### 新增
