@@ -80,12 +80,14 @@ struct GanttScrollSurfaceTests {
         #expect(days.isEmpty, "画布外不得吞事件，否则外层容器滚不动")
     }
 
-    @Test func verticalScrollIsPassedThrough() {
+    /// 纵向占优的手势：横向分量仍然被累积（v1.3.6 起不再二选一），
+    /// 但不足一天不提交；事件是否放行给纵向滚动由视图层按 |deltaY| 判定。
+    @Test func verticalDominantEventStillUsesHorizontalComponent() {
         var days: [Int] = []
         let controller = GanttScrollController(dayWidth: 10) { days.append($0) }
 
-        #expect(!controller.handle(deltaX: 1, deltaY: 30, shift: false, cursorInside: true))
-        #expect(days.isEmpty)
+        #expect(controller.handle(deltaX: 1, deltaY: 30, shift: false, cursorInside: true))
+        #expect(days.isEmpty, "1pt ≈ 0.1 天，不足一天不提交")
     }
 
     @Test func shiftWheelActsAsHorizontal() {
