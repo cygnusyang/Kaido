@@ -110,6 +110,31 @@ codesign -dv --verbose=4 dist/Kairo.app 2>&1 | grep -E 'flags=|Signature='
 # ad-hoc 时：flags=0x2(adhoc) 与 Signature=adhoc
 ```
 
+### 3.1 前置：本机必须有 Xcode（不是只有 Command Line Tools）
+
+多语言门禁与打包都用 Xcode 自带的 `xcstringstool`。只装 Command Line Tools 的机器上脚本会在第一道门就停下：
+
+```console
+$ tools/release.sh 1.3.3
+==> 校验前置条件
+ERROR: 找不到 xcstringstool，多语言门禁与打包无法在本机执行（xcode-select -p → /Library/Developer/CommandLineTools）。二选一：
+  1) 装 Xcode 后执行：sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+  2) 跳过本机发版，直接推 tag 让 CI 跑同一条门禁：
+       git tag -a v1.3.3 -m "Kairo v1.3.3" && git push origin refs/tags/v1.3.3
+```
+
+确认可用：
+
+```bash
+xcode-select -p                 # 应指向 /Applications/Xcode.app/Contents/Developer
+xcrun --find xcstringstool      # 应打印路径，而不是 "unable to find utility"
+```
+
+### 3.2 幂等：版本号与 CHANGELOG 已就绪时可以重跑
+
+第 4 步只在「版本号 / CHANGELOG 确有改动」时提交；已在前序提交里同步好（例如先补 CHANGELOG 再发版）时打印
+`无可提交改动（跳过提交）` 后继续打 tag。tag 已存在时脚本仍会拒绝重发——若上次中断在推送前，按提示手动 `git push origin refs/tags/vX.Y.Z` 收口。
+
 ## 4. 在有证书的机器上验证签名与公证（逐步）
 
 > **本文这一节尚未实跑验证**：撰写时手上没有 Developer ID 凭证，本机只跑过「未签名」路径。

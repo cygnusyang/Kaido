@@ -71,7 +71,7 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
 fi
 
 if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-  fail "本地已存在 tag $TAG"
+  fail "本地已存在 tag $TAG（若上次发版中断在推送前，确认产物无误后手动补齐：git push origin refs/tags/$TAG）"
 fi
 if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
   fail "远端已存在 tag ${TAG}（远端不可达时忽略此检查）"
@@ -91,6 +91,16 @@ if ! bash tools/release_notes.sh "$TAG" > "$NOTES_FILE" 2>/dev/null; then
   fail "CHANGELOG.md 缺少「## ${TAG}」章节——先写好再发版"
 fi
 echo "    changelog 章节: $(wc -l < "$NOTES_FILE" | tr -d ' ') 行"
+
+# 多语言门禁与打包都要 Xcode 自带的 xcstringstool。先探一次并给出可执行的出路：
+# 否则脚本会跑完校验、测试、打包才在一句「Catalog 编译失败」上退出，
+# 作者分不清是 Catalog 坏了还是工具链缺了（2026-10-29 发 v1.3.3 时实际踩到）。
+if ! xcrun --find xcstringstool >/dev/null 2>&1; then
+  fail "找不到 xcstringstool，多语言门禁与打包无法在本机执行（xcode-select -p → $(xcode-select -p 2>/dev/null || echo '未知')）。二选一：
+  1) 装 Xcode 后执行：sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+  2) 跳过本机发版，直接推 tag 让 CI 跑同一条门禁：
+       git tag -a $TAG -m \"Kairo $TAG\" && git push origin refs/tags/$TAG"
+fi
 
 # 多语言发布闸门（06-localization §11 判据 1 / §13）：视图层零中文 + 两侧键完整。
 # 白名单必须为空——开发期它是迁移基线，发版时它必须消失。
@@ -159,13 +169,19 @@ fi
 # ---------- 4. 提交 + 打 tag ----------
 echo "==> 提交发版"
 git add tools/build.sh Sources/KairoMCP/MCPServer.swift Apps/macos/Sources/CommandRegistry.swift CHANGELOG.md
-git commit -q -F - <<MSG
+# 幂等：版本号与 CHANGELOG 可能已在发版前的提交里同步好（本次发 v1.3.3 就是如此），
+# 那时没有东西可提交，跳过即可，不能让 git commit 以「nothing to commit」中断整个发版。
+if git diff --cached --quiet; then
+  echo "    版本号与 CHANGELOG 已是 ${VERSION}，无可提交改动（跳过提交）"
+else
+  git commit -q -F - <<MSG
 chore(release): ${TAG}
 
 - 版本号同步至 ${VERSION}（tools/build.sh、MCPServer、CommandRegistry）
 - 产物：Kairo-${TAG}.dmg（人装）+ Kairo-${TAG}.zip（OTA 载体），本地打包校验通过
 - Release 说明取自 CHANGELOG.md「## ${TAG}」章节
 MSG
+fi
 
 git tag -a "$TAG" -m "Kairo $TAG"
 
