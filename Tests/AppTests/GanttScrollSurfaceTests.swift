@@ -237,10 +237,11 @@ struct GanttScrollSurfaceTests {
     @Test func subDayPanKeepsFractionalWindowStart() {
         let store = makeStore()
         let before = store.snapshot.gantt.windowStart
-        store.panWindow(byDays: 0.25)
+        // 负数 = 看更晚日期：起点前移到 before + 1/4 天，仍在同一天内 ⇒ 相位 0.25。
+        store.panWindow(byDays: -0.25)
         let after = store.snapshot.gantt.windowStart
 
-        #expect(abs(after.timeIntervalSince(before) + 0.25 * 86_400) < 0.001, "位移不得被取整")
+        #expect(abs(after.timeIntervalSince(before) - 0.25 * 86_400) < 0.001, "位移不得被取整")
         #expect(abs(store.snapshot.gantt.dayPhase - 0.25) < 1e-6, "日界不动，相位只落在窗口起点上")
         #expect(store.snapshot.gantt.dayOrigin == before)
     }
