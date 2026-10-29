@@ -5,7 +5,7 @@
 > **Pronunciation** · /ˈkaɪ.roʊ/ (US) · /ˈkaɪ.rəʊ/ (UK) — “KY-roh”, the same as the city *Cairo*. Not “keh-ROH” and not “KAY-ee-roh”.
 
 [![Release](https://img.shields.io/github/v/release/cygnusyang/Kairo?color=blue)](https://github.com/cygnusyang/Kairo/releases/latest)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-PolyForm--Noncommercial--1.0.0-blue.svg)](LICENSE)
 [![CI](https://github.com/cygnusyang/Kairo/actions/workflows/ci.yml/badge.svg)](https://github.com/cygnusyang/Kairo/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)](https://github.com/cygnusyang/Kairo/releases/latest)
 [![Swift](https://img.shields.io/badge/swift-5.9%2B-orange)](Package.swift)
@@ -303,4 +303,11 @@ docs/                       Requirements, architecture, design system, roadmap a
 
 ## License
 
-[MIT](LICENSE).
+[PolyForm Noncommercial 1.0.0](LICENSE) — effective from v1.3.3 onward.
+
+- **Free for noncommercial use**: personal study, hobby and private projects, research, experiment, and testing without any anticipated commercial application.
+- **Free for noncommercial organizations**: charities, educational institutions, public research bodies, public safety/health organizations, environmental organizations, and government institutions — regardless of funding source.
+- **Commercial use requires a commercial license**: any use with an anticipated commercial application — including using Kairo inside a for-profit company to plan your own projects — is not granted by these terms. Contact <ruohuyang@gmail.com> for terms and pricing.
+- If you redistribute Kairo or a modified version, you must pass along these terms (or their URL) and any `Required Notice:` lines.
+- There is no automatic conversion to an open source license. Releases up to **v1.3.2** were published under MIT and remain MIT.
+- PolyForm Noncommercial is a source-available license, not an OSI-approved open source license.

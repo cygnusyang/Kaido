@@ -31,6 +31,13 @@
 - 改动集中在 KairoUpdater 的取消/清理路径与 Presentation 层测试判据；排期、互操作、`.kairo` 格式与 CLI/MCP 契约均无变化。
 - 版本号三处同源更新（`tools/build.sh` / `Sources/KairoMCP/MCPServer.swift` / `Apps/macos/Sources/CommandRegistry.swift`），产物版本由 `tools/release.sh` 派生。
 
+### 许可变更
+
+- 自 v1.3.3 起，许可由 MIT 改为 **PolyForm Noncommercial 1.0.0**：个人学习、爱好、科研、实验与非商业组织（慈善、教育、公共研究、公共安全/卫生、环保、政府）免费使用；任何预期商业应用的场景（含营利公司内部用 Kairo 管自己的项目）需另行取得商业授权。
+- **v1.3.2 及以前的已发布版本继续按 MIT 授权**，不追溯变更；本仓库的 git 历史与旧 tag 保持原样。
+- 再分发须随附本许可条款（或链接）与 `Required Notice:` 行；本许可无自动转开源条款，也不允许转授权。
+- 选择理由：目标客户是企业团队，「个人/教育免费、商业付费」直接对应定价模型，比 FSL 的两年独占窗更贴合按席位/按团队收费。代价是部分企业法务会禁止使用非 OSI 许可的软件，故 README 给出商业授权联系方式。详见 `LICENSE` 与 README「License / 许可证」节。
+
 ## v1.3.2 — 2026-10-28
 
 ### 修复
