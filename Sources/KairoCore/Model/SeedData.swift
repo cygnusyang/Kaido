@@ -95,10 +95,11 @@ public enum SeedData {
             assignee: "Bob",
             progress: 0.5
         )
+        // 「整理用户反馈」刻意不设 startDate：它是「有截止日、无显式开始日」的样本，
+        // 排期从项目起点推（Sprint8TaskDateActionTests 的 plainTask 依赖这条不变量）。
         let feedback = TaskItem(
             title: copy.feedback.title,
             notes: copy.feedback.notes,
-            startDate: day(3),
             dueDate: day(5),
             priority: .normal,
             status: .pending,
