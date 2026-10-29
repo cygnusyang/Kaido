@@ -562,10 +562,15 @@ public enum WorkspacePresenter {
             DateInterval(start: $0.start, end: $0.end.addingTimeInterval(86_400))
         }
         // 生效日宽：自定义优先（即便状态里 fit 与自定义同时为真），
-        // 其次「适合项目」的 fit 宽度，最后才是档位默认宽度。
-        // 夹取只作用于自定义路径；fit 宽度不夹取，保持既有 fit 输出不变。
+        // 其次固定跨度（画布宽 / 跨度天数），再次「适合项目」的 fit 宽度，
+        // 最后才是档位默认宽度。
+        // 夹取只作用于自定义路径；跨度是精确等分、fit 是内容拟合，两者都不夹取。
         let custom = viewState.customDayWidth.map(GanttScale.clampDayWidth)
-        let canFit = viewState.usesFitZoom && custom == nil
+        // 跨度天数非法（≤0）时按 1 天处理：宁可退化成「一天铺满画布」，
+        // 也不做除零得到 inf 再让核心出 NaN 坐标。
+        let spanDays = viewState.windowSpanDays.map { max($0, 1) }
+        // 跨度模式下 fit 与档位都不参与：跨度与「适合项目」互斥（last-writer 由动作层保证）。
+        let canFit = viewState.usesFitZoom && custom == nil && spanDays == nil
             && fitRange != nil && viewport.canvasWidth > 0
         let fitWidth: Double? = canFit
             ? fitRange.map {
@@ -576,21 +581,33 @@ public enum WorkspacePresenter {
                 )
             }
             : nil
-        let dayWidthOverride = custom ?? fitWidth
+        // 固定跨度的等分日宽：画布宽 / 跨度天数（画布宽为 0 或负时按 1pt 兜底，
+        // 避免得到 0 宽日轴）。跨度模式不受档位与 fit 影响，也与自定义日宽互斥。
+        let spanWidth = spanDays.map { max(viewport.canvasWidth, 1) / Double($0) }
+        let dayWidthOverride = custom ?? spanWidth ?? fitWidth
         // 核心内部同样以 `max(dayWidth, 0.5)` 兜底；此处引用同一常量
         // （`GanttScale.minimumDayWidth`），避免两侧的日宽下限各自漂移。
-        // 自定义路径下该值恒等于 `custom`（已夹取到 ≥ 2，高于核心下限）。
+        // 自定义路径下该值恒等于 `custom`（已夹取到 ≥ 2，高于核心下限）；
+        // 跨度极窄时（长跨度 + 窄画布）可能落在下限上，此时日轴不再是精确等分，但至少有刻度可读。
         let effectiveDayWidth = max(
             dayWidthOverride ?? viewState.zoom.dayWidth,
             GanttScale.minimumDayWidth
         )
         // 核心 `zoom` 入参（生效刻度档位）：
-        // - 自定义日宽路径：由实际生效日宽推导刻度粒度（≥18 逐日 / ≥6 逐周 / 其余逐月）。
+        // - 自定义日宽 / 固定跨度：由实际生效日宽推导刻度粒度（≥18 逐日 / ≥6 逐周 / 其余逐月）。
         // - 预设档位与「适合项目」：沿用 `viewState.zoom`，与本功能引入前逐位一致（A7 门禁）。
-        let engineZoom: GanttZoom = custom == nil
-            ? viewState.zoom
-            : GanttScale.tickUnit(forDayWidth: effectiveDayWidth)
-        let requestedStart = viewState.windowStart ?? content?.start ?? today
+        let derivesTicksFromWidth = custom != nil || spanDays != nil
+        let engineZoom: GanttZoom = derivesTicksFromWidth
+            ? GanttScale.tickUnit(forDayWidth: effectiveDayWidth)
+            : viewState.zoom
+        // 默认起点：固定跨度与自定义日宽锚今天——这两条是用户主动「盯当下」的路径，
+        // 回落到内容起点会让打开旧项目的人直接看不见今天（D-039 根因 A）。
+        // 「适合项目」与预设档位维持内容起点：fit 的语义是铺满整个项目，
+        // 预设档位是 A7 冻结的改动前口径，两者都不能动。
+        // 显式 `windowStart`（用户平移过）永远优先。
+        let anchorsToday = custom != nil || spanDays != nil
+        let defaultStart = anchorsToday ? today : (content?.start ?? today)
+        let requestedStart = viewState.windowStart ?? defaultStart
 
         let layout = GanttLayoutEngine.make(
             tasks: tasks,
@@ -1136,9 +1153,12 @@ public enum WorkspacePresenter {
 
     /// 缩放档位（F-0704）：只回语义档位，档位名由视图按 statusbar.zoom.<rawValue> 渲染。
     ///
-    /// 自定义优先：自定义日宽生效时不再显示任何预设档位（与「适合项目」同真时亦然）。
+    /// 优先级：自定义 > 固定跨度 > 「适合项目」 > 预设档位。
+    /// 自定义日宽生效时不再显示任何预设档位（与「适合项目」同真时亦然）；
+    /// 跨度模式下 fit 与档位都不参与，故排在 fit 之前。
     static func zoomPreset(_ viewState: WorkspaceViewState) -> ZoomPreset {
         if viewState.customDayWidth != nil { return .custom }
+        if viewState.windowSpanDays != nil { return .span }
         if viewState.usesFitZoom { return .fit }
         switch viewState.zoom {
         case .day: return .day

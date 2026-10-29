@@ -83,8 +83,12 @@ struct WorkspaceStoreTests {
         store.loadExampleProject()
         #expect(rows(store).count == 10)
         #expect(rows(store).contains { $0.hasSchedule })
-        #expect(store.snapshot.gantt.bars.count > 0)
         #expect(!store.hasUnsavedChanges)
+        // 启动窗口是 [今天, 今天+7)：示例里落在窗口外的任务不画条。
+        // 本用例只问"载入后有排期、图上有条"，显式进入 fit 还原"全部内容可见"的前提，
+        // 免得断言随示例日期分布与真实日期漂移。
+        store.dispatch(.setFitZoom(true))
+        #expect(store.snapshot.gantt.bars.count > 0)
     }
 
     // 有未保存修改时载入示例需确认（AC-3）：先挂起等待选择；取消则数据不变。
@@ -819,6 +823,9 @@ struct WorkspaceStoreTests {
 
     @Test func hidingOutlineGivesCanvasFullWidth() {
         let store = makeStore()
+        // 启动窗口改为「7 天 + 今天」后，示例里结束在昨天的任务不再画条，行数与条数不再相等。
+        // 本用例要的是「所有行都画得出来（画布吃满内容）」，先显式进入 fit 还原该前提。
+        store.dispatch(.setFitZoom(true))
 
         store.dispatch(.setOutlineVisible(false))
 
@@ -1266,6 +1273,7 @@ struct WorkspaceStoreTests {
         writePreferences(
             """
             {
+              "schema": \(WorkspaceStore.currentPreferencesSchema),
               "outlineWidth": 480,
               "outlineVisible": true,
               "expandedTaskIDs": [],
@@ -1335,6 +1343,7 @@ struct WorkspaceStoreTests {
         writePreferences(
             """
             {
+              "schema": \(WorkspaceStore.currentPreferencesSchema),
               "outlineWidth": 480,
               "outlineVisible": true,
               "expandedTaskIDs": [],
@@ -1352,6 +1361,8 @@ struct WorkspaceStoreTests {
         #expect(store.viewState.hiddenOutlineColumns.isEmpty)
         #expect(store.viewState.outlineWidth == 480)
         #expect(store.viewState.inspectorWidth == 320)
-        #expect(store.viewState.usesFitZoom)
+        // v1 偏好里的 usesFitZoom 不再回放；启动恒为「7 天跨度 + 今天」，fit 关闭。
+        // （迁移与回放的区分判别力由 StartupWindowTests 的 C13 承担，这里只钉启动态契约。）
+        #expect(!store.viewState.usesFitZoom, "启动固定跨度时 fit 必须关闭")
     }
 }

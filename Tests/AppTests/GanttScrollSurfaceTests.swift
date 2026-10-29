@@ -219,8 +219,11 @@ struct GanttScrollSurfaceTests {
     @Test func zeroDaysIsNoOp() {
         let store = makeStore()
         let before = store.snapshot.gantt.windowStart
+        // 用「平移前后视图状态整体相等」表达「0 天不改写状态」，不把口径钉在启动是 fit
+        // 还是固定跨度上（v1.4 起启动即 7 天跨度，fit 恒关）。
+        let stateBefore = store.viewState
         store.panWindow(byDays: 0)
         #expect(store.snapshot.gantt.windowStart == before)
-        #expect(store.viewState.usesFitZoom, "0 天不应改写视图状态")
+        #expect(store.viewState == stateBefore, "0 天不应改写视图状态")
     }
 }

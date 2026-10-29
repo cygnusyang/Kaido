@@ -108,12 +108,20 @@ final class WorkspaceStore: ObservableObject {
 
     /// 视图偏好在 `UserDefaults` 中的键名；测试按此键读写偏好 JSON。
     static let preferencesKey = "kairo.workspace.preferences.v1"
+    /// 当前偏好 schema 版本；写盘恒写该值。
+    ///
+    /// v2 = 启动窗口固定为 7 天并锚定今天：`windowStart` 不再持久化，
+    /// 载入旧数据（无 schema 键 = v1）时重置 zoom / usesFitZoom / customDayWidth
+    /// （windowStart 已从偏好结构中删除，无从恢复，故无需重置）。
+    static let currentPreferencesSchema = 2
     // 时刻（外部更新提示）判定为展示格式：走 `Display.time`（本地化），不在这里固定 `HH:mm`（F-0712）。
 
     /// 持久化的视图偏好；视图模式与筛选不写入（启动固定计划模式）。
     /// 逐字段容错解码（D-016）：任一字段缺失/类型不符只回落该字段默认值，
     /// 不再整体解码失败导致全部偏好回落。
     private struct StoredPreferences: Codable {
+        /// 偏好 schema 版本；旧数据没有该键（= v1），走迁移重置。
+        var schema: Int?
         var outlineWidth: Double
         var outlineVisible: Bool?
         var expandedTaskIDs: [UUID]
@@ -121,7 +129,8 @@ final class WorkspaceStore: ObservableObject {
         var usesFitZoom: Bool
         /// 自定义日宽（点/天）；旧数据缺省时为 nil，回落档位默认宽度。
         var customDayWidth: Double?
-        var windowStart: Date?
+        // 窗口起点（v2 起不再持久化）：启动窗口锚定今天，回放历史起点会让
+        // 「重启回到今天」失效，故整个字段从偏好结构中删除。
         var inspectorWidth: Double
         var inspectorTab: InspectorTab
         /// 大纲列宽覆盖（键 = 列 rawValue）；旧数据缺省时为 nil，全部列用默认宽。
@@ -147,7 +156,6 @@ final class WorkspaceStore: ObservableObject {
             zoom: GanttZoom,
             usesFitZoom: Bool,
             customDayWidth: Double?,
-            windowStart: Date?,
             inspectorWidth: Double,
             inspectorTab: InspectorTab,
             outlineColumnWidths: [String: Double]?,
@@ -164,7 +172,6 @@ final class WorkspaceStore: ObservableObject {
             self.zoom = zoom
             self.usesFitZoom = usesFitZoom
             self.customDayWidth = customDayWidth
-            self.windowStart = windowStart
             self.inspectorWidth = inspectorWidth
             self.inspectorTab = inspectorTab
             self.outlineColumnWidths = outlineColumnWidths
@@ -174,12 +181,17 @@ final class WorkspaceStore: ObservableObject {
             self.showsNonWorkingDays = showsNonWorkingDays
             self.selectedBaselineID = selectedBaselineID
             self.visibleBaselineIDs = visibleBaselineIDs
+            // 写盘恒为当前 schema：编码侧只有 savePreferences 一个调用点，
+            // 让它构造出来的对象天然带版本号，避免每条新字段都去改调用方。
+            self.schema = WorkspaceStore.currentPreferencesSchema
         }
 
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             // decodeIfPresent：字段缺失 → 默认值；类型不符（typeMismatch）也按
             // 缺失处理（该字段回落，其余保留）——不让单字段污染整个偏好。
+            // schema 缺失（= 旧偏好）同样按 nil 处理，由载入侧走迁移重置。
+            schema = try? container.decodeIfPresent(Int.self, forKey: .schema)
             outlineWidth = (try? container.decodeIfPresent(Double.self, forKey: .outlineWidth))
                 ?? WorkspaceViewState().outlineWidth
             outlineVisible = try? container.decodeIfPresent(Bool.self, forKey: .outlineVisible)
@@ -190,7 +202,6 @@ final class WorkspaceStore: ObservableObject {
             usesFitZoom = (try? container.decodeIfPresent(Bool.self, forKey: .usesFitZoom))
                 ?? WorkspaceViewState().usesFitZoom
             customDayWidth = try? container.decodeIfPresent(Double.self, forKey: .customDayWidth)
-            windowStart = try? container.decodeIfPresent(Date.self, forKey: .windowStart)
             inspectorWidth = (try? container.decodeIfPresent(Double.self, forKey: .inspectorWidth))
                 ?? WorkspaceViewState().inspectorWidth
             inspectorTab = (try? container.decodeIfPresent(InspectorTab.self, forKey: .inspectorTab))
@@ -292,6 +303,11 @@ final class WorkspaceStore: ObservableObject {
         }
 
         let stored = Self.loadPreferences(from: defaults)
+        // 偏好 schema 是否当前版本。旧数据（无 schema 键 = v1）只保留与窗口无关的偏好，
+        // 日宽三项一律回默认：v1 存的是「内容起点 + 旧档位」口径下的读数，
+        // 回放会把启动窗口拖回历史位置。旧 JSON 里多出来的 `windowStart` 键
+        // 由 `JSONDecoder` 直接忽略（结构里已无该字段），不需要转换器。
+        let preferencesAreCurrent = stored?.schema == Self.currentPreferencesSchema
         var state = WorkspaceViewState()
         state.expandedTaskIDs = stored.map { Set($0.expandedTaskIDs) }
             ?? Self.allParentIDs(in: session.project?.tasks ?? [])
@@ -300,9 +316,10 @@ final class WorkspaceStore: ObservableObject {
             if let outlineVisible = stored.outlineVisible {
                 state.outlineVisible = outlineVisible
             }
-            state.zoom = stored.zoom
-            state.usesFitZoom = stored.usesFitZoom
-            state.windowStart = stored.windowStart
+            // fit 启动恒关（span 是默认口径，fit 值不可观察也不必回放）；档位照常恢复。
+            if preferencesAreCurrent {
+                state.zoom = stored.zoom
+            }
             state.showsNonWorkingDays = stored.showsNonWorkingDays ?? false
             state.inspectorWidth = stored.inspectorWidth
             state.inspectorTab = stored.inspectorTab
@@ -318,11 +335,22 @@ final class WorkspaceStore: ObservableObject {
             state.visibleBaselineIDs = Set(stored.visibleBaselineIDs ?? [])
         }
         // 自定义日宽：载入时归一化（夹取 + 取整 0.1，与写入口径一致，D-012），
-        // 并与「适合项目」互斥（自定义优先）。
-        if let custom = stored?.customDayWidth.map(Self.committedDayWidth) {
+        // 并与「适合项目」互斥（自定义优先）；schema 迁移时连同其余日宽偏好一并丢弃。
+        if preferencesAreCurrent, let custom = stored?.customDayWidth.map(Self.committedDayWidth) {
             state.customDayWidth = custom
             state.usesFitZoom = false
         }
+        // 启动窗口：固定跨度 + 锚定今天。
+        // - 跨度取单源常量 `WorkspaceViewState.defaultWindowSpanDays`，不写字面量，
+        //   呈现层与菜单共用同一个值；
+        // - 起点不回放：`windowStart` 已从偏好结构删除（保持 nil），重启永远从今天起算；
+        // - 只在没有自定义日宽时注入跨度：custom 是用户显式的宽度口径，与跨度二选一
+        //   （与 `setCustomDayWidth` 动作同口径）。两者并存会让「宽度取 custom、起点取跨度」
+        //   两套口径叠在一起，重启后一清 custom 就突然变成跨度窗口。
+        if state.customDayWidth == nil {
+            state.windowSpanDays = WorkspaceViewState.defaultWindowSpanDays
+        }
+        state.usesFitZoom = false
         self.viewState = state
         let viewport = WorkspaceViewport(canvasWidth: 760, canvasHeight: 640)
         self.viewport = viewport
@@ -561,6 +589,7 @@ final class WorkspaceStore: ObservableObject {
     /// 唯一真源是 `viewState.windowStart`：连续滚动事件都以当前已提交的起点为基准，
     /// 视图层不再自行推进（D-028 —— 旧实现在上下文里乐观 `advance`，store 一旦
     /// 不认这次提交就会越滑越偏）。`usesFitZoom` 关闭，与「适合项目」互斥。
+    /// 固定跨度在这里原样保留：平移只挪起点，窗口宽度仍是跨度定义的 N 天。
     func panWindow(byDays days: Int) {
         guard days != 0 else { return }
         let base = viewState.windowStart ?? snapshot.gantt.windowStart
@@ -623,15 +652,25 @@ final class WorkspaceStore: ObservableObject {
 
         case .setZoom(let zoom):
             // 预设档位与自定义日宽互斥：选预设即回落默认宽度。
+            // 同时退出固定跨度：跨度在呈现层优先于档位，不清掉的话点档位没有任何效果。
+            // 离开跨度要固化起点：预设档位按内容起点定位（只有 custom / span 锚今天），
+            // 不固化的话窗口会从今天跳回项目开头；已平移过（windowStart 非 nil）则保持原位置。
+            let visibleStart = snapshot.gantt.windowStart
             mutateView {
+                if $0.windowSpanDays != nil, $0.windowStart == nil {
+                    $0.windowStart = visibleStart
+                }
                 $0.zoom = zoom
                 $0.usesFitZoom = false
                 $0.customDayWidth = nil
+                $0.windowSpanDays = nil
             }
 
         case .setFitZoom(let enabled):
             // fit 与自定义互斥（最后写入者胜）：开启 fit 即清空自定义。
+            // 关闭 fit 回到档位日宽，两种方向都要退出固定跨度（跨度优先于 fit 与档位）。
             mutateView {
+                $0.windowSpanDays = nil
                 $0.usesFitZoom = enabled
                 if enabled {
                     $0.windowStart = nil
@@ -641,35 +680,62 @@ final class WorkspaceStore: ObservableObject {
 
         case .setCustomDayWidth(let width):
             // 手动调宽度自动退出「适合项目」；越界值在此夹取，提交值取整到 0.1。
+            // 同时退出固定跨度：跨度优先，留着它滑杆会没有反馈。
+            // 离开跨度同样固化起点（理由见 setZoom），否则窗口从今天跳回内容起点。
+            let visibleStart = snapshot.gantt.windowStart
             mutateView {
+                if $0.windowSpanDays != nil, $0.windowStart == nil {
+                    $0.windowStart = visibleStart
+                }
                 $0.customDayWidth = Self.committedDayWidth(width)
                 $0.usesFitZoom = false
+                $0.windowSpanDays = nil
             }
 
         case .nudgeCustomDayWidth(let delta):
-            // 基准 = 当前生效日宽（fit 模式下取 fit 宽度），结果再夹取并取整到 0.1。
+            // 基准 = 当前生效日宽（fit 模式下取 fit 宽度，跨度模式下取等分日宽），
+            // 结果再夹取并取整到 0.1；步进后同样退出固定跨度（自定义日宽接管）。
             let base = snapshot.gantt.dayWidth
+            // 离开跨度同样固化起点（理由见 setZoom）：步进前先记住当前可见起点。
+            let visibleStart = snapshot.gantt.windowStart
             mutateView {
+                if $0.windowSpanDays != nil, $0.windowStart == nil {
+                    $0.windowStart = visibleStart
+                }
                 $0.customDayWidth = Self.committedDayWidth(base + delta)
                 $0.usesFitZoom = false
+                $0.windowSpanDays = nil
             }
 
         case .clearCustomDayWidth:
             // 清除自定义：回落到当前档位默认宽度（fit 开启时回落到 fit 宽度）。
+            // 刻意不在这里恢复跨度（「日宽重置 ≠ 窗口重置」）：进入自定义日宽的那一步
+            // 已把 `windowSpanDays` 置 nil（见 setCustomDayWidth / nudgeCustomDayWidth），
+            // 所以清掉 custom 后不会又冒出跨度；恢复跨度只由重新启动或命中档位语义的
+            // 动作决定，不在「重置日宽」里顺带改窗口口径。
+            // 载入路径同样不并存：带 custom 的偏好不注入跨度，所以「清 custom」在这里
+            // 落到档位日宽，而不是突然切回 7 天窗口。
             mutateView {
                 $0.customDayWidth = nil
             }
 
         case .panWindow(let date):
+            // 只改起点：跨度模式下的窗口宽度由 `windowSpanDays` 决定，平移不动它。
             mutateView(scope: .windowPan) {
                 $0.windowStart = calendar.startOfDay(for: date)
                 $0.usesFitZoom = false
             }
 
         case .goToToday:
+            // 两种口径的起点不同，不能统一写 today−7 天：
+            // - 跨度模式：窗口 = [今天, 今天+跨度)，起点直接取今天；若仍写 today−7，
+            //   半开区间会把今天整日排除在窗口外（用户点「今天」反而看不到今天）。
+            // - 非跨度模式：起点沿用改动前的 today−7（内容起点附近的定档窗口，A7 逐位不变）。
             mutateView {
                 let today = calendar.startOfDay(for: Date())
-                $0.windowStart = today.addingTimeInterval(-7 * 86_400)
+                $0.windowStart = $0.windowSpanDays != nil
+                    ? today
+                    : today.addingTimeInterval(-7 * 86_400)
                 $0.usesFitZoom = false
             }
 
@@ -2098,6 +2164,10 @@ final class WorkspaceStore: ObservableObject {
         let tasks = session.project?.tasks ?? []
         viewState = WorkspaceViewState(
             expandedTaskIDs: Self.allParentIDs(in: tasks),
+            // 打开/新建/导入都走这里：窗口同样回到「7 天 + 今天」的启动口径，
+            // 否则换个项目会继承上一个项目的窗口起点与跨度。
+            usesFitZoom: false,
+            windowStart: nil,
             inspectorVisible: viewState.inspectorVisible,
             inspectorWidth: viewState.inspectorWidth,
             showCriticalPath: viewState.showCriticalPath,
@@ -2115,7 +2185,11 @@ final class WorkspaceStore: ObservableObject {
             // 不因为换项目就清空「我在图上想看哪几条」。
             visibleBaselineIDs: viewState.visibleBaselineIDs,
             // 列顺序同为应用级偏好（v0.16 / #12）：换项目保留用户排好的顺序，不悄悄打回默认。
-            columnOrder: viewState.columnOrder
+            columnOrder: viewState.columnOrder,
+            // 窗口跨度是「启动口径」而非项目属性：换项目一律回到默认跨度（单源常量）。
+            // 这里 customDayWidth 恒为 nil（打开项目重置自定义日宽），与载入路径「无 custom
+            // 才注入跨度」是同一条规则，故无条件注入。
+            windowSpanDays: WorkspaceViewState.defaultWindowSpanDays
         )
         lockedTaskID = nil
         lockedTaskTitle = nil
@@ -2186,7 +2260,7 @@ final class WorkspaceStore: ObservableObject {
             zoom: viewState.zoom,
             usesFitZoom: viewState.usesFitZoom,
             customDayWidth: viewState.customDayWidth,
-            windowStart: viewState.windowStart,
+            // windowStart 不进偏好（v2）：启动窗口恒从今天开始，重启不回忆上次平移的位置。
             inspectorWidth: viewState.inspectorWidth,
             inspectorTab: viewState.inspectorTab,
             // 空覆盖/空隐藏写 nil：JSON 不落空容器，旧版本读回同一语义。

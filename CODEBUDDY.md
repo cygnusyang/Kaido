@@ -39,3 +39,14 @@ bash tools/gate-i18n.sh
 1. 替换时带上上下文锚点，例如定位 `- name: 测试` 所在的步骤，或整段多行匹配；
 2. 改完用 `git diff --stat` 核对只有 1 行变化；出现 2 处就是改错了，先还原；
 3. 不要只靠同一条通道的 stdout 判断改没改——本仓库出现过 exitCode=0 但 stdout 为空的情况，会让人误判「没改成」。验证一律用 `git diff` / `grep -n` 这类独立证据。
+
+## 多 agent 共享 checkout：禁用 reset --soft 与批量暂存
+
+多个 agent 共用一个工作目录时：
+
+- **不要用 `git reset --soft`**：它会把别人未提交的改动一起卷进你的提交，也会把已提交的 commit 静默摘出分支（2026-10-29 因此丢过一次 `003aae3`，commit 对象还在但不在任何分支上，靠提交人自己记着才补回）。
+- **`git commit --amend` 只用于「HEAD 就是我刚提交的那个」**：动手前 `git log --oneline -2` 确认父提交是预期值；期间若有别人往分支上加过提交，就不要 amend，改用追加提交——amend 会把对方那个提交一起改写掉，效果与 `reset --soft` 同源，只是入口不同。
+- **已 push 的提交一律不 amend**：本地 amend 只是让旧对象悬空，推过之后再 amend 就必须 force-push；多 agent 共用的 checkout 上，force-push 会覆盖别人基于该提交做的工作。
+- **不要用 `git add -A` / `git commit -a`**：一律按文件 `git add <path>`，提交前 `git status` 确认暂存清单只含自己的文件。
+- **要撤销已提交的改动**：用新提交或 `git revert`；squash 只在最终合回 main 时做一次。
+- **推送前**用 `git log --oneline main..HEAD` 对一遍提交清单，确认没有谁的提交被静默摘掉。

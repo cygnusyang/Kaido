@@ -72,6 +72,9 @@ struct Sprint8DateAcceptanceTests {
     /// acceptance.md §0 的标准夹具：projectStart 11-02、A(duration 3)、B(duration 2, FS after A)。
     private func makeDateFixture() throws -> (store: WorkspaceStore, a: UUID, b: UUID) {
         let store = makeStore()
+        // 夹具日期是固定的 2026-11-02，而启动窗口是 [今天, 今天+7)：真实日期一过 11-05
+        // A/B 就被挤出窗口，条形断言会红。显式进入 fit（覆盖全部内容）让用例与"今天"解耦。
+        store.dispatch(.setFitZoom(true))
         store.dispatch(.setProjectStart(localDay(2026, 11, 2)))
         store.dispatch(.createTask(parentID: nil, kind: .task))
         let a = try #require(store.selection)

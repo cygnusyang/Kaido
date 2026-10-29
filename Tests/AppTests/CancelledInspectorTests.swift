@@ -16,11 +16,16 @@ struct CancelledInspectorTests {
         let suite = "kairo.apptests.cancelled.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
-        return WorkspaceStore(
+        let store = WorkspaceStore(
             defaults: defaults,
             seedsDemoData: true,
             projectLoader: { try KairoFile.read(from: $0) }
         )
+        // 启动窗口是 [今天, 今天+7)：示例里结束在昨天的任务不画条。
+        // 本套用例拿 hasGanttBar 当正反判据——没有条时「!hasGanttBar」会必然成立（假绿），
+        // 因此显式进入 fit 还原"全部内容可见"的前提，正反两边才有判别力。
+        store.dispatch(.setFitZoom(true))
+        return store
     }
 
     private func task(_ store: WorkspaceStore, _ title: String) throws -> TaskItem {

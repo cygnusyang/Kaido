@@ -22,6 +22,7 @@ struct Sprint7DebtTests {
         let defaults = makeDefaults("d012")
         let stored = """
         {
+          "schema": \(WorkspaceStore.currentPreferencesSchema),
           "outlineWidth": 480, "outlineVisible": true, "expandedTaskIDs": [],
           "zoom": "week", "usesFitZoom": true, "customDayWidth": 12.34,
           "windowStart": null, "inspectorWidth": 320, "inspectorTab": "inspector"
@@ -38,6 +39,7 @@ struct Sprint7DebtTests {
         let defaults = makeDefaults("d012clamp")
         let stored = """
         {
+          "schema": \(WorkspaceStore.currentPreferencesSchema),
           "outlineWidth": 480, "outlineVisible": true, "expandedTaskIDs": [],
           "zoom": "week", "usesFitZoom": true, "customDayWidth": 12.367,
           "windowStart": null, "inspectorWidth": 320, "inspectorTab": "inspector"
@@ -79,6 +81,7 @@ struct Sprint7DebtTests {
         // 行为是整体解码失败 → 全部回落）。
         let stored = """
         {
+          "schema": \(WorkspaceStore.currentPreferencesSchema),
           "outlineWidth": 480, "outlineVisible": false, "expandedTaskIDs": [],
           "zoom": "day", "usesFitZoom": false,
           "windowStart": null, "inspectorWidth": 444
@@ -99,6 +102,7 @@ struct Sprint7DebtTests {
         // outlineWidth 类型错误（字符串）：该字段回落，其余保留。
         let stored = """
         {
+          "schema": \(WorkspaceStore.currentPreferencesSchema),
           "outlineWidth": "not-a-number", "outlineVisible": true, "expandedTaskIDs": [],
           "zoom": "month", "usesFitZoom": false, "customDayWidth": 20,
           "windowStart": null, "inspectorWidth": 350, "inspectorTab": "inspector"

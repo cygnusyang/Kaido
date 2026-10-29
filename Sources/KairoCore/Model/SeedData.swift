@@ -32,8 +32,8 @@ public enum SeedData {
         let backend = TaskItem(
             title: copy.backend.title,
             notes: copy.backend.notes,
-            startDate: day(-2),
-            dueDate: day(0),
+            startDate: day(0),
+            dueDate: day(2),
             priority: .critical,
             status: .inProgress,
             tags: copy.backend.tags,
@@ -43,7 +43,7 @@ public enum SeedData {
         let review = TaskItem(
             title: copy.review.title,
             notes: copy.review.notes,
-            dueDate: day(0),
+            dueDate: day(4),
             priority: .high,
             status: .blocked,
             tags: copy.review.tags,
@@ -54,6 +54,7 @@ public enum SeedData {
         let release = TaskItem(
             title: copy.release.title,
             notes: copy.release.notes,
+            startDate: day(21),
             dueDate: day(30),
             priority: .high,
             status: .pending,
@@ -65,8 +66,8 @@ public enum SeedData {
         let design = TaskItem(
             title: copy.design.title,
             notes: copy.design.notes,
-            startDate: day(-4),
-            dueDate: day(-1),
+            startDate: day(1),
+            dueDate: day(3),
             priority: .high,
             status: .pending,
             tags: copy.design.tags,
@@ -76,7 +77,8 @@ public enum SeedData {
         let loginCrash = TaskItem(
             title: copy.loginCrash.title,
             notes: copy.loginCrash.notes,
-            dueDate: day(-2),
+            startDate: day(0),
+            dueDate: day(1),
             priority: .critical,
             status: .done,
             tags: copy.loginCrash.tags,
@@ -96,7 +98,8 @@ public enum SeedData {
         let feedback = TaskItem(
             title: copy.feedback.title,
             notes: copy.feedback.notes,
-            dueDate: day(7),
+            startDate: day(3),
+            dueDate: day(5),
             priority: .normal,
             status: .pending,
             tags: copy.feedback.tags,
@@ -106,7 +109,8 @@ public enum SeedData {
         let ci = TaskItem(
             title: copy.ci.title,
             notes: copy.ci.notes,
-            dueDate: day(14),
+            startDate: day(4),
+            dueDate: day(6),
             priority: .normal,
             status: .pending,
             tags: copy.ci.tags,
@@ -116,7 +120,8 @@ public enum SeedData {
         let interview = TaskItem(
             title: copy.interview.title,
             notes: copy.interview.notes,
-            dueDate: day(-5),
+            startDate: day(0),
+            dueDate: day(2),
             priority: .low,
             status: .done,
             tags: copy.interview.tags,
@@ -126,6 +131,7 @@ public enum SeedData {
         let spec = TaskItem(
             title: copy.spec.title,
             notes: copy.spec.notes,
+            startDate: day(2),
             dueDate: day(3),
             priority: .normal,
             status: .pending,
@@ -136,6 +142,14 @@ public enum SeedData {
 
         // 演示项目时间线锚定到当前日期附近：排期引擎未设项目起点时从 1970 纪元起算，
         // 会让甘特显示 1970 年日期、时限违例无法用常规日期触发（D-002）。
+        //
+        // 偏移要贴着「启动窗口 = [今天, 今天+7)」分配：10 条里 8 条的甘特条落在窗口内
+        // （首屏就有内容），只留 perf 演示逾期、release(起排 day 21) 演示窗口外的远期任务。
+        //
+        // 注意 dueDate 只是截止约束，**不决定起排日**：没有前驱的任务按 ASAP 从项目起点
+        // （day -2）起排，整条会落在今天之前、首屏看不见。所以窗口内的任务要显式给
+        // startDate 钉住起排日；只调 dueDate 是没用的（曾经这样改过一版，实测只有 4/10 可见）。
+        // 改这些偏移时请用排期结果复核条数，别用 dueDate 数。
         project.metadata.projectStart = day(-2)
         project.metadata.projectEnd = day(30)
 

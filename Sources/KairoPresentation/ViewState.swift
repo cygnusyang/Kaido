@@ -42,6 +42,12 @@ public struct WorkspaceViewState: Hashable, Sendable {
     public var customDayWidth: Double?
     /// 自定义窗口起点；nil 时由布局取内容起点或今天。
     public var windowStart: Date?
+    /// 窗口跨度（天）。非 nil = 跨度模式：日宽 = 画布宽 / 跨度，忽略档位与 fit。
+    /// nil = 沿用 custom > fit > 档位。启动策略由 store 注入 7，本字段不持久化。
+    public var windowSpanDays: Int?
+
+    /// 启动窗口的跨度天数（单源常量）：由 store 在启动 / 打开项目时注入到 `windowSpanDays`。
+    public static let defaultWindowSpanDays: Int = 7
     public var inspectorVisible: Bool
     public var inspectorWidth: Double
     public var inspectorTab: InspectorTab
@@ -111,7 +117,9 @@ public struct WorkspaceViewState: Hashable, Sendable {
         selectedBaselineID: UUID? = nil,
         visibleBaselineIDs: Set<UUID> = [],
         /// 列顺序（v0.16 / #12）；追加在末尾并带默认值，既有构造点无需改动。
-        columnOrder: [OutlineColumn] = OutlineColumnPreferences.defaultOrder
+        columnOrder: [OutlineColumn] = OutlineColumnPreferences.defaultOrder,
+        /// 窗口跨度（天）；追加在末尾并带默认值，既有构造点无需改动。
+        windowSpanDays: Int? = nil
     ) {
         self.mode = mode
         self.chartFocused = chartFocused
@@ -139,6 +147,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
         self.selectedBaselineID = selectedBaselineID
         self.visibleBaselineIDs = visibleBaselineIDs
         self.columnOrder = columnOrder
+        self.windowSpanDays = windowSpanDays
     }
 }
 

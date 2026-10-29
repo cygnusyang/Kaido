@@ -58,6 +58,28 @@ struct DayWidthControlTests {
         #expect(store.viewState.customDayWidth == 120)
     }
 
+    @Test func clearCustomDayWidthDoesNotRestoreSpan() {
+        let store = makeStore()
+        store.dispatch(.setCustomDayWidth(20))
+        #expect(store.viewState.windowSpanDays == nil, "进入自定义日宽即退出跨度")
+        #expect(store.snapshot.gantt.dayWidth == 20)
+
+        store.dispatch(.clearCustomDayWidth)
+
+        // 已定口径：日宽重置 ≠ 窗口重置。清掉自定义只回落到档位日宽，
+        // 不重新进入 7 天跨度（跨度只由启动或窗口类动作决定）。
+        #expect(store.viewState.customDayWidth == nil)
+        #expect(store.viewState.windowSpanDays == nil, "清自定义日宽不得恢复跨度")
+        #expect(!store.viewState.usesFitZoom)
+        #expect(
+            store.snapshot.gantt.dayWidth == store.viewState.zoom.dayWidth,
+            "回落到档位日宽（默认 .week 即 12），而不是画布宽 / 7"
+        )
+        #expect(store.viewState.zoom == .week, "默认档位仍是 week")
+        // 状态栏同样回到档位档，不冒充跨度。
+        #expect(store.snapshot.statusBar.zoom.preset == .week)
+    }
+
     @Test func nudgeUsesEffectiveDayWidthAsBase() {
         let store = makeStore()
         store.dispatch(.setCustomDayWidth(20))
@@ -71,6 +93,9 @@ struct DayWidthControlTests {
 
     @Test func nudgeInFitModeUsesFitWidthAsBase() {
         let store = makeStore()
+        // 启动即固定跨度（v1.4），fit 不再参与；先显式进入 fit 模式，还原本用例的前提。
+        store.dispatch(.setFitZoom(true))
+        #expect(store.viewState.windowSpanDays == nil, "进入 fit 必须退出固定跨度")
         // fit 模式下基准是 fit 宽度（画布宽 / 内容天数），不是档位默认宽度。
         let fitWidth = store.snapshot.gantt.dayWidth
         let presetWidth = store.viewState.zoom.dayWidth
@@ -144,11 +169,16 @@ struct DayWidthControlTests {
         defer { defaults.removePersistentDomain(forName: suite) }
 
         let first = WorkspaceStore(defaults: defaults)
+        let today = Calendar.current.startOfDay(for: Date())
         first.dispatch(.setCustomDayWidth(20))
 
         let second = WorkspaceStore(defaults: defaults)
         #expect(second.viewState.customDayWidth == 20)
         #expect(second.snapshot.gantt.dayWidth == 20)
+        // H1：有自定义日宽时载入不注入跨度（与 setCustomDayWidth 动作同口径），
+        // 且非 fit 路径的默认起点是今天——重启后既不回到跨度，也不回到内容起点。
+        #expect(second.viewState.windowSpanDays == nil, "有自定义日宽时不得注入跨度")
+        #expect(second.snapshot.gantt.windowStart == today, "自定义日宽态的起点是今天")
     }
 
     @Test func legacyPreferencesWithoutCustomDayWidthStillLoad() throws {
@@ -158,8 +188,10 @@ struct DayWidthControlTests {
         defer { defaults.removePersistentDomain(forName: suite) }
 
         // 旧偏好 JSON：不含 customDayWidth 键。
+        // 带上当前 schema：本用例测字段容错，不测迁移（迁移由 StartupWindowTests 覆盖）。
         let legacy = """
         {
+          "schema": \(WorkspaceStore.currentPreferencesSchema),
           "outlineWidth": 480,
           "outlineVisible": true,
           "expandedTaskIDs": [],
@@ -189,6 +221,7 @@ struct DayWidthControlTests {
 
         let stored = """
         {
+          "schema": \(WorkspaceStore.currentPreferencesSchema),
           "outlineWidth": 600,
           "outlineVisible": true,
           "expandedTaskIDs": [],

@@ -5,6 +5,8 @@ import KairoCore
 public enum ZoomPreset: String, Codable, Hashable, Sendable {
     /// 自定义日宽生效（优先于预设与「适合项目」）。
     case custom
+    /// 固定跨度窗口生效（日宽 = 画布宽 / 跨度天数）；与自定义日宽、fit 互斥。
+    case span
     /// 「缩放以适合项目」。
     case fit
     case day

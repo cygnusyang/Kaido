@@ -82,12 +82,22 @@ private func makeDayWidthSnapshot(
     customDayWidth: Double?,
     zoom: GanttZoom = .week,
     usesFitZoom: Bool = false,
-    canvasWidth: Double = 2000
+    canvasWidth: Double = 2000,
+    /// 显式窗口起点；nil = 由呈现层按当前口径推导。
+    ///
+    /// custom / span 路径的默认起点是「今天」（fixture 里即 `fixture.now`），
+    /// 凡是要校验**固定日期网格**（跨月 / 跨年）的用例必须显式给起点，
+    /// 否则窗口会跟着 now 漂、断言要么红要么在无关的窗口上空转。
+    ///
+    /// **必须保持可选且默认 nil**：默认给值会让整批用例都带上显式起点，等于把
+    /// 「默认锚点」这条口径从测试里静默抹掉——以后谁改 `defaultStart` 都不会红。
+    windowStart: Date? = nil
 ) -> WorkspaceSnapshot {
     var viewState = WorkspaceViewState()
     viewState.zoom = zoom
     viewState.usesFitZoom = usesFitZoom
     viewState.customDayWidth = customDayWidth
+    viewState.windowStart = windowStart
     // 本套用例专门校验「非工作带」与日宽的整除关系：显式打开着色开关（默认关闭）。
     viewState.showsNonWorkingDays = true
     return makeSnapshot(
@@ -322,7 +332,13 @@ struct DayWidthAcceptanceTests {
     @Test func dayWidthGridCoversTicksBandsAndBars() throws {
         let fixture = DayWidthFixture()
         let width = 18.0
-        let gantt = makeDayWidthSnapshot(fixture: fixture, customDayWidth: width).gantt
+        // 固定窗口在夹具起点：网格判据要覆盖到夹具的全部任务（否则条数与任务数不等）。
+        // 显式钉起点只为隔离「锚点口径」，不代表 custom 态的默认起点是 projectStart。
+        let gantt = makeDayWidthSnapshot(
+            fixture: fixture,
+            customDayWidth: width,
+            windowStart: fixture.projectStart
+        ).gantt
 
         #expect(gantt.dayWidth == width)
         #expect(gantt.tickGranularity == .day)
@@ -368,7 +384,14 @@ struct DayWidthAcceptanceTests {
     @Test func dayWidthGridHoldsAcrossMonthAndYearBoundary() throws {
         let fixture = DayWidthFixture()
         let width = 18.0
-        let gantt = makeDayWidthSnapshot(fixture: fixture, customDayWidth: width).gantt
+        // 固定窗口在夹具起点：本条要校验的就是 2024-11-15 起跨 2024/2025 年界的网格，
+        // 起点若跟随「今天」推导，窗口压根到不了夹具日期。
+        // 显式钉起点只为隔离「锚点口径」，不代表 custom 态的默认起点是 projectStart。
+        let gantt = makeDayWidthSnapshot(
+            fixture: fixture,
+            customDayWidth: width,
+            windowStart: fixture.projectStart
+        ).gantt
 
         // 前提：窗口确实跨年，否则下列断言无意义。
         #expect(testCalendar.component(.year, from: gantt.windowStart) == 2024)
@@ -402,7 +425,14 @@ struct DayWidthAcceptanceTests {
     @Test func dayGranularityKeepsAdjacentTickSpacingEqualToDayWidth() {
         let fixture = DayWidthFixture()
         let width = 18.0
-        let gantt = makeDayWidthSnapshot(fixture: fixture, customDayWidth: width).gantt
+        // 显式起点 2024-12-20，窗口 2000/18 ≈ 111 天 → 覆盖 12-31 与 01-01，
+        // 让「跨周 / 跨月 / 跨年」这条注释名副其实（默认起点会随 fixture.now 漂到 2025 年中）。
+        // 显式钉起点只为隔离「锚点口径」，不代表 custom 态的默认起点是此处日期。
+        let gantt = makeDayWidthSnapshot(
+            fixture: fixture,
+            customDayWidth: width,
+            windowStart: makeDate(2024, 12, 20)
+        ).gantt
 
         #expect(gantt.tickGranularity == .day)
         #expect(gantt.dayWidth == width)

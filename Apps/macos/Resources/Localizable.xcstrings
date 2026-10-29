@@ -7767,6 +7767,23 @@
         }
       }
     },
+    "statusbar.zoom.preset.span": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7-day window"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 天窗口"
+          }
+        }
+      }
+    },
     "statusbar.zoom.preset.week": {
       "extractionState": "manual",
       "localizations": {

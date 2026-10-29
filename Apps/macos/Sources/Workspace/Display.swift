@@ -307,6 +307,7 @@ enum Display {
     static func zoomPresetTitle(_ preset: ZoomPreset) -> String {
         switch preset {
         case .custom: return I18n.t("statusbar.zoom.preset.custom", "Custom")
+        case .span: return I18n.t("statusbar.zoom.preset.span", "7-day window")
         case .fit: return I18n.t("statusbar.zoom.preset.fit", "Fit to project")
         case .day: return I18n.t("statusbar.zoom.preset.day", "Day")
         case .week: return I18n.t("statusbar.zoom.preset.week", "Week")
