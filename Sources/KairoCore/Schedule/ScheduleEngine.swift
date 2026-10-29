@@ -57,7 +57,13 @@ public enum ScheduleEngine {
         let durations = durationsByTask(
             tasks, resourceByID: resourceByID, hoursPerDay: hoursPerDay
         )
-        let cycleIDs = cycleTaskIDs(tasks, byID: byID)
+        // 环检测两路合流：① 直接成环（cycleTaskIDs）；② 拓扑序里排不进去的任务。
+        // 后者是「依赖了自己的祖先群组」这类伪环——依赖展开到叶子时会把依赖者的
+        // 兄弟子树卷进来（v1.3.6 现场：v1.2 维护依赖它所在的 v1.2 互操作），
+        // 直接成环检测看不到，任务会既不进前向传播也不被判环，最终被 epoch 兜底。
+        let orderedIDs = Set(topologicalOrder(tasks, byID: byID))
+        let strandedIDs = tasks.map(\.id).filter { !orderedIDs.contains($0) }
+        let cycleIDs = Array(Set(cycleTaskIDs(tasks, byID: byID)).union(strandedIDs))
         let cycleSet = Set(cycleIDs)
         let successorMap = successorMap(of: tasks, byID: byID)
 
