@@ -1,8 +1,8 @@
-Kairo v1.3.2 签名状态
+Kairo v1.3.3 签名状态
 =========================
 状态: 未签名（ad-hoc），未公证
 公证: 无。首次打开请右键「打开」，或执行：xattr -dr com.apple.quarantine /Applications/Kairo.app
-生成时间(UTC): 2026-10-28T13:54:10Z
+生成时间(UTC): 2026-10-29T08:05:20Z
 
 应用签名摘要（codesign -dv --verbose=4 dist/Kairo.app）：
 Identifier=app.kairo.macos
