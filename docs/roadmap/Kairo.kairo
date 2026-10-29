@@ -1341,15 +1341,17 @@
       "id": "10351D71-9C20-47E5-B714-D5518AD853D6",
       "kind": "group",
       "status": "pending",
-      "title": "v1.4.0（6 条开放 issue 一次收口）"
+      "title": "v1.3.3（6 条开放 issue 一次收口）"
     },
     {
       "dependencies": [],
       "durationDays": 2,
       "id": "C2B40984-8A3D-4F6A-B06D-46E8E3B926B8",
       "kind": "task",
+      "notes": "关闭证据：a816aea（isCurrentFlight 守卫 + 取消范围扩到 .checking/.updateAvailable/.downloading/.downloaded，仅 .installing 不可取消）、17ddcdb（取消后不得复活下载，含反例红验证）；随 v1.3.3 发版，Issue #28 已 CLOSED。",
       "parentID": "10351D71-9C20-47E5-B714-D5518AD853D6",
-      "status": "pending",
+      "progress": 1,
+      "status": "done",
       "title": "#28 OTA 取消：点下载后立即点取消无反应"
     },
     {
@@ -1379,8 +1381,10 @@
       "durationDays": 1,
       "id": "C186D880-E174-416C-8FE0-F35AF728FC4E",
       "kind": "task",
+      "notes": "关闭证据：2d6aff7（翻窗中位 ≤ 全量重建中位 ×0.5，7 轮交替采样 + 500ms 病态兜底；注入 20ms 慢化即红，20 次连跑 0 失败）；随 v1.3.3 发版，Issue #27 已 CLOSED。",
       "parentID": "10351D71-9C20-47E5-B714-D5518AD853D6",
-      "status": "pending",
+      "progress": 1,
+      "status": "done",
       "title": "#27 甘特平移性能用例 50ms 墙钟假红"
     },
     {

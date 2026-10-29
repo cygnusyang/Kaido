@@ -17,6 +17,20 @@
 - `FidelityLedger` 登记 97 条硬约束降级（SNET 41 / FNET 56）、日历换算（周一至周五 5 天/周 × 8h，另 37 条例外日）、4 个自定义域（105 条任务上 214 个值）。
 - 全量 **1408 tests / 134 suites** 通过；新增 23 例，零 warning。
 
+## v1.3.3 — 2026-10-29
+
+### 修复
+
+- **OTA 取消点了没反应（#28）**：点下载后立刻点取消，界面无变化，下载照旧推进。根因是 `performCheck` / `performDownload` 从建任务到首次状态回写之间存在窗口，此时任务尚未登记为当前飞行，取消逻辑找不到可取消对象；可取消的状态范围也过窄。修法：两个入口加 `isCurrentFlight` 守卫堵住窗口，可取消范围扩到 `.checking` / `.updateAvailable` / `.downloading` / `.downloaded`，仅 `.installing` 不可取消（该态面板只给「关闭」，不存在死按钮）。验证：新增「取消后不得复活下载」用例并做反例红验证（`17ddcdb`），共 7 条用例先红后绿（`a816aea`）。
+- **跨版本升级后 OTA 临时目录清不掉（#24 复发）**：旧版 pending 键缺失时，按 uuid 反查脚本与 result 会落空，产物留在 `$TMPDIR`。修法：pending 缺键时按形状（同 uuid 的脚本 / result）清扫；解压目录因 prepare 与脚本 uuid 本就不同，改为「名字严格 `kairo-ota-<UUID>` + 内容恰好一个 `.app` + mtime 超 1 小时」三条件同时成立才删，仍不做宽前缀批量删除。验证：7 条用例先红后绿，与上条同一提交（`a816aea`）。
+- **甘特翻窗性能用例在共享 runner 上假红（#27）**：原判据是单帧 ≤50ms 墙钟绝对量，CI 上实测 50.98–51.58ms 抖动必红；且该判据对「翻窗退化成全量重建」这类真回归不敏感——慢化 20ms 时仍然绿。改为相对判据：翻窗中位 ≤ 全量重建中位 ×0.5（交替采样 7 轮、各预热 2 次、取中位），保留 500ms 病态兜底。验证：注入 20ms 慢化后比值 0.75 变红（旧判据为绿），20 次连跑 0 失败（`2d6aff7`）。
+- **macOS CI 作业测试改走 `tools/test.sh`**：与 Linux 作业同源看门狗 + 全新 scratch path，避免共享 `.build` 锁导致的长时间排队；Linux 作业保持直接 `swift test`（该环境无 `sample`，接上看门狗会失效）（`74676a6`）。
+
+### 影响面
+
+- 改动集中在 KairoUpdater 的取消/清理路径与 Presentation 层测试判据；排期、互操作、`.kairo` 格式与 CLI/MCP 契约均无变化。
+- 版本号三处同源更新（`tools/build.sh` / `Sources/KairoMCP/MCPServer.swift` / `Apps/macos/Sources/CommandRegistry.swift`），产物版本由 `tools/release.sh` 派生。
+
 ## v1.3.2 — 2026-10-28
 
 ### 修复
