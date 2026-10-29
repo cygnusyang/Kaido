@@ -135,6 +135,23 @@ struct GanttScrollSurfaceTests {
         surface.stopMonitoring()
     }
 
+    /// 斜向手势：横向分量照样平移，同时事件必须放行给纵向滚动（v1.3.6「横纵叠加」）。
+    @Test func diagonalScrollPansAndPassesThrough() {
+        let window = makeWindow()
+        let surface = makeSurface()
+        window.contentView?.addSubview(surface)
+
+        var days: [Int] = []
+        surface.update(dayWidth: 10) { days.append($0) }
+        surface.cursorInScreen = { window.convertPoint(toScreen: CGPoint(x: 200, y: 200)) }
+
+        let event = makeScrollEvent(deltaX: 30, deltaY: 12)
+        #expect(surface.handle(event) != nil, "含纵向分量的事件必须放行给纵向滚动")
+        #expect(days == [3], "横向分量仍要生效")
+
+        surface.stopMonitoring()
+    }
+
     @Test func horizontalScrollOutsideSurfaceIsPassedThrough() {
         let window = makeWindow()
         let surface = makeSurface()

@@ -50,4 +50,25 @@ import KairoPresentation
         accumulator.reset()
         #expect(accumulator.remainderDays == 0)
     }
+
+    /// 手势结束：过半天的余量补成一天（v1.3.6：慢速小幅滑动松手不再白费）。
+    @Test func gestureEndCommitsHalfDayRemainder() {
+        var accumulator = HorizontalPanAccumulator()
+        // 跨度模式 74pt/天，滑 45pt ≈ 0.61 天，未满一天。
+        #expect(accumulator.consume(deltaX: 45, dayWidth: 74) == 0)
+        #expect(accumulator.flushGesture() == 1)
+        #expect(abs(accumulator.remainderDays + 0.39) < 0.01)
+
+        // 反向同理：负余量过半 → 提交 -1 天。
+        #expect(accumulator.consume(deltaX: -50, dayWidth: 74) == -1)
+        #expect(accumulator.flushGesture() == 0)
+    }
+
+    /// 余量不足半天：松手不补，避免「轻扫一下就跳一天」。
+    @Test func gestureEndIgnoresTinyRemainder() {
+        var accumulator = HorizontalPanAccumulator()
+        _ = accumulator.consume(deltaX: 20, dayWidth: 74)
+        #expect(accumulator.flushGesture() == 0)
+        #expect(abs(accumulator.remainderDays - 0.2703) < 0.001)
+    }
 }

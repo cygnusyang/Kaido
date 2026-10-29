@@ -112,16 +112,25 @@ struct GanttScrollSurface: NSViewRepresentable {
             Self.logger.notice("scroll surface detached")
         }
 
-        /// 一条滚动事件：命中则消费（返回 nil），否则原样放行。
+        /// 一条滚动事件：横向分量用于平移，纵向分量原样放行给纵向滚动。
+        ///
+        /// 「横纵叠加」是刻意的（v1.3.6 用户要求）：双指斜向滑动时，甘特跟着横向走、
+        /// 大纲跟着纵向走，而不是按「谁更大」二选一。只有当这一帧几乎没有纵向分量
+        /// （< 1pt）时才吞掉事件，避免重复滚动。
         func handle(_ event: NSEvent) -> NSEvent? {
             guard let controller else { return event }
+            let deltaY = Double(event.scrollingDeltaY)
             let consumed = controller.handle(
                 deltaX: Double(event.scrollingDeltaX),
-                deltaY: Double(event.scrollingDeltaY),
+                deltaY: deltaY,
                 shift: event.modifierFlags.contains(.shift),
                 cursorInside: cursorInsideBounds()
             )
-            return consumed ? nil : event
+            if event.phase == .ended || event.phase == .cancelled || event.momentumPhase == .ended {
+                controller.endGesture()
+            }
+            let hasVertical = abs(deltaY) >= 1
+            return (consumed && !hasVertical) ? nil : event
         }
 
         /// 光标是否落在本视图当前所占的窗口区域内（现场换算，不缓存）。
@@ -151,12 +160,24 @@ final class GanttScrollController {
     /// 尺度变化后旧余量失去意义，清空避免跳变。
     func update(dayWidth: Double, onDays: @escaping (Int) -> Void) {
         let width = max(dayWidth, 0.5)
-        if width != self.dayWidth { accumulator.reset() }
+        // 只在「日宽真的变了」时清余量：跨度模式下日宽 = 画布宽/7 是浮点值，
+        // 布局抖动会让它每帧微变，绝对不等会把用户攒下的位移反复清零（v1.3.6 反馈的「拖不动」）。
+        if abs(width - self.dayWidth) / max(self.dayWidth, 0.5) > 0.01 { accumulator.reset() }
         self.dayWidth = width
         self.onDays = onDays
     }
 
-    /// 消费一条滚动输入；返回是否消费（true = 事件应被吞掉）。
+    /// 手势结束（抬手/取消）：把过半天的余量补成一天，避免慢速小幅滑动白费。
+    func endGesture() {
+        let days = accumulator.flushGesture()
+        guard days != 0 else { return }
+        onDays(days)
+    }
+
+    /// 消费一条滚动输入；返回值表示「横向分量是否已被本层用掉」。
+    ///
+    /// 注意：纵向分量一律放行（见 ScrollSurfaceView.handle），所以这里返回 true
+    /// 不代表事件被吞——视图层按纵向分量大小决定是否把事件继续交给纵向滚动。
     func handle(deltaX: Double, deltaY: Double, shift: Bool, cursorInside: Bool) -> Bool {
         let decision = GanttScrollRouter.decide(GanttScrollInput(
             deltaX: deltaX,

@@ -36,9 +36,19 @@ struct GanttScrollRouterTests {
         #expect(GanttScrollRouter.decide(input(deltaX: -9, deltaY: -2)) == .pan(pixels: -9))
     }
 
-    @Test func verticalScrollIsLeftToTheContainer() {
+    /// 斜向手势：纵向分量更大时，横向分量**仍然生效**（横纵叠加，v1.3.6 起）。
+    /// 纵向由调用方原样放行给滚动容器，两轴同时工作。
+    @Test func diagonalGestureStillPansHorizontally() {
         #expect(
             GanttScrollRouter.decide(input(deltaX: 2, deltaY: 20))
+                == .pan(pixels: 2)
+        )
+    }
+
+    /// 纯纵向（无横向分量）不产生平移。
+    @Test func pureVerticalScrollProducesNoPan() {
+        #expect(
+            GanttScrollRouter.decide(input(deltaX: 0, deltaY: 20))
                 == .ignore(reason: .verticalOnly)
         )
     }

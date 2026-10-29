@@ -25,6 +25,18 @@ public struct HorizontalPanAccumulator: Equatable, Sendable {
     public mutating func reset() {
         remainderDays = 0
     }
+
+    /// 手势结束时把「过半天的余量」补成一天。
+    ///
+    /// 为什么需要它：整天提交的口径下，慢速小幅滑动松手时若余量不足一天，
+    /// 画面一天都不动（跨度模式 74pt/天时尤甚）。过半即提交，并使用户的
+    /// 主观位移不白费；余量里扣掉这一天，避免反向时多走。
+    public mutating func flushGesture(threshold: Double = 0.5) -> Int {
+        guard abs(remainderDays) >= threshold else { return 0 }
+        let days = remainderDays < 0 ? -1 : 1
+        remainderDays -= Double(days)
+        return days
+    }
 }
 
 // MARK: - 滚动事件处置（F-14-18）
@@ -39,7 +51,7 @@ public enum GanttScrollDecision: Equatable, Sendable {
 
 /// 放行原因（诊断口径：真机排查时一眼看出是哪一道闸挡住了）。
 public enum GanttScrollIgnoreReason: String, Equatable, Sendable {
-    /// 纵向分量占优且未按 Shift。
+    /// 没有横向意图（横向分量为 0 或低于噪声阈值）。
     case verticalOnly
     /// 视口所属窗口未知（视图尚未挂载/已卸载）。
     case windowUnavailable
@@ -68,6 +80,8 @@ public struct GanttScrollInput: Sendable {
     public var cursorInsideViewport: Bool
     /// 首响应者是否为文本输入（编辑中）。
     public var isEditingText: Bool
+    /// 低于该横向位移视为「没有横向意图」（噪声）。默认 0.01 点。
+    public var minimumDelta: Double
 
     public init(
         deltaX: Double,
@@ -76,7 +90,8 @@ public struct GanttScrollInput: Sendable {
         hasViewport: Bool,
         hasCursor: Bool,
         cursorInsideViewport: Bool,
-        isEditingText: Bool
+        isEditingText: Bool,
+        minimumDelta: Double = 0.01
     ) {
         self.deltaX = deltaX
         self.deltaY = deltaY
@@ -85,6 +100,7 @@ public struct GanttScrollInput: Sendable {
         self.hasCursor = hasCursor
         self.cursorInsideViewport = cursorInsideViewport
         self.isEditingText = isEditingText
+        self.minimumDelta = minimumDelta
     }
 }
 
@@ -96,13 +112,15 @@ public struct GanttScrollInput: Sendable {
 /// 事件层（`HorizontalScrollMonitor`）只采集输入并执行结论，规则不内联在视图里
 /// （D-027 教训：AppKit 事件胶水层的判定必须可单测，否则只能靠人工手测）。
 public enum GanttScrollRouter {
+    /// 横纵**同时生效**：横向分量交给甘特平移，纵向分量原样放行给纵向滚动。
+    /// 不再按「谁更大」二选一——真实双指手势几乎不纯水平，分量大的那一帧会把
+    /// 另一轴的位移整条丢掉，表现为「有时拖不动」（v1.3.6 现场反馈）。
     public static func decide(_ input: GanttScrollInput) -> GanttScrollDecision {
-        let horizontalDominant = abs(input.deltaX) > abs(input.deltaY)
         let shiftVertical = input.shift && abs(input.deltaY) > 0
-        guard horizontalDominant || shiftVertical else {
+        let delta = shiftVertical ? input.deltaY : input.deltaX
+        guard abs(delta) >= input.minimumDelta else {
             return .ignore(reason: .verticalOnly)
         }
-        let delta = horizontalDominant ? input.deltaX : input.deltaY
         guard input.hasViewport, input.hasCursor else {
             return .ignore(reason: .windowUnavailable)
         }
