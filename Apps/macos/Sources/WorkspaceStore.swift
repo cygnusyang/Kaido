@@ -113,7 +113,9 @@ final class WorkspaceStore: ObservableObject {
     /// v2 = 启动窗口固定为 7 天并锚定今天：`windowStart` 不再持久化，
     /// 载入旧数据（无 schema 键 = v1）时重置 zoom / usesFitZoom / customDayWidth
     /// （windowStart 已从偏好结构中删除，无从恢复，故无需重置）。
-    static let currentPreferencesSchema = 2
+    /// `nonisolated`：`StoredPreferences.init`（嵌套 struct，非隔离上下文）与测试夹具都要引用它，
+    /// 而 `WorkspaceStore` 整体是 `@MainActor`；少了这个词在 Swift 6 语言模式下即为编译错误。
+    nonisolated static let currentPreferencesSchema = 2
     // 时刻（外部更新提示）判定为展示格式：走 `Display.time`（本地化），不在这里固定 `HH:mm`（F-0712）。
 
     /// 持久化的视图偏好；视图模式与筛选不写入（启动固定计划模式）。
