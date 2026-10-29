@@ -1111,7 +1111,13 @@
     },
     {
       "assignments": [],
-      "dependencies": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "2E23F5DC-EC1F-4A3C-9757-E1C16B019860",
+          "type": "fs"
+        }
+      ],
       "id": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
       "kind": "group",
       "notes": "",
@@ -1203,7 +1209,13 @@
     },
     {
       "assignments": [],
-      "dependencies": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "2E23F5DC-EC1F-4A3C-9757-E1C16B019860",
+          "type": "fs"
+        }
+      ],
       "id": "8B243B47-82C7-41A9-B4AB-60A02C3391F9",
       "kind": "group",
       "notes": "",
@@ -1315,6 +1327,73 @@
       "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
       "status": "pending",
       "title": "跨版本 OTA 残留：旧版 pending 键缺失致产物清不掉（#24）"
+    },
+    {
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "8B243B47-82C7-41A9-B4AB-60A02C3391F9",
+          "type": "fs"
+        }
+      ],
+      "id": "10351D71-9C20-47E5-B714-D5518AD853D6",
+      "kind": "group",
+      "status": "pending",
+      "title": "v1.4.0（6 条开放 issue 一次收口）"
+    },
+    {
+      "dependencies": [],
+      "durationDays": 2,
+      "id": "C2B40984-8A3D-4F6A-B06D-46E8E3B926B8",
+      "kind": "task",
+      "parentID": "10351D71-9C20-47E5-B714-D5518AD853D6",
+      "status": "pending",
+      "title": "#28 OTA 取消：点下载后立即点取消无反应"
+    },
+    {
+      "dependencies": [],
+      "durationDays": 2,
+      "id": "A316B471-ABCF-4241-AA4B-2D7E9F4FCE0F",
+      "kind": "task",
+      "parentID": "10351D71-9C20-47E5-B714-D5518AD853D6",
+      "status": "pending",
+      "title": "#25 大纲列宽：深层序号被截断"
+    },
+    {
+      "dependencies": [],
+      "durationDays": 2,
+      "id": "497ABA36-5BC5-4C71-B2D0-4C0566F7DF53",
+      "kind": "task",
+      "parentID": "10351D71-9C20-47E5-B714-D5518AD853D6",
+      "status": "pending",
+      "title": "#24 OTA 残留：跨版本升级后临时目录不清理"
+    },
+    {
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "C186D880-E174-416C-8FE0-F35AF728FC4E",
+      "kind": "task",
+      "parentID": "10351D71-9C20-47E5-B714-D5518AD853D6",
+      "status": "pending",
+      "title": "#27 甘特平移性能用例 50ms 墙钟假红"
+    },
+    {
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "85B6DEDD-ABB3-4298-AD24-9A24D410BC89",
+      "kind": "task",
+      "parentID": "10351D71-9C20-47E5-B714-D5518AD853D6",
+      "status": "pending",
+      "title": "#26 OTA 下载态用例 3s 窗口假红"
+    },
+    {
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "BE2B81CC-ABDE-48EC-B03F-0686814FDC0C",
+      "kind": "task",
+      "parentID": "10351D71-9C20-47E5-B714-D5518AD853D6",
+      "status": "pending",
+      "title": "#23 OTA 安装卡死（1.3.2 已修，需复核后关单）"
     }
   ]
 }
