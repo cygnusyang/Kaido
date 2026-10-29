@@ -303,6 +303,20 @@ enum Display {
 
     // MARK: - 缩放指示（F-0705：快照只给档位枚举与日宽读数）
 
+    // MARK: - 回到今天（方向提示）
+
+    /// 「回到今天」的按钮标题：今天在窗口外时带箭头，指明该往回还是往后。
+    ///
+    /// 箭头是语言中立的，所以只本地化文字部分，不把「◀」写进词条。
+    static func goToTodayTitle(_ side: TodaySide) -> String {
+        let name = I18n.t("action.go_to_today", "Today")
+        switch side {
+        case .left: return "◀ " + name
+        case .right: return name + " ▶"
+        case .none: return name
+        }
+    }
+
     /// 缩放档位名。
     static func zoomPresetTitle(_ preset: ZoomPreset) -> String {
         switch preset {

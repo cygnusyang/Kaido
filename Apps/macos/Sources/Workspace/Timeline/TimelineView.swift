@@ -140,6 +140,32 @@ struct TimelineBody: View {
         return session
     }
 
+
+    /// 画布边缘的「回到今天」胶囊：箭头指向今天所在方向，点击即回到今天。
+    private func goToTodayChip(_ side: TodaySide) -> some View {
+        Button {
+            store.dispatch(.goToToday)
+        } label: {
+            HStack(spacing: 4) {
+                if side == .left { Image(systemName: "chevron.left") }
+                Image(systemName: "calendar")
+                Text(I18n.t("action.go_to_today", "Today"))
+                if side == .right { Image(systemName: "chevron.right") }
+            }
+            .font(.system(size: DesignTokens.captionFontSize, weight: .medium))
+            .foregroundStyle(DesignTokens.textPrimary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(DesignTokens.surfaceElevated))
+            .overlay(Capsule().stroke(DesignTokens.separator, lineWidth: 1))
+            .shadow(radius: 2, y: 1)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+        .help(I18n.t("action.go_to_today.help", "Go to today (⌥⌘T)"))
+        .accessibilityLabel(Display.goToTodayTitle(side))
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             Color.clear
@@ -184,6 +210,13 @@ struct TimelineBody: View {
                         store.panWindow(byDays: days)
                     }
                 )
+            }
+        }
+        // 「回到今天」方向胶囊：今天线移出窗口时贴到对应一侧，指明该往回还是往后。
+        // 只在窗口外出现——今天可见时它是噪音。
+        .overlay(alignment: gantt.todaySide == .right ? .trailing : .leading) {
+            if gantt.todaySide != .none {
+                goToTodayChip(gantt.todaySide)
             }
         }
         .focusable()

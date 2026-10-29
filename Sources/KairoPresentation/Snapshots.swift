@@ -380,6 +380,16 @@ public struct BaselineLegendItem: Identifiable, Hashable, Sendable {
     }
 }
 
+/// 今天相对可见窗口的位置；窗口外时用于给「回到今天」提供方向提示。
+public enum TodaySide: String, Hashable, Sendable {
+    /// 今天在窗口左侧之外（需要往回看）。
+    case left
+    /// 今天在窗口右侧之外（需要往后看）。
+    case right
+    /// 今天在窗口内（或没有今天基准）。
+    case none
+}
+
 /// 时间画布快照。
 public struct GanttSnapshot: Hashable, Sendable {
     public var windowStart: Date
@@ -397,6 +407,8 @@ public struct GanttSnapshot: Hashable, Sendable {
     public var today: Date
     public var todayX: Double?
     public var todayOutOfRange: Bool
+    /// 今天在窗口的哪一侧（窗口内为 `.none`）。
+    public var todaySide: TodaySide
     public var bars: [GanttBar]
     public var dependencies: [GanttDependency]
     public var ticks: [GanttTick]
@@ -437,6 +449,7 @@ public struct GanttSnapshot: Hashable, Sendable {
         today: Date,
         todayX: Double?,
         todayOutOfRange: Bool,
+        todaySide: TodaySide = .none,
         bars: [GanttBar] = [],
         dependencies: [GanttDependency] = [],
         ticks: [GanttTick] = [],
@@ -463,6 +476,7 @@ public struct GanttSnapshot: Hashable, Sendable {
         self.today = today
         self.todayX = todayX
         self.todayOutOfRange = todayOutOfRange
+        self.todaySide = todaySide
         self.bars = bars
         self.dependencies = dependencies
         self.ticks = ticks

@@ -201,7 +201,8 @@ struct StatusBarView: View {
                         .foregroundStyle(DesignTokens.textSecondary)
                 }
                 if !status.todayVisible {
-                    Button(I18n.t("action.go_to_today", "Today")) { store.dispatch(.goToToday) }
+                    // 带方向：今天在窗口左侧 →「◀ 今天」，右侧 →「今天 ▶」。
+                    Button(Display.goToTodayTitle(status.todaySide)) { store.dispatch(.goToToday) }
                         .buttonStyle(.plain)
                         .foregroundStyle(DesignTokens.accentStrong)
                         .help(I18n.t("action.go_to_today.help", "Go to today (⌥⌘T)"))

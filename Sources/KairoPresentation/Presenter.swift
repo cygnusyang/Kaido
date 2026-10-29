@@ -389,6 +389,7 @@ public enum WorkspacePresenter {
             visibleStart: gantt.windowStart,
             visibleEnd: gantt.windowEnd,
             todayVisible: gantt.todayX != nil,
+            todaySide: gantt.todaySide,
             hiddenTaskCount: tree.hiddenByCollapseCount + tree.hiddenByFilterCount,
             selectionSummary: viewState.selectedTaskID.flatMap { byID[$0]?.title },
             zoom: ZoomIndicator(
@@ -473,6 +474,7 @@ public enum WorkspacePresenter {
         statusBar.visibleStart = gantt.windowStart
         statusBar.visibleEnd = gantt.windowEnd
         statusBar.todayVisible = gantt.todayX != nil
+        statusBar.todaySide = gantt.todaySide
         statusBar.zoom = ZoomIndicator(
             preset: zoomPreset(viewState),
             pointsPerDay: Self.renderableDayWidth(gantt.dayWidth)
@@ -629,6 +631,13 @@ public enum WorkspacePresenter {
         )
 
         let todayX = layout.todayX
+        // 今天在窗口哪一侧：决定「回到今天」的方向提示（窗口内为 .none）。
+        let todaySide: TodaySide
+        if todayX != nil {
+            todaySide = .none
+        } else {
+            todaySide = today < layout.windowStart ? .left : .right
+        }
 
         var bars: [GanttBar] = []
         bars.reserveCapacity(layout.bars.count)
@@ -697,6 +706,7 @@ public enum WorkspacePresenter {
             today: today,
             todayX: todayX,
             todayOutOfRange: todayX == nil,
+            todaySide: todaySide,
             bars: bars,
             dependencies: dependencies,
             ticks: ticks,

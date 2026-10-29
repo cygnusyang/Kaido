@@ -7,7 +7,7 @@ import KairoCommands
 /// 与工具层（Tools.swift）分离，可单测。
 final class MCPServer {
     static let protocolVersion = "2024-11-05"
-    static let serverInfo: [String: String] = ["name": "kairo", "version": "1.3.4"]
+    static let serverInfo: [String: String] = ["name": "kairo", "version": "1.3.5"]
 
     private let registry: ToolRegistry
     private let session: KairoSession

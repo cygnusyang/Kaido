@@ -42,6 +42,8 @@ public struct StatusBarSnapshot: Hashable, Sendable {
     public var visibleStart: Date?
     public var visibleEnd: Date?
     public var todayVisible: Bool
+    /// 今天相对窗口的方位；状态栏的「回到今天」按它加方向箭头。
+    public var todaySide: TodaySide
     public var hiddenTaskCount: Int
     public var selectionSummary: String?
     /// 缩放指示（档位 + 日宽读数），替代 v0.8.5 的 `zoomLabel` / `zoomDetail` 文案。
@@ -59,6 +61,7 @@ public struct StatusBarSnapshot: Hashable, Sendable {
         visibleStart: Date? = nil,
         visibleEnd: Date? = nil,
         todayVisible: Bool = false,
+        todaySide: TodaySide = .none,
         hiddenTaskCount: Int = 0,
         selectionSummary: String? = nil,
         zoom: ZoomIndicator
@@ -74,6 +77,7 @@ public struct StatusBarSnapshot: Hashable, Sendable {
         self.visibleStart = visibleStart
         self.visibleEnd = visibleEnd
         self.todayVisible = todayVisible
+        self.todaySide = todaySide
         self.hiddenTaskCount = hiddenTaskCount
         self.selectionSummary = selectionSummary
         self.zoom = zoom
