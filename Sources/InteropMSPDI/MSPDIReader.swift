@@ -283,6 +283,8 @@ struct MSPDIReader {
                     ),
                     constraint: constraint,
                     calendarID: calendarID(node.child("CalendarUID")),
+                    // 手动排期：MS Project 写在元素属性上（Manual="1"）。
+                    isManuallyScheduled: node.attributes["Manual"] == "1",
                     attributes: makeAttributes(node, fieldsByID: fieldsByID)
                 )
             )

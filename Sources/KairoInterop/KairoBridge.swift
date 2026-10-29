@@ -120,6 +120,8 @@ public struct KairoBridge: Sendable {
                 progress: interop.progress,
                 constraint: constraint,
                 schedulingPolicy: mapPolicy(interop.constraint),
+                // 手目标记（MS Project Manual="1" / 互操作 IR）→ 手动排期。
+                schedulingMode: interop.isManuallyScheduled ? .manual : .auto,
                 completedAt: interop.actualFinish,
                 assignments: assignmentsByTask[interop.id] ?? [],
                 actualStart: interop.actualStart

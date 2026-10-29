@@ -13,12 +13,15 @@ import FoundationXML
 final class XMLNode {
     let name: String
     let namespaceURI: String?
+    /// 元素属性（MS Project 把 `Manual="1"`、`Type="1"` 这类标志放在属性上，不在子节点里）。
+    let attributes: [String: String]
     private(set) var rawText: String = ""
     private(set) var children: [XMLNode] = []
 
-    init(name: String, namespaceURI: String?) {
+    init(name: String, namespaceURI: String?, attributes: [String: String] = [:]) {
         self.name = name
         self.namespaceURI = namespaceURI
+        self.attributes = attributes
     }
 
     /// 去空白后的文本。
@@ -85,7 +88,7 @@ final class XMLTreeBuilder: NSObject, XMLParserDelegate {
         qualifiedName qName: String?,
         attributes attributeDict: [String: String] = [:]
     ) {
-        let node = XMLNode(name: elementName, namespaceURI: namespaceURI)
+        let node = XMLNode(name: elementName, namespaceURI: namespaceURI, attributes: attributeDict)
         if let parent = stack.last {
             parent.append(node)
         } else if root == nil {

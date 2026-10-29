@@ -520,7 +520,8 @@ private struct MSPDIEncoder {
 
         for (index, task) in document.tasks.enumerated() {
             let uid = taskPlan.uid(at: index)
-            lines.append(indent(2) + "<Task>")
+            // 手动排期：MS Project 用 XML 属性 Manual="1" 表示；自动任务不写该属性（缺省即自动）。
+            lines.append(indent(2) + (task.isManuallyScheduled ? "<Task Manual=\"1\">" : "<Task>"))
             lines.append(element("UID", String(uid), 3))
             lines.append(element("ID", String(index + 1), 3))
             if !task.title.isEmpty {

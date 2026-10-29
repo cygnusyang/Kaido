@@ -185,6 +185,9 @@ public struct InteropTask: Identifiable, Sendable, Equatable {
     public var constraint: InteropConstraint?
     /// 任务级日历 id；nil = 继承项目默认日历。
     public var calendarID: String?
+    /// 手动排期标记（MS Project `Manual="1"` / OmniPlan 的固定日期任务）。
+    /// Kairo 侧对应 `TaskItem.schedulingMode == .manual`。
+    public var isManuallyScheduled: Bool
     /// 自定义域值：键为字段名（`Text1` / `Date1`），值为来源原值。
     public var attributes: [String: String]
 
@@ -206,6 +209,7 @@ public struct InteropTask: Identifiable, Sendable, Equatable {
         dependencies: [InteropDependency] = [],
         constraint: InteropConstraint? = nil,
         calendarID: String? = nil,
+        isManuallyScheduled: Bool = false,
         attributes: [String: String] = [:]
     ) {
         self.id = id
@@ -225,6 +229,7 @@ public struct InteropTask: Identifiable, Sendable, Equatable {
         self.dependencies = dependencies
         self.constraint = constraint
         self.calendarID = calendarID
+        self.isManuallyScheduled = isManuallyScheduled
         self.attributes = attributes
     }
 }

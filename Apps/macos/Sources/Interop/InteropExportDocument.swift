@@ -81,6 +81,8 @@ enum InteropExportDocument {
                     dependencies: interopDependencies(of: task, implicit: implicit, hoursPerDay: hoursPerDay),
                     constraint: interopConstraint(task.constraint, policy: task.schedulingPolicy),
                     calendarID: nil,
+                    // 手动排期 → MS Project 的 Manual="1"；自动不写，保持与手写/他源文件的最小差异。
+                    isManuallyScheduled: task.schedulingMode == .manual,
                     attributes: kairoAttributes(of: task)
                 )
             )
