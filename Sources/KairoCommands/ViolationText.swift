@@ -59,6 +59,13 @@ public enum ViolationText {
                         + "（\(calendarDay(projectStart)) – \(calendarDay(projectEnd))），请调整任务开始日期",
                      "Task \"\(taskTitle(title, language))\" starts on \(calendarDay(taskStart)), outside the project window "
                         + "(\(calendarDay(projectStart)) – \(calendarDay(projectEnd))); adjust the task start date")
+        case .manualStartConflict(let title, let pinnedStart, let requiredStart):
+            return t(language,
+                     "任务「\(taskTitle(title, language))」为手动排期，钉在 \(calendarDay(pinnedStart))；"
+                        + "依赖要求最早 \(calendarDay(requiredStart)) 才能开始——按手动日期安排，请调整依赖或日期",
+                     "Task \"\(taskTitle(title, language))\" is manually scheduled on \(calendarDay(pinnedStart)); "
+                        + "its dependencies require \(calendarDay(requiredStart)) or later — keeping the manual date, adjust "
+                        + "the dependencies or the date")
         }
     }
 

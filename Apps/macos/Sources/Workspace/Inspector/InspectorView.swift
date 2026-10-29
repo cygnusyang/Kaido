@@ -324,6 +324,18 @@ private struct TaskInspectorContent: View {
             FieldRow(label: I18n.t("inspector.field.policy", "Scheduling policy")) {
                 readOnly(Display.scheduleTitle(task.schedulingPolicy))
             }
+            FieldRow(label: I18n.t("inspector.field.scheduling_mode", "Scheduling mode")) {
+                Picker("", selection: Binding(
+                    get: { task.schedulingMode },
+                    set: { store.dispatch(.setSchedulingMode(task.taskID, $0)) }
+                )) {
+                    Text(I18n.t("inspector.scheduling_mode.auto", "Automatic")).tag(TaskSchedulingMode.auto)
+                    Text(I18n.t("inspector.scheduling_mode.manual", "Manual")).tag(TaskSchedulingMode.manual)
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .disabled(task.isAggregate)
+            }
             if task.deadlineRisk {
                 Label(I18n.t("outline.deadline_risk.help", "Scheduled finish is after the due date"), systemImage: "exclamationmark.circle")
                     .font(.system(size: DesignTokens.captionFontSize))

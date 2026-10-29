@@ -48,6 +48,8 @@ public enum KairoErrorCode: String, Codable, Hashable, Sendable, CaseIterable {
     case constraintVsPrerequisite = "schedule_constraint_vs_prerequisite"
     /// F-0715 / D-022：任务开始日落在项目窗口之外（用户输入致因）。
     case startAfterProjectWindow = "schedule_start_after_project_window"
+    /// 手动排期任务：依赖要求的最早开始晚于用户钉死的日期（以手动为准，只报警）。
+    case manualStartConflict = "schedule_manual_start_conflict"
 
     // MARK: - storage（.kairo 读写）
 

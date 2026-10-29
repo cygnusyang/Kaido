@@ -926,10 +926,28 @@ final class WorkspaceStore: ObservableObject {
             // F-14-09 画布拖拽：同一 mergeKey 在连续节流提交间合并为一步撤销。
             // move 只带 startDate；resize 右端只带 durationDays；resize 左端两者都带。
             let mergeKey = durationDays == nil ? "canvas-move-\(id)" : "canvas-resize-\(id)"
+            // 拖自动任务 = 明确表达「我要这个日期」：自动转手动（对齐 OmniPlan / MS Project）。
+            // 只带 durationDays 的右端拖拽不算改日期，保持自动。
+            let becomesManual = startDate != nil
+                && (exportProject.tasks.first { $0.id == id }?.schedulingMode ?? .auto) == .auto
             update(id: id, mergeKey: mergeKey) {
                 var patch = TaskPatch()
                 if let startDate { patch.startDate = .set(startDate) }
                 if let durationDays { patch.durationDays = .set(durationDays) }
+                if becomesManual { patch.schedulingMode = .manual }
+                try self.session.updateTask(id: id, patch: patch)
+            }
+
+        case .setSchedulingMode(let id, let mode):
+            // 切到手动：把当前排期日钉进 startDate，避免模式切换时窗口/日期跳变。
+            // 切回自动：保留 startDate 作为「开始不早于」下界（可再手动清除），不静默丢用户输入。
+            let scheduledStart = snapshot.outline.rows.first { $0.id == id }?.scheduledStart
+            update(id: id, mergeKey: "scheduling-mode-\(id)") {
+                var patch = TaskPatch()
+                patch.schedulingMode = mode
+                if mode == .manual, let pinned = scheduledStart {
+                    patch.startDate = .set(pinned)
+                }
                 try self.session.updateTask(id: id, patch: patch)
             }
 

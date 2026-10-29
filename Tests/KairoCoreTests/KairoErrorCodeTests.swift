@@ -63,10 +63,11 @@ struct KairoErrorCodeTests {
         #expect(KairoErrorCode.cancelReasonRequired.rawValue == "model_cancel_reason_required")
     }
 
-    /// 违例相关 8 个码齐全（F-0704 / F-0715 的判据前置）。
+    /// 违例相关 9 个码齐全（F-0704 / F-0715 判据 + v1.3.6 的手动排期冲突）。
     @Test func scheduleCodesCoverEveryViolationReason() {
         let scheduleCodes = KairoErrorCode.allCases.filter { $0.rawValue.hasPrefix("schedule_") }
-        #expect(scheduleCodes.count == 8, "排期码应为 8 个，实际 \(scheduleCodes.count)")
+        #expect(scheduleCodes.count == 9, "排期码应为 9 个，实际 \(scheduleCodes.count)")
         #expect(KairoErrorCode.startAfterProjectWindow.rawValue == "schedule_start_after_project_window")
+        #expect(KairoErrorCode.manualStartConflict.rawValue == "schedule_manual_start_conflict")
     }
 }

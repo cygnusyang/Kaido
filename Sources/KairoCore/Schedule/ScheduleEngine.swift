@@ -61,9 +61,10 @@ public enum ScheduleEngine {
         let cycleSet = Set(cycleIDs)
         let successorMap = successorMap(of: tasks, byID: byID)
 
-        let earliest = forwardPass(
+        let (earliest, manualConflicts) = forwardPass(
             tasks: tasks, byID: byID, durations: durations, lowerBounds: lowerBounds,
-            startAnchor: startAnchor, dayZero: dayZero, cycleSet: cycleSet, workDays: workDays
+            startAnchor: startAnchor, dayZero: dayZero, cycleSet: cycleSet, workDays: workDays,
+            calendar: calendar
         )
         let anchor = endAnchor ?? (earliest.values.map(\.finish).max() ?? dayZero)
         let latest = backwardPass(
@@ -98,7 +99,8 @@ public enum ScheduleEngine {
             calendarAdjustments: calendarAdjustmentList(
                 adjustments, degenerate: workDays.isDegenerate,
                 startupDay: startAnchor ?? dayZero
-            )
+            ),
+            manualConflicts: manualConflicts.isEmpty ? nil : manualConflicts
         )
     }
 
@@ -261,11 +263,15 @@ public enum ScheduleEngine {
         startAnchor: Date?,
         dayZero: Date,
         cycleSet: Set<UUID>,
-        workDays: WorkDayResolver
-    ) -> [UUID: Window] {
+        workDays: WorkDayResolver,
+        calendar: Calendar
+    ) -> ([UUID: Window], [UUID: Date]) {
         let order = topologicalOrder(tasks, byID: byID)
         let base = startAnchor ?? dayZero
         var earliest: [UUID: Window] = [:]
+        // 手动排期：依赖要求的最早开始晚于用户钉死的日期时，记一条冲突供违例呈现。
+        // 日期本身仍以用户为准（对齐 OmniPlan / MS Project 的手动任务语义）。
+        var manualConflicts: [UUID: Date] = [:]
 
         // 群组作为前驱时，要用「子树聚合窗口」而不是它自己的占位窗口（issue #16）。
         var children: [UUID: [UUID]] = [:]
@@ -310,13 +316,19 @@ public enum ScheduleEngine {
                         workDays: workDays
                     ))
                 }
+                // 手动任务：startDate 是权威，依赖只能提出冲突、不能改写日期。
+                if task.schedulingMode == .manual, let pinnedRaw = task.startDate {
+                    let pinned = workDays.snapping(calendar.startOfDay(for: pinnedRaw))
+                    if start > pinned { manualConflicts[id] = start }
+                    start = pinned
+                }
                 // D3：起算日落在非工作日时向后吸附（里程碑同样适用），不拒绝、不跳过。
                 start = workDays.snapping(start)
                 let next = Window(start: start, finish: workDays.addingWorkDays(duration, to: start))
                 if pass == 1 || earliest[id] == nil { earliest[id] = next }
             }
         }
-        return earliest
+        return (earliest, manualConflicts)
     }
 
     /// 由一条相关性推出的后继「最早开始」下界（前向传播不等式反解）。

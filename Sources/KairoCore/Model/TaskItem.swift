@@ -44,6 +44,10 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     public var constraint: SchedulingConstraint?
     /// 调度策略（F-22-04 ASAP/ALAP）：默认尽可能早。
     public var schedulingPolicy: SchedulingPolicy
+    /// 排期方式（F-30 / 对齐 OmniPlan 约束模型）：自动 = 由依赖与约束推导；
+    /// 手动 = `startDate` 为权威，前驱延后不改写它的日期，冲突以违例呈现。
+    /// 老文件缺该键 → `.auto`（与引入前行为一致）。
+    public var schedulingMode: TaskSchedulingMode
     /// 实际结束（v0.12 / 07-actual-dates §2）：状态置 done 时记录，可人工修正。
     /// 复用 US-E3-01 的字段与磁盘键 `completedAt`，不另设 `actualFinish`。
     public var completedAt: Date?
@@ -74,6 +78,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         progress: Double = 0,
         constraint: SchedulingConstraint? = nil,
         schedulingPolicy: SchedulingPolicy = .asap,
+        schedulingMode: TaskSchedulingMode = .auto,
         completedAt: Date? = nil,
         assignments: [TaskAssignment] = [],
         actualStart: Date? = nil,
@@ -96,6 +101,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         self.progress = min(max(progress, 0), 1)
         self.constraint = constraint
         self.schedulingPolicy = schedulingPolicy
+        self.schedulingMode = schedulingMode
         self.completedAt = completedAt
         self.assignments = assignments
         self.actualStart = actualStart
@@ -114,7 +120,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id, title, notes, startDate, dueDate, priority, status, tags, assignee
         case kind, parentID, effortHours, durationDays, dependencies, progress
-        case constraint, schedulingPolicy, completedAt, assignments, actualStart
+        case constraint, schedulingPolicy, schedulingMode, completedAt, assignments, actualStart
         case cancelReason
     }
 
@@ -146,6 +152,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         // 新增字段缺失给默认值（ADR-011 前向兼容 / ADR-012 自定义解码）。
         constraint = try c.decodeIfPresent(SchedulingConstraint.self, forKey: .constraint)
         schedulingPolicy = try c.decodeIfPresent(SchedulingPolicy.self, forKey: .schedulingPolicy) ?? .asap
+        schedulingMode = try c.decodeIfPresent(TaskSchedulingMode.self, forKey: .schedulingMode) ?? .auto
         completedAt = try c.decodeIfPresent(Date.self, forKey: .completedAt)
         assignments = try c.decodeIfPresent([TaskAssignment].self, forKey: .assignments) ?? []
         // v0.12 新增：旧文件缺键 → nil，格式版本不变（ADR-011）。
@@ -173,6 +180,7 @@ public struct TaskItem: Identifiable, Codable, Hashable, Sendable {
         try c.encode(progress, forKey: .progress)
         try c.encodeIfPresent(constraint, forKey: .constraint)
         try c.encode(schedulingPolicy, forKey: .schedulingPolicy)
+        try c.encode(schedulingMode, forKey: .schedulingMode)
         try c.encodeIfPresent(completedAt, forKey: .completedAt)
         try c.encode(assignments, forKey: .assignments)
         try c.encodeIfPresent(actualStart, forKey: .actualStart)

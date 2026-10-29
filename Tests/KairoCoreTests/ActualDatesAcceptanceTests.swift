@@ -329,12 +329,13 @@ private func removingTaskKey(_ key: String, from data: Data) throws -> Data {
     #expect(loaded.tasks.first?.title == "旧任务")
 }
 
-/// 判据 10 后半：新文件被旧版本读回 —— 任务对象只多出 actualStart 一个键，且 nil 时不写键。
+/// 判据 10 后半：新文件被旧版本读回 —— 任务对象只多出**已知的新增键**（actualStart），且 nil 时不写键。
 @Test func encodedTaskAddsOnlyActualStartKey() throws {
     let withActual = Project()
     withActual.tasks = [TaskItem(title: "有实际开始", actualStart: t0)]
     let withKeys = try #require(try taskObjects(in: try KairoFile.encode(project: withActual)).first)
-    #expect(Set(withKeys.keys).subtracting(legacyTaskKeys) == ["actualStart"])
+    // v1.3.6 起再多出 schedulingMode（自动/手动排期，缺省 auto）；旧版本读回按缺省值处理。
+    #expect(Set(withKeys.keys).subtracting(legacyTaskKeys) == ["actualStart", "schedulingMode"])
 
     let withoutActual = Project()
     withoutActual.tasks = [TaskItem(title: "无实际开始")]

@@ -44,6 +44,9 @@ public enum ViolationReason: Codable, Hashable, Sendable {
         projectStart: Date,
         projectEnd: Date
     )
+    /// 手动排期冲突：依赖把开始推到 `requiredStart`，但用户把任务钉在 `pinnedStart`。
+    /// 语义是「以手动为准」，所以它是告警而不是错误顺延。
+    case manualStartConflict(taskTitle: String?, pinnedStart: Date, requiredStart: Date)
 
     /// 与 `KairoErrorCode` 的稳定映射（1:1，接口层按此输出 `code`）。
     public var code: KairoErrorCode {
@@ -56,6 +59,7 @@ public enum ViolationReason: Codable, Hashable, Sendable {
         case .constraintConflict: return .constraintVsDependency
         case .constraintUnmetByPrerequisite: return .constraintVsPrerequisite
         case .startAfterProjectWindow: return .startAfterProjectWindow
+        case .manualStartConflict: return .manualStartConflict
         }
     }
 
@@ -69,7 +73,8 @@ public enum ViolationReason: Codable, Hashable, Sendable {
              .negativeSlack(let title),
              .constraintConflict(let title, _, _),
              .constraintUnmetByPrerequisite(let title, _),
-             .startAfterProjectWindow(let title, _, _, _):
+             .startAfterProjectWindow(let title, _, _, _),
+             .manualStartConflict(let title, _, _):
             return title
         }
     }

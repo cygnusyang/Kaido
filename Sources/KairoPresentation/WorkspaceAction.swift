@@ -94,6 +94,8 @@ public enum WorkspaceAction: Equatable, Sendable {
     /// 甘特画布直接编辑（F-14-09）：拖条改期（仅 startDate）/ 拖端点改持续
     /// （仅 durationDays）/ 拖左端（两者同时，end 不变）。视图层日粒度吸附后提交。
     case canvasEditSchedule(UUID, startDate: Date?, durationDays: Double?)
+    /// 切换排期方式：自动（依赖驱动）/ 手动（日期钉死）。
+    case setSchedulingMode(UUID, TaskSchedulingMode)
     /// 大纲「前置」列的人工输入：`任务ID[:fs|ff|ss|sf[:延隔]]`，逗号/空格分隔多项。
     case setPredecessors(UUID, String)
     case move(UUID, parentID: UUID?, index: Int)

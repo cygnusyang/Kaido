@@ -75,6 +75,8 @@ public struct TaskPatch: Sendable {
     public var tags: [String]?
     public var kind: TaskKind?
     public var schedulingPolicy: SchedulingPolicy?
+    /// 排期方式：自动（依赖驱动）/ 手动（日期钉死）。
+    public var schedulingMode: TaskSchedulingMode?
     public var dependencies: [TaskDependency]?
     public var assignments: [TaskAssignment]?
     public var startDate: FieldPatch<Date> = .unchanged
@@ -460,6 +462,7 @@ public final class KairoSession {
             try validateKind(of: task, id: id, in: project)
         }
         if let schedulingPolicy = patch.schedulingPolicy { task.schedulingPolicy = schedulingPolicy }
+        if let schedulingMode = patch.schedulingMode { task.schedulingMode = schedulingMode }
         if let dependencies = patch.dependencies { task.dependencies = dependencies }
         if let assignments = patch.assignments { task.assignments = assignments }
         Self.apply(patch.startDate, to: &task.startDate)

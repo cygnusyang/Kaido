@@ -67,6 +67,14 @@ enum ViolationText {
                 Display.isoDate(projectStart),
                 Display.isoDate(projectEnd)
             )
+        case .manualStartConflict(_, let pinnedStart, let requiredStart):
+            return I18n.t(
+                "violation.manual_start_conflict.message",
+                "Task “%1$@” is manually scheduled on %2$@; dependencies require %3$@ or later — keeping the manual date, adjust the dependencies or the date",
+                title,
+                Display.isoDate(pinnedStart),
+                Display.isoDate(requiredStart)
+            )
         }
     }
 
@@ -92,6 +100,7 @@ enum ViolationText {
         case .constraintConflict: return "constraint_is_dependency"
         case .constraintUnmetByPrerequisite: return "constraint_is_prerequisite"
         case .startAfterProjectWindow: return "start_after_project_window"
+        case .manualStartConflict: return "manual_start_conflict"
         }
     }
 

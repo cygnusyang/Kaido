@@ -59,6 +59,7 @@ public enum ViolationEngine {
         violations += negativeSlackViolations(result: result, byID: byID, calendar: calendar)
         violations += constraintViolations(result: result, byID: byID, calendar: calendar)
         violations += constraintWindowViolations(result: result, byID: byID, calendar: calendar)
+        violations += manualConflictViolations(result: result, byID: byID)
         return violations
     }
 
@@ -69,6 +70,27 @@ public enum ViolationEngine {
     }
 
     // MARK: - F-30-08 环
+
+    /// 手动排期冲突：引擎在钉死日期时记录的「依赖要求的更晚开始」。
+    /// 语义以手动为准——这里只负责把它变成可见告警，不改排期结果。
+    private static func manualConflictViolations(
+        result: ScheduleResult,
+        byID: [UUID: TaskItem]
+    ) -> [Violation] {
+        guard let conflicts = result.manualConflicts, !conflicts.isEmpty else { return [] }
+        let scheduledByID = Dictionary(uniqueKeysWithValues: result.tasks.map { ($0.taskID, $0) })
+        return conflicts.compactMap { taskID, requiredStart in
+            guard let scheduled = scheduledByID[taskID] else { return nil }
+            return Violation(
+                reason: .manualStartConflict(
+                    taskTitle: title(taskID, byID),
+                    pinnedStart: scheduled.scheduledStart,
+                    requiredStart: requiredStart
+                )
+            )
+        }
+        .sorted { $0.code.rawValue < $1.code.rawValue }
+    }
 
     private static func cycleViolations(result: ScheduleResult, byID: [UUID: TaskItem]) -> [Violation] {
         result.cycleTaskIDs.map { id in

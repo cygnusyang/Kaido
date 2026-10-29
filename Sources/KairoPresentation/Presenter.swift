@@ -1019,6 +1019,7 @@ public enum WorkspacePresenter {
             completedAt: isGroup ? nil : task.completedAt,
             constraint: task.constraint,
             schedulingPolicy: task.schedulingPolicy,
+            schedulingMode: task.schedulingMode,
             isAggregate: isGroup,
             hasSchedule: hasSchedule,
             unscheduledReason: unscheduledReason(task, hasSchedule),

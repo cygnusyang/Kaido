@@ -98,6 +98,9 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
     public var unscheduledTaskIDs: [UUID]
     /// 本次排期发生的日期吸附（F-22-06 / D3）；空 = 没有输入落在非工作日。
     public var calendarAdjustments: [CalendarAdjustment]
+    /// 手动排期冲突：任务 ID → 依赖要求的「最早开始」（晚于用户钉死的日期）。
+    /// nil / 空 = 无冲突。供 `ViolationEngine` 转成 `manualStartConflict` 违例。
+    public var manualConflicts: [UUID: Date]?
 
     public init(
         tasks: [ScheduledTask],
@@ -108,7 +111,8 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
         projectStartDerived: Bool = false,
         projectStartSource: ScheduleAnchor.Source = .projectStart,
         unscheduledTaskIDs: [UUID] = [],
-        calendarAdjustments: [CalendarAdjustment] = []
+        calendarAdjustments: [CalendarAdjustment] = [],
+        manualConflicts: [UUID: Date]? = nil
     ) {
         self.tasks = tasks
         self.projectStart = projectStart
@@ -119,6 +123,7 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
         self.projectStartSource = projectStartSource
         self.unscheduledTaskIDs = unscheduledTaskIDs
         self.calendarAdjustments = calendarAdjustments
+        self.manualConflicts = manualConflicts
     }
 
     // MARK: - Codable 兼容（ADR-011）
@@ -126,7 +131,7 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case tasks, projectStart, projectEnd, direction, cycleTaskIDs
         case projectStartDerived, projectStartSource, unscheduledTaskIDs
-        case calendarAdjustments
+        case calendarAdjustments, manualConflicts
     }
 
     public init(from decoder: Decoder) throws {
@@ -143,6 +148,7 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
             ScheduleAnchor.Source.self, forKey: .projectStartSource
         ) ?? (projectStartDerived ? .earliestTaskStart : .projectStart)
         unscheduledTaskIDs = try c.decodeIfPresent([UUID].self, forKey: .unscheduledTaskIDs) ?? []
+        manualConflicts = try c.decodeIfPresent([UUID: Date].self, forKey: .manualConflicts)
         calendarAdjustments = try c.decodeIfPresent(
             [CalendarAdjustment].self, forKey: .calendarAdjustments
         ) ?? []
@@ -158,6 +164,9 @@ public struct ScheduleResult: Codable, Hashable, Sendable {
         try c.encode(projectStartDerived, forKey: .projectStartDerived)
         try c.encode(projectStartSource, forKey: .projectStartSource)
         try c.encode(unscheduledTaskIDs, forKey: .unscheduledTaskIDs)
+        if let manualConflicts, !manualConflicts.isEmpty {
+            try c.encode(manualConflicts, forKey: .manualConflicts)
+        }
         if !calendarAdjustments.isEmpty {
             try c.encode(calendarAdjustments, forKey: .calendarAdjustments)
         }

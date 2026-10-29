@@ -252,6 +252,8 @@ public struct TaskInspector: Hashable, Sendable {
     public var completedAt: Date?
     public var constraint: SchedulingConstraint?
     public var schedulingPolicy: SchedulingPolicy
+    /// 排期方式：自动（依赖驱动）/ 手动（日期钉死）。
+    public var schedulingMode: TaskSchedulingMode
     public var isAggregate: Bool
     public var hasSchedule: Bool
     public var unscheduledReason: UnscheduledReason?
@@ -285,6 +287,7 @@ public struct TaskInspector: Hashable, Sendable {
         completedAt: Date? = nil,
         constraint: SchedulingConstraint? = nil,
         schedulingPolicy: SchedulingPolicy = .asap,
+        schedulingMode: TaskSchedulingMode = .auto,
         isAggregate: Bool = false,
         hasSchedule: Bool = false,
         unscheduledReason: UnscheduledReason? = nil,
@@ -319,6 +322,7 @@ public struct TaskInspector: Hashable, Sendable {
         self.completedAt = completedAt
         self.constraint = constraint
         self.schedulingPolicy = schedulingPolicy
+        self.schedulingMode = schedulingMode
         self.isAggregate = isAggregate
         self.hasSchedule = hasSchedule
         self.unscheduledReason = unscheduledReason

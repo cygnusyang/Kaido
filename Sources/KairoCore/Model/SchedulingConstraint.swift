@@ -35,6 +35,18 @@ public enum SchedulingConstraint: Codable, Hashable, Sendable {
     }
 }
 
+/// 排期方式：自动（依赖驱动）/ 手动（日期钉死）。
+///
+/// 手动任务：`startDate` 是权威，前驱延后**不改写**它的日期；冲突以
+/// `Violation.Kind.manualStartConflict` 呈现，而不是静默顺延。
+/// 后继仍按手动任务的结束日继续链下去（与 MS Project 的手动排期一致）。
+public enum TaskSchedulingMode: String, Codable, CaseIterable, Sendable {
+    /// 由依赖与约束推导（默认）。
+    case auto
+    /// 日期固定；拖动任务条会直接改写日期，不产生约束。
+    case manual
+}
+
 /// 任务调度策略（F-22-04 ASAP/ALAP）：尽可能早 / 尽可能晚。
 /// 默认 asap；调度引擎按策略在最早/最晚可行窗口间选定安排。
 public enum SchedulingPolicy: String, Codable, CaseIterable, Sendable {
