@@ -71,7 +71,7 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
 fi
 
 if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
-  fail "本地已存在 tag $TAG（若上次发版中断在推送前，确认产物无误后手动补齐：git push origin refs/tags/$TAG）"
+  fail "本地已存在 tag ${TAG}（若上次发版中断在推送前，确认产物无误后手动补齐：git push origin refs/tags/${TAG}）"
 fi
 if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
   fail "远端已存在 tag ${TAG}（远端不可达时忽略此检查）"
