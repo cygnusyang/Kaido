@@ -120,18 +120,21 @@ struct GanttRenderPerformanceTests {
         )
     }
 
-    /// 横向翻窗（增量快照）的单次耗时 —— 60Hz 单帧预算的取证与门禁（D-038）。
+    /// 横向翻窗（增量快照）相对判据 —— 与同环境下的全量重建比倍数（D-038、#27）。
     ///
     /// 走 `WorkspacePresenter.makeWindowPan`：只重建甘特与状态栏，复用大纲与检查器。
-    /// 这是 1,000 行 × 3 基线的最重负载（30 个窗口内可见条 + 3000 条基线细条都要随窗口平移），
-    /// 因此门禁直接按帧预算写，不再退化成 sanity 上限：
-    /// release ≤ 16.7ms（60Hz），debug ≤ 50ms（同口径留 3 倍余量，本地日常回归也有约束力）。
+    ///
+    /// **不写墙钟绝对阈值**：本用例曾在固定 50ms 预算下按机型漂移假红（#27：实测
+    /// 50.98–51.58ms，5 次红 3 次；同一份代码在快机器上只要 8.5ms）。现在基线取
+    /// 「同一份数据、同一进程、紧邻执行」的 `WorkspacePresenter.make` 全量重建耗时：
+    /// 两者共享 CPU 与并发负载，相除即抵消机型差异与共享 runner 的抖动。
+    /// 被断言的是 D-038 的架构契约本身——翻窗只重建甘特，必须显著快于整体重建；
+    /// 一旦退化成整体重建（重建量被悄悄放大），比值逼近 1 即变红。
     /// 正确性由 `GanttWindowPanEqualityTests` 逐窗口比对（增量结果 == 全量重建）。
-    @Test func windowPanKeepsSnapshotRebuildWithinFrameBudget() throws {
+    @Test func windowPanKeepsSnapshotRebuildWithinFrameBudget() {
         let fixture = makeFixture()
         var viewState = WorkspaceViewState()
         viewState.visibleBaselineIDs = Set(fixture.baselines.map(\.id))
-        viewState.windowStart = projectStart
         let viewport = WorkspaceViewport(canvasWidth: 1_280, canvasHeight: 720)
 
         func fullSnapshot() -> WorkspaceSnapshot {
@@ -147,28 +150,12 @@ struct GanttRenderPerformanceTests {
             )
         }
 
-        // 预热：首轮含惰性初始化成本，不计入统计。
-        var previous = fullSnapshot()
-        viewState.windowStart = testCalendar.date(byAdding: .day, value: 1, to: projectStart)
-        previous = WorkspacePresenter.makeWindowPan(
-            previous: previous,
-            state: fixture.state,
-            schedule: fixture.schedule,
-            viewState: viewState,
-            viewport: viewport,
-            saveState: .saved,
-            calendar: testCalendar,
-            locale: testLocale,
-            now: now
-        )
-
-        var samples: [Double] = []
-        for step in 0..<10 {
+        /// 从上一帧翻窗到 `projectStart + dayOffset` 天。
+        func pan(from previous: WorkspaceSnapshot, dayOffset: Int) -> WorkspaceSnapshot {
             viewState.windowStart = testCalendar.date(
-                byAdding: .day, value: step + 2, to: projectStart
+                byAdding: .day, value: dayOffset, to: projectStart
             )
-            let started = DispatchTime.now().uptimeNanoseconds
-            previous = WorkspacePresenter.makeWindowPan(
+            return WorkspacePresenter.makeWindowPan(
                 previous: previous,
                 state: fixture.state,
                 schedule: fixture.schedule,
@@ -179,44 +166,85 @@ struct GanttRenderPerformanceTests {
                 locale: testLocale,
                 now: now
             )
-            samples.append(Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000)
+        }
+
+        // 预热：首轮含惰性初始化成本（字体度量、日历缓存），不计入统计；两条路径都要预热，
+        // 否则基线与被测值冷热不均，比值本身就带系统偏差。
+        viewState.windowStart = projectStart
+        var previous = fullSnapshot()
+        var warmedFull = previous
+        for step in 0..<Self.warmupCount {
+            warmedFull = fullSnapshot()
+            previous = pan(from: previous, dayOffset: step + 1)
+        }
+
+        var measuredFull = previous
+        var fullSamples: [Double] = []
+        var panSamples: [Double] = []
+        for step in 0..<Self.iterationCount {
+            let dayOffset = Self.warmupCount + step + 1
+            // 交替采样：同一轮里的负载毛刺同时落在基线与被测值上；先跑完一侧再跑另一侧，
+            // 会把「后半段变热 / 被抢 CPU」整体记到某一侧，比值直接失真。
+            let fullStarted = DispatchTime.now().uptimeNanoseconds
+            measuredFull = fullSnapshot()
+            fullSamples.append(Double(DispatchTime.now().uptimeNanoseconds - fullStarted) / 1_000_000)
+
+            let panStarted = DispatchTime.now().uptimeNanoseconds
+            previous = pan(from: previous, dayOffset: dayOffset)
+            panSamples.append(Double(DispatchTime.now().uptimeNanoseconds - panStarted) / 1_000_000)
         }
 
         // 前提：确实复用了 1000 行大纲，且甘特/基线细条随窗口重建（否则测的是空动作）。
+        #expect(measuredFull.outline.rows.count == rowCount, "全量重建的行数与翻窗同源")
+        #expect(warmedFull.gantt.baselineLanes.baselineTops.count == baselineCount, "预热帧已构造基线泳道")
         #expect(previous.outline.rows.count == rowCount)
         let barCount = previous.gantt.baselineBars.values.reduce(0) { $0 + $1.count }
-        #expect(barCount > 0, "基线细条应随窗口重建")
+        #expect(barCount == rowCount * baselineCount, "基线细条应随窗口重建")
         #expect(previous.gantt.windowStart == viewState.windowStart, "窗口起点跟随翻窗")
 
-        let average = samples.reduce(0, +) / Double(samples.count)
-        let worst = samples.max() ?? .infinity
-        #expect(average <= Self.frameBudgetMilliseconds,
-            "1000 行 × 3 基线横向翻窗单次平均 \(String(format: "%.1f", average)) ms，超出 \(Self.frameBudgetLabel) 单帧预算 \(Self.frameBudgetMilliseconds) ms")
+        let fullMedian = Self.median(fullSamples)
+        let panMedian = Self.median(panSamples)
+        let ratio = panMedian / fullMedian
         print(String(
-            format: "[gantt-render-perf] 1000 行 × %d 基线横向翻窗（%@，ms）：%@；平均 %.2f；最差 %.2f（预算 %.1f）",
+            format: "[gantt-render-perf] 横向翻窗 vs 全量重建（1000 行 × %d 基线，ms）："
+                + "翻窗中位 %.2f（%@）；全量重建中位 %.2f（%@）；比值 %.2f（上限 %.2f）",
             baselineCount,
-            Self.frameBudgetLabel,
-            samples.map { String(format: "%.2f", $0) }.joined(separator: ", "),
-            average,
-            worst,
-            Self.frameBudgetMilliseconds
+            panMedian,
+            panSamples.map { String(format: "%.2f", $0) }.joined(separator: ", "),
+            fullMedian,
+            fullSamples.map { String(format: "%.2f", $0) }.joined(separator: ", "),
+            ratio,
+            Self.panToFullRebuildRatioLimit
         ))
+
+        #expect(
+            panMedian <= fullMedian * Self.panToFullRebuildRatioLimit,
+            "横向翻窗中位 \(String(format: "%.2f", panMedian)) ms 是全量重建中位 \(String(format: "%.2f", fullMedian)) ms 的 \(String(format: "%.2f", ratio)) 倍，超出上限 \(Self.panToFullRebuildRatioLimit) 倍（疑似翻窗退化为整体重建）"
+        )
+        // 病态兜底：只防「卡死」，不防「慢一点」——慢一点的判别由上面的比值负责，
+        // 把绝对数字当作帧预算用，就是 #27 那种按机型漂移假的来源。
+        #expect(
+            panMedian < Self.pathologicalCeilingMilliseconds,
+            "横向翻窗中位 \(String(format: "%.2f", panMedian)) ms 超出病态上限 \(Self.pathologicalCeilingMilliseconds) ms（疑似死循环或数量级回归）"
+        )
     }
 
-    /// 单帧预算：release 按 60Hz（16.7ms），debug 留 3 倍余量（50ms）。
-    static var frameBudgetMilliseconds: Double {
-        #if DEBUG
-        return 50
-        #else
-        return 16.7
-        #endif
-    }
+    /// 采样轮数：每轮 = 一次全量重建 + 一次翻窗（本机约 50ms），连同预热约 0.5s。
+    static let iterationCount = 7
+    /// 预热轮数：两条路径各预热一次，抹掉首轮的惰性初始化成本。
+    static let warmupCount = 2
+    /// 翻窗 / 全量重建 的耗时比上限：实测本机 ≈ 0.20，留 2.5 倍裕量。
+    static let panToFullRebuildRatioLimit = 0.5
+    /// 病态兜底上限：只防「卡死」，不防「慢一点」。
+    static let pathologicalCeilingMilliseconds = 500.0
 
-    static var frameBudgetLabel: String {
-        #if DEBUG
-        return "debug"
-        #else
-        return "release"
-        #endif
+    /// 中位数：墙钟样本右侧有长尾（被抢占 / 被降频），取平均会被整体抬高。
+    private static func median(_ samples: [Double]) -> Double {
+        let sorted = samples.sorted()
+        guard !sorted.isEmpty else { return .infinity }
+        let middle = sorted.count / 2
+        return sorted.count.isMultiple(of: 2)
+            ? (sorted[middle - 1] + sorted[middle]) / 2
+            : sorted[middle]
     }
 }
