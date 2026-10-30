@@ -21,6 +21,20 @@ import KairoPresentation
 // - entryStaysClickableAfterPanningFarRight：朝右平移到排期之外后，视口里找不到可点入口。
 // entryIsLocatableAtTopOfViewport 是定位器的自检（必须绿），否则上面两条的红可能是
 // 「压根没找到按钮」这种假红。
+//
+// 并发口径（v1.5.0，run 41092594401 之后定的）：
+// - 本套件建真离屏窗口、渲染整块工作台，全程占主 actor；OTA 那批「起进程 + 等结果文件」的
+//   用例靠真实时钟推进。两批在同一个测试进程里并行会互相拖慢，CI 上表现为本套件 54s、
+//   OTA 的 1.5s 时限断言同时红。因此本套件保持 .serialized，并且：
+//   ① 不碰任何进程级状态（NSApp.setActivationPolicy / activate / finishLaunching /
+//      makeKeyAndOrderFront 一个都没有）——只建离屏窗口，不改全局；
+//   ② 不依赖「建视图之后 SwiftUI 何时把重排落下来」这条异步链路：入口出现与否只由快照的
+//      navigation 决定，所以先在 store 上移窗、再建视图，首帧布局就带着入口；
+//   ③ 等待一律**按轮次**计而不是按墙钟计，且让出主 actor 用 await（用例写成 async）。
+//      主 actor 被别的 GUI 用例占满时，一次 50ms 的让出实测要十几秒才回来
+//      （本地全量实测：一次让出 13s），墙钟预算会在轮到我们之前就到期——旧写法
+//      「6s 超时」在这种情形下只够轮一圈，于是报「视口里没有入口」，正是 CI 上的红。
+//   ④ 最贵的一步（整树 hitTest）只在布局稳定后做一次，不放进轮询循环。
 
 @Suite(.serialized)
 @MainActor
@@ -32,8 +46,15 @@ struct ReturnToScheduleEntryTests {
     private struct Candidate {
         let view: NSView
         let rect: CGRect
-        let isHitTestable: Bool
     }
+
+    /// 轮询步长：一拍让出主 actor 一个 50ms 的时间片。
+    /// 别调到 20ms 以下——CI 上 1600+ 用例并发时，每次醒来都要重走一遍视图树，
+    /// 醒得越勤反而越抢不到主 actor（每轮的成本比步长还大）。
+    private static let pollNanos: UInt64 = 50_000_000
+    /// 纯防挂死的墙钟上限：正常路径轮不到它（条件一成立就返回），它只在真失败时兜底，
+    /// 免得一个卡住的夹具把整个测试进程拖到看门狗那里。
+    private static let hardCeiling: TimeInterval = 120
 
     private struct Fixture {
         let window: NSWindow
@@ -85,12 +106,28 @@ struct ReturnToScheduleEntryTests {
 
     /// 真 WorkspaceView（不是只挂 TimelineBody）：入口一旦被移到视口层（滚动容器之外），
     /// 只挂画布的夹具就测不到——D-054 的修复面恰好在这一层。
-    private func makeFixture(width: CGFloat = 900, height: CGFloat = 520) throws -> Fixture {
+    ///
+    /// `pannedBeyondSchedule` 为真时**先移窗、后建视图**。入口出现与否完全由快照的
+    /// navigation 裁定（视图不自己再判一遍），所以这样拿到的首帧就带着入口，用例不再依赖
+    /// 「建视图之后 SwiftUI 何时把重排落下来」——CI 上 1600+ 用例并发抢主 actor 时，那条
+    /// 链路能拖到几秒不落地（run 41092594401：本套件两个用例因此红）。
+    private func makeFixture(
+        pannedBeyondSchedule: Bool = false,
+        width: CGFloat = 900,
+        height: CGFloat = 520
+    ) async throws -> Fixture {
         let store = makeStore()
         store.setViewport(canvasWidth: width, canvasHeight: height)
         let url = try makeProject()
         store.open(url: url)
         store.dispatch(.setZoom(.day))
+        if pannedBeyondSchedule {
+            // 前提不成立就地失败：拿一个「窗口其实还在排期里」的库去测入口，测的是别的东西。
+            #expect(
+                panBeyondSchedule(store),
+                "夹具前提：移窗后窗口应落在排期之后，实测 \(String(describing: store.snapshot.gantt.navigation))"
+            )
+        }
 
         let view = WorkspaceView(
             store: store,
@@ -123,8 +160,8 @@ struct ReturnToScheduleEntryTests {
             projectDirectory: url.deletingLastPathComponent()
         )
         // 夹具前提：画布滚动容器已经落成、且内容高过视口（能滚）。
-        // 全量并行时这一步会晚几百毫秒，必须条件等待，不能抓一次。
-        let ready = waitFor(timeout: 8) {
+        // 容器由第一次布局落成，条件等待兜住「这一拍还没轮到我们」的情况。
+        let ready = await waitFor {
             guard let scrollView = canvasScrollView(fixture) else { return false }
             return (scrollView.documentView?.frame.height ?? 0) > height
         }
@@ -162,12 +199,22 @@ struct ReturnToScheduleEntryTests {
     }
 
     /// 轮询到条件成立（离屏窗口没有 display link，布局是异步落下来的；不用固定睡眠）。
+    ///
+    /// **按轮次计，不按墙钟计**：CI 上 1600+ 用例并发抢主 actor 时，一次 50ms 的让出
+    /// 可能几百毫秒才回来，墙钟预算会先于机会用完——run 41092594401 就是这么红的
+    /// （entryIsPresentAndClickableAtEveryScrollOffset 18.9s 全耗在超时上）。按轮次则
+    /// 机器再慢也一定给足这么多圈，空闲时第一圈就返回。
+    ///
+    /// **让出主 actor 必须用 await，不能用 RunLoop.run**：同步占着主 actor 时 SwiftUI 的
+    /// 重排 job 排不上队，实测同一场景要十几秒才落地（2026-10-30 全量实测：同步版
+    /// 13.7s，改成 await 后 0.7s）。这也是本套件用例都写成 async 的原因。
     @discardableResult
-    private func waitFor(timeout: TimeInterval = 5, _ condition: () -> Bool) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
+    private func waitFor(rounds: Int = 60, _ condition: () -> Bool) async -> Bool {
+        let ceiling = Date().addingTimeInterval(Self.hardCeiling)
+        for _ in 0..<rounds {
             if condition() { return true }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+            if Date() > ceiling { break }
+            try? await Task.sleep(nanoseconds: Self.pollNanos)
         }
         return condition()
     }
@@ -195,8 +242,18 @@ struct ReturnToScheduleEntryTests {
             // 按钮都是矮条：整块可聚焦区域（画布本体）高几百点，据此排除。
             guard rect.height >= 8, rect.height <= 48,
                   rect.width >= 8, rect.width <= viewport.width + 1 else { return nil }
-            let hit = fixture.host.hitTest(CGPoint(x: rect.midX, y: rect.midY))
-            return Candidate(view: view, rect: rect, isHitTestable: hit != nil)
+            return Candidate(view: view, rect: rect)
+        }
+    }
+
+    /// 可点的那部分候选：命中测试在按钮中心落到了东西（没被盖住）。
+    ///
+    /// hitTest 要从上到下走整棵树，是这条用例里最贵的一步；所以只在布局稳定后对
+    /// 少数候选做一次，不放进轮询循环里反复做。
+    private func clickable(_ candidates: [Candidate], in fixture: Fixture) -> [Candidate] {
+        candidates.filter { candidate in
+            let point = CGPoint(x: candidate.rect.midX, y: candidate.rect.midY)
+            return fixture.host.hitTest(point) != nil
         }
     }
 
@@ -239,23 +296,46 @@ struct ReturnToScheduleEntryTests {
     /// 返回空数组 = 到点仍找不到入口（真红）；返回非空但点不到 = 被别的东西盖住。
     /// 禁止「滚一下、抓一次快照」：全量跑时机器负载高，一次快照读到的是还没重排的旧帧
     /// （2026-10-30 实测：单跑 4 绿、全量 2 红，根因就是它）。
+    ///
+    /// 每轮先 layoutSubtreeIfNeeded 把待处理的布局落下来再取样，并把 hitTest 推后到
+    /// 稳定之后——这样一次的轮询成本只剩两次视图树遍历，而不是「遍历 + 每个候选一次命中测试」。
     @discardableResult
-    private func waitForEntry(in fixture: Fixture, timeout: TimeInterval = 6) -> [Candidate] {
+    private func waitForEntry(in fixture: Fixture, rounds: Int = 60) async -> [Candidate] {
         var previous: [CGRect] = []
         var last: [Candidate] = []
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
+        let ceiling = Date().addingTimeInterval(Self.hardCeiling)
+        for _ in 0..<rounds {
             let found = inViewportCandidates(fixture)
             let rects = found.map(\.rect)
+            last = found
             if !found.isEmpty,
-               !found.filter({ $0.isHitTestable }).isEmpty,
                rects.count == previous.count,
-               zip(rects, previous).allSatisfy({ rectsMatch($0, $1) }) {
+               zip(rects, previous).allSatisfy({ rectsMatch($0, $1) }),
+               !clickable(found, in: fixture).isEmpty {
                 return found
             }
             previous = rects
-            last = found
-            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+            if Date() > ceiling { break }
+            try? await Task.sleep(nanoseconds: Self.pollNanos)
+        }
+        return last
+    }
+
+    /// 等到视口里出现可点入口，**不要求帧间稳定**。
+    ///
+    /// 只给自检用例用：它要证明的是「定位器认得出口」，帧间稳定是判据 1 的事。
+    /// 自检刻意走「先建视图、后移窗」（活视图重排）这条路径，而重排期间候选集合会变，
+    /// 拿稳定判据去等它，等于让自检替判据 1 背一份它背不起的责任。
+    @discardableResult
+    private func waitForAnyEntry(in fixture: Fixture, rounds: Int = 60) async -> [Candidate] {
+        var last: [Candidate] = []
+        let ceiling = Date().addingTimeInterval(Self.hardCeiling)
+        for _ in 0..<rounds {
+            let found = inViewportCandidates(fixture)
+            if !found.isEmpty { last = found }
+            if !found.isEmpty, !clickable(found, in: fixture).isEmpty { return found }
+            if Date() > ceiling { break }
+            try? await Task.sleep(nanoseconds: Self.pollNanos)
         }
         return last
     }
@@ -263,46 +343,60 @@ struct ReturnToScheduleEntryTests {
     // MARK: - 纵向滚动
 
     @discardableResult
-    private func scroll(_ fixture: Fixture, to offset: CGFloat) -> CGFloat {
+    private func scroll(_ fixture: Fixture, to offset: CGFloat) async -> CGFloat {
         guard let scrollView = canvasScrollView(fixture) else { return -1 }
         scrollView.contentView.scroll(to: NSPoint(x: 0, y: offset))
         scrollView.reflectScrolledClipView(scrollView.contentView)
         // 滚动 → SwiftUI 重算 offset → 重排，是异步链路：条件等待落位（每轮重新解析容器）。
-        waitFor {
+        await waitFor {
             guard let current = canvasScrollView(fixture) else { return false }
             return abs(current.contentView.bounds.origin.y - offset) <= 1
         }
         return canvasScrollView(fixture)?.contentView.bounds.origin.y ?? -1
     }
 
-    /// 把窗口平移到排期**之后**（用户「朝右滚动」到底的形态），并断言夹具前提成立。
-    private func panBeyondSchedule(_ fixture: Fixture) {
+    /// 把窗口平移到排期**之后**（用户「朝右滚动」到底的形态）。
+    ///
+    /// dispatch 是同步的（mutateView → refresh 当场重算快照），所以这里不需要等；
+    /// 返回前提是否成立，供夹具就地 #expect。
+    @discardableResult
+    private func panBeyondSchedule(_ store: WorkspaceStore) -> Bool {
         let start = calendar.date(from: DateComponents(year: 2025, month: 1, day: 6))!
         let target = calendar.date(byAdding: .day, value: 150, to: start)!
-        fixture.store.dispatch(.panWindow(to: target))
-        waitFor {
-            let gantt = fixture.store.snapshot.gantt
-            return gantt.bars.isEmpty && gantt.windowStart >= (gantt.contentEnd ?? .distantPast)
-        }
+        store.dispatch(.panWindow(to: target))
+        let gantt = store.snapshot.gantt
+        return gantt.bars.isEmpty && gantt.windowStart >= (gantt.contentEnd ?? .distantPast)
+    }
+
+    /// 视图已经在场时移窗：走的是「重排后入口出现」这条路径。
+    /// 只给自检用例用（它要证明定位器在活视图上也能找到入口）。
+    ///
+    /// 这里**不等**视图追上：快照是同步的，视图的重排由随后的 waitForEntry 轮询去催。
+    /// 多等一道只会多花一份预算，而 waitForEntry 本来就是等入口的那一处。
+    private func panBeyondSchedule(afterBuild fixture: Fixture) {
+        fixture.host.layoutSubtreeIfNeeded()
+        panBeyondSchedule(fixture.store)
     }
 
     // MARK: - 自检：定位器能在视口里找到按钮
 
     /// 定位器自检（任何实现下都该绿）：纵向未滚动时，视口里至少有一个可点按钮。
     /// 这条红了先查夹具/定位器，不要据此判定实现有问题——否则后面两条的红全是假红。
-    @Test func entryIsLocatableAtTopOfViewport() throws {
-        let fixture = try makeFixture()
+    @Test func entryIsLocatableAtTopOfViewport() async throws {
+        // 唯独这条刻意「先建视图、后移窗」：它要证明定位器在**活视图重排之后**也能找到入口，
+        // 而不只是认得冷渲染的首帧。其余三条走先移窗后建视图，不依赖重排时序。
+        let fixture = try await makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.projectDirectory) }
-        panBeyondSchedule(fixture)
-        scroll(fixture, to: 0)
+        panBeyondSchedule(afterBuild: fixture)
+        await scroll(fixture, to: 0)
 
-        let found = waitForEntry(in: fixture)
+        let found = await waitForAnyEntry(in: fixture)
         #expect(
             !found.isEmpty,
             "视口里一个按钮都没定位到（夹具/定位器问题优先排查）：viewport=\(viewportRect(fixture)) candidates=\(candidates(in: fixture).map(\.rect))"
         )
         // 宏里不写函数式谓词：Testing 的 #expect 会把 contains(where:) 当 rethrows 调用，编译不过。
-        let hitTestable = found.filter { $0.isHitTestable }
+        let hitTestable = clickable(found, in: fixture)
         #expect(
             !hitTestable.isEmpty,
             "定位到的按钮都点不到（hitTest 为空）：\(found.map(\.rect))"
@@ -319,10 +413,11 @@ struct ReturnToScheduleEntryTests {
     ///
     /// 位置不变这条不过度限制实现形态：按行铺的入口（每行一个）也满足——只要每一档滚动的
     /// 视口里都有它，用户就不会遇到「找不到入口」。
-    @Test func entryIsPresentAndClickableAtEveryScrollOffset() throws {
-        let fixture = try makeFixture()
+    @Test func entryIsPresentAndClickableAtEveryScrollOffset() async throws {
+        // 三档 offset 共用同一个夹具实例：每档重建一次窗口等于把「重排落定」这件事乘以三，
+        // 而这三次开窗在 CI 上正是最贵的那部分。
+        let fixture = try await makeFixture(pannedBeyondSchedule: true)
         defer { try? FileManager.default.removeItem(at: fixture.projectDirectory) }
-        panBeyondSchedule(fixture)
 
         let viewport = viewportRect(fixture)
         let half = viewport.height / 2
@@ -335,19 +430,19 @@ struct ReturnToScheduleEntryTests {
 
         var samples: [[CGRect]] = []
         for offset in [CGFloat(0), half, twoScreens] {
-            let landed = scroll(fixture, to: offset)
+            let landed = await scroll(fixture, to: offset)
             #expect(
                 abs(landed - offset) <= 1,
                 "夹具未滚到位：期望 \(offset)，实际 \(landed)"
             )
-            let found = waitForEntry(in: fixture)
+            let found = await waitForEntry(in: fixture)
             samples.append(found.map(\.rect))
             #expect(
                 !found.isEmpty,
                 "滚动 \(offset)pt 后视口里没有入口（D-054）：viewport=\(viewport) 全部按钮=\(candidates(in: fixture).map(\.rect))"
             )
             #expect(
-                !found.filter { $0.isHitTestable }.isEmpty,
+                !clickable(found, in: fixture).isEmpty,
                 "滚动 \(offset)pt 后视口里的入口点不到：\(found.map(\.rect))"
             )
         }
@@ -378,25 +473,24 @@ struct ReturnToScheduleEntryTests {
     /// key window，鼠标事件不派发（实测连状态栏按钮都不响应，两种坐标约定都试过）。
     /// 点击链路拆成两段分别钉：入口可点由本用例钉；点了会怎样由
     /// returnToScheduleActionLandsWindowInSchedule 钉（那正是 navigation.action 派发的动作）。
-    @Test func entryStaysClickableAfterPanningFarRight() throws {
-        let fixture = try makeFixture()
+    @Test func entryStaysClickableAfterPanningFarRight() async throws {
+        let fixture = try await makeFixture(pannedBeyondSchedule: true)
         defer { try? FileManager.default.removeItem(at: fixture.projectDirectory) }
-        panBeyondSchedule(fixture)
 
         let viewport = viewportRect(fixture)
         let offset = min(
             viewport.height * 2,
             max((canvasScrollView(fixture)?.documentView?.frame.height ?? 0) - viewport.height, 0)
         )
-        scroll(fixture, to: offset)
+        await scroll(fixture, to: offset)
 
-        let found = waitForEntry(in: fixture)
+        let found = await waitForEntry(in: fixture)
         #expect(
             !found.isEmpty,
             "朝右平移到排期之外、纵滚 \(offset)pt 后，视口内没有入口（D-054）：viewport=\(viewport) 全部按钮=\(candidates(in: fixture).map(\.rect))"
         )
 
-        let hitTestable = found.filter { $0.isHitTestable }
+        let hitTestable = clickable(found, in: fixture)
         #expect(
             !hitTestable.isEmpty,
             "视口内的入口点不到（hitTest 落空），等于没有：\(found.map(\.rect))"
@@ -410,10 +504,9 @@ struct ReturnToScheduleEntryTests {
     /// 这里派发同一个动作，断言落点：
     /// 1) 窗口与排期区间相交；2) 画布有任务条；3) 窗口右缘够到排期末（behind 口径）；
     /// 4) 日宽档位不被改写（回到排期 ≠ 适合项目）。
-    @Test func returnToScheduleActionLandsWindowInSchedule() throws {
-        let fixture = try makeFixture()
+    @Test func returnToScheduleActionLandsWindowInSchedule() async throws {
+        let fixture = try await makeFixture(pannedBeyondSchedule: true)
         defer { try? FileManager.default.removeItem(at: fixture.projectDirectory) }
-        panBeyondSchedule(fixture)
 
         let before = fixture.store.snapshot.gantt
         #expect(
