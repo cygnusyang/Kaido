@@ -17,8 +17,12 @@ import KairoPresentation
 /// - 套件 A（placement 不变量，不需要真滚动）：承接层与内容在宿主坐标里重合，并随之越过一屏；
 /// - 套件 B（端到端复现）：真 `ScrollView` + 真 `TimelineBody`，滚到 2×viewportHeight 后
 ///   命中判定必须仍为 true、横向滚轮必须真的推进窗口起点 —— 修复前这两条必红。
-/// `.serialized`：本套件的夹具要泵 main runloop（离屏窗口没有 display link 驱动），
-/// 并共享 `ScrollSurfaceView.active` 这个进程级仲裁点；并行跑会互相抢窗口与监听。
+/// `.serialized`：本套件的夹具要在 main runloop 上做**条件等待**（离屏窗口没有 display link 驱动，
+/// 布局是异步落下来的），并共享 `ScrollSurfaceView.active` 这个进程级仲裁点；并行跑会互相抢窗口与监听。
+///
+/// **同步口径（本文件不使用固定睡眠）**：每个断言的等待条件都是它自己的前提——
+/// 套件 A 等「内容已随 offset 位移、承接层已有非零尺寸」且连续两轮采样一致；
+/// 套件 B 等「承接层的窗口坐标矩形已覆盖视口」。固定睡眠在 2 核 runner 上要么白等要么踩空（#26/#27）。
 @Suite(.serialized)
 @MainActor
 struct TimelineCanvasViewportTests {
@@ -75,12 +79,39 @@ struct TimelineCanvasViewportTests {
         return window
     }
 
-    /// 泵一轮 runloop：离屏窗口没有 display link 驱动，布局/渲染要主动让出。
-    private func pump(_ seconds: TimeInterval) {
-        let deadline = Date().addingTimeInterval(seconds)
-        while Date() < deadline {
-            RunLoop.current.run(until: Date().addingTimeInterval(0.01))
+    /// 套件 A 与漂移反证的共同断言前提：**排布落定**。
+    ///
+    /// 判据 = 谓词成立 且 **连续两轮 runloop 采样一致**。离屏窗口没有 display link 驱动，
+    /// 布局是异步落下来的；固定睡眠在 2 核 runner 上要么白等要么踩空（本仓 #26/#27 的假红即此类）。
+    /// 超时返回 false，由调用方的 `#expect` 带着实测矩形变红 —— 这样「夹具没排布」与「实现真错」
+    /// 在失败信息上能分开，而不是都表现成一个含义不明的等待。
+    private func waitForStableLayout(
+        _ placement: Placement,
+        timeout: TimeInterval = 5,
+        matching predicate: (CGRect, CGRect) -> Bool
+    ) -> Bool {
+        func sample() -> (content: CGRect, surface: CGRect) {
+            (
+                placement.content.convert(placement.content.bounds, to: placement.host),
+                placement.surface.convert(placement.surface.bounds, to: placement.host)
+            )
         }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        var previous: (content: CGRect, surface: CGRect)?
+        while Date() < deadline {
+            let current = sample()
+            if predicate(current.content, current.surface),
+               let previous,
+               rectsMatch(previous.content, current.content, tolerance: 0.01),
+               rectsMatch(previous.surface, current.surface, tolerance: 0.01) {
+                return true
+            }
+            previous = current
+            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+        }
+        let last = sample()
+        return predicate(last.content, last.surface)
     }
 
     private func findSurface(in view: NSView) -> GanttScrollSurface.ScrollSurfaceView? {
@@ -142,7 +173,6 @@ struct TimelineCanvasViewportTests {
         window.layoutIfNeeded()
         host.layoutSubtreeIfNeeded()
         waitFor { findSurface(in: host) != nil && box.view != nil }
-        pump(0.1)
 
         let surface = try #require(
             findSurface(in: host),
@@ -152,7 +182,20 @@ struct TimelineCanvasViewportTests {
             box.view,
             "内容探针未创建：viewport 必须挂载 content"
         )
-        return Placement(window: window, host: host, content: content, surface: surface)
+        let placement = Placement(window: window, host: host, content: content, surface: surface)
+
+        // 断言前提：排布落定 —— 内容已随 offset 位移、承接层已拿到非零尺寸、两轮采样一致。
+        // 不满足时后面的矩形比对读到的是半截排布，任何结论都不可信。
+        let settled = waitForStableLayout(placement) { contentRect, surfaceRect in
+            abs(contentRect.minY - offset) <= 1
+                && contentRect.width > 1 && contentRect.height > 1
+                && surfaceRect.width > 1 && surfaceRect.height > 1
+        }
+        #expect(
+            settled,
+            "排布未在 5s 内落定（夹具问题优先排查）：content=\(content.convert(content.bounds, to: host)) surface=\(surface.convert(surface.bounds, to: host)) offset=\(offset)"
+        )
+        return placement
     }
 
     /// offset = 0：承接层与内容重合。夹具自检项——这条在任何实现下都该绿。
@@ -246,11 +289,22 @@ struct TimelineCanvasViewportTests {
         window.layoutIfNeeded()
         host.layoutSubtreeIfNeeded()
         waitFor { findSurface(in: host) != nil && box.view != nil }
-        pump(0.1)
 
         let content = try #require(box.view, "内容探针未创建")
         let surface = try #require(findSurface(in: host), "承接层未进入视图树")
         defer { surface.stopMonitoring() }
+
+        // 断言前提：反证也必须在落定的排布上取样 —— 半截排布下的「不重合」是假绿。
+        let placement = Placement(window: window, host: host, content: content, surface: surface)
+        let settled = waitForStableLayout(placement) { contentRect, surfaceRect in
+            abs(contentRect.minY - offset) <= 1
+                && contentRect.width > 1 && contentRect.height > 1
+                && surfaceRect.width > 1 && surfaceRect.height > 1
+        }
+        #expect(
+            settled,
+            "反证夹具未在 5s 内落定（夹具问题优先排查）：content=\(content.convert(content.bounds, to: host)) surface=\(surface.convert(surface.bounds, to: host))"
+        )
 
         let contentRect = content.convert(content.bounds, to: host)
         let surfaceRect = surface.convert(surface.bounds, to: host)
@@ -268,6 +322,99 @@ struct TimelineCanvasViewportTests {
         #expect(
             abs(surfaceRect.minY) <= 0.5,
             "旧排布下承接层应停在未位移的布局位置（minY≈0），实测 \(surfaceRect.minY)"
+        )
+    }
+
+    /// 按调用方给的容器形态排一遍，返回内容与承接层在宿主坐标里的矩形。
+    /// 与 `makePlacement` 共用同一套「离屏窗口 + 条件等待」口径，反证与正证因此可比。
+    private func driftedRects(
+        width: CGFloat,
+        viewportHeight: CGFloat,
+        _ build: (ProbeContent) -> AnyView
+    ) throws -> (content: CGRect, surface: CGRect) {
+        let window = makeWindow(width: width, height: viewportHeight)
+        let box = ProbeBox()
+        let host = NSHostingView(rootView: build(ProbeContent(box: box)))
+        host.frame = CGRect(x: 0, y: 0, width: width, height: viewportHeight)
+        window.contentView?.addSubview(host)
+        window.layoutIfNeeded()
+        host.layoutSubtreeIfNeeded()
+        waitFor { findSurface(in: host) != nil && box.view != nil }
+
+        let surface = try #require(findSurface(in: host), "承接层未进入视图树")
+        defer { surface.stopMonitoring() }
+        let content = try #require(box.view, "内容探针未创建")
+
+        // 断言前提：两者都排布出非零尺寸且两轮采样一致。零尺寸矩形与任何矩形都不重合，
+        // 不钉住这点，下面的「必须不重合」会因为夹具没排布而变成假绿。
+        let placement = Placement(window: window, host: host, content: content, surface: surface)
+        let settled = waitForStableLayout(placement) { contentRect, surfaceRect in
+            contentRect.width > 1 && contentRect.height > 1
+                && surfaceRect.width > 1 && surfaceRect.height > 1
+        }
+        #expect(
+            settled,
+            "漂移夹具未在 5s 内完成排布（夹具问题优先排查）：content=\(content.convert(content.bounds, to: host)) surface=\(surface.convert(surface.bounds, to: host))"
+        )
+
+        return (
+            content: content.convert(content.bounds, to: host),
+            surface: surface.convert(surface.bounds, to: host)
+        )
+    }
+
+    /// 结构漂移反证（对应 `TimelineCanvasViewport.swift:15-19` 的承重不变量：
+    /// 「`.offset` 只有一个出口，且位于 `.background` 之后」）。
+    ///
+    /// 在 content 与 `GanttScrollSurface` 之间多套一层可位移 / 可裁切的容器，
+    /// 「承接层矩形 == 内容矩形」这条判据必须为**假**。
+    /// 为什么需要它：套件 A 的三条断言全是「两矩形重合」，一旦重合判据因 SwiftUI 语义变化退化成
+    /// 永远成立的空断言，它们会一起变绿而 D-050 再也复现不出来。本用例把两种真实会出现的漂移形态
+    /// （再叠一层 `.offset`；用 `padding` 撑开一层容器）钉死为「必须不重合」。生产侧若真被加进
+    /// 这样一层 wrapper，红的是套件 A 的重合用例 —— 两者互为对照。
+    @Test func wrapperDriftBetweenContentAndSurfaceBreaksCoincidence() throws {
+        let width: CGFloat = 600
+        let viewportHeight: CGFloat = 400
+
+        // 形态一：内层再多一层位移 —— 内容被推走 40pt，承接层留在未位移的布局位置。
+        let shifted = try driftedRects(width: width, viewportHeight: viewportHeight) { probe in
+            AnyView(
+                probe
+                    .frame(width: width, height: viewportHeight)
+                    .offset(y: 40)
+                    .background(GanttScrollSurface(dayWidth: 10) { _ in })
+            )
+        }
+        #expect(
+            abs(shifted.content.minY - 40) <= 1,
+            "漂移夹具无效：内容未随内层 offset 位移，反证会变成假绿：content=\(shifted.content)"
+        )
+        #expect(
+            shifted.surface.width > 1 && shifted.surface.height > 1,
+            "漂移夹具无效：承接层塌成零尺寸 \(shifted.surface)（零尺寸与任何矩形都不重合）"
+        )
+        #expect(
+            !rectsMatch(shifted.surface, shifted.content),
+            "多一层 offset 后仍判定重合 —— 套件 A 的重合判据已失效：surface=\(shifted.surface) content=\(shifted.content)"
+        )
+
+        // 形态二：内层再多一层 padding 容器 —— 500×300 的内容 + 50pt padding = 600×400 的承接层，
+        // 尺寸与原点同时分叉（内容缩进 50pt），即「把内容包进内边距/裁切容器」的漂移形态。
+        let padded = try driftedRects(width: width, viewportHeight: viewportHeight) { probe in
+            AnyView(
+                probe
+                    .frame(width: width - 100, height: viewportHeight - 100)
+                    .padding(50)
+                    .background(GanttScrollSurface(dayWidth: 10) { _ in })
+            )
+        }
+        #expect(
+            abs(padded.surface.width - width) <= 0.5 && abs(padded.surface.height - viewportHeight) <= 0.5,
+            "漂移夹具无效：padding 容器未撑成视口尺寸，反证会变成假绿：surface=\(padded.surface)"
+        )
+        #expect(
+            !rectsMatch(padded.surface, padded.content),
+            "多一层 padding 容器后仍判定重合 —— 套件 A 的重合判据已失效：surface=\(padded.surface) content=\(padded.content)"
         )
     }
 
@@ -296,6 +443,22 @@ struct TimelineCanvasViewportTests {
         )!
         if shift { cg.flags = .maskShift }
         return NSEvent(cgEvent: cg)!
+    }
+
+    /// 端到端断言的共同前提：承接层在**窗口坐标**里的矩形已经覆盖视口矩形。
+    ///
+    /// 抽出来是为了让夹具能做条件等待而不是固定睡眠：离屏窗口没有 display link，
+    /// 「滚动 → offset 重算 → 重排」之间没有任何可以踩的固定时间点。
+    private func surfaceCoversViewport(
+        _ surface: GanttScrollSurface.ScrollSurfaceView,
+        scrollView: NSScrollView,
+        viewportHeight: CGFloat
+    ) -> Bool {
+        // 不在窗口里时 `convert(_:to:)` 没有意义（也会打 AppKit 警告）。
+        guard surface.window != nil else { return false }
+        let surfaceRect = surface.convert(surface.bounds, to: nil)
+        let viewportRect = scrollView.contentView.convert(scrollView.contentView.bounds, to: nil)
+        return viewportRect.intersection(surfaceRect).height >= viewportHeight - 1
     }
 
     /// 真 `ScrollView` + 真 `TimelineBody`，滚到 `2 × viewportHeight`。
@@ -337,7 +500,6 @@ struct TimelineCanvasViewportTests {
         window.layoutIfNeeded()
         host.layoutSubtreeIfNeeded()
         waitFor { findScrollView(in: host) != nil && findSurface(in: host) != nil }
-        pump(0.3)
 
         let scrollView = try #require(
             findScrollView(in: host),
@@ -348,22 +510,44 @@ struct TimelineCanvasViewportTests {
             "承接层未进入视图树"
         )
 
+        // 断言前提：监听在岗。D-028 的真实故障面正是「视图在窗口里、监听却被摘掉或被抢走」，
+        // 那时 `handle()` 根本走不到，端到端判据会以错误的理由给出结论。
+        let monitoringUp = waitFor(timeout: 5) { surface.isMonitoring }
+        #expect(
+            monitoringUp,
+            "承接层 5s 内未进入监听（isMonitoring == false）：D-028 的失效面，端到端判据不成立"
+        )
+
+        // 断言前提：内容已排布到「能滚过两屏」的高度，否则测的是「滚不动」而不是 D-050。
+        let contentLaidOut = waitFor(timeout: 5) {
+            (scrollView.documentView?.frame.height ?? 0) > viewportHeight * 2
+        }
         let contentHeight = scrollView.documentView?.frame.height ?? 0
         #expect(
-            contentHeight > viewportHeight * 2,
-            "夹具内容高 \(contentHeight) 不足以滚过两屏，D-050 场景不成立"
+            contentLaidOut,
+            "夹具内容高 \(contentHeight) 在 5s 内未超过两屏（\(viewportHeight * 2)pt），D-050 场景不成立"
         )
 
         scrollView.contentView.scroll(to: NSPoint(x: 0, y: target))
         scrollView.reflectScrolledClipView(scrollView.contentView)
-        // 滚动 → SwiftUI 重算 offset → 重新排布，是异步链路：先等 AppKit 落位，再给渲染一轮时间。
-        waitFor { abs(scrollView.contentView.bounds.origin.y - target) <= 1 }
-        pump(0.4)
+        // 滚动 → SwiftUI 重算 offset → 重新排布，是异步链路：先等 AppKit 落位（条件等待），
+        // 再等承接层的新矩形覆盖视口（下一条），全程不用固定睡眠。
+        waitFor(timeout: 5) { abs(scrollView.contentView.bounds.origin.y - target) <= 1 }
 
         let landed = scrollView.contentView.bounds.origin.y
         #expect(
             abs(landed - target) <= 1,
             "夹具未滚到位：期望 \(target)，实际 \(landed)"
+        )
+
+        // 断言前提：承接层的窗口坐标矩形已覆盖视口 —— 这就是 D-050 的判据本体。
+        // 各用例仍会显式复核：这里红 = 夹具没等到重排，那里红 = 实现真错。
+        let covering = waitFor(timeout: 5) {
+            surfaceCoversViewport(surface, scrollView: scrollView, viewportHeight: viewportHeight)
+        }
+        #expect(
+            covering,
+            "承接层 5s 内未覆盖视口：surface=\(surface.convert(surface.bounds, to: nil)) viewport=\(scrollView.contentView.convert(scrollView.contentView.bounds, to: nil))"
         )
 
         return ScrolledFixture(
