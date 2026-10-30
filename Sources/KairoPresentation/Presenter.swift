@@ -696,6 +696,26 @@ public enum WorkspacePresenter {
             rowIndexByID: rowIndexByID
         )
 
+        // 窗口外覆盖度（D-040 / D-043）：必须由**排期区间**统计，不能拿 `bars` 反推——
+        // `GanttLayout.make` 会把完全落在窗口外的条整条丢掉
+        // （`guard finish > windowStart, start < windowEnd`），所以 `bars` 里永远
+        // 不含「完全在外面」的条，按它统计恒为 0。全量与翻窗两条路径都走这里，
+        // 同一窗口下产出的快照仍逐字段相等。
+        // 「适合项目」模式计数恒为 0：fit 的语义就是铺满内容，此时残余计数只可能是
+        // 边界残差（内容起点上的零时长里程碑、fit 日宽触到 0.5 下限把窗口压窄），
+        // 让它们驱动提示会得到「提示常驻 + 点适应也没用」的死键（v1.4.0 审查 H1）。
+        let coverage = canFit
+            ? GanttWindowCoverage.none
+            : GanttWindowCoverage.compute(
+                schedule: layoutSchedule,
+                windowStart: layout.windowStart,
+                windowEnd: layout.windowEnd,
+                visibleTaskIDs: Set(rowByID.keys)
+            )
+        // 排期区间与导航入口（D-054）：fit 无需特判——fit 窗口必然覆盖内容，
+        // 于是 `navigation` 自然为 nil（与上面 coverage 的 `.none` 同一结论的两条路径）。
+        let scheduleRange = GanttSchedulePlacement.taskRange(of: layoutSchedule)
+
         return GanttSnapshot(
             windowStart: layout.windowStart,
             windowEnd: layout.windowEnd,
@@ -723,22 +743,14 @@ public enum WorkspacePresenter {
             visibleBaselineIDs: overlay.visibleIDs,
             baselineLanes: overlay.lanes,
             baselineLegend: overlay.legend,
-            // 窗口外覆盖度（D-040 / D-043）：必须由**排期区间**统计，不能拿 `bars` 反推——
-            // `GanttLayout.make` 会把完全落在窗口外的条整条丢掉
-            // （`guard finish > windowStart, start < windowEnd`），所以 `bars` 里永远
-            // 不含「完全在外面」的条，按它统计恒为 0。全量与翻窗两条路径都走这里，
-            // 同一窗口下产出的快照仍逐字段相等。
-            // 「适合项目」模式计数恒为 0：fit 的语义就是铺满内容，此时残余计数只可能是
-            // 边界残差（内容起点上的零时长里程碑、fit 日宽触到 0.5 下限把窗口压窄），
-            // 让它们驱动提示会得到「提示常驻 + 点适应也没用」的死键（v1.4.0 审查 H1）。
-            offWindow: canFit
-                ? .none
-                : GanttWindowCoverage.compute(
-                    schedule: layoutSchedule,
-                    windowStart: layout.windowStart,
-                    windowEnd: layout.windowEnd,
-                    visibleTaskIDs: Set(rowByID.keys)
-                )
+            offWindow: coverage,
+            scheduleRange: scheduleRange,
+            navigation: GanttSchedulePlacement.navigation(
+                windowStart: layout.windowStart,
+                windowEnd: layout.windowEnd,
+                schedule: layoutSchedule,
+                offWindowCount: coverage.offWindowCount
+            )
         )
     }
 

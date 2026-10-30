@@ -763,6 +763,21 @@ final class WorkspaceStore: ObservableObject {
                 $0.widthMode = $0.widthMode.withoutFit
             }
 
+        case .returnToSchedule:
+            // D-054：窗口整个在排期之外时把窗口搬回来。落点只平移起点——
+            // 宽度档位是用户的缩放选择，回到排期不该顺手改它；也不是数据变更，不进撤销栈。
+            // 导航为 nil / `.offWindow` 时无落点可言（此时该走 fit），直接忽略。
+            guard case .offSchedule(let side)? = snapshot.gantt.navigation,
+                  let schedule = snapshot.gantt.scheduleRange else { return }
+            let target = GanttSchedulePlacement.returnStart(
+                windowStart: snapshot.gantt.windowStart,
+                windowEnd: snapshot.gantt.windowEnd,
+                schedule: schedule,
+                side: side,
+                calendar: calendar
+            )
+            mutateView(scope: .windowPan) { $0.windowStart = target }
+
         case .setFilter(let text):
             suspendedFilterText = nil
             mutateView {

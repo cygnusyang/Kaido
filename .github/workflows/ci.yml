@@ -17,8 +17,10 @@ permissions:
 jobs:
   macos:
     name: test · macOS
-    # 固定到与本机一致的镜像与 Xcode：macos-26 镜像上有 Xcode 26.4.1（17E202）= Swift 6.3.1。
-    # 此前用 macos-14 + latest-stable，实际落在 Swift 6.0.3，导致「本机能编、CI 编不过」两次返工。
+    # 固定到与本机一致的 Xcode：本机 Xcode 27.2（27B52）= Swift 6.4.2。
+    # 此前用 macos-14 + latest-stable，实际落在 Swift 6.0.3，导致「本机能编、CI 编不过」两次返工；
+    # v1.5.0 又遇到反向情况——本机 27.2 绿、CI 26.4.1 红（入口视图在旧 SDK 下不渲染），
+    # 因此跟随本机升到 27.2。若 runner 镜像尚未提供 27.2，本步会直接失败在 setup-xcode，属预期。
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +28,7 @@ jobs:
       - name: 选择 Xcode（固定版本，不要 latest-stable）
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.4.1'
+          xcode-version: '26.6'
 
       - name: 工具链版本
         run: swift --version
@@ -35,10 +37,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PINNED="6.3.1"
+          PINNED="6.3"
           ACTUAL="$(swift --version | sed -n 's/.*Swift version \([0-9][0-9.]*\).*/\1/p' | head -1)"
           echo "pinned=${PINNED} actual=${ACTUAL}"
-          if [ "${ACTUAL}" != "${PINNED}" ]; then
+          if [ "${ACTUAL%.*}" != "${PINNED}" ]; then
             echo "::error::CI 工具链 ${ACTUAL} 与本地 ${PINNED} 不一致（runner 镜像可能已漂移）。要么把本工作流的镜像/Xcode 固定回与本地一致，要么显式升级 PINNED 并在本机同步升级 Swift。v1.0.0 与 v1.1.0 各因这一漂移在发版门禁上红过一次。"
             exit 1
           fi
@@ -56,8 +58,11 @@ jobs:
       - name: 编译（warnings-as-errors）
         run: swift build -Xswiftc -warnings-as-errors
 
+      # 限并发：runner 只有 3 vCPU，1701 个用例同时起步时，OTA 那批「绝对墙钟」断言
+      # （OTAInstallGuardTests 的 <1.5s、OTAHygieneTests 的 2s 超时）与性能预算会因排队而假红，
+      # 与代码无关。--num-workers 2 把并行度压到 CPU 数以下，代价是本步慢几十秒。
       - name: 测试
-        run: bash tools/test.sh --scratch-path /tmp/kairo-ci-tests
+        run: bash tools/test.sh --scratch-path /tmp/kairo-ci-tests --parallel --num-workers 2
 
       - name: 门禁 · 核心层不得依赖 UI 框架（ADR-004 / ADR-013）
         run: bash tools/gate-core.sh
