@@ -556,6 +556,10 @@ struct WorkspaceView: View {
             .frame(height: DesignTokens.headerHeight)
             horizontalRule
             ScrollViewReader { proxy in
+                // 导航入口（D-054）与滚动视图同处一个 ZStack：
+                // 用 ZStack 而不是 `.overlay` 压在 ScrollView 上——后者在 Xcode 26 的 SwiftUI
+                // 下不会把子视图挂进层级（CI 实测入口一个都查不到），ZStack 在两代 SDK 上都稳。
+                ZStack(alignment: .topTrailing) {
                 ScrollView(.vertical) {
                     HStack(alignment: .top, spacing: 0) {
                         if sizes.showsOutline {
@@ -621,8 +625,7 @@ struct WorkspaceView: View {
                 //   「视口里始终看得见入口」的判据直接冲突。
                 // 挂在滚动容器的 overlay 上同时满足两条：矩形与纵向滚动无关（实测 y 恒为 86），
                 // 且落在可视区内。
-                .overlay(alignment: .topTrailing) {
-                    navigationChipOverlay(gantt: gantt, sizes: sizes)
+                navigationChipOverlay(gantt: gantt, sizes: sizes)
                 }
             }
         }
