@@ -18,7 +18,8 @@ import KairoPresentation
 /// - 套件 B（端到端复现）：真 `ScrollView` + 真 `TimelineBody`，滚到 2×viewportHeight 后
 ///   命中判定必须仍为 true、横向滚轮必须真的推进窗口起点 —— 修复前这两条必红。
 /// `.serialized`：本套件的夹具要在 main runloop 上做**条件等待**（离屏窗口没有 display link 驱动，
-/// 布局是异步落下来的），并共享 `ScrollSurfaceView.active` 这个进程级仲裁点；并行跑会互相抢窗口与监听。
+/// 布局是异步落下来的），并共享离屏窗口与主 runloop 夹具；并行跑会互相抢窗口与监听（v1.4.0 起
+/// `ScrollSurfaceView` 已无 `static active`，监听按视图各装一条，抢的是窗口与 runloop 而非仲裁点）。
 ///
 /// **同步口径（本文件不使用固定睡眠）**：每个断言的等待条件都是它自己的前提——
 /// 套件 A 等「内容已随 offset 位移、承接层已有非零尺寸」且连续两轮采样一致；
