@@ -49,18 +49,16 @@ struct WindowWidthModeTests {
         #expect(mode.anchorsToday)
     }
 
-    /// 互斥由类型保证：任何模式下「自定义日宽」与「跨度天数」都不会同时非 nil。
-    @Test func customAndSpanAreNeverBothPresent() {
-        let modes: [WindowWidthMode] = [
-            .preset(.week), .fit(.day),
-            .custom(dayWidth: 12, base: .week), .span(days: 7, base: .week)
-        ]
-        for mode in modes {
-            #expect(!(mode.customDayWidth != nil && mode.spanDays != nil))
-            // 适合项目与自定义 / 跨度也不可能同时成立。
-            #expect(!(mode.isFit && mode.customDayWidth != nil))
-            #expect(!(mode.isFit && mode.isSpan))
-        }
+    /// 互斥由类型保证（四态是 enum 的 case，装不下非法组合），这里钉的是**默认态**：
+    /// 新建视图状态必须是「适合项目 + 周档」，与合并前四个字段的默认值逐项一致。
+    /// （旧版本这里断言「合法构造之间不矛盾」，构造不出非法组合，永远不会红——已删。）
+    @Test func defaultStateIsFitOverWeek() {
+        let state = WorkspaceViewState()
+        #expect(state.widthMode == .fit(.week))
+        #expect(state.zoom == .week)
+        #expect(state.usesFitZoom)
+        #expect(state.customDayWidth == nil)
+        #expect(state.windowSpanDays == nil)
     }
 
     // MARK: - 模式切换

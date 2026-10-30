@@ -87,6 +87,10 @@ struct GanttScrollSurface: NSViewRepresentable {
         /// 会顺带重装仲裁，现在每层只管自己，漏掉的生命周期事件没有任何旁路可以补救。
         func syncMonitoringState() {
             if window == nil, monitor != nil {
+                // 去掉 static active 之后没有第二个视图会顺手摘掉本视图的监听（D-051），
+                // 所以走到这里必然是「生命周期事件漏发」。记一条正文明线索，别让
+                // 监听带着 [weak self] 静默累积到下次真机排查才发现（v1.4.0 审查 M5）。
+                Self.logger.notice("scroll surface detached without lifecycle event; monitor reclaimed")
                 stopMonitoring()
             } else if window != nil, monitor == nil {
                 startMonitoring()

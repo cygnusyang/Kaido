@@ -37,6 +37,8 @@ struct OffWindowHint: View {
             }
             .buttonStyle(.plain)
             .help(Self.fitTitle)
+            // 只念按钮动作本身，不再重复整句提示（整句已由左侧 Text 读一次）。
+            .accessibilityLabel(Self.fitTitle)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
@@ -48,6 +50,8 @@ struct OffWindowHint: View {
     /// 方向徽章：箭头指向条所在的一侧，让「去哪找」在一眼之内成立。
     private var badge: some View {
         Image(systemName: Self.symbol(for: coverage.side))
+            // 装饰性徽章：文案已经说清「在哪一侧」，VoiceOver 不必先念一遍 arrow left。
+            .accessibilityHidden(true)
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(DesignTokens.accentStrong)
             .frame(width: 18, height: 18)

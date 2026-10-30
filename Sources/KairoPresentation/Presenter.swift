@@ -728,49 +728,18 @@ public enum WorkspacePresenter {
             // （`guard finish > windowStart, start < windowEnd`），所以 `bars` 里永远
             // 不含「完全在外面」的条，按它统计恒为 0。全量与翻窗两条路径都走这里，
             // 同一窗口下产出的快照仍逐字段相等。
-            offWindow: offWindowCoverage(
-                schedule: layoutSchedule,
-                windowStart: layout.windowStart,
-                windowEnd: layout.windowEnd
-            )
+            // 「适合项目」模式计数恒为 0：fit 的语义就是铺满内容，此时残余计数只可能是
+            // 边界残差（内容起点上的零时长里程碑、fit 日宽触到 0.5 下限把窗口压窄），
+            // 让它们驱动提示会得到「提示常驻 + 点适应也没用」的死键（v1.4.0 审查 H1）。
+            offWindow: canFit
+                ? .none
+                : GanttWindowCoverage.compute(
+                    schedule: layoutSchedule,
+                    windowStart: layout.windowStart,
+                    windowEnd: layout.windowEnd,
+                    visibleTaskIDs: Set(rowByID.keys)
+                )
         )
-    }
-
-    /// 窗口外条数与方向（D-040 / D-043）。
-    ///
-    /// 与 `GanttLayout.make` 同一口径的条目集合（已排期且非 unscheduled），但**不做窗口裁剪**：
-    /// 完全落在 `[windowStart, windowEnd)` 之外的条目正是本统计要数的对象，按 `bars` 统计
-    /// 会因为布局丢条而恒为 0。
-    ///
-    /// 边界取等与 `GanttWindowCoverage` 的说明一致：`finish <= windowStart` 算左侧外溢，
-    /// `start >= windowEnd` 算右侧外溢；跨越窗口的条不计。
-    private static func offWindowCoverage(
-        schedule: ScheduleResult?,
-        windowStart: Date,
-        windowEnd: Date
-    ) -> GanttWindowCoverage {
-        guard let schedule else { return GanttWindowCoverage(offWindowCount: 0, side: .both) }
-        let unscheduledIDs = Set(schedule.unscheduledTaskIDs)
-        var before = 0
-        var after = 0
-        for entry in schedule.tasks where !unscheduledIDs.contains(entry.taskID) {
-            if entry.scheduledFinish <= windowStart {
-                before += 1
-            } else if entry.scheduledStart >= windowEnd {
-                after += 1
-            }
-        }
-        let side: GanttWindowCoverage.Side
-        if before > 0 && after > 0 {
-            side = .both
-        } else if before > 0 {
-            side = .before
-        } else if after > 0 {
-            side = .after
-        } else {
-            side = .both
-        }
-        return GanttWindowCoverage(offWindowCount: before + after, side: side)
     }
 
     /// 甘特铺灰用的非工作星期集合（F-22-06）。

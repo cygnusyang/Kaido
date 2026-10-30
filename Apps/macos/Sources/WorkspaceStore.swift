@@ -1886,7 +1886,9 @@ final class WorkspaceStore: ObservableObject {
         let target = DateInterval(start: scheduled.scheduledStart, end: scheduled.scheduledFinish)
         let window = DateInterval(start: snapshot.gantt.windowStart, end: snapshot.gantt.windowEnd)
         guard let start = RevealWindow.scrolledStart(target: target, window: window) else { return }
-        viewState.windowStart = start
+        // 走 mutateView：写入口统一收敛到视图状态动作，并带上 windowPan 增量范围
+        // （直接写 viewState 再 refresh() 也能跑，但会把「漏 scope」的写法示范给后来人）。
+        mutateView(scope: .windowPan) { $0.windowStart = start }
     }
 
     // MARK: - 文件
@@ -2311,13 +2313,15 @@ final class WorkspaceStore: ObservableObject {
 
     private func savePreferences() {
         let columnOrder = OutlineColumnPreferences.normalizedOrder(viewState.columnOrder)
+        // 窗口宽度三键从 widthMode 的持久化投影取，避免第 4 处「各自读一个字段」的写法。
+        let persistedMode = viewState.widthMode.persisted
         let stored = StoredPreferences(
             outlineWidth: viewState.outlineWidth,
             outlineVisible: viewState.outlineVisible,
             expandedTaskIDs: Array(viewState.expandedTaskIDs),
-            zoom: viewState.zoom,
-            usesFitZoom: viewState.usesFitZoom,
-            customDayWidth: viewState.customDayWidth,
+            zoom: persistedMode.zoom,
+            usesFitZoom: persistedMode.usesFitZoom,
+            customDayWidth: persistedMode.customDayWidth,
             // windowStart 不进偏好（v2）：启动窗口恒从今天开始，重启不回忆上次平移的位置。
             inspectorWidth: viewState.inspectorWidth,
             inspectorTab: viewState.inspectorTab,

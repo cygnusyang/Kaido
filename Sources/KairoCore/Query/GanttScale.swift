@@ -44,7 +44,9 @@ public enum GanttScale {
     ///
     /// - Parameter dayWidth: 当前生效日宽；非有限值（NaN / ±∞）时返回默认区间，
     ///   不让一个坏读数把滑杆尺度撑成无穷。
-    public static func sliderRange(forDayWidth dayWidth: Double) -> ClosedRange<Double> {
+    /// 目前**没有生产调用点**（v1.5.0 接线到 DayWidthControl 与动作层），因此只作 internal：
+    /// 不把未接线的接口写进 public API 承诺。接线那一版再放开可见性。
+    static func sliderRange(forDayWidth dayWidth: Double) -> ClosedRange<Double> {
         guard dayWidth.isFinite else { return dayWidthRange }
         return dayWidthRange.lowerBound...max(dayWidthRange.upperBound, dayWidth)
     }

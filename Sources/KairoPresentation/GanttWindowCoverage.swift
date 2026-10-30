@@ -1,12 +1,16 @@
 import Foundation
+import KairoCore
 
 /// 窗口外任务覆盖度（D-040 / D-043）。
 ///
 /// 启动窗口锚今天：项目整体在过去、或大量任务落在当前窗口之外时，画布一片空白，
-/// 用户无从判断「条去哪了」。本类型把「有多少条看不见、在窗口哪一侧」算成
-/// 两个字节级的值，供视图给出提示与「适合项目」入口。
+/// 用户无从判断「条去哪了」。本类型把「有多少条看不见、在窗口哪一侧」算成两个
+/// 字节级的值，供视图给出提示与「适合项目」入口。
 ///
-/// 纯函数 + 无视图依赖（ADR-013：几何判定进呈现层）。
+/// **口径必须来自排期区间，不能拿画布上的条反推**：`GanttLayout.make` 会把完全落在
+/// 窗口外的条整条丢掉（`guard finish > windowStart, start < windowEnd`），拿布局结果
+/// 统计恒为 0（v1.4.0 实测：4 条任务、窗口只含 1 条时仍报 0）。因此统计只吃
+/// `ScheduleResult` + 窗口区间，与布局各算各的、互为补集。
 public struct GanttWindowCoverage: Hashable, Sendable {
     /// 外溢方向：条相对可见窗口的位置。
     public enum Side: Hashable, Sendable {
@@ -32,37 +36,37 @@ public struct GanttWindowCoverage: Hashable, Sendable {
         self.side = side
     }
 
-    /// 按条几何统计外溢。
+    /// 「没有窗口外任务」：视图不展示提示时的取值。
+    public static let none = GanttWindowCoverage(offWindowCount: 0, side: .both)
+
+    /// 按排期区间统计窗口外条数。
     ///
     /// - Parameters:
-    ///   - bars: 当前快照任务条（`x` / `width` 为画布内容坐标，单位点）。
-    ///   - windowWidth: 可见窗口宽度（点）；退化值（0、负数、非有限）按 0 处理。
+    ///   - schedule: 当前排期结果（`unscheduledTaskIDs` 里的任务不参与统计）。
+    ///   - windowStart: 可见窗口起点（含）。
+    ///   - windowEnd: 可见窗口终点（不含）。
+    ///   - visibleTaskIDs: 可见行集合；提供时只统计这些行（筛选下的口径与大纲/
+    ///     画布一致），为 nil 时不限。
     /// - Returns: 外溢条数与方向。
     ///
-    /// **边界取等**：只统计「与窗口相交且投影宽 > 0」的条，因此
-    /// 右边缘正好落在 `x = 0`（`x + width <= 0`）或左边缘正好落在
-    /// `x = windowWidth`（`x >= windowWidth`）的条都算窗口外——这两处都
-    /// 只碰到边界线、一个像素也画不出来，算「在窗口内」会让提示在真正空白的
-    /// 画面上消失。
-    public static func compute(bars: [GanttBar], windowWidth: Double) -> Self {
-        // 退化窗口（0 宽、负数、NaN / 无穷）：没有任何像素能显示条，全部计为外溢。
-        // 画布不会给出这种宽度（`DesignTokens.canvasMinWidth` = 320），属防御性兜底。
-        guard windowWidth.isFinite, windowWidth > 0 else {
-            guard !bars.isEmpty else { return Self(offWindowCount: 0, side: .both) }
-            let allBefore = bars.allSatisfy { $0.x + $0.width <= 0 }
-            let allAfter = bars.allSatisfy { $0.x >= 0 }
-            return Self(
-                offWindowCount: bars.count,
-                side: allBefore ? .before : (allAfter ? .after : .both)
-            )
-        }
-
+    /// **边界取等**：`finish <= windowStart` 算左侧外溢、`start >= windowEnd` 算右侧
+    /// 外溢——左边缘正好压在窗口起点、右边缘正好压在窗口终点的条一个像素也画不出来，
+    /// 算「在窗口内」会让提示在真正空白的画面上消失。
+    public static func compute(
+        schedule: ScheduleResult?,
+        windowStart: Date,
+        windowEnd: Date,
+        visibleTaskIDs: Set<UUID>? = nil
+    ) -> Self {
+        guard let schedule else { return .none }
+        let unscheduledIDs = Set(schedule.unscheduledTaskIDs)
         var before = 0
         var after = 0
-        for bar in bars {
-            if bar.x + bar.width <= 0 {
+        for entry in schedule.tasks where !unscheduledIDs.contains(entry.taskID) {
+            if let visibleTaskIDs, !visibleTaskIDs.contains(entry.taskID) { continue }
+            if entry.scheduledFinish <= windowStart {
                 before += 1
-            } else if bar.x >= windowWidth {
+            } else if entry.scheduledStart >= windowEnd {
                 after += 1
             }
         }
