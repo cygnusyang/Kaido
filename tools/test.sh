@@ -24,7 +24,11 @@ SELF_CHECK=0
 HAS_FILTER=0
 HAS_EVENT_STREAM=0
 ARGS=()
+# `swift test list` 不认运行期参数（如 --num-workers），统计总数时必须把它们剔掉，
+# 否则总数恒为 0、进度条退化成「已完成 N」。
+LIST_ARGS=()
 EVENT_ARGS=()
+SKIP_NEXT=0
 for a in "$@"; do
   if [ "${a}" = "--self-check" ]; then
     SELF_CHECK=1
@@ -34,7 +38,20 @@ for a in "$@"; do
     --filter*|--skip*) HAS_FILTER=1 ;;
     --event-stream-output-path*) HAS_EVENT_STREAM=1 ;;
   esac
+  case "${a}" in
+    --num-workers|--maximum-repetitions|--parallel|--no-parallel|--enable-code-coverage|--disable-automatic-resolution)
+      SKIP_NEXT=1
+      ARGS+=("${a}")
+      continue
+      ;;
+  esac
+  if [ "${SKIP_NEXT}" = 1 ]; then
+    SKIP_NEXT=0
+    ARGS+=("${a}")
+    continue
+  fi
   ARGS+=("${a}")
+  LIST_ARGS+=("${a}")
 done
 
 is_uint() {
@@ -88,7 +105,7 @@ TOTAL=0
 if [ "${SELF_CHECK}" = 0 ]; then
   if [ "${HAS_FILTER}" = 0 ]; then
     echo "==> 统计用例总数（swift test list；首次会编译测试目标，静默数分钟属正常，不计入看门狗）…"
-    TOTAL="$(swift test list "${ARGS[@]}" 2>/dev/null | grep -c . || true)"
+    TOTAL="$(swift test list "${LIST_ARGS[@]}" 2>/dev/null | grep -c . || true)"
   fi
   if [ "${TOTAL}" -gt 0 ]; then
     echo "==> 共 ${TOTAL} 个用例，运行中…"

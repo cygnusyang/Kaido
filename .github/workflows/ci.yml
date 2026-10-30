@@ -56,8 +56,11 @@ jobs:
       - name: 编译（warnings-as-errors）
         run: swift build -Xswiftc -warnings-as-errors
 
+      # 限并发：runner 只有 3 vCPU，1701 个用例同时起步时，OTA 那批「绝对墙钟」断言
+      # （OTAInstallGuardTests 的 <1.5s、OTAHygieneTests 的 2s 超时）与性能预算会因排队而假红，
+      # 与代码无关。--num-workers 2 把并行度压到 CPU 数以下，代价是本步慢几十秒。
       - name: 测试
-        run: bash tools/test.sh --scratch-path /tmp/kairo-ci-tests
+        run: bash tools/test.sh --scratch-path /tmp/kairo-ci-tests --parallel --num-workers 2
 
       - name: 门禁 · 核心层不得依赖 UI 框架（ADR-004 / ADR-013）
         run: bash tools/gate-core.sh
