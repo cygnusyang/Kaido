@@ -177,12 +177,29 @@ final class GanttScrollController {
             cursorInsideViewport: cursorInside,
             isEditingText: false
         ))
-        guard case .pan(let pixels) = decision else { return false }
+        guard case .pan(let pixels) = decision else {
+            // 放行原因每种只记首次（F-14-18 承诺的诊断口径）：outsideViewport 此前完全
+            // 静默，承接层被 .offset 留在布局原位、整条移出视口时横向滚动毫无线索，
+            // 排查耗了五轮（D-050）。只在首次记，高频滚动不刷屏。
+            if case .ignore(let reason) = decision {
+                logFirstIgnore(reason)
+            }
+            return false
+        }
         let days = HorizontalPan.days(deltaX: pixels, dayWidth: dayWidth)
         guard days != 0 else { return true }
         Self.logFirstPan(pixels: pixels, dayWidth: dayWidth, days: days)
         onDays(days)
         return true
+    }
+
+    /// 已记录过的放行原因（按 rawValue 存，不要求呈现层类型额外遵循 Hashable）。
+    private var loggedIgnoreReasons: Set<String> = []
+
+    /// 每种放行原因仅首次记一条：现场一眼看出是哪道闸挡住了。
+    private func logFirstIgnore(_ reason: GanttScrollIgnoreReason) {
+        guard loggedIgnoreReasons.insert(reason.rawValue).inserted else { return }
+        Self.logger.notice("scroll ignored (\(reason.rawValue, privacy: .public))")
     }
 
     /// 首次成功平移只记一条（现场核对「事件到底有没有到」）。
