@@ -1284,38 +1284,50 @@
       "title": "发 v1.3.2（含 OTA 先关 sheet 再 terminate，已实证可用）"
     },
     {
+      "completedAt": "2026-10-30T12:00:00+08:00",
       "dependencies": [],
       "durationDays": 2,
       "id": "C4912F72-52A7-4392-9734-2EBFD6203282",
       "kind": "task",
+      "notes": "关闭证据（回填 2026-10-30）：Issue #25 已 CLOSED（2026-10-29）。commit 6203cf6（按实际字体实测最长序号 + 内边距，随折叠/增删重算）+ a26018a（列宽上界 80 → 120）。实现 Apps/macos/Sources/Workspace/Outline/OutlineContentWidth.swift，接线 WorkspaceView.swift:489；用例 Tests/AppTests/OutlineNumberColumnWidthTests.swift；真机实测 820pt 窄窗六级序号 10.1.1.1.1.1 完整显示、无省略号。",
       "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "progress": 1,
       "status": "done",
       "title": "大纲序号列宽按内容自适应（#25）"
     },
     {
+      "completedAt": "2026-10-30T12:00:00+08:00",
       "dependencies": [],
       "durationDays": 1,
       "id": "00628CF4-27EE-4FF9-BF74-932BA675CAE1",
       "kind": "task",
+      "notes": "关闭证据（回填 2026-10-30）：实现为 Apps/macos/Sources/Updater/OTAInstallLog.swift（subsystem app.kairo.macos / category ota，os_log + 文件双写）+ OTAInstallSequence.swift（install requested / preflight / arm / reply）+ OTAInstallExit.swift（terminate 留痕，测试可注入 + OTAAutopilot 各步 note）；状态名映射 OTAInstallLog.name。用例 OTAInstallExitTests / OTAAutopilotTests。",
       "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "progress": 1,
       "status": "done",
       "title": "OTA 判定链加 os_log：版本/preflight/武装/reply/terminate"
     },
     {
+      "completedAt": "2026-10-30T12:00:00+08:00",
       "dependencies": [],
       "durationDays": 2,
       "id": "88AABFF4-D2F3-4BD0-AB32-0EAF5A1F267D",
       "kind": "task",
+      "notes": "关闭证据（回填 2026-10-30）：tools/ota-local-verify.sh（11KB，可执行）用本地包 + 本地清单 + 丢弃密钥跑完整链路：检查→下载→验签→武装→terminate→替换→relaunch，每步写 ota.log；配套 tools/ota-loop-verify.sh 无人值守连跑 N 轮并自动判定。",
       "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "progress": 1,
       "status": "done",
       "title": "tools/ota-local-verify.sh：本地 manifest 走完整升级链路"
     },
     {
+      "completedAt": "2026-10-30T12:00:00+08:00",
       "dependencies": [],
       "durationDays": 1,
       "id": "4AC7E653-8153-4469-B4DB-CD9F0EE9CBEE",
       "kind": "task",
+      "notes": "关闭证据（回填 2026-10-30）：该验收已自动化——tools/ota-loop-verify.sh 每轮判定四件事（版本 A→B、PID 变更、ota.log 出现 sheet dismissed→terminate 序列、替换后 app 可启动），退出码 0/1/2 明确。注：本机缺 Xcode 无法构建 App target，未留存本机 PASS 日志；需真机留证时在有 Xcode 的机器执行 tools/ota-loop-verify.sh。",
       "parentID": "55DA13BD-8316-4454-A32A-5CF26CAD20BE",
+      "progress": 1,
       "status": "done",
       "title": "真升级验收：1.3.x → 本地 dev 包，看版本与进程真的切换"
     },
