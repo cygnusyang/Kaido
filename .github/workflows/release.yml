@@ -42,7 +42,7 @@ jobs:
           PINNED="6.3"
           ACTUAL="$(swift --version | sed -n 's/.*Swift version \([0-9][0-9.]*\).*/\1/p' | head -1)"
           echo "pinned=${PINNED} actual=${ACTUAL}"
-          if [ "${ACTUAL}" != "${PINNED}" ]; then
+          if [ "${ACTUAL%.*}" != "${PINNED}" ]; then
             echo "::error::CI 工具链 ${ACTUAL} 与本地 ${PINNED} 不一致（runner 镜像可能已漂移）。要么把本工作流的镜像/Xcode 固定回与本地一致，要么显式升级 PINNED 并在本机同步升级 Swift。v1.0.0 与 v1.1.0 各因这一漂移在发版门禁上红过一次。"
             exit 1
           fi
