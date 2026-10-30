@@ -1408,6 +1408,49 @@
       "progress": 1,
       "status": "done",
       "title": "#23 OTA 安装卡死（1.3.2 已修，需复核后关单）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "id": "1B8F0EF9-6CCD-41FD-B69D-9EA1ACE1286A",
+      "kind": "group",
+      "notes": "用户 2026-10-30 指定：窗口外提示选方案 B（移到表头条，不遮任务行）；D-042 第一条（跨度日宽超滑杆上界）一并在此版收口。",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "v1.5.0（提示入表头 + 日宽上界）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "C6C43057-5EAF-4E5F-8A92-499FB957600B",
+      "kind": "task",
+      "notes": "现状（v1.4.0 真机实测）：胶囊贴画布顶部居中，压住第 1~2 行条带（行高 28pt，胶囊约 30pt）。改为表头条内右上的常驻信息位，与状态栏缩放读数同层；窄窗口按可用宽度截断，不换行。判据：滚到任意位置都不遮挡任务行；320pt 画布不越界；点击仍然 dispatch .setFitZoom(true)。",
+      "parentID": "1B8F0EF9-6CCD-41FD-B69D-9EA1ACE1286A",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "窗口外提示移到表头条（方案 B）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "durationDays": 2,
+      "id": "2A142C08-8A05-40DF-8237-D4690029BE61",
+      "kind": "task",
+      "notes": "D-042 第一条：跨度模式日宽 = 画布宽/跨度（1024pt/7 天 = 146.29）超滑杆上界 120，一拖即被夹回 120 并静默退出跨度。要改三处：DayWidthControl 三处夹取（:163 拖动增量 / :218 落值 / :229 对数映射）、WorkspaceStore.committedDayWidth（上界参数化，载入路径同样放宽）、Presenter 自定义路径 clamp。判据：span(7)+1024 ⇒ dayWidth≈146.29；nudge(+1) ⇒ customDayWidth≈147.3 而非 120；回读不得「存 147 显 120」。注意 nudge 本来就退出 span，别把「nudge 后仍 .span」当判据。",
+      "parentID": "1B8F0EF9-6CCD-41FD-B69D-9EA1ACE1286A",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "跨度日宽超滑杆上界：滑杆与动作层上界放开（D-042）"
     }
   ]
 }
