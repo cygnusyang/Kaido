@@ -142,6 +142,12 @@ struct TimelineBody: View {
     }
 
 
+    /// 窗口外仍有任务时的覆盖度（D-040 / D-043）：直接读快照，不在视图侧重算。
+    ///
+    /// 计数必须来自**全量排期**（`Presenter` 里按排期区间与窗口相交判断）：
+    /// `gantt.bars` 已被窗口过滤，拿它统计永远是 0（v1.4.0 实测）。
+    private var offWindowCoverage: GanttWindowCoverage { gantt.offWindow }
+
     /// 画布边缘的「回到今天」胶囊：箭头指向今天所在方向，点击即回到今天。
     private func goToTodayChip(_ side: TodaySide) -> some View {
         Button {
@@ -223,6 +229,20 @@ struct TimelineBody: View {
         .overlay(alignment: gantt.todaySide == .right ? .trailing : .leading) {
             if gantt.todaySide != .none {
                 goToTodayChip(gantt.todaySide)
+            }
+        }
+        // 窗口外任务提示（D-040 / D-043）：项目整体在过去或大量任务落在窗口外时，
+        // 画布看着是空的，这里说明「还有多少条、在哪一侧」并给「适合项目」入口。
+        // 与「回到今天」胶囊同层但不同锚点——它贴顶居中、今天胶囊贴左/右垂直居中，
+        // 两者不会盖住彼此；有外溢条才出现，全部可见时是噪音。
+        .overlay(alignment: .top) {
+            if offWindowCoverage.offWindowCount > 0 {
+                OffWindowHint(coverage: offWindowCoverage) {
+                    store.dispatch(.setFitZoom(true))
+                }
+                .padding(.top, 8)
+                // 画布可窄到 320pt：限宽后文案截断，胶囊不会越过画布压到大纲列上。
+                .frame(maxWidth: max(width - 24, 0))
             }
         }
         .focusable()

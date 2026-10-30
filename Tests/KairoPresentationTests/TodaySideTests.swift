@@ -15,9 +15,8 @@ struct TodaySideTests {
         let task = TaskItem(title: "锚点任务", durationDays: 3)
         let state = makeState([task], projectStart: projectStart)
         var view = WorkspaceViewState()
-        view.zoom = .day
-        view.usesFitZoom = false
-        view.windowSpanDays = nil
+        // 窗口宽度来源是单一枚举（D-041）：档位日宽 + 非 fit + 非跨度 = `.preset`。
+        view.widthMode = .preset(.day)
         view.windowStart = windowStart
         return makeSnapshot(
             state: state,

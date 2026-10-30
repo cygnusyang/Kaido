@@ -32,21 +32,25 @@ public struct WorkspaceViewState: Hashable, Sendable {
     public var outlineWidth: Double
     public var expandedTaskIDs: Set<UUID>
     public var selectedTaskID: UUID?
-    public var zoom: GanttZoom
-    /// 为 true 时使用「适合项目」日宽，忽略 `zoom.dayWidth` 的绘制宽度。
-    public var usesFitZoom: Bool
-    /// 自定义每日宽度（点/天）；非 nil 时为**唯一权威日宽**，覆盖 `zoom.dayWidth`。
-    /// 与 `usesFitZoom` 互斥（最后写入者胜）；呈现层再做一次防御（自定义优先）。
-    /// 动作层写入时夹取到合法区间；呈现层再次夹取兜底。
-    /// 本字段为 public 可变，外部直写可能越界 / NaN。
-    public var customDayWidth: Double?
+    /// 窗口宽度来源（D-041）：日宽口径的**唯一**权威，四种模式互斥且穷尽。
+    ///
+    /// 写入口收敛到 `WorkspaceStore` 的动作分支；读取侧一律从这里派生，不再各自
+    /// 判断「谁优先」。四个旧字段降级为只读兼容访问器（见下方 `zoom` /
+    /// `usesFitZoom` / `customDayWidth` / `windowSpanDays`），语义与合并前逐项相同。
+    public var widthMode: WindowWidthMode
     /// 自定义窗口起点；nil 时由布局取内容起点或今天。
     public var windowStart: Date?
-    /// 窗口跨度（天）。非 nil = 跨度模式：日宽 = 画布宽 / 跨度，忽略档位与 fit。
-    /// nil = 沿用 custom > fit > 档位。启动策略由 store 注入 7，本字段不持久化。
-    public var windowSpanDays: Int?
 
-    /// 启动窗口的跨度天数（单源常量）：由 store 在启动 / 打开项目时注入到 `windowSpanDays`。
+    /// 预设档位（只读兼容访问器）：与合并前的 `zoom` 同义，不随自定义日宽改写。
+    public var zoom: GanttZoom { widthMode.baseZoom }
+    /// 「适合项目」是否生效（只读兼容访问器）：等价于 `widthMode` 是 `.fit`。
+    public var usesFitZoom: Bool { widthMode.isFit }
+    /// 自定义日宽（只读兼容访问器）：等价于 `widthMode` 是 `.custom`。
+    public var customDayWidth: Double? { widthMode.customDayWidth }
+    /// 窗口跨度（只读兼容访问器）：等价于 `widthMode` 是 `.span`。
+    public var windowSpanDays: Int? { widthMode.spanDays }
+
+    /// 启动窗口的跨度天数（单源常量）：由 store 在启动 / 打开项目时注入为 `widthMode` 的 `.span`。
     public static let defaultWindowSpanDays: Int = 7
     public var inspectorVisible: Bool
     public var inspectorWidth: Double
@@ -97,9 +101,9 @@ public struct WorkspaceViewState: Hashable, Sendable {
         outlineWidth: Double = 600,
         expandedTaskIDs: Set<UUID> = [],
         selectedTaskID: UUID? = nil,
-        zoom: GanttZoom = .week,
-        usesFitZoom: Bool = true,
-        customDayWidth: Double? = nil,
+        /// 窗口宽度来源；缺省 =「适合项目 + 周档位」，与合并前的
+        /// `zoom: .week, usesFitZoom: true` 默认态逐项相同。
+        widthMode: WindowWidthMode = .fit(.week),
         windowStart: Date? = nil,
         inspectorVisible: Bool = true,
         inspectorWidth: Double = 320,
@@ -117,9 +121,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
         selectedBaselineID: UUID? = nil,
         visibleBaselineIDs: Set<UUID> = [],
         /// 列顺序（v0.16 / #12）；追加在末尾并带默认值，既有构造点无需改动。
-        columnOrder: [OutlineColumn] = OutlineColumnPreferences.defaultOrder,
-        /// 窗口跨度（天）；追加在末尾并带默认值，既有构造点无需改动。
-        windowSpanDays: Int? = nil
+        columnOrder: [OutlineColumn] = OutlineColumnPreferences.defaultOrder
     ) {
         self.mode = mode
         self.chartFocused = chartFocused
@@ -127,9 +129,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
         self.outlineWidth = outlineWidth
         self.expandedTaskIDs = expandedTaskIDs
         self.selectedTaskID = selectedTaskID
-        self.zoom = zoom
-        self.usesFitZoom = usesFitZoom
-        self.customDayWidth = customDayWidth
+        self.widthMode = widthMode
         self.windowStart = windowStart
         self.inspectorVisible = inspectorVisible
         self.inspectorWidth = inspectorWidth
@@ -147,7 +147,6 @@ public struct WorkspaceViewState: Hashable, Sendable {
         self.selectedBaselineID = selectedBaselineID
         self.visibleBaselineIDs = visibleBaselineIDs
         self.columnOrder = columnOrder
-        self.windowSpanDays = windowSpanDays
     }
 }
 

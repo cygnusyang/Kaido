@@ -404,26 +404,18 @@ struct WorkspaceView: View {
 
     /// 当前生效的预设档位：自定义日宽、固定跨度窗口或「适合项目」生效时无档位打勾。
     ///
-    /// 跨度模式下日宽由画布宽与跨度天数等分得出，与 `zoom.dayWidth` 无关：
-    /// 若只按 `zoom == zoom` 判断，启动态（跨度 7 天、zoom 仍是 .week）会勾在「周」上，
-    /// 而状态栏同时写着跨度档位，两处互相打架。
+    /// 判据只有一条：快照里的 `statusBar.zoom.preset`（D-044）。档位优先级的唯一权威是
+    /// `Presenter.zoomPreset`，视图不再自己重排「custom > span > fit > 档位」——
+    /// 合并前这里与 `Presenter` 是同一份条件的两次复制，改一处漏一处就出现
+    /// 「菜单勾着周、状态栏写着跨度」的自相矛盾。
     private func isCurrentPreset(_ zoom: GanttZoom) -> Bool {
-        store.viewState.customDayWidth == nil
-            && store.viewState.windowSpanDays == nil
-            && !store.viewState.usesFitZoom
-            && store.viewState.zoom == zoom
+        store.snapshot.statusBar.zoom.preset == ZoomPreset(presetOf: zoom)
     }
 
-    /// 「适合项目」菜单项标题：生效时打勾。
-    ///
-    /// 跨度模式同样不打勾：跨度生效时 `usesFitZoom` 可能仍为 true（偏好默认值就是 true），
-    /// 不排除就会显示「✓ 适合项目」，与状态栏的跨度档位互相矛盾。
+    /// 「适合项目」菜单项标题：生效时打勾。判据同上，只读快照。
     private var fitMenuTitle: String {
-        let active = store.viewState.customDayWidth == nil
-            && store.viewState.windowSpanDays == nil
-            && store.viewState.usesFitZoom
         let name = Display.zoomPresetTitle(.fit)
-        return active ? "✓ \(name)" : name
+        return store.snapshot.statusBar.zoom.preset == .fit ? "✓ \(name)" : name
     }
 
     /// 缩放菜单的当前日宽读数（点/天）。

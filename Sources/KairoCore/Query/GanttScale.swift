@@ -34,6 +34,23 @@ public enum GanttScale {
         return min(max(value, dayWidthRange.lowerBound), dayWidthRange.upperBound)
     }
 
+    /// 日宽滑杆的可用区间（D-042）：下界恒为 `dayWidthRange.lowerBound`，
+    /// 上界取 `max(dayWidthRange.upperBound, dayWidth)`。
+    ///
+    /// 固定跨度窗口的日宽 = 画布宽 / 跨度：1024pt 画布、7 天窗口即 146.3 点/天，
+    /// 已经超出档位滑杆的 120 上界。若滑杆仍按 120 封顶，读数写着 146.3 而滑杆停在
+    /// 最右端，一拖就被夹回 120 并静默退出跨度模式。把上界放宽到「至少容得下当前值」
+    /// 后，滑杆位置与读数在同一把尺子上。
+    ///
+    /// - Parameter dayWidth: 当前生效日宽；非有限值（NaN / ±∞）时返回默认区间，
+    ///   不让一个坏读数把滑杆尺度撑成无穷。
+    /// 目前**没有生产调用点**（v1.5.0 接线到 DayWidthControl 与动作层），因此只作 internal：
+    /// 不把未接线的接口写进 public API 承诺。接线那一版再放开可见性。
+    static func sliderRange(forDayWidth dayWidth: Double) -> ClosedRange<Double> {
+        guard dayWidth.isFinite else { return dayWidthRange }
+        return dayWidthRange.lowerBound...max(dayWidthRange.upperBound, dayWidth)
+    }
+
     /// 由日宽推导刻度档位（逐日 / 逐周 / 逐月）。
     ///
     /// 阈值取自标签可读性推导：逐日标签 ≈ 12.4pt 宽，逐周标签 ≈ 22.6pt 宽；

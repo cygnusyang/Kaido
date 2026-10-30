@@ -24,9 +24,11 @@ struct GanttScrollSurfaceTests {
         )
     }
 
-    private func makeWindow() -> NSWindow {
+    /// `origin` 用于多窗口用例：两个窗口必须不重叠，否则屏幕坐标里的同一个光标点会
+    /// 同时落在两个画布内，「属于哪个窗口」的判据区分不开。
+    private func makeWindow(origin: CGPoint = .zero) -> NSWindow {
         let window = NSWindow(
-            contentRect: CGRect(x: 0, y: 0, width: 900, height: 700),
+            contentRect: CGRect(x: origin.x, y: origin.y, width: 900, height: 700),
             styleMask: [.titled, .closable, .resizable],
             backing: .buffered,
             defer: false
@@ -202,6 +204,120 @@ struct GanttScrollSurfaceTests {
 
         surface.stopMonitoring()
         #expect(!surface.isMonitoring)
+    }
+
+    // MARK: - 多窗口：每窗口一条监听（D-051）
+
+    /// D-051 现场：⌘N 再开一个窗口后，新视图 attach 会摘掉旧窗口的监听，回到窗口 A
+    /// 横滑整段失效。判据 = 两个窗口都挂载完成后，**两个**视图都还在监听。
+    @Test func secondWindowDoesNotStealFirstWindowMonitor() {
+        let windowA = makeWindow()
+        let windowB = makeWindow()
+        let surfaceA = makeSurface()
+        let surfaceB = makeSurface()
+        defer {
+            surfaceA.stopMonitoring()
+            surfaceB.stopMonitoring()
+        }
+
+        windowA.contentView?.addSubview(surfaceA)
+        #expect(surfaceA.isMonitoring, "第一个窗口进入即安装")
+
+        windowB.contentView?.addSubview(surfaceB)
+        #expect(surfaceB.isMonitoring)
+        #expect(surfaceA.isMonitoring, "第二个窗口挂载不得摘掉第一个窗口的监听（D-051）")
+    }
+
+    /// 摘掉其一不影响另一：监听生命周期严格等于「自己这个视图在窗口里的存活期」。
+    @Test func stoppingOneSurfaceLeavesTheOtherMonitoring() {
+        let windowA = makeWindow()
+        let windowB = makeWindow()
+        let surfaceA = makeSurface()
+        let surfaceB = makeSurface()
+        defer {
+            surfaceA.stopMonitoring()
+            surfaceB.stopMonitoring()
+        }
+
+        windowA.contentView?.addSubview(surfaceA)
+        windowB.contentView?.addSubview(surfaceB)
+        surfaceB.stopMonitoring()
+
+        #expect(!surfaceB.isMonitoring)
+        #expect(surfaceA.isMonitoring, "另一个窗口摘监听不得波及本窗口")
+    }
+
+    /// 两个窗口各自按**自己的**光标位置判定命中：光标只在 A 里时，B 不得跟着平移。
+    /// 这是「仲裁下沉到 cursorInsideBounds()」的直接判据。
+    @Test func eachWindowPansOnlyForItsOwnCursor() {
+        let windowA = makeWindow()
+        let windowB = makeWindow(origin: CGPoint(x: 2_000, y: 0))
+        let surfaceA = makeSurface()
+        let surfaceB = makeSurface()
+        defer {
+            surfaceA.stopMonitoring()
+            surfaceB.stopMonitoring()
+        }
+        windowA.contentView?.addSubview(surfaceA)
+        windowB.contentView?.addSubview(surfaceB)
+
+        var daysA: [Double] = []
+        var daysB: [Double] = []
+        surfaceA.update(dayWidth: 10) { daysA.append($0) }
+        surfaceB.update(dayWidth: 10) { daysB.append($0) }
+
+        let event = makeScrollEvent(deltaX: 30)
+        // 同一个屏幕光标（进程里只有一个鼠标）：落在 A 的画布里。
+        let cursor = windowA.convertPoint(toScreen: CGPoint(x: 200, y: 200))
+        surfaceA.cursorInScreen = { cursor }
+        surfaceB.cursorInScreen = { cursor }
+
+        #expect(surfaceA.handle(event) == nil)
+        #expect(surfaceB.handle(event) === event, "光标不在 B 的画布里，B 必须原样放行")
+        #expect(daysA == [3])
+        #expect(daysB.isEmpty, "两个窗口不得各平移一次（双倍位移）")
+
+        // 光标移到 B 的画布里：轮到 B 平移，A 放行。
+        let cursorInB = windowB.convertPoint(toScreen: CGPoint(x: 200, y: 200))
+        surfaceA.cursorInScreen = { cursorInB }
+        surfaceB.cursorInScreen = { cursorInB }
+        #expect(surfaceB.handle(event) == nil)
+        #expect(surfaceA.handle(event) === event, "光标不在 A 里，A 必须放行")
+        #expect(daysB == [3])
+        #expect(daysA == [3], "A 的位移不得因 B 的事件再涨一次")
+    }
+
+    /// 事件只属于它被派发到的窗口：窗口重叠时光标同落两个画布，也不能两层都消费。
+    /// 合成事件没有窗口上下文（`window == nil`），此时按几何判定，不拦。
+    @Test func eventIsAddressedOnlyToItsOwnWindow() {
+        let windowA = makeWindow()
+        let windowB = makeWindow()
+
+        #expect(GanttScrollSurface.ScrollSurfaceView.isAddressed(to: windowA, eventWindow: windowA))
+        #expect(!GanttScrollSurface.ScrollSurfaceView.isAddressed(to: windowA, eventWindow: windowB),
+                "派给 B 的事件不得由 A 消费（重叠窗口的双倍位移）")
+        #expect(GanttScrollSurface.ScrollSurfaceView.isAddressed(to: windowA, eventWindow: nil),
+                "合成事件没有窗口上下文，退回几何判定")
+        #expect(!GanttScrollSurface.ScrollSurfaceView.isAddressed(to: nil, eventWindow: windowA))
+    }
+
+    // MARK: - 首次平移日志：实例级（D-052）
+
+    /// D-052：`reportedFirstPan` 曾是静态标记，进程里只有第一个窗口能记「首次平移」。
+    /// 判据 = 两个 controller（两个窗口各一个）各自都会走到记录一次。
+    @Test func firstPanIsReportedPerController() {
+        let first = GanttScrollController(dayWidth: 10) { _ in }
+        let second = GanttScrollController(dayWidth: 10) { _ in }
+
+        #expect(!first.hasReportedFirstPan)
+        #expect(!second.hasReportedFirstPan)
+
+        #expect(first.handle(deltaX: 4, deltaY: 0, shift: false, cursorInside: true))
+        #expect(first.hasReportedFirstPan)
+
+        #expect(!second.hasReportedFirstPan, "另一个窗口的 controller 仍须有自己的首次平移日志")
+        #expect(second.handle(deltaX: 4, deltaY: 0, shift: false, cursorInside: true))
+        #expect(second.hasReportedFirstPan)
     }
 
     // MARK: - store 级：连续推进（双向）

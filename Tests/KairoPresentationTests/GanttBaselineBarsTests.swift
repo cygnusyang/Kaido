@@ -67,7 +67,7 @@ struct GanttBaselineBarsTests {
         expanded: Set<UUID> = []
     ) -> WorkspaceSnapshot {
         let state = makeState(tasks, projectStart: projectStart, baselines: baselines)
-        var viewState = WorkspaceViewState(expandedTaskIDs: expanded, usesFitZoom: true)
+        var viewState = WorkspaceViewState(expandedTaskIDs: expanded, widthMode: .fit(.week))
         viewState.visibleBaselineIDs = visible
         return makeSnapshot(
             state: state,

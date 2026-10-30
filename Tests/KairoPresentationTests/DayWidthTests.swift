@@ -53,9 +53,13 @@ private func makeDayWidthSnapshot(
     canvasWidth: Double = 1200
 ) -> WorkspaceSnapshot {
     var viewState = WorkspaceViewState()
-    viewState.zoom = zoom
-    viewState.usesFitZoom = usesFitZoom
-    viewState.customDayWidth = customDayWidth
+    // 宽度来源已合并为单一枚举（D-041）：旧的三参数组合在这里一次性折算成模式，
+    // 优先级与合并前逐项一致（自定义 > 适合项目 > 档位）。
+    viewState.widthMode = .fromPersisted(
+        zoom: zoom,
+        usesFitZoom: usesFitZoom,
+        customDayWidth: customDayWidth
+    )
     return makeSnapshot(
         state: fixture.state,
         schedule: fixture.schedule,

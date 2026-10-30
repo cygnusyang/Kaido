@@ -66,7 +66,7 @@ struct GanttRenderPerformanceTests {
     /// 同时打印中位数与最差值，供 docs/perf-1.0.md 对照 10 §9 的 100ms 预算。
     @Test func thousandRowsWithThreeBaselinesKeepSnapshotBuildWithinBudget() throws {
         let fixture = makeFixture()
-        var viewState = WorkspaceViewState(usesFitZoom: true)
+        var viewState = WorkspaceViewState(widthMode: .fit(.week))
         viewState.visibleBaselineIDs = Set(fixture.baselines.map(\.id))
 
         // 预热：首轮含惰性缓存与字体度量建立成本，不计入统计。

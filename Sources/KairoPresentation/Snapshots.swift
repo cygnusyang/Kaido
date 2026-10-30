@@ -440,6 +440,11 @@ public struct GanttSnapshot: Hashable, Sendable {
     public var baselineLanes: BaselineLaneLayout
     /// 图例项（与 `visibleBaselineIDs` 同序）。
     public var baselineLegend: [BaselineLegendItem]
+    /// 窗口外任务覆盖度（D-040 / D-043）：完全落在可见窗口之外的条数与方向。
+    ///
+    /// 由 `GanttWindowCoverage.compute` 在呈现层算好（全量与翻窗两条路径同一口径），
+    /// 视图据此提示「还有多少条在窗口外」；`offWindowCount == 0` 时不展示。
+    public var offWindow: GanttWindowCoverage
 
     /// - Parameters:
     ///   - tickGranularity: 生效刻度档位；缺省时由 `zoom` 派生（保持旧构造点源码兼容）。
@@ -471,7 +476,9 @@ public struct GanttSnapshot: Hashable, Sendable {
         baselineBars: [UUID: [GanttBaselineBar]] = [:],
         visibleBaselineIDs: [UUID] = [],
         baselineLanes: BaselineLaneLayout = BaselineLanes.layout(visibleCount: 0),
-        baselineLegend: [BaselineLegendItem] = []
+        baselineLegend: [BaselineLegendItem] = [],
+        /// 缺省 = 无外溢（N=0 时与不统计同形），既有构造点零改动。
+        offWindow: GanttWindowCoverage = GanttWindowCoverage(offWindowCount: 0, side: .both)
     ) {
         self.windowStart = windowStart
         // 缺省回落到起点自身：整天对齐的窗口（旧构造点）相位恒为 0，行为不变。
@@ -500,5 +507,6 @@ public struct GanttSnapshot: Hashable, Sendable {
         self.visibleBaselineIDs = visibleBaselineIDs
         self.baselineLanes = baselineLanes
         self.baselineLegend = baselineLegend
+        self.offWindow = offWindow
     }
 }

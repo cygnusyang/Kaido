@@ -18,7 +18,10 @@ import os
 ///    不缓存矩形，容器滚动/窗口缩放后立刻正确；
 /// 3. 派发目标由 `updateNSView` 每次渲染注入（强引用），不存弱引用；
 /// 4. 窗口起点只由 store 决定（`WorkspaceStore.panWindow(byDays:)`），视图侧不做
-///    乐观推进，连续事件不会越滑越偏。
+///    乐观推进，连续事件不会越滑越偏；
+/// 5. **监听不做进程级单例**：每个视图各装一条本地监听，谁消费在事件时按「事件派发给
+///    哪个窗口 + 光标落在谁的 bounds」判定（D-051）。此前 `static weak active` 让新
+///    视图安装时摘掉旧窗口的监听，多窗口下一个窗口的横滑会整段失效。
 struct GanttScrollSurface: NSViewRepresentable {
     /// 当前生效日宽（像素 → 整天的换算基准）。
     let dayWidth: Double
@@ -40,9 +43,6 @@ struct GanttScrollSurface: NSViewRepresentable {
     /// 承接滚动的 NSView：不吃鼠标事件（`hitTest` 返回 nil），画布手势照旧。
     final class ScrollSurfaceView: NSView {
         private static let logger = Logger(subsystem: "ai.kairo.app", category: "gantt-pan")
-        /// 当前活动视图：新视图安装即接管，旧视图的监听当场摘除（D-027 的
-        /// 单实例教训保留，但仲裁对象是「活着的视图」，不是「常驻的上下文」）。
-        private static weak var active: ScrollSurfaceView?
 
         private var controller: GanttScrollController?
         private var monitor: Any?
@@ -83,19 +83,25 @@ struct GanttScrollSurface: NSViewRepresentable {
         /// 曾经出现「启动时 attached → 原地 detached 两次 → 再无 attached」的现场，
         /// 结果是画布左右平移整段失效而界面毫无异常。这里在每次 SwiftUI 更新时
         /// 把「视图在窗口」与「监听在岗」拉回一致，漏掉的生命周期事件不再致命。
+        /// 去掉 `static active` 后这道自愈更不能删：以前另一个视图 `startMonitoring()`
+        /// 会顺带重装仲裁，现在每层只管自己，漏掉的生命周期事件没有任何旁路可以补救。
         func syncMonitoringState() {
             if window == nil, monitor != nil {
+                // 去掉 static active 之后没有第二个视图会顺手摘掉本视图的监听（D-051），
+                // 所以走到这里必然是「生命周期事件漏发」。记一条正文明线索，别让
+                // 监听带着 [weak self] 静默累积到下次真机排查才发现（v1.4.0 审查 M5）。
+                Self.logger.notice("scroll surface detached without lifecycle event; monitor reclaimed")
                 stopMonitoring()
             } else if window != nil, monitor == nil {
                 startMonitoring()
             }
         }
 
+        /// 装监听：每个视图一条，互不干扰（D-051）。
+        ///
+        /// 这里不再有「新视图接管、摘掉旧视图」的抢占——仲裁下沉到事件时（见 `handle`）：
+        /// 事件先按所属窗口过滤，再按光标是否落在自己的 bounds 过滤。
         private func startMonitoring() {
-            if let previous = Self.active, previous !== self {
-                previous.stopMonitoring()
-            }
-            Self.active = self
             guard monitor == nil else { return }
             monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
                 guard let self else { return event }
@@ -108,7 +114,6 @@ struct GanttScrollSurface: NSViewRepresentable {
         func stopMonitoring() {
             if let monitor { NSEvent.removeMonitor(monitor) }
             monitor = nil
-            if Self.active === self { Self.active = nil }
             Self.logger.notice("scroll surface detached")
         }
 
@@ -119,6 +124,8 @@ struct GanttScrollSurface: NSViewRepresentable {
         /// （< 1pt）时才吞掉事件，避免重复滚动。
         func handle(_ event: NSEvent) -> NSEvent? {
             guard let controller else { return event }
+            // 监听是进程级的、每个窗口一条（D-051），所以本层也会收到属于别的窗口的事件。
+            guard Self.isAddressed(to: window, eventWindow: event.window) else { return event }
             // 传统滚轮（鼠标）的 delta 单位是「行」而非像素：不换算的话一次滚格只走
             // 1pt，跨度模式要 171 格才动一天，实测就是「滚不动」。触摸板是精确像素，1:1。
             let scale = event.hasPreciseScrollingDeltas ? 1 : GanttScrollController.lineScrollPoints
@@ -139,6 +146,17 @@ struct GanttScrollSurface: NSViewRepresentable {
             guard let window else { return false }
             let cursor = convert(window.convertPoint(fromScreen: cursorInScreen()), from: nil)
             return bounds.contains(cursor)
+        }
+
+        /// 事件归属：一条滚动事件只属于它被派发到的那个窗口。
+        ///
+        /// 去掉进程级仲裁后每个窗口各有一条监听，窗口重叠（或同一光标点同时落在两个
+        /// 画布的屏幕矩形里）时只靠几何判定会让两层各平移一次——那就是双倍位移。
+        /// `event.window` 是事件真正要去的窗口（光标下最上层的那个），据此排他。
+        /// 合成事件没有窗口上下文（`nil`），此时退回几何判定，不拦。
+        static func isAddressed(to window: NSWindow?, eventWindow: NSWindow?) -> Bool {
+            guard let eventWindow else { return true }
+            return eventWindow === window
         }
     }
 }
@@ -188,7 +206,7 @@ final class GanttScrollController {
         }
         let days = HorizontalPan.days(deltaX: pixels, dayWidth: dayWidth)
         guard days != 0 else { return true }
-        Self.logFirstPan(pixels: pixels, dayWidth: dayWidth, days: days)
+        logFirstPan(pixels: pixels, dayWidth: dayWidth, days: days)
         onDays(days)
         return true
     }
@@ -202,11 +220,16 @@ final class GanttScrollController {
         Self.logger.notice("scroll ignored (\(reason.rawValue, privacy: .public))")
     }
 
-    /// 首次成功平移只记一条（现场核对「事件到底有没有到」）。
-    private static var reportedFirstPan = false
-    private static func logFirstPan(pixels: Double, dayWidth: Double, days: Double) {
-        guard !reportedFirstPan else { return }
-        reportedFirstPan = true
-        logger.notice("first pan: \(pixels, privacy: .public)pt / \(dayWidth, privacy: .public)pt-per-day = \(days, privacy: .public) days")
+    /// 首次成功平移是否已记录（现场核对「事件到底有没有到」）。
+    ///
+    /// 实例级而非进程级（D-052）：每个窗口的画布各有自己的 controller，静态标记会让
+    /// 第二个窗口的首次平移整段静默，与放行原因日志（`loggedIgnoreReasons`）口径也不一致。
+    /// 暴露为只读，供测试断言「每个 controller 各记一次」。
+    private(set) var hasReportedFirstPan = false
+
+    private func logFirstPan(pixels: Double, dayWidth: Double, days: Double) {
+        guard !hasReportedFirstPan else { return }
+        hasReportedFirstPan = true
+        Self.logger.notice("first pan: \(pixels, privacy: .public)pt / \(dayWidth, privacy: .public)pt-per-day = \(days, privacy: .public) days")
     }
 }

@@ -17,6 +17,37 @@
 - `FidelityLedger` 登记 97 条硬约束降级（SNET 41 / FNET 56）、日历换算（周一至周五 5 天/周 × 8h，另 37 条例外日）、4 个自定义域（105 条任务上 214 个值）。
 - 全量 **1408 tests / 134 suites** 通过；新增 23 例，零 warning。
 
+## v1.4.0 — 2026-10-30
+
+### 新增
+
+- **群组任务的起止 = 第一个子任务开始 → 最后一个子任务结束**：排期引擎早就这样聚合，但大纲/检查器自己又算了一份，两处口径在「工作日历不是 7 天」与「子任务成环」时会分叉（大纲报自然日、导出报工作日；甘特群组条比大纲更宽更早）。改为群组窗口与工期**直接透传排期结果**，大纲 / 检查器 / 甘特 / CLI / CSV 从此同源；空群组与子任务全取消的群组仍无窗口。
+- **窗口外任务提示与一键适应**：项目整体在过去或大量任务落在窗口外时，画布顶部浮出「另有 N 个任务在窗口外 · 适应项目」，点一下回到铺满全项目。计数走**排期区间**（画布条已被窗口过滤，拿它统计恒为 0），只数可见行，`fit` 模式恒为 0——否则内容起点的零时长里程碑会让提示常驻、按钮变成死键。
+
+### 修复
+
+- **D-041 窗口宽度来源合并为单一枚举**：`zoom / usesFitZoom / customDayWidth / windowSpanDays` 四个互斥标志合并为 `WindowWidthMode`（preset / fit / custom / span），非法组合**不可构造**；五个动作分支各四行赋值的写法收敛成一次赋值，`viewState` 只保留同名只读访问器，漏改一个分支不再是静默失效。
+- **D-045 偏好迁移改按版本**：原来的「schema 相等」门意味着下一次把常量从 2 改成 3 就会整块重置所有用户的窗口偏好。改为 `schema >= 2` 保留、仅无 schema / v1 重置；迁移是纯函数且幂等（可重放），不读时钟与环境。
+- **D-044 缩放菜单只读快照**：删掉菜单里两份重新编码「档位优先级」的 private helper，改读 `statusBar.zoom.preset`（唯一源 `Presenter.zoomPreset`）。
+- **D-051 多窗口不再互踢滚动监听**：删掉 `ScrollSurfaceView` 的进程级 `static active` 抢占（新视图安装会摘掉别的窗口的监听，⌘N 后只有最后一个窗口能横滑）。改为每视图一条监听，事件时按 `event.window` + 光标是否在自身 bounds 内仲裁。
+- **D-052 首次平移日志按视图各记一条**：`reportedFirstPan` 由 static 改实例字段，与新加的「放行原因首次日志」同口径。
+- **D-042 部分修复**：`reveal(id)` 定位窗口外任务时把窗口滚过去（落在 1/4 处，`fit` 下不滚）；滑杆区间函数 `GanttScale.sliderRange` 就绪但**未接线**（internal）。滑杆与动作层上界仍夹在 120，跨度模式下 146.3 一点滑杆就被夹回并退出跨度——剩余部分顺延 v1.5.0，D-042 **不核销**。
+
+### 判据
+
+- KairoCore：545 tests / 66 suites；KairoPresentation：335 tests / 31 suites（本地实跑，A7 冻结三组 `DayWidthTests` / `DayWidthAcceptanceTests` / `StartupWindowAnchorTests` 逐位不变）。
+- 新增 `OutlineTreeGroupWindowTests`（4 例，含「5 天工作日历下大纲工期 == 排期工期」这条先红后绿的判别用例）、`GanttWindowCoverageTests`（8 例：左右/双侧/边界取等/未排期/可见行过滤/无排期）、`WindowWidthModeTests`（15）、`RevealWindowTests`（7）、`PreferencesMigrationPlanTests`（8）、`V140AcceptanceTests`（Presentation 10 例 + App 3 例）。
+- App 层由 PR CI 验证（本机只有 CommandLineTools，`KairoMacApp` 缺 SwiftUIMacros 插件无法本地编译）：macOS 作业 **1673 tests / 176 suites 全绿**（较 v1.3.8 的 1602 / 165 净增 71 例 / 11 套件），Linux 作业 1034 tests / 110 suites 全绿。
+
+### 人工验收（未自动化）
+
+- 胶囊在实际窗口下的位置与遮挡（320pt 窄画布截断）、VoiceOver 读法。
+- 双窗口（⌘N）下两窗口各自横滑、`event.window` 的真实取值（用例用的是合成事件）。
+
+### 未纳入（顺延）
+
+- D-042 第一条：滑杆上界与动作层提交口径放开（v1.5.0）。
+
 ## v1.3.8 — 2026-10-30
 
 ### 修复

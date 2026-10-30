@@ -77,26 +77,29 @@ struct GanttWindowPanEqualityTests {
         var base = WorkspaceViewState()
         base.windowStart = windowStart
 
+        // 注意：`WorkspaceViewState()` 的旧默认是「适合项目 + 周档位」，所以这三个
+        // 场景在合并前（D-041）实际跑的是 **fit 路径的不同基准档位**，不是预设档位路径。
+        // 这里按枚举逐字保留那个组合（`fit(base)`），不借重构顺手改掉测试覆盖面。
         var day = base
-        day.zoom = .day
+        day.widthMode = .fit(.day)
 
         var week = base
-        week.zoom = .week
+        week.widthMode = .fit(.week)
 
         var month = base
-        month.zoom = .month
+        month.widthMode = .fit(.month)
 
+        // 自定义日宽是唯一权威日宽：与 fit 同真时也让位（合并前口径）。
         var custom = base
-        custom.zoom = .day
-        custom.customDayWidth = 20
+        custom.widthMode = .custom(dayWidth: 20, base: .day)
 
         // 翻窗前是「适合项目」：翻窗会关掉 fit，日宽随之改变（大纲行不变，甘特全变）。
         var fit = base
-        fit.usesFitZoom = true
+        fit.widthMode = .fit(.week)
         fit.windowStart = nil
 
         var overlays = base
-        overlays.zoom = .day
+        overlays.widthMode = .fit(.day)
         overlays.selectedBaselineID = fixture.baselines[0].id
         overlays.visibleBaselineIDs = Set(fixture.baselines.map(\.id))
         overlays.showsNonWorkingDays = true
@@ -104,12 +107,12 @@ struct GanttWindowPanEqualityTests {
         overlays.showCriticalPath = true
 
         var selected = base
-        selected.zoom = .week
+        selected.widthMode = .fit(.week)
         selected.selectedTaskID = fixture.tasks[500].id
         selected.inspectorLocked = true
 
         var filtered = base
-        filtered.zoom = .day
+        filtered.widthMode = .fit(.day)
         filtered.filterText = "逾期"
 
         return [
@@ -151,7 +154,7 @@ struct GanttWindowPanEqualityTests {
                     ?? previous.gantt.windowStart
                 state.windowStart = testCalendar.date(byAdding: .day, value: offset, to: origin)
                 // 与 `WorkspaceStore.panWindow` 同一写法：翻窗即退出「适合项目」。
-                state.usesFitZoom = false
+                state.widthMode = state.widthMode.withoutFit
 
                 let incremental = WorkspacePresenter.makeWindowPan(
                     previous: previous,
@@ -195,7 +198,7 @@ struct GanttWindowPanEqualityTests {
     @Test func windowPanReusesOutlineAndInspector() {
         let fixture = makeFixture()
         var viewState = WorkspaceViewState()
-        viewState.zoom = .day
+        viewState.widthMode = .fit(.day)
         viewState.windowStart = windowStart
         viewState.selectedTaskID = fixture.tasks[42].id
 
@@ -211,7 +214,7 @@ struct GanttWindowPanEqualityTests {
         )
 
         viewState.windowStart = testCalendar.date(byAdding: .day, value: 6, to: windowStart)
-        viewState.usesFitZoom = false
+        viewState.widthMode = .preset(.day)
 
         let incremental = WorkspacePresenter.makeWindowPan(
             previous: previous,

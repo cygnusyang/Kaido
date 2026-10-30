@@ -494,8 +494,7 @@ private let fixtureProjectTitle = "演示项目"
     let schedule = makeSchedule(tasks, projectStart: projectStart, now: now)
 
     var viewState = WorkspaceViewState()
-    viewState.usesFitZoom = false
-    viewState.zoom = .day
+    viewState.widthMode = .preset(.day)
     let snapshot = makeSnapshot(state: state, schedule: schedule, viewState: viewState, now: now)
     #expect(snapshot.statusBar.zoom.preset == .day)
     #expect(snapshot.statusBar.zoom.pointsPerDay == GanttZoom.day.dayWidth)
