@@ -124,6 +124,9 @@ public struct OutlineTree: Hashable, Sendable {
             var status: TaskStatus = .pending
             var start: Date?
             var finish: Date?
+            /// 群组的工期（仅当排期结果里有该群组条目时有值）：单位由引擎统一为工作日，
+            /// 不再由呈现层用自然日差另算一份（v1.4.0 / 组 A）。
+            var duration: Double?
             var violations: Int = 0
         }
         var aggregateCache: [UUID: Aggregate] = [:]
@@ -170,6 +173,13 @@ public struct OutlineTree: Hashable, Sendable {
                 let finishes = childAggregates.compactMap(\.finish)
                 // 已取消的子任务不参与群组状态判定（v0.16）：否则「其余都做完」永远聚合不成 done。
                 let considered = children.filter { byID[$0]?.status != .cancelled }.map(aggregate)
+                // 群组窗口与工期以**排期结果**为准：甘特条 / CLI / CSV / MSPDI 全部读
+                // `ScheduleResult`，大纲若再从子任务自行推算就会分裂——工期单位（自然日 vs
+                // 工作日）与环上子任务的兜底窗口都曾在两处不一致（v1.4.0 / 组 A）。
+                // 空群组 / 子任务全取消：引擎把它们列进 `unscheduledTaskIDs`，`scheduled()`
+                // 返回 nil，于是这里保持「无窗口」，不会凭空顶出一个跨度。
+                let derivedStart = starts.min()
+                let derivedFinish = finishes.max()
                 var status = TaskStatus.pending
                 if !considered.isEmpty {
                     if considered.allSatisfy({ $0.status == .done }) {
@@ -180,11 +190,15 @@ public struct OutlineTree: Hashable, Sendable {
                         status = .blocked
                     }
                 }
+                let window = scheduled(id).map {
+                    (start: $0.scheduledStart, finish: $0.scheduledFinish, duration: $0.durationDays)
+                }
                 result = Aggregate(
                     progress: progress.map { $0.weight > 0 ? $0.weighted / $0.weight : 0 } ?? 0,
                     status: status,
-                    start: starts.min(),
-                    finish: finishes.max(),
+                    start: window?.start ?? derivedStart,
+                    finish: window?.finish ?? derivedFinish,
+                    duration: window?.duration,
                     violations: ownViolations(id) + childAggregates.reduce(0) { $0 + $1.violations }
                 )
             } else {
@@ -228,7 +242,8 @@ public struct OutlineTree: Hashable, Sendable {
             let agg = aggregate(id)
             let own = scheduled(id)
             let isExpanded = !children.isEmpty && effectiveExpanded.contains(id)
-            let duration: Double? = {
+            // 有排期条目就用引擎的工期（工作日口径）；没有排期结果时才回落到自然日差。
+            let duration: Double? = agg.duration ?? {
                 guard let start = agg.start, let finish = agg.finish else { return nil }
                 return Double(calendar.dateComponents(
                     [.day], from: calendar.startOfDay(for: start), to: calendar.startOfDay(for: finish)
