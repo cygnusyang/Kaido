@@ -39,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PINNED="6.4"
+          PINNED="6.3"
           ACTUAL="$(swift --version | sed -n 's/.*Swift version \([0-9][0-9.]*\).*/\1/p' | head -1)"
           echo "pinned=${PINNED} actual=${ACTUAL}"
           if [ "${ACTUAL}" != "${PINNED}" ]; then
