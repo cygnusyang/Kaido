@@ -460,6 +460,24 @@ struct WorkspaceView: View {
         }
     }
 
+    /// 画布右上角的导航入口（D-054）：窗口整个离开排期时给「回到排期」，
+    /// 与排期相交但仍有条在窗口外时给「适合项目」。
+    ///
+    /// 出现与否完全由呈现层裁定的 `GanttSnapshot.navigation` 决定，视图不自己再判一遍。
+    @ViewBuilder
+    private func navigationChipOverlay(gantt: GanttSnapshot, sizes: WorkspaceSizes) -> some View {
+        if sizes.showsTimeline, let navigation = gantt.navigation {
+            TimelineNavigationChip(
+                navigation: navigation,
+                coverage: gantt.offWindow,
+                // 画布可窄到 320pt：限宽后文案截断，胶囊不会越过画布压到大纲列上。
+                maxWidth: max(sizes.canvasWidth - 16, 0),
+                action: { store.dispatch(navigation.action) }
+            )
+            .padding(8)
+        }
+    }
+
     private func planArea(sizes: WorkspaceSizes, height: CGFloat) -> some View {
         let rows = store.snapshot.outline.rows
         let gantt = store.snapshot.gantt
@@ -590,6 +608,21 @@ struct WorkspaceView: View {
                     if let reason = store.snapshot.outline.emptyReason {
                         EmptyWorkspaceView(reason: reason, store: store)
                     }
+                }
+                // 导航入口（D-054）：挂在**滚动容器**的可视区右上角。
+                //
+                // 三条约束互相咬合，位置只有这一个解：
+                // - 不能进画布内容坐标：会被 `TimelineCanvasViewport` 的 `.offset(y: offset)`
+                //   一起位移（实测 y = 86 − offset，滚两屏就跑到视口上方）；
+                // - 不能进 `TimelineHeaderView` 内部：那里有 `.clipped()` 与拖拽平移手势，
+                //   会把点击抢走；
+                // - 挂在表头**调用点**虽然不随滚动位移（实测 y 恒为 43），但表头整块在
+                //   滚动视口（本例 y ∈ [78, 493]）之上，入口会落在「视口外」，与
+                //   「视口里始终看得见入口」的判据直接冲突。
+                // 挂在滚动容器的 overlay 上同时满足两条：矩形与纵向滚动无关（实测 y 恒为 86），
+                // 且落在可视区内。
+                .overlay(alignment: .topTrailing) {
+                    navigationChipOverlay(gantt: gantt, sizes: sizes)
                 }
             }
         }

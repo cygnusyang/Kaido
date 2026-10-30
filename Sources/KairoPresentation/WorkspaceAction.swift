@@ -23,6 +23,12 @@ public enum WorkspaceAction: Equatable, Sendable {
     case clearCustomDayWidth
     case panWindow(to: Date)
     case goToToday
+    /// 窗口整体落在排期区间之外时的「回到排期」（D-054）：只平移窗口起点，
+    /// 不改宽度档位（宽度是用户的缩放选择），也不产生撤销点。
+    ///
+    /// 目标起点由 `GanttSchedulePlacement.returnStart` 按 `GanttSnapshot.navigation`
+    /// 的侧别算出；入口不在排期之外时（导航为 nil 或 `.offWindow`）应用层不动状态。
+    case returnToSchedule
 
     // 筛选
     case setFilter(String)

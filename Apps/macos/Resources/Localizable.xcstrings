@@ -596,6 +596,40 @@
         }
       }
     },
+    "action.return_to_schedule": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to schedule"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回到排期"
+          }
+        }
+      }
+    },
+    "action.return_to_schedule.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move the window back to the scheduled period"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把可见窗口移回任务排期所在的区间"
+          }
+        }
+      }
+    },
     "action.save_and_open": {
       "extractionState": "manual",
       "localizations": {

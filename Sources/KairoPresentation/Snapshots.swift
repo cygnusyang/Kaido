@@ -445,6 +445,17 @@ public struct GanttSnapshot: Hashable, Sendable {
     /// 由 `GanttWindowCoverage.compute` 在呈现层算好（全量与翻窗两条路径同一口径），
     /// 视图据此提示「还有多少条在窗口外」；`offWindowCount == 0` 时不展示。
     public var offWindow: GanttWindowCoverage
+    /// 已排期任务的跨度 `[min scheduledStart, max scheduledFinish]`（D-054）。
+    ///
+    /// 口径是**任务本身**的首尾（`GanttSchedulePlacement.taskRange`），不含
+    /// `projectStart` / `projectEnd` 锚点：用户说的「回到排期」是回到有任务的区间。
+    /// 无排期（或一条已排期任务都没有）时为 nil。
+    public var scheduleRange: DateInterval?
+    /// 画布右上角的导航入口（D-054）：窗口整个离开排期，或仍有条在窗口外。
+    ///
+    /// 由 `GanttSchedulePlacement.navigation` 在呈现层裁定（排期之外优先于外溢计数），
+    /// 视图只按 case 取词条与派发 `action`。nil = 不展示入口。
+    public var navigation: GanttNavigation?
 
     /// - Parameters:
     ///   - tickGranularity: 生效刻度档位；缺省时由 `zoom` 派生（保持旧构造点源码兼容）。
@@ -478,7 +489,9 @@ public struct GanttSnapshot: Hashable, Sendable {
         baselineLanes: BaselineLaneLayout = BaselineLanes.layout(visibleCount: 0),
         baselineLegend: [BaselineLegendItem] = [],
         /// 缺省 = 无外溢（N=0 时与不统计同形），既有构造点零改动。
-        offWindow: GanttWindowCoverage = GanttWindowCoverage(offWindowCount: 0, side: .both)
+        offWindow: GanttWindowCoverage = GanttWindowCoverage(offWindowCount: 0, side: .both),
+        scheduleRange: DateInterval? = nil,
+        navigation: GanttNavigation? = nil
     ) {
         self.windowStart = windowStart
         // 缺省回落到起点自身：整天对齐的窗口（旧构造点）相位恒为 0，行为不变。
@@ -508,5 +521,7 @@ public struct GanttSnapshot: Hashable, Sendable {
         self.baselineLanes = baselineLanes
         self.baselineLegend = baselineLegend
         self.offWindow = offWindow
+        self.scheduleRange = scheduleRange
+        self.navigation = navigation
     }
 }
