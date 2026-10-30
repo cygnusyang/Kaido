@@ -9756,6 +9756,57 @@
         }
       }
     },
+    "timeline.off_window.after": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$ld tasks are after the visible window"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "窗口右侧另有 %1$ld 个任务"
+          }
+        }
+      }
+    },
+    "timeline.off_window.before": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$ld tasks are before the visible window"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "窗口左侧另有 %1$ld 个任务"
+          }
+        }
+      }
+    },
+    "timeline.off_window.both": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$ld tasks are outside the visible window"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "窗口两侧另有 %1$ld 个任务"
+          }
+        }
+      }
+    },
     "timeline.pan.help": {
       "extractionState": "manual",
       "localizations": {
