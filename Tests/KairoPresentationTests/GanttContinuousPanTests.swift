@@ -26,7 +26,10 @@ struct GanttContinuousPanTests {
         let state = makeState([task], projectStart: taskStart)
         let schedule = makeSchedule([task], projectStart: taskStart, now: now)
         var viewState = WorkspaceViewState()
-        viewState.windowSpanDays = WorkspaceViewState.defaultWindowSpanDays
+        viewState.widthMode = .span(
+            days: WorkspaceViewState.defaultWindowSpanDays,
+            base: .week
+        )
         viewState.windowStart = windowStart
         return makeSnapshot(
             state: state,

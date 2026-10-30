@@ -567,13 +567,14 @@ public enum WorkspacePresenter {
         // 其次固定跨度（画布宽 / 跨度天数），再次「适合项目」的 fit 宽度，
         // 最后才是档位默认宽度。
         // 夹取只作用于自定义路径；跨度是精确等分、fit 是内容拟合，两者都不夹取。
-        let custom = viewState.customDayWidth.map(GanttScale.clampDayWidth)
+        // 宽度来源是单一枚举（D-041）：下面三行只做「枚举 → 布局入参」的翻译，
+        // 互斥关系已由类型保证，不再需要逐项排除（自定义 + 跨度 / fit + 自定义不可表示）。
+        let mode = viewState.widthMode
+        let custom = mode.customDayWidth.map(GanttScale.clampDayWidth)
         // 跨度天数非法（≤0）时按 1 天处理：宁可退化成「一天铺满画布」，
         // 也不做除零得到 inf 再让核心出 NaN 坐标。
-        let spanDays = viewState.windowSpanDays.map { max($0, 1) }
-        // 跨度模式下 fit 与档位都不参与：跨度与「适合项目」互斥（last-writer 由动作层保证）。
-        let canFit = viewState.usesFitZoom && custom == nil && spanDays == nil
-            && fitRange != nil && viewport.canvasWidth > 0
+        let spanDays = mode.spanDays.map { max($0, 1) }
+        let canFit = mode.isFit && fitRange != nil && viewport.canvasWidth > 0
         let fitWidth: Double? = canFit
             ? fitRange.map {
                 GanttLayoutEngine.fitDayWidth(
@@ -592,7 +593,7 @@ public enum WorkspacePresenter {
         // 自定义路径下该值恒等于 `custom`（已夹取到 ≥ 2，高于核心下限）；
         // 跨度极窄时（长跨度 + 窄画布）可能落在下限上，此时日轴不再是精确等分，但至少有刻度可读。
         let effectiveDayWidth = max(
-            dayWidthOverride ?? viewState.zoom.dayWidth,
+            dayWidthOverride ?? mode.baseZoom.dayWidth,
             GanttScale.minimumDayWidth
         )
         // 核心 `zoom` 入参（生效刻度档位）：
@@ -601,13 +602,13 @@ public enum WorkspacePresenter {
         let derivesTicksFromWidth = custom != nil || spanDays != nil
         let engineZoom: GanttZoom = derivesTicksFromWidth
             ? GanttScale.tickUnit(forDayWidth: effectiveDayWidth)
-            : viewState.zoom
+            : mode.baseZoom
         // 默认起点：固定跨度与自定义日宽锚今天——这两条是用户主动「盯当下」的路径，
         // 回落到内容起点会让打开旧项目的人直接看不见今天（D-039 根因 A）。
         // 「适合项目」与预设档位维持内容起点：fit 的语义是铺满整个项目，
         // 预设档位是 A7 冻结的改动前口径，两者都不能动。
         // 显式 `windowStart`（用户平移过）永远优先。
-        let anchorsToday = custom != nil || spanDays != nil
+        let anchorsToday = mode.anchorsToday
         let defaultStart = anchorsToday ? today : (content?.start ?? today)
         let requestedStart = viewState.windowStart ?? defaultStart
 
@@ -702,7 +703,7 @@ public enum WorkspacePresenter {
             contentStart: layout.contentStart,
             contentEnd: layout.contentEnd,
             dayWidth: layout.dayWidth,
-            zoom: viewState.zoom,
+            zoom: mode.baseZoom,
             usesFitZoom: canFit,
             today: today,
             todayX: todayX,
@@ -721,8 +722,55 @@ public enum WorkspacePresenter {
             baselineBars: overlay.bars,
             visibleBaselineIDs: overlay.visibleIDs,
             baselineLanes: overlay.lanes,
-            baselineLegend: overlay.legend
+            baselineLegend: overlay.legend,
+            // 窗口外覆盖度（D-040 / D-043）：必须由**排期区间**统计，不能拿 `bars` 反推——
+            // `GanttLayout.make` 会把完全落在窗口外的条整条丢掉
+            // （`guard finish > windowStart, start < windowEnd`），所以 `bars` 里永远
+            // 不含「完全在外面」的条，按它统计恒为 0。全量与翻窗两条路径都走这里，
+            // 同一窗口下产出的快照仍逐字段相等。
+            offWindow: offWindowCoverage(
+                schedule: layoutSchedule,
+                windowStart: layout.windowStart,
+                windowEnd: layout.windowEnd
+            )
         )
+    }
+
+    /// 窗口外条数与方向（D-040 / D-043）。
+    ///
+    /// 与 `GanttLayout.make` 同一口径的条目集合（已排期且非 unscheduled），但**不做窗口裁剪**：
+    /// 完全落在 `[windowStart, windowEnd)` 之外的条目正是本统计要数的对象，按 `bars` 统计
+    /// 会因为布局丢条而恒为 0。
+    ///
+    /// 边界取等与 `GanttWindowCoverage` 的说明一致：`finish <= windowStart` 算左侧外溢，
+    /// `start >= windowEnd` 算右侧外溢；跨越窗口的条不计。
+    private static func offWindowCoverage(
+        schedule: ScheduleResult?,
+        windowStart: Date,
+        windowEnd: Date
+    ) -> GanttWindowCoverage {
+        guard let schedule else { return GanttWindowCoverage(offWindowCount: 0, side: .both) }
+        let unscheduledIDs = Set(schedule.unscheduledTaskIDs)
+        var before = 0
+        var after = 0
+        for entry in schedule.tasks where !unscheduledIDs.contains(entry.taskID) {
+            if entry.scheduledFinish <= windowStart {
+                before += 1
+            } else if entry.scheduledStart >= windowEnd {
+                after += 1
+            }
+        }
+        let side: GanttWindowCoverage.Side
+        if before > 0 && after > 0 {
+            side = .both
+        } else if before > 0 {
+            side = .before
+        } else if after > 0 {
+            side = .after
+        } else {
+            side = .both
+        }
+        return GanttWindowCoverage(offWindowCount: before + after, side: side)
     }
 
     /// 甘特铺灰用的非工作星期集合（F-22-06）。
@@ -1163,19 +1211,18 @@ public enum WorkspacePresenter {
             .map { CompletedTask(id: $0.id, title: $0.title, completedAt: $0.completedAt!) }
     }
 
-    /// 缩放档位（F-0704）：只回语义档位，档位名由视图按 statusbar.zoom.<rawValue> 渲染。
+    /// 缩放档位（F-0704 / D-044）：只回语义档位，档位名由视图按 statusbar.zoom.<rawValue> 渲染。
     ///
-    /// 优先级：自定义 > 固定跨度 > 「适合项目」 > 预设档位。
-    /// 自定义日宽生效时不再显示任何预设档位（与「适合项目」同真时亦然）；
-    /// 跨度模式下 fit 与档位都不参与，故排在 fit 之前。
+    /// 档位判定的**唯一**权威：动作后的宽度来源已由 `WorkspaceViewState.widthMode`
+    /// 表达成互斥枚举（自定义 / 固定跨度 / 适合项目 / 预设四者不可能并存），
+    /// 这里只做枚举 → 状态栏语义的翻译，不再重排优先级。
+    /// 菜单与状态栏都读本函数产出的快照，视图侧不二次推导（D-044）。
     static func zoomPreset(_ viewState: WorkspaceViewState) -> ZoomPreset {
-        if viewState.customDayWidth != nil { return .custom }
-        if viewState.windowSpanDays != nil { return .span }
-        if viewState.usesFitZoom { return .fit }
-        switch viewState.zoom {
-        case .day: return .day
-        case .week: return .week
-        case .month: return .month
+        switch viewState.widthMode {
+        case .custom: return .custom
+        case .span: return .span
+        case .fit: return .fit
+        case .preset(let zoom): return ZoomPreset(presetOf: zoom)
         }
     }
 

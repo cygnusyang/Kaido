@@ -78,6 +78,36 @@ struct GanttScaleTests {
         #expect(GanttScale.tickUnit(forDayWidth: .infinity) == .day)
     }
 
+    // MARK: - 滑杆区间（D-042）
+
+    @Test func sliderRangeKeepsDefaultUpperWhenDayWidthFits() {
+        // 常用区不动：读数在档位区间内时，滑杆尺度与引入本函数前逐位一致。
+        #expect(GanttScale.sliderRange(forDayWidth: 12) == GanttScale.dayWidthRange)
+        #expect(GanttScale.sliderRange(forDayWidth: 120) == GanttScale.dayWidthRange)
+        #expect(GanttScale.sliderRange(forDayWidth: 2) == GanttScale.dayWidthRange)
+    }
+
+    @Test func sliderRangeWidensForSpanWidthBeyondPresetUpper() {
+        // 1024pt 画布 / 7 天跨度 = 146.3 点/天：上界必须容得下当前值，否则滑杆
+        // 一拖就把跨度宽度夹回 120 并静默退出跨度模式。
+        let range = GanttScale.sliderRange(forDayWidth: 146.3)
+        #expect(range.lowerBound == GanttScale.dayWidthRange.lowerBound)
+        #expect(range.upperBound == 146.3)
+        #expect(range.contains(146.3))
+    }
+
+    @Test func sliderRangeNeverNarrowsBelowDefault() {
+        #expect(GanttScale.sliderRange(forDayWidth: 0).upperBound == GanttScale.dayWidthRange.upperBound)
+        #expect(GanttScale.sliderRange(forDayWidth: -50).lowerBound == GanttScale.dayWidthRange.lowerBound)
+    }
+
+    @Test func sliderRangeFallsBackForNonFiniteWidth() {
+        // 坏读数不许把滑杆尺度撑成无穷 / NaN。
+        #expect(GanttScale.sliderRange(forDayWidth: .nan) == GanttScale.dayWidthRange)
+        #expect(GanttScale.sliderRange(forDayWidth: .infinity) == GanttScale.dayWidthRange)
+        #expect(GanttScale.sliderRange(forDayWidth: -.infinity) == GanttScale.dayWidthRange)
+    }
+
     // MARK: - 常量
 
     @Test func declaredConstantsMatchContract() {

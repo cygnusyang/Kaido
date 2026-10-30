@@ -94,9 +94,12 @@ private func makeDayWidthSnapshot(
     windowStart: Date? = nil
 ) -> WorkspaceSnapshot {
     var viewState = WorkspaceViewState()
-    viewState.zoom = zoom
-    viewState.usesFitZoom = usesFitZoom
-    viewState.customDayWidth = customDayWidth
+    // 同 DayWidthTests：三参数旧组合折算成单一宽度来源（自定义 > 适合项目 > 档位）。
+    viewState.widthMode = .fromPersisted(
+        zoom: zoom,
+        usesFitZoom: usesFitZoom,
+        customDayWidth: customDayWidth
+    )
     viewState.windowStart = windowStart
     // 本套用例专门校验「非工作带」与日宽的整除关系：显式打开着色开关（默认关闭）。
     viewState.showsNonWorkingDays = true
@@ -1023,20 +1026,21 @@ struct DayWidthAcceptanceTests {
 
     // MARK: A8 持久化前置条件
 
-    /// A8 前置条件：自定义日宽承载在可持久化的视图状态中（缺省 nil、随值拷贝与相等性保持）。
+    /// A8 前置条件：自定义日宽承载在可持久化的视图状态中（缺省无自定义、随值拷贝与相等性保持）。
     /// 偏好 JSON 的编解码往返在应用层 `WorkspaceStore.StoredPreferences`（见交付报告缺口说明）。
+    /// D-041 后承载它的是 `widthMode` 的 `.custom`，判据本身不变。
     @Test func viewStateCarriesCustomDayWidthAsPersistableValue() {
         #expect(WorkspaceViewState().customDayWidth == nil)
 
         var state = WorkspaceViewState()
-        state.customDayWidth = 20
+        state.widthMode = .custom(dayWidth: 20, base: .week)
         let copied = state
         #expect(copied.customDayWidth == 20)
         #expect(copied == state)
         #expect(copied.hashValue == state.hashValue)
 
         var cleared = state
-        cleared.customDayWidth = nil
+        cleared.widthMode = .preset(.week)
         #expect(cleared.customDayWidth == nil)
         #expect(cleared != state)
     }

@@ -14,6 +14,20 @@ public enum ZoomPreset: String, Codable, Hashable, Sendable {
     case month
 }
 
+extension ZoomPreset {
+    /// 由预设档位得到对应的状态栏枚举（D-044）。
+    ///
+    /// `.custom` / `.span` / `.fit` 是**模式**态，不由档位产生，所以这里只映射三档；
+    /// 菜单与呈现层共用这一个映射，避免各自再写一遍 `switch`。
+    public init(presetOf zoom: GanttZoom) {
+        switch zoom {
+        case .day: self = .day
+        case .week: self = .week
+        case .month: self = .month
+        }
+    }
+}
+
 /// 缩放指示（F-0704）：档位 + 实际日宽读数。
 ///
 /// 视图渲染：档位查 Catalog，日宽读数按 `statusbar.zoom.pointsPerDay` 格式化；

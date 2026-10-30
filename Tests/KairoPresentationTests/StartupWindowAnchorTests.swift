@@ -32,8 +32,10 @@ struct StartupWindowAnchorTests {
         let (state, schedule) = makeFixture(contentStart: contentStart)
         var viewState = WorkspaceViewState()
         // 档位故意设成 month：跨度的日宽与刻度都只由「画布宽 / 跨度」决定。
-        viewState.zoom = .month
-        viewState.windowSpanDays = WorkspaceViewState.defaultWindowSpanDays
+        viewState.widthMode = .span(
+            days: WorkspaceViewState.defaultWindowSpanDays,
+            base: .month
+        )
 
         let snapshot = makeSnapshot(
             state: state,
@@ -78,8 +80,7 @@ struct StartupWindowAnchorTests {
         let today = testCalendar.startOfDay(for: now)
         let (state, schedule) = makeFixture(contentStart: today)
         var viewState = WorkspaceViewState()
-        viewState.usesFitZoom = false
-        viewState.zoom = .week
+        viewState.widthMode = .preset(.week)
 
         let snapshot = makeSnapshot(
             state: state,
@@ -109,8 +110,7 @@ struct StartupWindowAnchorTests {
     @Test func customDayWidthAnchorsTodayNotContentStart() {
         let (state, schedule) = makeFixture(contentStart: makeDate(2020, 3, 1))
         var viewState = WorkspaceViewState()
-        viewState.usesFitZoom = false
-        viewState.customDayWidth = 20
+        viewState.widthMode = .custom(dayWidth: 20, base: .week)
 
         let snapshot = makeSnapshot(
             state: state,
@@ -133,8 +133,7 @@ struct StartupWindowAnchorTests {
         let contentStart = makeDate(2020, 3, 1)
         let (state, schedule) = makeFixture(contentStart: contentStart)
         var viewState = WorkspaceViewState()
-        viewState.usesFitZoom = false
-        viewState.zoom = .week
+        viewState.widthMode = .preset(.week)
 
         let snapshot = makeSnapshot(
             state: state,
@@ -162,7 +161,10 @@ struct StartupWindowAnchorTests {
         let today = testCalendar.startOfDay(for: now)
         let (state, schedule) = makeFixture(contentStart: today)
         var viewState = WorkspaceViewState()
-        viewState.windowSpanDays = WorkspaceViewState.defaultWindowSpanDays
+        viewState.widthMode = .span(
+            days: WorkspaceViewState.defaultWindowSpanDays,
+            base: .week
+        )
 
         let snapshot = makeSnapshot(
             state: state,
@@ -200,7 +202,7 @@ struct StartupWindowAnchorTests {
         let today = testCalendar.startOfDay(for: now)
         let (state, schedule) = makeFixture(contentStart: today)
         var viewState = WorkspaceViewState()
-        viewState.windowSpanDays = spanDays
+        viewState.widthMode = .span(days: spanDays, base: .week)
 
         let snapshot = makeSnapshot(
             state: state,
