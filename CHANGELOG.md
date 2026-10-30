@@ -17,6 +17,27 @@
 - `FidelityLedger` 登记 97 条硬约束降级（SNET 41 / FNET 56）、日历换算（周一至周五 5 天/周 × 8h，另 37 条例外日）、4 个自定义域（105 条任务上 214 个值）。
 - 全量 **1408 tests / 134 suites** 通过；新增 23 例，零 warning。
 
+## v1.3.8 — 2026-10-30
+
+### 修复
+
+- **甘特画布内纵向滚动后，横向滑动整段失效（D-050）**：纵向滚过一屏之后左右滑动完全不动，滚回顶部又恢复。根因不在事件判定链，而在排布：`TimelineView` 的 `.offset(y:)` 写在 `.background(GanttScrollSurface)` **之前**，而 SwiftUI 的 offset 只位移它包裹的子树——承接层（补丁式的 `NSViewRepresentable`，负责横滑命中与派发）留在未位移的布局位置，纵向滚一屏后整条移出视口，`cursorInsideBounds()` 恒为 false，路由器返回 `ignore(.outsideViewport)`，事件被原样放行。探针实测：contentY=1200 时承接层仍在 (0,1200)，视口在 (0,0)；contentY=300 时两者恰好擦边，对应「滚一点点还能动、滚多了全死」。
+  修法：新增 `TimelineCanvasViewport`，把「内容 + 承接层」封成同一位移单元（`frame → background → offset`，位移只有一个出口），承接层 frame 恒等于视口。手势仍留在 wrapper 外层——它们拿的是未位移布局坐标，靠 `point.y + offset` 换算，挪进 wrapper 会双重叠加 offset 使点选/拖条/拖依赖全部错位。
+- **横滑失效时毫无线索**：`GanttScrollSurface` 补上 F-14-18 承诺的「每种放行原因仅首次记日志」（`os.Logger` category `gantt-pan`，文案 `scroll ignored (<reason>)`）。`outsideViewport` 此前完全静默，是本缺陷五轮未定位的直接原因。
+
+### 判据
+
+- 新增 `TimelineCanvasViewportTests`（6 例，AppTests）：
+  - 套件 A（placement 不变量）：offset 0 / 300 / 1200 下承接层与内容在宿主坐标重合；另有**反证**用例复刻修改前的排布（`.offset` 在 `.background` 之前），断言两者**不**重合——证明上面三条不是空断言。
+  - 套件 B（端到端复现）：真 `ScrollView` + 真 `TimelineBody` 滚到 2×viewportHeight 后，`cursorInsideBounds()` 必须为 true；合成 `scrollWheel(deltaX: 30)` 必须被消费且窗口起点前移 30/dayWidth 天。这两条在修复前必红。
+- CI（macOS 作业）：**1601 tests / 165 suites 全绿**，其中 `Suite TimelineCanvasViewportTests passed (33.7s)`。
+
+### 人工验收（未自动化，无门禁）
+
+- 1000 行项目连续横滑 + 纵向滚动的掉帧观察：现有性能门禁（`AppPerformanceTests`）只量 store 刷新（`RefreshScope.windowPan`），不覆盖视图层；本次把承接层放进了每帧变化的 offset 子树，该路径尚无自动化数据。
+- 滚到第二屏后点选某行、拖一条条、拖一次依赖，确认落点正确（手势坐标不变量只由代码结构保证，见 `TimelineCanvasViewport` 文件头）。
+
+
 ## v1.3.7 — 2026-10-30
 
 ### 修复

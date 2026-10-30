@@ -176,11 +176,23 @@ struct TimelineBody: View {
                     0,
                     -geo.frame(in: .named(WorkspaceScrollSpace.name)).minY
                 )
-                Canvas { context, size in
-                    draw(context: &context, size: size, offset: offset)
+                // 内容 + 横向滚动承接层封成同一位移单元（D-050）：承接层此前挂在
+                // `.offset` 之后不随内容位移，纵向滚过一屏即移出视口，横滑静默失效。
+                // 以下手势仍留在本视图外层——它们收的是未位移的布局坐标，靠
+                // `point.y + offset` 换算；挪进 wrapper 会双重叠加 offset 全部错位。
+                TimelineCanvasViewport(
+                    offset: offset,
+                    width: width,
+                    viewportHeight: viewportHeight,
+                    dayWidth: gantt.dayWidth,
+                    onDays: { days in
+                        store.panWindow(byDays: days)
+                    }
+                ) {
+                    Canvas { context, size in
+                        draw(context: &context, size: size, offset: offset)
+                    }
                 }
-                .frame(width: width, height: viewportHeight)
-                .offset(y: offset)
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let point):
@@ -203,13 +215,6 @@ struct TimelineBody: View {
                             panDrag.end()
                             drag.finish()
                         }
-                )
-                // 横向滚动承接层（F-14-18）：监听随本视图的窗口生命周期装卸，命中
-                // 用自己的 bounds 现场换算；不再有进程级单例与缓存的视口矩形（D-028）。
-                .background(
-                    GanttScrollSurface(dayWidth: gantt.dayWidth) { days in
-                        store.panWindow(byDays: days)
-                    }
                 )
             }
         }
