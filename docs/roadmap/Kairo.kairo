@@ -1984,6 +1984,21 @@
       "status": "done",
       "tags": [],
       "title": "滚动监听每视图一条，多窗口不再互踢（D-051/052）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "durationDays": 2,
+      "id": "CA05E164-52F9-42F5-B48A-8B2301957C9A",
+      "kind": "task",
+      "notes": "用户 2026-10-30 反馈：朝右滚动时甘特上方的入口会消失；要求任何时候只要窗口不在任务排期区间内，就始终有一个入口能一键回到排期周期。根因方向：goToTodayChip 与 OffWindowHint 都挂在 TimelineBody 的 .overlay 上，而 TimelineBody 是滚动内容（高=行数×28），所以纵向滚动会把它们带走；横向平移到极端时 offWindowCount/todaySide 的取值又会让它们互相顶替。验收判据：入口固定于视口（不随 scroll offset 移动），可见性只由「窗口与排期区间是否相交」决定；点击后窗口回到排期周期且 gantt.bars 非空。用例先行（AppTests，本机已有 Xcode 可跑）。",
+      "parentID": "1B8F0EF9-6CCD-41FD-B69D-9EA1ACE1286A",
+      "priority": "high",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "窗口不在排期区间时，始终可见「回到排期」入口（含入口消失修复）"
     }
   ]
 }
