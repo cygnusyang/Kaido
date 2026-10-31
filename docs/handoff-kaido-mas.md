@@ -40,12 +40,16 @@ spawn；沙盒下子进程仍受容器限制，`project_open(path:)` 读不到 `
 | 层 | 内容 | 状态 |
 |---|---|---|
 | 1 | `KaidoMCPCore` 库（协议 + 工具表），app 可 import | ✅ `be9624b` |
-| 2 | `MCPTransport`：stdio（官网版）/ loopback HTTP（商店版，app 内监听 127.0.0.1） | 待做 |
-| 3 | 授权：应用内「MCP 授权目录」（app-scope bookmark），工具按白名单校验路径 | 待做 |
-| 4 | CLI：商店版`kaido` 为瘦客户端（转发给运行中的 app）；官网版保留完整 CLI | 待做 |
-| 5 | entitlements 增 `com.apple.security.network.server`；MCP 服务设置面板 | 待做 |
+| 2 | loopback HTTP 传输（仅 127.0.0.1 + Bearer token，`POST /mcp`） | ✅ `0e212a7` |
+| 3 | 授权：应用内「MCP 授权目录」，工具按白名单校验路径 | ✅ `0e212a7` |
+| 4 | CLI：商店版 `--cli` 瘦客户端；官网版保留完整 CLI | ✅ `0e212a7` |
+| 5 | entitlements（sandbox + bookmarks + network.server/client）；MCP 服务面板 | ✅ `0e212a7` |
+| 6 | `tools/build-mas.sh`：编译期禁用自更新、不产出 CLI/MCP | ✅ `0e212a7` |
 
-待用户拍板：① 目录级授权还是仅当前项目；② 固定端口还是自动分配；③ 接受 CLI 瘦客户端形态。
+用户 2026-10-31 拍板：① 目录级授权；② 自动分配端口（配置片段按启动后的实际端口生成）；③ 接受 CLI 瘦客户端。
+
+尚未做：① 全量 `swift test` 回归；② 真机端到端（起 app → 客户端连 `/mcp` → 开项目）；
+③ `.pkg` 签名与上传（发布暂停中）；④ 提审材料。
 
 ## 三、待办（按依赖顺序）
 
