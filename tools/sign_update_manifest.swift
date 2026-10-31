@@ -49,7 +49,7 @@ func required(_ name: String) -> String {
 
 // --- 契约固定字段（冻结，不可由调用方改写；与 App 侧 UpdaterConfiguration.appId 一致）---
 let schemaVersion: Int = 1
-let appId: String = "app.kairo.macos"
+let appId: String = "top.cygnusyang.kairo"
 
 // --- 读入可变字段 + 边界校验 ---
 let version = required("MF_VERSION")

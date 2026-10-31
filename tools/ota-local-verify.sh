@@ -79,7 +79,7 @@ stop_server() {
 clean_state() {
   local key
   for key in kairo_ota_pending_result_path kairo_ota_pending_backup_path kairo_ota_pending_backup_dir kairo_ota_pending_script_path kairo_ota_pending_extraction_path; do
-    defaults delete app.kairo.macos "$key" >/dev/null 2>&1 || true
+    defaults delete top.cygnusyang.kairo "$key" >/dev/null 2>&1 || true
   done
   local path name
   for path in "$TMP_ROOT"/kairo-ota-*; do

@@ -113,7 +113,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key>
   <string>${APP_NAME}</string>
   <key>CFBundleIdentifier</key>
-  <string>app.kairo.macos</string>
+  <string>top.cygnusyang.kairo</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>

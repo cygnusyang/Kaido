@@ -64,7 +64,7 @@ let securityCritical: Bool = {
 
 var fields: [String: Any] = [
     "schemaVersion": 1,
-    "appId": "app.kairo.macos",
+    "appId": "top.cygnusyang.kairo",
     "version": version,
     "minimumVersion": minimumVersion,
     "buildTime": buildTime,

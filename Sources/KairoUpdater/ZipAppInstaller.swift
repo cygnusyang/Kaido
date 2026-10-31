@@ -44,7 +44,7 @@ public struct ZipAppInstaller: Installing {
 
     /// 默认诊断日志（os.log，单行截断）。
     public static var defaultLogger: @Sendable (String) -> Void {
-        let logger = Logger(subsystem: "app.kairo.macos", category: "ota")
+        let logger = Logger(subsystem: "top.cygnusyang.kairo", category: "ota")
         return { message in logger.notice("\(String(message.prefix(500)), privacy: .public)") }
     }
 
