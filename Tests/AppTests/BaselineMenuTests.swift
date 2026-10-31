@@ -61,10 +61,11 @@ struct BaselineMenuTests {
     // MARK: - 菜单结构
 
     /// 无基线时命令总数 50：v0.14 的 44 条 + v0.15 的「管理基线…」「导出偏差 CSV…」
-    /// + F-22-06 的「项目设置…」+ v1.2 互操作 3 条（导入 / 导出 MSPDI / 导出 OmniPlan 置灰）。
+    /// + F-22-06 的「项目设置…」+ v1.2 互操作 3 条（导入 / 导出 MSPDI / 导出 OmniPlan 置灰）
+    /// + v1.6.0 的「MCP 服务…」。
     @Test func catalogKeepsLegacyCountWithoutBaselines() {
         let commands = makeCatalog(makeStore())
-        #expect(commands.count == 50)
+        #expect(commands.count == 51)
         #expect(Set(commands.map(\.id)).count == commands.count)
         // 新增分组必须至少有一条命令，否则分组集合与菜单对不上。
         #expect(Set(commands.map(\.group)) == Set(KaidoCommandGroup.allCases))
@@ -99,7 +100,7 @@ struct BaselineMenuTests {
         let ids = createBaselines(4, in: store)
         let commands = makeCatalog(store)
 
-        #expect(commands.count == 50 + 12 * 4)
+        #expect(commands.count == 51 + 12 * 4)
         #expect(Set(commands.map(\.id)).count == commands.count)
 
         for baseline in store.baselines {

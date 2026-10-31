@@ -476,8 +476,8 @@ struct InteropUITests {
         #expect(InteropFormats.canWrite(formatID: OmniPlanAdapter.formatID))
         #expect(InteropFormats.canWrite(formatID: MSPDIAdapter.formatID))
 
-        // 「项目」分组：设置 + 导入 + 两个导出（逐条登记，数量变化会被看见）。
-        #expect(commands.filter { $0.group == .project }.count == 4)
+        // 「项目」分组：设置 + 导入 + 两个导出 + MCP 服务（逐条登记，数量变化会被看见）。
+        #expect(commands.filter { $0.group == .project }.count == 5)
     }
 
     @Test func catalogHasInteropStringsInBothLanguages() throws {

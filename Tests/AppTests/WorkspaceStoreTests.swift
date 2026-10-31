@@ -133,7 +133,8 @@ struct WorkspaceStoreTests {
         // 逐条基线的 12 条动态命令（显示 / 对比 / 8 色 / 改名 / 删除）随基线数量增长。
         // F-22-06 增加「项目设置…」1 条（新开「项目」分组）。
         // v1.2 互操作增加 3 条：「导入…」「导出为 MS Project XML…」「导出为 OmniPlan…」（置灰）。
-        #expect(commands.count == 50)
+        // v1.6.0 商店版增加「MCP 服务…」1 条（AI 客户端接入与授权目录）。
+        #expect(commands.count == 51)
         #expect(Set(commands.map(\.id)).count == commands.count)
         #expect(Set(commands.map(\.group)) == Set(KaidoCommandGroup.allCases))
         #expect(commands.allSatisfy { !$0.title.isEmpty })
