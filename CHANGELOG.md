@@ -17,6 +17,17 @@
 - `FidelityLedger` 登记 97 条硬约束降级（SNET 41 / FNET 56）、日历换算（周一至周五 5 天/周 × 8h，另 37 条例外日）、4 个自定义域（105 条任务上 214 个值）。
 - 全量 **1408 tests / 134 suites** 通过；新增 23 例，零 warning。
 
+## v1.5.1 — 2026-10-31
+
+### 变更
+
+- **发布包改为 Developer ID 签名 + 公证（notarized）**：此前所有版本都是 ad-hoc 未签名包，别人下载后会被 Gatekeeper 拦。本版起，`release.yml` 用 `MACOS_CERT_P12` 等 5 个 secret 完成：导入 Developer ID Application 证书 → Hardened Runtime 签名 → notarytool 提交 → `stapler` 装订。产物可用 `spctl -a -vv` 验到 `Notarized Developer ID`。
+- 代码与 v1.5.0 完全一致（无功能、无行为变化），仅为分发形态升级。
+
+### 维护提醒
+
+- Developer ID 证书有效期至 **2027-02-01**（Apple 现为一年期）。到期前需重新签发，并更新 `MACOS_CERT_P12` / `MACOS_CERT_PASSWORD`；`NOTARY_*` 三项不变。
+
 ## v1.5.0 — 2026-10-30
 
 ### 新增
