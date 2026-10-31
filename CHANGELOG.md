@@ -3,7 +3,7 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kaido/releases)。
 
-## [Unreleased]
+## v2.1.0 — 2026-11-01
 
 ### 新增
 
@@ -24,6 +24,9 @@
 - 真实样本 `/tmp/plb2012.xml`（客户文件，不入库）解析出 187 任务（37 汇总 / 2 里程碑）、126 依赖（全 FS、零 lag）、3 日历、4 基线（478 条任务级记录 + 346 条分配级基线登记为丢弃）。
 - `FidelityLedger` 登记 97 条硬约束降级（SNET 41 / FNET 56）、日历换算（周一至周五 5 天/周 × 8h，另 37 条例外日）、4 个自定义域（105 条任务上 214 个值）。
 - 全量 **1408 tests / 134 suites** 通过；新增 23 例，零 warning。
+- 全量 **571 tests / 56 suites** 通过（swift test --disable-sandbox）；本次新增 12 例：路径准入 3 / MCP 授权目录 4 / 回环 HTTP 解析 5。
+- tools/gate-i18n.sh 通过（694 键，新增 24 键双语）；tools/check-shell-fullwidth.sh 通过。
+- tools/build-mas.sh 实跑产出 dist-mas/Kaido.app：bundle id 与 portal 一致、包内仅 Kaido 一个可执行、无 KaidoCLI/KaidoMCP；打开 --cli 未开服务时 exit 3 并给指引。
 
 ## v2.0.0 — 2026-10-31
 
