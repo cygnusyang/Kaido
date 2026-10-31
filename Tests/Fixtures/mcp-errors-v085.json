@@ -1,6 +1,6 @@
 {
   "note": "v0.8.5 的 MCP 错误 message 基线（逐字，含全角标点）。阶段一只新增 reason，message 不得变化；差异即回归。",
-  "source": "git show v0.8.5:Sources/KairoMCP/Tools.swift, Sources/KairoMCP/MCPServer.swift",
+  "source": "git show v0.8.5:Sources/ZenoMCP/Tools.swift, Sources/ZenoMCP/MCPServer.swift",
   "cases": [
     {
       "id": "wrong_type_object",

@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import KairoCommands
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import ZenoCommands
+import ZenoCore
+import ZenoPresentation
+@testable import ZenoMacApp
 
 /// App 侧 CSV 导出（v0.15.1）：界面入口曾缺失，这里锁住「store 能写出与 CLI 同格式的文件」。
 @MainActor
@@ -11,13 +11,13 @@ import KairoPresentation
 struct VarianceCSVExportTests {
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.tests.csv.\(UUID().uuidString)"
+        let suite = "zeno.tests.csv.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(
             defaults: defaults,
             seedsDemoData: true,
-            projectLoader: { try KairoFile.read(from: $0) }
+            projectLoader: { try ZenoFile.read(from: $0) }
         )
     }
 
@@ -25,7 +25,7 @@ struct VarianceCSVExportTests {
         let store = makeStore()
         store.dispatch(.createBaseline(nil))
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-export-\(UUID().uuidString).csv")
+            .appendingPathComponent("zeno-export-\(UUID().uuidString).csv")
         defer { try? FileManager.default.removeItem(at: url) }
 
         try store.exportVarianceCSV(to: url)

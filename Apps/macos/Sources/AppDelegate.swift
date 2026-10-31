@@ -1,5 +1,5 @@
 import AppKit
-import KairoUpdater
+import ZenoUpdater
 import UniformTypeIdentifiers
 
 /// 退出守卫（ADR-013）：有未保存修改时，⌘Q 前必须由用户选择保存、丢弃或取消。
@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 启动即把应用内语言同步到进程级本地化（#15）。
     ///
-    /// 修的是历史安装：早前只写了 `KairoLanguage`，没写 `AppleLanguages`，
+    /// 修的是历史安装：早前只写了 `ZenoLanguage`，没写 `AppleLanguages`，
     /// 这类用户升级后若不重选语言，系统菜单会一直停在系统语言。这里每次启动
     /// 幂等重写一次，保证两套语言来源一致。
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -125,7 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private static func promptSaveURL(for store: WorkspaceStore) -> URL? {
         let panel = NSSavePanel()
-        panel.allowedContentTypes = [.kairo]
+        panel.allowedContentTypes = [.zeno]
         panel.nameFieldStringValue = store.suggestedSaveFilename
         guard panel.runModal() == .OK else { return nil }
         return panel.url

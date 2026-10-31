@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import ZenoCore
+import ZenoPresentation
+@testable import ZenoMacApp
 
 // v0.14 多基线的应用层接线（docs/features/10-multi-baseline-gantt.md §6、§4）。
 //
@@ -14,7 +14,7 @@ import KairoPresentation
 @Suite("基线显隐与配色（v0.14）")
 struct BaselineVisibilityStoreTests {
     private func makeDefaults() -> UserDefaults {
-        let suite = "kairo.v014.\(UUID().uuidString)"
+        let suite = "zeno.v014.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults
@@ -26,7 +26,7 @@ struct BaselineVisibilityStoreTests {
 
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-v014-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("zeno-v014-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
@@ -43,7 +43,7 @@ struct BaselineVisibilityStoreTests {
     @Test func showingBaselineDrawsItWithoutTouchingHistoryOrDirtyFlag() throws {
         let store = makeStore(defaults: makeDefaults())
         let directory = try makeTemporaryDirectory()
-        let url = directory.appendingPathComponent("plan.kairo")
+        let url = directory.appendingPathComponent("plan.zeno")
         store.save(to: url)
         #expect(!store.hasUnsavedChanges)
 
@@ -93,7 +93,7 @@ struct BaselineVisibilityStoreTests {
         let defaults = makeDefaults()
         let store = makeStore(defaults: defaults)
         let directory = try makeTemporaryDirectory()
-        let url = directory.appendingPathComponent("plan.kairo")
+        let url = directory.appendingPathComponent("plan.zeno")
         store.dispatch(.createBaseline(nil))
         let id = try #require(store.baselines.first?.id)
         store.dispatch(.setBaselineVisible(id, true))
@@ -140,7 +140,7 @@ struct BaselineVisibilityStoreTests {
     @Test func changingColorIsOneUndoableStep() throws {
         let store = makeStore(defaults: makeDefaults())
         let directory = try makeTemporaryDirectory()
-        let url = directory.appendingPathComponent("plan.kairo")
+        let url = directory.appendingPathComponent("plan.zeno")
         let id = createBaseline(store)
         store.dispatch(.setBaselineVisible(id, true))
         store.save(to: url)
@@ -166,7 +166,7 @@ struct BaselineVisibilityStoreTests {
     @Test func invalidColorIndexIsRejected() throws {
         let store = makeStore(defaults: makeDefaults())
         let directory = try makeTemporaryDirectory()
-        let url = directory.appendingPathComponent("plan.kairo")
+        let url = directory.appendingPathComponent("plan.zeno")
         let id = createBaseline(store)
         store.save(to: url)
         let before = try #require(store.baselines.first?.colorIndex)

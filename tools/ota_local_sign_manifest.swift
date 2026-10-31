@@ -9,7 +9,7 @@
 //
 // 输入的私钥必须是**本地现生成的丢弃密钥**（tools/ota-local-verify.sh 负责生成），
 // 生产私钥（GitHub secret UPDATE_SIGNING_KEY_BASE64）绝不出现在本地验证流程里：
-// 本地 App 通过 KAIRO_OTA_PUBKEY_BASE64 信任这把临时公钥。
+// 本地 App 通过 ZENO_OTA_PUBKEY_BASE64 信任这把临时公钥。
 //
 // 输入（环境变量）：UPDATE_SIGNING_KEY_BASE64（本地临时私钥种子 base64）、
 //   MF_VERSION / MF_MINIMUM_VERSION / MF_BUILD_TIME / MF_DOWNLOAD_URL / MF_CDHASH
@@ -64,7 +64,7 @@ let securityCritical: Bool = {
 
 var fields: [String: Any] = [
     "schemaVersion": 1,
-    "appId": "app.kairo.macos",
+    "appId": "app.zeno.macos",
     "version": version,
     "minimumVersion": minimumVersion,
     "buildTime": buildTime,

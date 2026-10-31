@@ -1,11 +1,11 @@
 import Foundation
 import Testing
-import KairoCommands
-import KairoCore
-import KairoInterop
+import ZenoCommands
+import ZenoCore
+import ZenoInterop
 import InteropMSPDI
 import InteropOmniPlan
-@testable import KairoMacApp
+@testable import ZenoMacApp
 
 /// 互操作 UI（v1.2 / 14 §P4）：预检报告、导入落地方式、导出产物与旁注。
 ///
@@ -17,13 +17,13 @@ struct InteropUITests {
     // MARK: - 夹具
 
     private func makeStore(seedsDemoData: Bool = false) -> WorkspaceStore {
-        let suite = "kairo.apptests.interop.\(UUID().uuidString)"
+        let suite = "zeno.apptests.interop.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(
             defaults: defaults,
             seedsDemoData: seedsDemoData,
-            projectLoader: { try KairoFile.read(from: $0) }
+            projectLoader: { try ZenoFile.read(from: $0) }
         )
     }
 
@@ -96,7 +96,7 @@ struct InteropUITests {
 
     private func writeFixture() throws -> URL {
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-interop-\(UUID().uuidString).xml")
+            .appendingPathComponent("zeno-interop-\(UUID().uuidString).xml")
         try mspdiFixture().write(to: url)
         return url
     }
@@ -153,7 +153,7 @@ struct InteropUITests {
         #expect(preflight.copyText.contains("cost"))
     }
 
-    /// 5 天工作周 → Kairo 按日历天推进：两条 5 工作日的链合计 10 天，按 7/5 - 1 = 40% 提前 4 天。
+    /// 5 天工作周 → Zeno 按日历天推进：两条 5 工作日的链合计 10 天，按 7/5 - 1 = 40% 提前 4 天。
     @Test func preflightEstimatesCalendarAdvance() throws {
         let url = try writeFixture()
         defer { try? FileManager.default.removeItem(at: url) }
@@ -203,9 +203,9 @@ struct InteropUITests {
     // MARK: - 真实样本：整份 ledger 必须全部出现在清单里
 
     /// 真实样本（客户计划，**不进仓库**）：默认读 `/tmp/plb2012.xml`，
-    /// 可用环境变量 `KAIRO_MSPDI_SAMPLE` 指向别处；文件不存在时用例自动跳过。
+    /// 可用环境变量 `ZENO_MSPDI_SAMPLE` 指向别处；文件不存在时用例自动跳过。
     /// `.enabled(if:)` 在 Sendable 闭包里求值，故显式 `nonisolated`（套件本身是 @MainActor）。
-    nonisolated private static let samplePath = ProcessInfo.processInfo.environment["KAIRO_MSPDI_SAMPLE"]
+    nonisolated private static let samplePath = ProcessInfo.processInfo.environment["ZENO_MSPDI_SAMPLE"]
         ?? "/tmp/plb2012.xml"
 
     nonisolated private static var sampleAvailable: Bool {
@@ -220,7 +220,7 @@ struct InteropUITests {
         let data = try Data(contentsOf: url)
         let document = try MSPDIAdapter().read(data)
         let report = try MSPDIAdapter().preflight(data)
-        let bridged = KairoBridge().makeProject(from: document)
+        let bridged = ZenoBridge().makeProject(from: document)
         let preflight = ImportPreflight(
             document: document,
             report: report,
@@ -279,14 +279,14 @@ struct InteropUITests {
         let url = try writeFixture()
         defer { try? FileManager.default.removeItem(at: url) }
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-import-\(UUID().uuidString)")
+            .appendingPathComponent("zeno-import-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let store = makeStore()
         // 先把当前项目落到磁盘并保存干净：导入是「新建项目」，不该覆盖这份文档。
         _ = try store.sessionForTesting.addTask(title: "原有任务")
-        let currentURL = directory.appendingPathComponent("current.kairo")
+        let currentURL = directory.appendingPathComponent("current.zeno")
         try store.sessionForTesting.saveProject(to: currentURL)
         store.refresh()
         #expect(!store.hasUnsavedChanges)
@@ -302,8 +302,8 @@ struct InteropUITests {
         #expect(store.exportProject.tasks.contains { $0.title == "任务A" })
         #expect(store.projectURL == nil)
         #expect(store.hasUnsavedChanges, "新建项目尚未保存，应处于脏状态")
-        // 原来的 .kairo 文件在磁盘上原样保留（不覆盖当前文档）。
-        let reread = try KairoFile.read(from: currentURL)
+        // 原来的 .zeno 文件在磁盘上原样保留（不覆盖当前文档）。
+        let reread = try ZenoFile.read(from: currentURL)
         #expect(reread.project.tasks.map(\.title) == ["原有任务"])
     }
 
@@ -343,7 +343,7 @@ struct InteropUITests {
         store.refresh()
 
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-export-\(UUID().uuidString)")
+            .appendingPathComponent("zeno-export-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let xmlURL = directory.appendingPathComponent("导出样本.xml")
@@ -351,7 +351,7 @@ struct InteropUITests {
         let notesURL = try store.exportMSProjectXML(to: xmlURL)
 
         #expect(FileManager.default.fileExists(atPath: xmlURL.path))
-        #expect(notesURL.lastPathComponent == "导出样本.kairo-export-notes.md")
+        #expect(notesURL.lastPathComponent == "导出样本.zeno-export-notes.md")
         #expect(FileManager.default.fileExists(atPath: notesURL.path))
 
         let xml = try String(contentsOf: xmlURL, encoding: .utf8)
@@ -365,7 +365,7 @@ struct InteropUITests {
         #expect(notes.contains("预算冻结"))
         #expect(notes.contains("cancelReason"))
         #expect(notes.contains("one-way snapshot"))
-        // Kairo 独有信息的其余几条也必须进旁注（13 §5：不写进对方字段、只进旁注）。
+        // Zeno 独有信息的其余几条也必须进旁注（13 §5：不写进对方字段、只进旁注）。
         #expect(notes.contains("status"), "blocked 状态要在旁注里登记")
         #expect(notes.contains("baseline.color"))
         #expect(notes.contains("初版基线"))
@@ -376,9 +376,9 @@ struct InteropUITests {
     @Test func exportFilenameFollowsProjectTitle() {
         let store = makeStore()
         #expect(store.suggestedMSProjectFilename.hasSuffix(".xml"))
-        #expect(!store.suggestedMSProjectFilename.hasSuffix(".kairo.xml"))
+        #expect(!store.suggestedMSProjectFilename.hasSuffix(".zeno.xml"))
         #expect(store.suggestedOmniPlanFilename.hasSuffix(".oplx"))
-        #expect(!store.suggestedOmniPlanFilename.hasSuffix(".kairo.oplx"))
+        #expect(!store.suggestedOmniPlanFilename.hasSuffix(".zeno.oplx"))
     }
 
     /// 菜单项可点就必须真的做事：动作 → 选定目标 → 主文件 + 旁注落盘。
@@ -393,7 +393,7 @@ struct InteropUITests {
         store.refresh()
 
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-oplx-\(UUID().uuidString)")
+            .appendingPathComponent("zeno-oplx-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let oplxURL = directory.appendingPathComponent("OmniPlan 导出.oplx")
@@ -405,13 +405,13 @@ struct InteropUITests {
             return oplxURL
         }
 
-        let commands = KairoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {})
+        let commands = ZenoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {})
         let command = try #require(commands.first { $0.id == "project.exportOmniPlan" })
         command.action()
 
         #expect(requestedName == "OmniPlan 导出.oplx")
         #expect(FileManager.default.fileExists(atPath: oplxURL.path))
-        let notesURL = directory.appendingPathComponent("OmniPlan 导出.kairo-export-notes.md")
+        let notesURL = directory.appendingPathComponent("OmniPlan 导出.zeno-export-notes.md")
         #expect(FileManager.default.fileExists(atPath: notesURL.path))
         #expect(store.exportedSnapshot?.fileName == "OmniPlan 导出.oplx")
         #expect(store.exportedSnapshot?.notesURL == notesURL)
@@ -457,7 +457,7 @@ struct InteropUITests {
 
     @Test func commandCatalogExposesInteropEntries() throws {
         let store = makeStore()
-        let commands = KairoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {})
+        let commands = ZenoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {})
 
         let importCommand = try #require(commands.first { $0.id == "project.import" })
         #expect(importCommand.group == .project)
@@ -529,7 +529,7 @@ struct InteropUITests {
                 )
                 let value = try #require(unit["value"] as? String)
                 #expect(!value.isEmpty)
-                // 中文侧不写英文兜底：除专有名词（MS Project XML / OmniPlan / Kairo）外应是中文。
+                // 中文侧不写英文兜底：除专有名词（MS Project XML / OmniPlan / Zeno）外应是中文。
                 if language == "zh-Hans" {
                     #expect(value != "Import…" && value != "Cancel")
                 }

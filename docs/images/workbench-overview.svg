@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 720" role="img" aria-labelledby="t d">
-  <title id="t">Kairo plan workbench — schematic</title>
-  <desc id="d">Schematic of the Kairo plan workbench: an outline on the left, a timeline on the right with one bar per outline row, and a task inspector on the far right. A violation banner and the command palette sit below.</desc>
+  <title id="t">Zeno plan workbench — schematic</title>
+  <desc id="d">Schematic of the Zeno plan workbench: an outline on the left, a timeline on the right with one bar per outline row, and a task inspector on the far right. A violation banner and the command palette sit below.</desc>
   <style>
   .win-title { font: 500 14px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #475569; }
   .panel { font: 600 11px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #94a3b8; letter-spacing: .08em; }
@@ -27,7 +27,7 @@
   <circle cx="44" cy="49" r="6" fill="#f87171"/>
   <circle cx="64" cy="49" r="6" fill="#fbbf24"/>
   <circle cx="84" cy="49" r="6" fill="#4ade80"/>
-  <text x="800" y="54" text-anchor="middle" class="win-title">demo.kairo — plan workbench</text>
+  <text x="800" y="54" text-anchor="middle" class="win-title">demo.zeno — plan workbench</text>
   <path d="M 760 78 V 700" stroke="#e2e8f0" stroke-width="1"/>
   <path d="M 1340 78 V 700" stroke="#e2e8f0" stroke-width="1"/>
   <text x="40" y="104" class="panel">OUTLINE</text>
@@ -114,5 +114,5 @@
   <text x="1380" y="419" class="insp-chip">AI writes status back</text>
   <path d="M 20 640 H 1580" stroke="#e2e8f0" stroke-width="1"/>
   <text x="40" y="670" class="status">8 tasks · 2 groups · 1 milestone · critical path 11d</text>
-  <text x="1540" y="670" text-anchor="end" class="status">.kairo = single JSON file</text>
+  <text x="1540" y="670" text-anchor="end" class="status">.zeno = single JSON file</text>
 </svg>

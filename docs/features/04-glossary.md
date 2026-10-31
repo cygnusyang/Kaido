@@ -1,16 +1,16 @@
-# 四、Kairo 术语表（OmniPlan 手册 ch.1000 词汇 → Kairo 定名）
+# 四、Zeno 术语表（OmniPlan 手册 ch.1000 词汇 → Zeno 定名）
 
 > 来源：OmniPlan 4 macOS 版内置简体中文参考手册，章节 1000 词汇（`1000_glossary.html`），并补入跨章节常用项目管理术语（相关性类型、时限、重要路径、挣值分析、前导时间等）。
-> 用途：Kairo 全项目术语一致性基准（doc-style 规则「同一事物同一术语」）。**OmniPlan 术语 → Kairo 定名 → 英文/代码标识符 → 英文界面文案** 四列表为唯一权威；Kairo 定名与既有规格文档（01/02/03）保持一致。
-> 说明：Kairo 定名中「任务管理」语义沿用 OmniPlan（资源/投入/基线等），「平台语义」按 AI 时代定位重定名（见备注）。
+> 用途：Zeno 全项目术语一致性基准（doc-style 规则「同一事物同一术语」）。**OmniPlan 术语 → Zeno 定名 → 英文/代码标识符 → 英文界面文案** 四列表为唯一权威；Zeno 定名与既有规格文档（01/02/03）保持一致。
+> 说明：Zeno 定名中「任务管理」语义沿用 OmniPlan（资源/投入/基线等），「平台语义」按 AI 时代定位重定名（见备注）。
 > 「英文界面文案」列是界面显示用的英文（v0.9.0 起英文为源语言），以 `Apps/macos/Resources/Localizable.xcstrings` 为准；「英文 / 代码标识符」列仍是代码标识符。
 
 ## 一、核心任务语义
 
-| OmniPlan 术语 | Kairo 定名 | 英文 / 代码标识符 | 英文界面文案 | 备注 |
+| OmniPlan 术语 | Zeno 定名 | 英文 / 代码标识符 | 英文界面文案 | 备注 |
 | --- | --- | --- | --- | --- |
-| 任务（task） | 任务 | Task / `TaskItem` | Task | 模型已用 `TaskItem`（Sources/Kairo/Model/TaskItem.swift） |
-| 群组（group） | 群组 | Group / `kind == .group` | Group | 大纲中可嵌套任务集合；Kairo 定名「群组」，不用「组」 |
+| 任务（task） | 任务 | Task / `TaskItem` | Task | 模型已用 `TaskItem`（Sources/Zeno/Model/TaskItem.swift） |
+| 群组（group） | 群组 | Group / `kind == .group` | Group | 大纲中可嵌套任务集合；Zeno 定名「群组」，不用「组」 |
 | 里程碑（milestone） | 里程碑 | Milestone / `kind == .milestone` | Milestone | 零时长、零投入的标记点 |
 | 父项 / 子项（parent / child） | 父任务 / 子任务 | Parent / Child / `parentID` | Parent / Child task | 层级树由 `parentID` 表达 |
 | 吊床（hammock） | 吊床任务 | Hammock | Hammock task | 时长随前后约束伸缩的弹性任务；见 01 文档 F-14-08 |
@@ -28,7 +28,7 @@
 
 ## 二、时间与工作量
 
-| OmniPlan 术语 | Kairo 定名 | 英文 / 代码标识符 | 英文界面文案 | 备注 |
+| OmniPlan 术语 | Zeno 定名 | 英文 / 代码标识符 | 英文界面文案 | 备注 |
 | --- | --- | --- | --- | --- |
 | 投入（effort） | 投入 | Effort / `effort` | Effort | 考虑所有资源的工作总量；与持续时间相对 |
 | 持续时间（duration） | 持续时间 | Duration / `duration` | Duration | 实际经过的工作时间 |
@@ -41,7 +41,7 @@
 
 ## 三、资源与分配
 
-| OmniPlan 术语 | Kairo 定名 | 英文 / 代码标识符 | 英文界面文案 | 备注 |
+| OmniPlan 术语 | Zeno 定名 | 英文 / 代码标识符 | 英文界面文案 | 备注 |
 | --- | --- | --- | --- | --- |
 | 资源（resource） | 资源 | Resource / `Resource` | Resource | 完成任务所需的人与物 |
 | 人员（person） | 人员 | Person / `ResourceType.person` | Person | 单位按百分比（可投入量） |
@@ -51,13 +51,13 @@
 | 分配（assignment） | 分配 | Assignment / `resourceAssignments` | Assignment | 资源分配给任务，按投入百分比表达 |
 | 效率（efficiency） | 效率 | Efficiency / `efficiency` | Efficiency | 单位时间内可完成工作的比例 |
 | 资源负荷（resource load） | 资源负荷 | Load / `resourceLoad` | Resource load | 各时点执行的投入量；超 100% 即超负荷 |
-| 分级（leveling） | 分级（重排） | Leveling / `leveling` | Leveling | 自动重排以消除超负荷；Kairo 由 AI 建议替代 |
+| 分级（leveling） | 分级（重排） | Leveling / `leveling` | Leveling | 自动重排以消除超负荷；Zeno 由 AI 建议替代 |
 | 发布 / 订阅（publish / subscribe） | 发布 / 订阅 | Publish / Subscribe | Publish / Subscribe | 跨项目共享资源负荷信息（Pro） |
 | 每次使用成本 / 每小时成本 | 次用成本 / 时成本 | Cost/use、Cost/hour | Cost per use / Cost per hour | 资源计费维度；见 F-20-04 |
 
 ## 四、视图与界面
 
-| OmniPlan 术语 | Kairo 定名 | 英文 / 代码标识符 | 英文界面文案 | 备注 |
+| OmniPlan 术语 | Zeno 定名 | 英文 / 代码标识符 | 英文界面文案 | 备注 |
 | --- | --- | --- | --- | --- |
 | 甘特图（Gantt chart） | 甘特图 | Gantt / `ganttChart` | Gantt chart | 时间顺序条形图 |
 | 甘特视图（Gantt view） | 甘特视图 | Gantt view / `ViewMode.gantt` | Gantt view | 大纲 + 甘特图组合窗口 |
@@ -68,30 +68,30 @@
 | 检查器（inspector） | 检查器 | Inspector / `InspectorPane` | Inspector | 右侧属性面板；见 02 文档 |
 | 项（item） | 项 / 行 | Item / `row` | Row | 大纲中的一行 |
 | 自定义栏（column） | 自定义栏 | Column / `column` | Column | 大纲可自定义显示栏位 |
-| 过滤器（filter） | 过滤器 | Filter / `AIFilter` | Filter | 条件筛选任务；Kairo 已有 AI 过滤器 |
-| 仪表盘（dashboard） | 项目组合 | Portfolio / `PortfolioConfig` | Portfolio | 多项目并列视图；Kairo 定名「组合」 |
+| 过滤器（filter） | 过滤器 | Filter / `AIFilter` | Filter | 条件筛选任务；Zeno 已有 AI 过滤器 |
+| 仪表盘（dashboard） | 项目组合 | Portfolio / `PortfolioConfig` | Portfolio | 多项目并列视图；Zeno 定名「组合」 |
 | 违例窗口（violations window） | 违例面板 | Violations / `ViolationsPanel` | Violations panel | 问题列表 |
-| 更新面板（update sheet） | 更新面板 | UpdateSheet / `UpdateSheet` | Update sheet | OTA 更新的状态与错误面板；错误按 `KairoUpdater` 的错误码翻译 |
+| 更新面板（update sheet） | 更新面板 | UpdateSheet / `UpdateSheet` | Update sheet | OTA 更新的状态与错误面板；错误按 `ZenoUpdater` 的错误码翻译 |
 
 ## 五、平台 / 协作 / 报告
 
-| OmniPlan 术语 | Kairo 定名 | 英文 / 代码标识符 | 英文界面文案 | 备注 |
+| OmniPlan 术语 | Zeno 定名 | 英文 / 代码标识符 | 英文界面文案 | 备注 |
 | --- | --- | --- | --- | --- |
-| 模板（template） | 模板 | Template / `template` | Template | 新项目/报告底稿；Kairo 报告模板=提示词模板 |
-| 发布（publish，项目级） | 发布 | Publish | Publish | 把本地更改推到共享库；Kairo 等价「保存即同步」 |
+| 模板（template） | 模板 | Template / `template` | Template | 新项目/报告底稿；Zeno 报告模板=提示词模板 |
+| 发布（publish，项目级） | 发布 | Publish | Publish | 把本地更改推到共享库；Zeno 等价「保存即同步」 |
 | 刷新（refresh） | 刷新 | Refresh | Refresh | 拉取远端更改 |
-| 更改跟踪（change tracking） | 版本历史 | Change tracking / `ChangeRecord` | Version history | Kairo 内置字段级历史替代侧边栏审阅 |
+| 更改跟踪（change tracking） | 版本历史 | Change tracking / `ChangeRecord` | Version history | Zeno 内置字段级历史替代侧边栏审阅 |
 | 复原到服务器副本（revert to server copy） | 复原到已存版本 | Revert / `revert()` | Revert | 放弃本地更改 |
 | 挣值分析（earned value analysis） | 挣值分析 | EVM / `earnedValue` | Earned value analysis | PV/EV/AC/CPI/SPI 等指标体系 |
 | 完工估算 / 完工预算 | 完工估算 / 完工预算 | EAC / BAC | EAC / BAC | EVM 预报指标 |
-| Monte Carlo 模拟 | Monte Carlo 模拟 | Monte Carlo | Monte Carlo simulation | 概率化完工估计；Kairo 由 AI 概率表述替代 |
+| Monte Carlo 模拟 | Monte Carlo 模拟 | Monte Carlo | Monte Carlo simulation | 概率化完工估计；Zeno 由 AI 概率表述替代 |
 | 工作分解结构（WBS） | 工作分解结构 | WBS | Work breakdown structure | 任务树状分解 |
-| 导入 / 导出（import / export） | 导入 / 导出 | Import / Export | Import / Export | 跨格式读写；Kairo 带保真报告 |
-| 服务器帐户（server account） | 文件源 | Source / `FileSource` | File source | Kairo 无服务器概念，收敛为文件/文件夹源 |
-| 云同步（cloud sync） | 文件同步 | Sync / 委托云盘 | File sync | Kairo 本地优先，同步交给现有云盘 |
-| 自动化（automation） | AI 操作 / 集成 | Automation / `Integration` | AI actions / Integrations | Kairo 用 AI 自然语言操作替代脚本引擎 |
+| 导入 / 导出（import / export） | 导入 / 导出 | Import / Export | Import / Export | 跨格式读写；Zeno 带保真报告 |
+| 服务器帐户（server account） | 文件源 | Source / `FileSource` | File source | Zeno 无服务器概念，收敛为文件/文件夹源 |
+| 云同步（cloud sync） | 文件同步 | Sync / 委托云盘 | File sync | Zeno 本地优先，同步交给现有云盘 |
+| 自动化（automation） | AI 操作 / 集成 | Automation / `Integration` | AI actions / Integrations | Zeno 用 AI 自然语言操作替代脚本引擎 |
 
-## 六、与代码现状的对应（Sources/Kairo）
+## 六、与代码现状的对应（Sources/Zeno）
 
 | 现有标识符 | 语义 | 对应术语条目 |
 | --- | --- | --- |
@@ -107,6 +107,6 @@
 | `WorkCalendar`（规约） | 工作时数日历 | 工作时数 |
 
 **使用规则**：
-1. Kairo 定名为唯一对外与文档用词；代码标识符遵循 Swift 命名（`TaskItem` 等）。
-2. 平台语义（仪表盘→组合、服务器→文件源、自动化→AI 操作）有意偏离 OmniPlan，因 Kairo 定位「AI 时代的本地优先任务管理」，不照搬文件时代术语。
+1. Zeno 定名为唯一对外与文档用词；代码标识符遵循 Swift 命名（`TaskItem` 等）。
+2. 平台语义（仪表盘→组合、服务器→文件源、自动化→AI 操作）有意偏离 OmniPlan，因 Zeno 定位「AI 时代的本地优先任务管理」，不照搬文件时代术语。
 3. 本表与 01/02/03 规格文档互引；发现术语冲突时以本表为准并回改对应文档。

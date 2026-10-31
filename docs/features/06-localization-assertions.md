@@ -14,7 +14,7 @@
 
 三类之和必须 = 327，见 §6 自校验。
 
-## 1. 应用层（KairoMacApp / WorkspaceStore）（187 条）
+## 1. 应用层（ZenoMacApp / WorkspaceStore）（187 条）
 
 | # | 位置 | 用例 | 断言（摘要） | 分类 | 理由 |
 |---|---|---|---|---|---|
@@ -30,18 +30,18 @@
 | 10 | AppTests/Sprint8DateFieldRenderTests.swift:320 | dayLabelsDescribeTodaySelectionAndBounds | `Display.weekdaySymbols(calendar: calendar) == ["一", "二", "三", "四", "五", "六", "日"]` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
 | 11 | AppTests/Sprint8DateFieldRenderTests.swift:420 | popoverPreviewFollowsCandidateDay | `short == "2026-11-06 – 2026-11-09 · 3 天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
 | 12 | AppTests/Sprint8DateFieldRenderTests.swift:421 | popoverPreviewFollowsCandidateDay | `long == "2026-11-06 – 2026-11-12 · 6 天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
-| 13 | AppTests/FormatUpgradeTests.swift:94 | fr_kairo_fmt_1_current_version_is_not_flagged | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 14 | AppTests/FormatUpgradeTests.swift:149 | fr_kairo_fmt_2_old_version_is_flagged_on_open | `store.exportProject.metadata.title == "旧版项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 15 | AppTests/FormatUpgradeTests.swift:152 | fr_kairo_fmt_2_old_version_is_flagged_on_open | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 16 | AppTests/FormatUpgradeTests.swift:169 | fr_kairo_fmt_5_save_after_upgrade_announces_once | `store.notice == "已升级到 v\(KairoFile.currentFormatVersion)"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 17 | AppTests/FormatUpgradeTests.swift:176 | fr_kairo_fmt_5_save_after_upgrade_announces_once | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 18 | AppTests/FormatUpgradeTests.swift:246 | fr_kairo_fmt_5_cancel_save_as_keeps_upgrade_flag | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 19 | AppTests/FormatUpgradeTests.swift:280 | fr_kairo_fmt_5_save_and_open_keeps_upgrade_notice | `store.notice == "已升级到 v\(KairoFile.currentFormatVersion)"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 20 | AppTests/FormatUpgradeTests.swift:325 | fr_kairo_fmt_5_save_and_open_load_failure_clears_pending_notice | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 21 | AppTests/FormatUpgradeTests.swift:326 | fr_kairo_fmt_5_save_and_open_load_failure_clears_pending_notice | `store.exportProject.metadata.title == "第三个项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 22 | AppTests/FormatUpgradeTests.swift:346 | fr_kairo_fmt_5_save_and_open_without_upgrade_has_no_upgrade_notice | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 23 | AppTests/FormatUpgradeTests.swift:385 | fr_kairo_fmt_5_save_and_open_merges_upgrade_notice_and_warning | `notice.contains("已升级到 v\(KairoFile.currentFormatVersion)")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 24 | AppTests/FormatUpgradeTests.swift:386 | fr_kairo_fmt_5_save_and_open_merges_upgrade_notice_and_warning | `notice.contains("已按群组处理")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 13 | AppTests/FormatUpgradeTests.swift:94 | fr_zeno_fmt_1_current_version_is_not_flagged | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 14 | AppTests/FormatUpgradeTests.swift:149 | fr_zeno_fmt_2_old_version_is_flagged_on_open | `store.exportProject.metadata.title == "旧版项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 15 | AppTests/FormatUpgradeTests.swift:152 | fr_zeno_fmt_2_old_version_is_flagged_on_open | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 16 | AppTests/FormatUpgradeTests.swift:169 | fr_zeno_fmt_5_save_after_upgrade_announces_once | `store.notice == "已升级到 v\(ZenoFile.currentFormatVersion)"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 17 | AppTests/FormatUpgradeTests.swift:176 | fr_zeno_fmt_5_save_after_upgrade_announces_once | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 18 | AppTests/FormatUpgradeTests.swift:246 | fr_zeno_fmt_5_cancel_save_as_keeps_upgrade_flag | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 19 | AppTests/FormatUpgradeTests.swift:280 | fr_zeno_fmt_5_save_and_open_keeps_upgrade_notice | `store.notice == "已升级到 v\(ZenoFile.currentFormatVersion)"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 20 | AppTests/FormatUpgradeTests.swift:325 | fr_zeno_fmt_5_save_and_open_load_failure_clears_pending_notice | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 21 | AppTests/FormatUpgradeTests.swift:326 | fr_zeno_fmt_5_save_and_open_load_failure_clears_pending_notice | `store.exportProject.metadata.title == "第三个项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 22 | AppTests/FormatUpgradeTests.swift:346 | fr_zeno_fmt_5_save_and_open_without_upgrade_has_no_upgrade_notice | `store.notice?.contains("已升级") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 23 | AppTests/FormatUpgradeTests.swift:385 | fr_zeno_fmt_5_save_and_open_merges_upgrade_notice_and_warning | `notice.contains("已升级到 v\(ZenoFile.currentFormatVersion)")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 24 | AppTests/FormatUpgradeTests.swift:386 | fr_zeno_fmt_5_save_and_open_merges_upgrade_notice_and_warning | `notice.contains("已按群组处理")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
 | 25 | AppTests/WorkspaceStoreTests.swift:94 | loadExampleConfirmsWhenDirty | `store.exportProject.metadata.title == "未保存标题"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
 | 26 | AppTests/WorkspaceStoreTests.swift:99 | loadExampleConfirmsWhenDirty | `store.exportProject.metadata.title == "未保存标题"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
 | 27 | AppTests/WorkspaceStoreTests.swift:125 | catalogIsSingleSourceForMenuAndPalette | `Set(commands.map(\.group)) == Set(["文件", "编辑", "大纲", "任务", "视图", "查找"])` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
@@ -179,20 +179,20 @@
 | 159 | AppTests/SaveAsTests.swift:67 | fr_file_saveas_1_catalog_defines_command | `saveAs.aliases.contains("保存副本")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
 | 160 | AppTests/SaveAsTests.swift:69 | fr_file_saveas_1_catalog_defines_command | `CommandPalette.matching("另存为", in: commands).contains { $0.id == "file.saveAs" }` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
 | 161 | AppTests/SaveAsTests.swift:70 | fr_file_saveas_1_catalog_defines_command | `CommandPalette.matching("保存副本", in: commands).contains { $0.id == "file.saveAs" }` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 162 | AppTests/SaveAsTests.swift:108 | fr_file_saveas_2_trims_trailing_replacement_hyphen | `SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度/") == "季度.kairo"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 163 | AppTests/SaveAsTests.swift:109 | fr_file_saveas_2_trims_trailing_replacement_hyphen | `SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度 - ") == "季度.kairo"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 164 | AppTests/SaveAsTests.swift:133 | fr_file_saveas_2_caps_filename_at_200_utf8_bytes | `fromTitle == String(repeating: "计", count: 64) + ".kairo"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 165 | AppTests/SaveAsTests.swift:140 | fr_file_saveas_2_caps_filename_at_200_utf8_bytes | `fromURL == String(repeating: "计", count: 64) + ".kairo"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 166 | AppTests/SaveAsTests.swift:177 | fr_file_saveas_2_store_suggests_filename | `store.suggestedSaveFilename == "未命名项目.kairo"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 167 | AppTests/SaveAsTests.swift:180 | fr_file_saveas_2_store_suggests_filename | `store.suggestedSaveFilename == "路线 - 图.kairo"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 168 | AppTests/SaveAsTests.swift:184 | fr_file_saveas_2_store_suggests_filename | `store.suggestedSaveFilename == "已有.kairo"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 162 | AppTests/SaveAsTests.swift:108 | fr_file_saveas_2_trims_trailing_replacement_hyphen | `SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度/") == "季度.zeno"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 163 | AppTests/SaveAsTests.swift:109 | fr_file_saveas_2_trims_trailing_replacement_hyphen | `SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度 - ") == "季度.zeno"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 164 | AppTests/SaveAsTests.swift:133 | fr_file_saveas_2_caps_filename_at_200_utf8_bytes | `fromTitle == String(repeating: "计", count: 64) + ".zeno"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 165 | AppTests/SaveAsTests.swift:140 | fr_file_saveas_2_caps_filename_at_200_utf8_bytes | `fromURL == String(repeating: "计", count: 64) + ".zeno"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 166 | AppTests/SaveAsTests.swift:177 | fr_file_saveas_2_store_suggests_filename | `store.suggestedSaveFilename == "未命名项目.zeno"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 167 | AppTests/SaveAsTests.swift:180 | fr_file_saveas_2_store_suggests_filename | `store.suggestedSaveFilename == "路线 - 图.zeno"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 168 | AppTests/SaveAsTests.swift:184 | fr_file_saveas_2_store_suggests_filename | `store.suggestedSaveFilename == "已有.zeno"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
 | 169 | AppTests/SaveAsTests.swift:209 | fr_file_saveas_2_new_file_uses_current_format_version | `reopened.metadata.title == "格式版本检查"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 170 | AppTests/SaveAsTests.swift:270 | fr_file_saveas_4_points_project_url_and_clears_dirty | `try KairoFile.load(from: newURL).metadata.title == "另存后再修改"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 170 | AppTests/SaveAsTests.swift:270 | fr_file_saveas_4_points_project_url_and_clears_dirty | `try ZenoFile.load(from: newURL).metadata.title == "另存后再修改"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
 | 171 | AppTests/SaveAsTests.swift:294 | fr_file_saveas_4_external_change_to_old_path_is_ignored | `store.notice?.hasPrefix("已载入外部更新") != true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 172 | AppTests/SaveAsTests.swift:297 | fr_file_saveas_4_external_change_to_old_path_is_ignored | `try KairoFile.load(from: originalURL).metadata.title == "旧文件被外部改写"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 173 | AppTests/SaveAsTests.swift:318 | fr_file_saveas_5_confirms_latest_edits | `try KairoFile.load(from: newURL).metadata.title == "面板打开期间的编辑"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 172 | AppTests/SaveAsTests.swift:297 | fr_file_saveas_4_external_change_to_old_path_is_ignored | `try ZenoFile.load(from: originalURL).metadata.title == "旧文件被外部改写"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 173 | AppTests/SaveAsTests.swift:318 | fr_file_saveas_5_confirms_latest_edits | `try ZenoFile.load(from: newURL).metadata.title == "面板打开期间的编辑"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
 | 174 | AppTests/SaveAsTests.swift:344 | fr_file_saveas_6_cancel_preserves_state | `store.exportProject.metadata.title == "面板中修改"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 175 | AppTests/SaveAsTests.swift:399 | fr_file_saveas_6_cancel_forces_direct_write_branch | `try KairoFile.load(from: newURL).metadata.title == "取消后直接保存"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 175 | AppTests/SaveAsTests.swift:399 | fr_file_saveas_6_cancel_forces_direct_write_branch | `try ZenoFile.load(from: newURL).metadata.title == "取消后直接保存"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
 | 176 | AppTests/GanttCanvasEditTests.swift:48 | moveUpdatesStartDateOnly | `updated.durationDays == original.durationDays` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
 | 177 | AppTests/GanttCanvasEditTests.swift:61 | resizeEndUpdatesDurationOnly | `updated.startDate == original.startDate` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
 | 178 | AppTests/GanttCanvasEditTests.swift:84 | resizeStartKeepsFinishDate | `updatedFinish == originalFinish` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
@@ -206,134 +206,134 @@
 | 186 | AppTests/OutlineColumnLayoutTests.swift:140 | liveResizeAffectsOnlyItsColumnAndClampsNegative | `other.width(of: .start) == 200` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
 | 187 | AppTests/OutlineColumnLayoutTests.swift:148 | liveResizeAffectsOnlyItsColumnAndClampsNegative | `negative.width(of: .start) == 0` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
 
-## 2. 呈现层（KairoPresentation）（81 条）
+## 2. 呈现层（ZenoPresentation）（81 条）
 
 | # | 位置 | 用例 | 断言（摘要） | 分类 | 理由 |
 |---|---|---|---|---|---|
-| 1 | KairoPresentationTests/OutlineDateEditingTests.swift:146 | startColumnIsDisabledForGroupRow | `!reason.isEmpty` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 2 | KairoPresentationTests/OutlineDateEditingTests.swift:160 | finishColumnIsEnabledForScheduledTaskWithNextDayMinimum | `minimum == makeDay(2025, 10, 21)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 3 | KairoPresentationTests/OutlineDateEditingTests.swift:177 | finishMinimumDateIsNextDayMidnightForSubDayStart | `utc.startOfDay(for: minimum ?? .distantPast) == minimum` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 4 | KairoPresentationTests/OutlineDateEditingTests.swift:336 | finishCommitKeepsChosenFinishAndSnapshotStart | `commit.finish == finish` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 5 | KairoPresentationTests/OutlineDateEditingTests.swift:337 | finishCommitKeepsChosenFinishAndSnapshotStart | `commit.start == makeDay(2025, 10, 20)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 6 | KairoPresentationTests/OutlineDateEditingTests.swift:362 | nonDateColumnsAreNeverGated | `nonDateColumns.count == 8` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 7 | KairoPresentationTests/OutlineDateEditingTests.swift:384 | enabledMatchesReasonPresence | `enabled == (reason == nil)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 8 | KairoPresentationTests/OutlineDateEditingTests.swift:400 | finishMinimumDateSpansEndOfDSTDayInBerlin | `minimum == makeDay(2025, 10, 27, in: berlin)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 9 | KairoPresentationTests/OutlineDateEditingTests.swift:401 | finishMinimumDateSpansEndOfDSTDayInBerlin | `berlin.startOfDay(for: minimum ?? .distantPast) == minimum` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 10 | KairoPresentationTests/OutlineDateEditingTests.swift:443 | finishMinimumDateUsesInjectedCalendar | `inBerlin != inUTC` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 11 | KairoPresentationTests/OutlineDateEditingTests.swift:445 | finishMinimumDateUsesInjectedCalendar | `clock.hour == 0 && clock.minute == 0` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 12 | KairoPresentationTests/DayWidthAcceptanceTests.swift:337 | dayWidthGridCoversTicksBandsAndBars | `!gantt.bands.isEmpty` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 13 | KairoPresentationTests/DayWidthAcceptanceTests.swift:343 | dayWidthGridCoversTicksBandsAndBars | `abs(band.width - width) < 1e-6` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 14 | KairoPresentationTests/DayWidthAcceptanceTests.swift:354 | dayWidthGridCoversTicksBandsAndBars | `abs(bar.x - days * width) < 1e-6` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 15 | KairoPresentationTests/DayWidthAcceptanceTests.swift:410 | dayGranularityKeepsAdjacentTickSpacingEqualToDayWidth | `abs(xs[0]) < 1e-9` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 16 | KairoPresentationTests/DayWidthAcceptanceTests.swift:445 | weekGranularityKeepsAdjacentTickSpacingSevenDayWidths | `abs(span - 7) < 1e-6` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 17 | KairoPresentationTests/DayWidthAcceptanceTests.swift:471 | monthGranularityKeepsAdjacentTickSpacingWithinOneMonthSpan | `days >= 28 && days <= 31` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 18 | KairoPresentationTests/DayWidthAcceptanceTests.swift:501 | presetZoomUsesPresetDayWidthAndSelfConsistentGranularity | `gantt.dayWidth == preset.width` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 19 | KairoPresentationTests/DayWidthAcceptanceTests.swift:536 | customDayWidthOverridesFitZoomAndFitModeUsesFitWidth | `custom.usesFitZoom == false` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 20 | KairoPresentationTests/DayWidthAcceptanceTests.swift:552 | customDayWidthOverridesFitZoomAndFitModeUsesFitWidth | `fit.dayWidth > 10 && fit.dayWidth < 10.2` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 21 | KairoPresentationTests/DayWidthAcceptanceTests.swift:554 | customDayWidthOverridesFitZoomAndFitModeUsesFitWidth | `fit.tickGranularity == .week` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 22 | KairoPresentationTests/DayWidthAcceptanceTests.swift:555 | customDayWidthOverridesFitZoomAndFitModeUsesFitWidth | `fit.zoom == .week` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 23 | KairoPresentationTests/DayWidthAcceptanceTests.swift:571 | outOfRangeCustomDayWidthIsClampedAndNeverIllegal | `GanttScale.clampDayWidth(12.5) == 12.5` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 24 | KairoPresentationTests/DayWidthAcceptanceTests.swift:588 | outOfRangeCustomDayWidthIsClampedAndNeverIllegal | `gantt.dayWidth.isFinite` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 25 | KairoPresentationTests/DayWidthAcceptanceTests.swift:589 | outOfRangeCustomDayWidthIsClampedAndNeverIllegal | `gantt.dayWidth > 0` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 26 | KairoPresentationTests/DayWidthAcceptanceTests.swift:620 | tinyDayWidthKeepsTickCountsAndWindowBounded | `gantt.tickGranularity == .month` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 27 | KairoPresentationTests/DayWidthAcceptanceTests.swift:627 | tinyDayWidthKeepsTickCountsAndWindowBounded | `gantt.ticks.count <= 64` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 28 | KairoPresentationTests/DayWidthAcceptanceTests.swift:628 | tinyDayWidthKeepsTickCountsAndWindowBounded | `gantt.ticks.count <= 200` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 29 | KairoPresentationTests/DayWidthAcceptanceTests.swift:629 | tinyDayWidthKeepsTickCountsAndWindowBounded | `Double(gantt.ticks.count) <= windowDays(gantt) / 10` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 30 | KairoPresentationTests/DayWidthAcceptanceTests.swift:630 | tinyDayWidthKeepsTickCountsAndWindowBounded | `gantt.bands.isEmpty` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 31 | KairoPresentationTests/DayWidthAcceptanceTests.swift:662 | statusBarReportsZoomLabelAndActualDayWidth | `custom.zoomLabel == "自定义"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 32 | KairoPresentationTests/DayWidthAcceptanceTests.swift:663 | statusBarReportsZoomLabelAndActualDayWidth | `custom.zoomDetail == "20 点/天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
-| 33 | KairoPresentationTests/DayWidthAcceptanceTests.swift:666 | statusBarReportsZoomLabelAndActualDayWidth | `fractional.zoomLabel == "自定义"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 34 | KairoPresentationTests/DayWidthAcceptanceTests.swift:667 | statusBarReportsZoomLabelAndActualDayWidth | `fractional.zoomDetail == "12.5 点/天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
-| 35 | KairoPresentationTests/DayWidthAcceptanceTests.swift:675 | statusBarReportsZoomLabelAndActualDayWidth | `preset.zoomLabel == "日"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 36 | KairoPresentationTests/DayWidthAcceptanceTests.swift:692 | statusBarReportsZoomLabelAndActualDayWidth | `fit.zoomLabel == "适合项目"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 37 | KairoPresentationTests/DayWidthAcceptanceTests.swift:694 | statusBarReportsZoomLabelAndActualDayWidth | `abs(detail - fitGantt.dayWidth) < 0.051` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 38 | KairoPresentationTests/DayWidthAcceptanceTests.swift:717 | presetModeKeepsPresetWidthGranularityAndMatchesCoreReference | `gantt.dayWidth == preset.width` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 39 | KairoPresentationTests/DayWidthAcceptanceTests.swift:729 | presetModeKeepsPresetWidthGranularityAndMatchesCoreReference | `lower.count >= 20` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 40 | KairoPresentationTests/DayWidthAcceptanceTests.swift:744 | presetModeKeepsPresetWidthGranularityAndMatchesCoreReference | `gantt.bands.isEmpty` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 41 | KairoPresentationTests/DayWidthAcceptanceTests.swift:775 | fitModeKeepsPresetGranularityAndMatchesCoreReference | `discriminating` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 42 | KairoPresentationTests/DayWidthAcceptanceTests.swift:787 | fitModeKeepsPresetGranularityAndMatchesCoreReference | `gantt.usesFitZoom == true` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 43 | KairoPresentationTests/DayWidthAcceptanceTests.swift:788 | fitModeKeepsPresetGranularityAndMatchesCoreReference | `gantt.zoom == zoom` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 44 | KairoPresentationTests/DayWidthAcceptanceTests.swift:843 | fitModeGranularityIsInvariantToViewportWidth | `Set(granularities).count == 1` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 45 | KairoPresentationTests/DayWidthAcceptanceTests.swift:880 | customModeDerivesGranularityFromEffectiveDayWidth | `gantt.zoom == .week` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 46 | KairoPresentationTests/DayWidthAcceptanceTests.swift:893 | customModeDerivesGranularityFromEffectiveDayWidth | `granularityAt(17.99) != granularityAt(18)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 47 | KairoPresentationTests/DayWidthAcceptanceTests.swift:894 | customModeDerivesGranularityFromEffectiveDayWidth | `granularityAt(5.99) != granularityAt(6)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 48 | KairoPresentationTests/DayWidthAcceptanceTests.swift:910 | customModeWidthAndGranularityWinOverFit | `gantt.dayWidth == item.width` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 49 | KairoPresentationTests/DayWidthAcceptanceTests.swift:911 | customModeWidthAndGranularityWinOverFit | `gantt.usesFitZoom == false` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 50 | KairoPresentationTests/DayWidthAcceptanceTests.swift:916 | customModeWidthAndGranularityWinOverFit | `gantt.zoom == .week` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 51 | KairoPresentationTests/DayWidthAcceptanceTests.swift:937 | zoomKeepsPresetSemanticsWhileTickGranularityReportsEffectiveUnit | `gantt.zoom == item.preset` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 52 | KairoPresentationTests/DayWidthAcceptanceTests.swift:958 | dayWidthActionsExposeInspectablePayloads | `width == 20` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 53 | KairoPresentationTests/DayWidthAcceptanceTests.swift:965 | dayWidthActionsExposeInspectablePayloads | `delta == 1` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 54 | KairoPresentationTests/DayWidthAcceptanceTests.swift:970 | dayWidthActionsExposeInspectablePayloads | `negative == -1` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 55 | KairoPresentationTests/PresenterTests.swift:131 | filterKeepsAncestorsAndForcesExpansion | `snapshot.outline.filterSummary?.contains("筛选") == true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 56 | KairoPresentationTests/PresenterTests.swift:392 | inspectorFallsBackWhenSelectionMissing | `project.title == "演示项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 57 | KairoPresentationTests/PresenterTests.swift:423 | violationInspectorGroupsAndListsRuleCatalog | `inspector.groups[0].items[0].name == "相关性环"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 58 | KairoPresentationTests/PresenterTests.swift:483 | statusBarZoomLabelReflectsPreference | `snapshot.statusBar.zoomLabel == "日"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 59 | KairoPresentationTests/PresenterTests.swift:548 | thousandTaskSnapshotStaysWithinBudget | `bestMilliseconds < 1000` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 60 | KairoPresentationTests/DayWidthTests.swift:216 | presetZoomKeepsItsOwnDayWidth | `gantt.tickGranularity == preset.zoom` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 61 | KairoPresentationTests/DayWidthTests.swift:338 | statusBarReportsZoomLabelAndDetail | `custom.zoomLabel == "自定义"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 62 | KairoPresentationTests/DayWidthTests.swift:339 | statusBarReportsZoomLabelAndDetail | `custom.zoomDetail == "20 点/天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
-| 63 | KairoPresentationTests/DayWidthTests.swift:342 | statusBarReportsZoomLabelAndDetail | `fractional.zoomLabel == "自定义"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 64 | KairoPresentationTests/DayWidthTests.swift:343 | statusBarReportsZoomLabelAndDetail | `fractional.zoomDetail == "12.5 点/天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
-| 65 | KairoPresentationTests/DayWidthTests.swift:346 | statusBarReportsZoomLabelAndDetail | `preset.zoomLabel == "日"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 66 | KairoPresentationTests/DayWidthTests.swift:347 | statusBarReportsZoomLabelAndDetail | `preset.zoomDetail == "32 点/天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
-| 67 | KairoPresentationTests/DayWidthTests.swift:352 | statusBarReportsZoomLabelAndDetail | `fit.zoomLabel == "适合项目"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 68 | KairoPresentationTests/DayWidthTests.swift:353 | statusBarReportsZoomLabelAndDetail | `fit.zoomDetail?.hasSuffix("点/天") == true` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
-| 69 | KairoPresentationTests/DayWidthTests.swift:362 | customDayWidthTakesPriorityInZoomLabel | `statusBar.zoomLabel == "自定义"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 70 | KairoPresentationTests/DayWidthTests.swift:391 | fitModeKeepsTheUserZoomAsTickGranularity | `gantt.dayWidth < 6` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 71 | KairoPresentationTests/DayWidthTests.swift:428 | presetAndFitOutputMatchThePreChangeBaseline | `gantt.dayWidth == legacy.dayWidth` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 72 | KairoPresentationTests/DayWidthTests.swift:454 | presetAndFitOutputMatchThePreChangeBaseline | `fit.dayWidth == legacyFit.dayWidth` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 73 | KairoPresentationTests/CalendarGridTests.swift:50 | gridAlwaysHasFortyTwoConsecutiveUniqueDays | `Set(grid.days).count == grid.days.count` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 74 | KairoPresentationTests/CalendarGridTests.swift:54 | gridAlwaysHasFortyTwoConsecutiveUniqueDays | `calendar.component(.hour, from: earlier) == 0` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 75 | KairoPresentationTests/CalendarGridTests.swift:188 | isWeekendMarksSaturdayAndSunday | `grid.isWeekend(makeDate(2025, 2, 1, calendar: calendar))` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 76 | KairoPresentationTests/CalendarGridTests.swift:189 | isWeekendMarksSaturdayAndSunday | `grid.isWeekend(makeDate(2025, 2, 2, calendar: calendar))` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 77 | KairoPresentationTests/CalendarGridTests.swift:190 | isWeekendMarksSaturdayAndSunday | `!grid.isWeekend(makeDate(2025, 2, 3, calendar: calendar))` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 78 | KairoPresentationTests/CalendarGridTests.swift:191 | isWeekendMarksSaturdayAndSunday | `!grid.isWeekend(makeDate(2025, 2, 5, calendar: calendar))` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 79 | KairoPresentationTests/OutlineColumnPreferencesTests.swift:48 | configurableExcludesFixedColumnsInAllCasesOrder | `!configurable.contains(.number)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 80 | KairoPresentationTests/OutlineColumnPreferencesTests.swift:49 | configurableExcludesFixedColumnsInAllCasesOrder | `!configurable.contains(.title)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 81 | KairoPresentationTests/OutlineColumnPreferencesTests.swift:59 | isResizableExcludesTitleOnly | `OutlineColumnPreferences.isResizable(column)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 1 | ZenoPresentationTests/OutlineDateEditingTests.swift:146 | startColumnIsDisabledForGroupRow | `!reason.isEmpty` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 2 | ZenoPresentationTests/OutlineDateEditingTests.swift:160 | finishColumnIsEnabledForScheduledTaskWithNextDayMinimum | `minimum == makeDay(2025, 10, 21)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 3 | ZenoPresentationTests/OutlineDateEditingTests.swift:177 | finishMinimumDateIsNextDayMidnightForSubDayStart | `utc.startOfDay(for: minimum ?? .distantPast) == minimum` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 4 | ZenoPresentationTests/OutlineDateEditingTests.swift:336 | finishCommitKeepsChosenFinishAndSnapshotStart | `commit.finish == finish` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 5 | ZenoPresentationTests/OutlineDateEditingTests.swift:337 | finishCommitKeepsChosenFinishAndSnapshotStart | `commit.start == makeDay(2025, 10, 20)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 6 | ZenoPresentationTests/OutlineDateEditingTests.swift:362 | nonDateColumnsAreNeverGated | `nonDateColumns.count == 8` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 7 | ZenoPresentationTests/OutlineDateEditingTests.swift:384 | enabledMatchesReasonPresence | `enabled == (reason == nil)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 8 | ZenoPresentationTests/OutlineDateEditingTests.swift:400 | finishMinimumDateSpansEndOfDSTDayInBerlin | `minimum == makeDay(2025, 10, 27, in: berlin)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 9 | ZenoPresentationTests/OutlineDateEditingTests.swift:401 | finishMinimumDateSpansEndOfDSTDayInBerlin | `berlin.startOfDay(for: minimum ?? .distantPast) == minimum` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 10 | ZenoPresentationTests/OutlineDateEditingTests.swift:443 | finishMinimumDateUsesInjectedCalendar | `inBerlin != inUTC` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 11 | ZenoPresentationTests/OutlineDateEditingTests.swift:445 | finishMinimumDateUsesInjectedCalendar | `clock.hour == 0 && clock.minute == 0` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 12 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:337 | dayWidthGridCoversTicksBandsAndBars | `!gantt.bands.isEmpty` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 13 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:343 | dayWidthGridCoversTicksBandsAndBars | `abs(band.width - width) < 1e-6` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 14 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:354 | dayWidthGridCoversTicksBandsAndBars | `abs(bar.x - days * width) < 1e-6` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 15 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:410 | dayGranularityKeepsAdjacentTickSpacingEqualToDayWidth | `abs(xs[0]) < 1e-9` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 16 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:445 | weekGranularityKeepsAdjacentTickSpacingSevenDayWidths | `abs(span - 7) < 1e-6` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 17 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:471 | monthGranularityKeepsAdjacentTickSpacingWithinOneMonthSpan | `days >= 28 && days <= 31` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 18 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:501 | presetZoomUsesPresetDayWidthAndSelfConsistentGranularity | `gantt.dayWidth == preset.width` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 19 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:536 | customDayWidthOverridesFitZoomAndFitModeUsesFitWidth | `custom.usesFitZoom == false` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 20 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:552 | customDayWidthOverridesFitZoomAndFitModeUsesFitWidth | `fit.dayWidth > 10 && fit.dayWidth < 10.2` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 21 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:554 | customDayWidthOverridesFitZoomAndFitModeUsesFitWidth | `fit.tickGranularity == .week` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 22 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:555 | customDayWidthOverridesFitZoomAndFitModeUsesFitWidth | `fit.zoom == .week` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 23 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:571 | outOfRangeCustomDayWidthIsClampedAndNeverIllegal | `GanttScale.clampDayWidth(12.5) == 12.5` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 24 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:588 | outOfRangeCustomDayWidthIsClampedAndNeverIllegal | `gantt.dayWidth.isFinite` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 25 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:589 | outOfRangeCustomDayWidthIsClampedAndNeverIllegal | `gantt.dayWidth > 0` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 26 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:620 | tinyDayWidthKeepsTickCountsAndWindowBounded | `gantt.tickGranularity == .month` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 27 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:627 | tinyDayWidthKeepsTickCountsAndWindowBounded | `gantt.ticks.count <= 64` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 28 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:628 | tinyDayWidthKeepsTickCountsAndWindowBounded | `gantt.ticks.count <= 200` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 29 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:629 | tinyDayWidthKeepsTickCountsAndWindowBounded | `Double(gantt.ticks.count) <= windowDays(gantt) / 10` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 30 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:630 | tinyDayWidthKeepsTickCountsAndWindowBounded | `gantt.bands.isEmpty` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 31 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:662 | statusBarReportsZoomLabelAndActualDayWidth | `custom.zoomLabel == "自定义"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 32 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:663 | statusBarReportsZoomLabelAndActualDayWidth | `custom.zoomDetail == "20 点/天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
+| 33 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:666 | statusBarReportsZoomLabelAndActualDayWidth | `fractional.zoomLabel == "自定义"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 34 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:667 | statusBarReportsZoomLabelAndActualDayWidth | `fractional.zoomDetail == "12.5 点/天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
+| 35 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:675 | statusBarReportsZoomLabelAndActualDayWidth | `preset.zoomLabel == "日"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 36 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:692 | statusBarReportsZoomLabelAndActualDayWidth | `fit.zoomLabel == "适合项目"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 37 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:694 | statusBarReportsZoomLabelAndActualDayWidth | `abs(detail - fitGantt.dayWidth) < 0.051` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 38 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:717 | presetModeKeepsPresetWidthGranularityAndMatchesCoreReference | `gantt.dayWidth == preset.width` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 39 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:729 | presetModeKeepsPresetWidthGranularityAndMatchesCoreReference | `lower.count >= 20` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 40 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:744 | presetModeKeepsPresetWidthGranularityAndMatchesCoreReference | `gantt.bands.isEmpty` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 41 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:775 | fitModeKeepsPresetGranularityAndMatchesCoreReference | `discriminating` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 42 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:787 | fitModeKeepsPresetGranularityAndMatchesCoreReference | `gantt.usesFitZoom == true` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 43 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:788 | fitModeKeepsPresetGranularityAndMatchesCoreReference | `gantt.zoom == zoom` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 44 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:843 | fitModeGranularityIsInvariantToViewportWidth | `Set(granularities).count == 1` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 45 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:880 | customModeDerivesGranularityFromEffectiveDayWidth | `gantt.zoom == .week` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 46 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:893 | customModeDerivesGranularityFromEffectiveDayWidth | `granularityAt(17.99) != granularityAt(18)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 47 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:894 | customModeDerivesGranularityFromEffectiveDayWidth | `granularityAt(5.99) != granularityAt(6)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 48 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:910 | customModeWidthAndGranularityWinOverFit | `gantt.dayWidth == item.width` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 49 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:911 | customModeWidthAndGranularityWinOverFit | `gantt.usesFitZoom == false` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 50 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:916 | customModeWidthAndGranularityWinOverFit | `gantt.zoom == .week` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 51 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:937 | zoomKeepsPresetSemanticsWhileTickGranularityReportsEffectiveUnit | `gantt.zoom == item.preset` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 52 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:958 | dayWidthActionsExposeInspectablePayloads | `width == 20` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 53 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:965 | dayWidthActionsExposeInspectablePayloads | `delta == 1` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 54 | ZenoPresentationTests/DayWidthAcceptanceTests.swift:970 | dayWidthActionsExposeInspectablePayloads | `negative == -1` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 55 | ZenoPresentationTests/PresenterTests.swift:131 | filterKeepsAncestorsAndForcesExpansion | `snapshot.outline.filterSummary?.contains("筛选") == true` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 56 | ZenoPresentationTests/PresenterTests.swift:392 | inspectorFallsBackWhenSelectionMissing | `project.title == "演示项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 57 | ZenoPresentationTests/PresenterTests.swift:423 | violationInspectorGroupsAndListsRuleCatalog | `inspector.groups[0].items[0].name == "相关性环"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 58 | ZenoPresentationTests/PresenterTests.swift:483 | statusBarZoomLabelReflectsPreference | `snapshot.statusBar.zoomLabel == "日"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 59 | ZenoPresentationTests/PresenterTests.swift:548 | thousandTaskSnapshotStaysWithinBudget | `bestMilliseconds < 1000` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 60 | ZenoPresentationTests/DayWidthTests.swift:216 | presetZoomKeepsItsOwnDayWidth | `gantt.tickGranularity == preset.zoom` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 61 | ZenoPresentationTests/DayWidthTests.swift:338 | statusBarReportsZoomLabelAndDetail | `custom.zoomLabel == "自定义"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 62 | ZenoPresentationTests/DayWidthTests.swift:339 | statusBarReportsZoomLabelAndDetail | `custom.zoomDetail == "20 点/天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
+| 63 | ZenoPresentationTests/DayWidthTests.swift:342 | statusBarReportsZoomLabelAndDetail | `fractional.zoomLabel == "自定义"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 64 | ZenoPresentationTests/DayWidthTests.swift:343 | statusBarReportsZoomLabelAndDetail | `fractional.zoomDetail == "12.5 点/天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
+| 65 | ZenoPresentationTests/DayWidthTests.swift:346 | statusBarReportsZoomLabelAndDetail | `preset.zoomLabel == "日"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 66 | ZenoPresentationTests/DayWidthTests.swift:347 | statusBarReportsZoomLabelAndDetail | `preset.zoomDetail == "32 点/天"` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
+| 67 | ZenoPresentationTests/DayWidthTests.swift:352 | statusBarReportsZoomLabelAndDetail | `fit.zoomLabel == "适合项目"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 68 | ZenoPresentationTests/DayWidthTests.swift:353 | statusBarReportsZoomLabelAndDetail | `fit.zoomDetail?.hasSuffix("点/天") == true` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
+| 69 | ZenoPresentationTests/DayWidthTests.swift:362 | customDayWidthTakesPriorityInZoomLabel | `statusBar.zoomLabel == "自定义"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 70 | ZenoPresentationTests/DayWidthTests.swift:391 | fitModeKeepsTheUserZoomAsTickGranularity | `gantt.dayWidth < 6` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 71 | ZenoPresentationTests/DayWidthTests.swift:428 | presetAndFitOutputMatchThePreChangeBaseline | `gantt.dayWidth == legacy.dayWidth` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 72 | ZenoPresentationTests/DayWidthTests.swift:454 | presetAndFitOutputMatchThePreChangeBaseline | `fit.dayWidth == legacyFit.dayWidth` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 73 | ZenoPresentationTests/CalendarGridTests.swift:50 | gridAlwaysHasFortyTwoConsecutiveUniqueDays | `Set(grid.days).count == grid.days.count` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 74 | ZenoPresentationTests/CalendarGridTests.swift:54 | gridAlwaysHasFortyTwoConsecutiveUniqueDays | `calendar.component(.hour, from: earlier) == 0` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 75 | ZenoPresentationTests/CalendarGridTests.swift:188 | isWeekendMarksSaturdayAndSunday | `grid.isWeekend(makeDate(2025, 2, 1, calendar: calendar))` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 76 | ZenoPresentationTests/CalendarGridTests.swift:189 | isWeekendMarksSaturdayAndSunday | `grid.isWeekend(makeDate(2025, 2, 2, calendar: calendar))` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 77 | ZenoPresentationTests/CalendarGridTests.swift:190 | isWeekendMarksSaturdayAndSunday | `!grid.isWeekend(makeDate(2025, 2, 3, calendar: calendar))` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 78 | ZenoPresentationTests/CalendarGridTests.swift:191 | isWeekendMarksSaturdayAndSunday | `!grid.isWeekend(makeDate(2025, 2, 5, calendar: calendar))` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 79 | ZenoPresentationTests/OutlineColumnPreferencesTests.swift:48 | configurableExcludesFixedColumnsInAllCasesOrder | `!configurable.contains(.number)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 80 | ZenoPresentationTests/OutlineColumnPreferencesTests.swift:49 | configurableExcludesFixedColumnsInAllCasesOrder | `!configurable.contains(.title)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 81 | ZenoPresentationTests/OutlineColumnPreferencesTests.swift:59 | isResizableExcludesTitleOnly | `OutlineColumnPreferences.isResizable(column)` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
 
-## 3. 核心层（KairoCore / KairoCommands）（38 条）
+## 3. 核心层（ZenoCore / ZenoCommands）（38 条）
 
 | # | 位置 | 用例 | 断言（摘要） | 分类 | 理由 |
 |---|---|---|---|---|---|
-| 1 | KairoCoreTests/GanttLayoutTests.swift:184 | dayZoomTicksUseTwoTiers | `upper.map(\.label) == ["11月", "12月"]` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
-| 2 | KairoCoreTests/GanttLayoutTests.swift:200 | monthZoomTicksAtMonthStart | `lower.map(\.label) == ["11月", "12月"]` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
-| 3 | KairoCoreTests/GanttLayoutTests.swift:204 | monthZoomTicksAtMonthStart | `upper.map(\.label) == ["2026年"]` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
-| 4 | KairoCoreTests/TaskPatchTests.swift:55 | patchUpdatesPlainFields | `task.title == "新标题"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 5 | KairoCoreTests/TaskPatchTests.swift:56 | patchUpdatesPlainFields | `task.notes == "备注"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 6 | KairoCoreTests/TaskPatchTests.swift:58 | patchUpdatesPlainFields | `task.tags == ["设计"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 7 | KairoCoreTests/FormatMigrationTests.swift:139 | fr_kairo_fmt_1_current_version_skips_migration | `decoded.project.metadata.title == "当前格式"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 8 | KairoCoreTests/FormatMigrationTests.swift:174 | fr_kairo_fmt_2_read_migrates_end_to_end | `decoded.project.metadata.title == "端到端 v2 v3"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 9 | KairoCoreTests/FormatMigrationTests.swift:297 | fr_kairo_fmt_4_throwing_step_is_wrapped_with_from_to | `reason.contains("合成迁移拒绝继续")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 10 | KairoCoreTests/FormatMigrationTests.swift:321 | fr_kairo_fmt_4_failed_migration_writes_nothing | `reason.contains("合成迁移拒绝继续")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 11 | KairoCoreTests/FormatMigrationTests.swift:343 | fr_kairo_fmt_4_decode_failure_after_migration_is_wrapped | `reason.contains("解码")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 12 | KairoCoreTests/ProjectStateTests.swift:17 | snapshotCopiesProjectContent | `state.metadata.title == "快照项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 13 | KairoCoreTests/ProjectStateTests.swift:32 | snapshotIsIndependentOfLaterProjectMutation | `state.metadata.title == "原项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 14 | KairoCoreTests/ProjectStateTests.swift:47 | applyRestoresFullProject | `project.metadata.title == "原项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 15 | KairoCoreTests/ProjectStateTests.swift:59 | emptyStateAppliesAsEmptyProject | `project.metadata.title == "空"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 16 | KairoCoreTests/SessionCacheTests.swift:127 | restoreReplacesProjectContent | `try session.listTasks().map(\.title) == ["原任务"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 17 | KairoCoreTests/ModelTests.swift:108 | parentChildrenTreeStructure | `project.tasks.filter { $0.parentID == nil }.count == 2` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 18 | KairoCoreTests/OutlineTreeTests.swift:57 | collapsedGroupsHideChildren | `tree.rows.map(\.task.title) == ["组", "顶层任务"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 19 | KairoCoreTests/OutlineTreeTests.swift:68 | expandedGroupsShowChildrenInOrder | `tree.rows.map(\.task.title) == ["组", "A", "B", "顶层任务"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 20 | KairoCoreTests/OutlineTreeTests.swift:157 | filterShowsMatchesAndForcesAncestorsExpanded | `tree.rows.map(\.task.title) == ["组", "B"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 21 | KairoCoreTests/OutlineTreeTests.swift:196 | orphanIsTreatedAsRoot | `tree.rows.map(\.task.title) == ["孤儿"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 22 | KairoCoreTests/ProjectDirectionTests.swift:21 | legacyMetadataDecodesAsForward | `decoded.title == "旧文件"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 23 | KairoCoreTests/OutlineMovingTests.swift:30 | movesTaskIntoGroupAtStart | `updated.map(\.title) == ["组", "其他", "子", "孙"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 24 | KairoCoreTests/OutlineMovingTests.swift:41 | movesTaskIntoGroupAtEnd | `updated.map(\.title) == ["组", "子", "孙", "其他"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 25 | KairoCoreTests/OutlineMovingTests.swift:51 | movesSubtreeOutToRoot | `updated.map(\.title) == ["子", "孙", "组", "其他"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 26 | KairoCoreTests/DeepLinkTests.swift:23 | parsesPercentEncodedTitle | `link.target == .taskTitle("验收")` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 27 | KairoCoreTests/ProjectSummaryTests.swift:91 | overdueUsesPlannedFinishThenDueDateFallback | `summary.missingDueDateCount == 1` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
-| 28 | KairoCoreTests/ResourceStatusTests.swift:95 | resourcesPersistThroughKairoFileRoundTrip | `loaded.resources.first?.name == "测试机"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 29 | KairoCoreTests/KairoFileTests.swift:20 | saveLoadRoundTripPreservesTasksAndMetadata | `loaded.metadata.title == "示例项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 30 | KairoCoreTests/KairoFileTests.swift:100 | saveToURLAndLoadFromURL | `loaded.metadata.title == "磁盘往返"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 31 | KairoCoreTests/KairoFileTests.swift:115 | fr_kairo_fmt_1_read_current_file_reports_current_source_version | `decoded.project.metadata.title == "当前版本"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 32 | KairoCoreTests/KairoFileTests.swift:142 | fr_kairo_fmt_5_legacy_file_resaves_as_current_version_and_reopens | `reopened.project.metadata.title == "旧项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 33 | KairoCoreTests/KairoCoreTests.swift:135 | explanationSummarizesClauses | `text.contains("筛选")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 34 | KairoCoreTests/KairoCoreTests.swift:136 | explanationSummarizesClauses | `text.contains("逾期")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 35 | KairoCoreTests/KairoCoreTests.swift:157 | applyFiltersFixtureTasks | `overdue.first?.title == "逾期任务"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 36 | KairoCoreTests/KairoCoreTests.swift:161 | applyFiltersFixtureTasks | `dueToday.first?.title == "今日任务"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 37 | KairoCoreTests/KairoCoreTests.swift:168 | applyFiltersFixtureTasks | `done.first?.title == "完成任务"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 38 | KairoCoreTests/KairoCoreTests.swift:180 | applyAndCombinesClauses | `result.first?.title == "支付网关"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 1 | ZenoCoreTests/GanttLayoutTests.swift:184 | dayZoomTicksUseTwoTiers | `upper.map(\.label) == ["11月", "12月"]` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
+| 2 | ZenoCoreTests/GanttLayoutTests.swift:200 | monthZoomTicksAtMonthStart | `lower.map(\.label) == ["11月", "12月"]` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
+| 3 | ZenoCoreTests/GanttLayoutTests.swift:204 | monthZoomTicksAtMonthStart | `upper.map(\.label) == ["2026年"]` | 需跟译 | 期望值是本地化日期串（年月日/星期/单位），随 Locale 变化 → 注入 Locale 判语言相关输出，契约输出改用 ISO |
+| 4 | ZenoCoreTests/TaskPatchTests.swift:55 | patchUpdatesPlainFields | `task.title == "新标题"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 5 | ZenoCoreTests/TaskPatchTests.swift:56 | patchUpdatesPlainFields | `task.notes == "备注"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 6 | ZenoCoreTests/TaskPatchTests.swift:58 | patchUpdatesPlainFields | `task.tags == ["设计"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 7 | ZenoCoreTests/FormatMigrationTests.swift:139 | fr_zeno_fmt_1_current_version_skips_migration | `decoded.project.metadata.title == "当前格式"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 8 | ZenoCoreTests/FormatMigrationTests.swift:174 | fr_zeno_fmt_2_read_migrates_end_to_end | `decoded.project.metadata.title == "端到端 v2 v3"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 9 | ZenoCoreTests/FormatMigrationTests.swift:297 | fr_zeno_fmt_4_throwing_step_is_wrapped_with_from_to | `reason.contains("合成迁移拒绝继续")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 10 | ZenoCoreTests/FormatMigrationTests.swift:321 | fr_zeno_fmt_4_failed_migration_writes_nothing | `reason.contains("合成迁移拒绝继续")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 11 | ZenoCoreTests/FormatMigrationTests.swift:343 | fr_zeno_fmt_4_decode_failure_after_migration_is_wrapped | `reason.contains("解码")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 12 | ZenoCoreTests/ProjectStateTests.swift:17 | snapshotCopiesProjectContent | `state.metadata.title == "快照项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 13 | ZenoCoreTests/ProjectStateTests.swift:32 | snapshotIsIndependentOfLaterProjectMutation | `state.metadata.title == "原项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 14 | ZenoCoreTests/ProjectStateTests.swift:47 | applyRestoresFullProject | `project.metadata.title == "原项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 15 | ZenoCoreTests/ProjectStateTests.swift:59 | emptyStateAppliesAsEmptyProject | `project.metadata.title == "空"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 16 | ZenoCoreTests/SessionCacheTests.swift:127 | restoreReplacesProjectContent | `try session.listTasks().map(\.title) == ["原任务"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 17 | ZenoCoreTests/ModelTests.swift:108 | parentChildrenTreeStructure | `project.tasks.filter { $0.parentID == nil }.count == 2` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 18 | ZenoCoreTests/OutlineTreeTests.swift:57 | collapsedGroupsHideChildren | `tree.rows.map(\.task.title) == ["组", "顶层任务"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 19 | ZenoCoreTests/OutlineTreeTests.swift:68 | expandedGroupsShowChildrenInOrder | `tree.rows.map(\.task.title) == ["组", "A", "B", "顶层任务"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 20 | ZenoCoreTests/OutlineTreeTests.swift:157 | filterShowsMatchesAndForcesAncestorsExpanded | `tree.rows.map(\.task.title) == ["组", "B"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 21 | ZenoCoreTests/OutlineTreeTests.swift:196 | orphanIsTreatedAsRoot | `tree.rows.map(\.task.title) == ["孤儿"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 22 | ZenoCoreTests/ProjectDirectionTests.swift:21 | legacyMetadataDecodesAsForward | `decoded.title == "旧文件"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 23 | ZenoCoreTests/OutlineMovingTests.swift:30 | movesTaskIntoGroupAtStart | `updated.map(\.title) == ["组", "其他", "子", "孙"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 24 | ZenoCoreTests/OutlineMovingTests.swift:41 | movesTaskIntoGroupAtEnd | `updated.map(\.title) == ["组", "子", "孙", "其他"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 25 | ZenoCoreTests/OutlineMovingTests.swift:51 | movesSubtreeOutToRoot | `updated.map(\.title) == ["子", "孙", "组", "其他"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 26 | ZenoCoreTests/DeepLinkTests.swift:23 | parsesPercentEncodedTitle | `link.target == .taskTitle("验收")` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 27 | ZenoCoreTests/ProjectSummaryTests.swift:91 | overdueUsesPlannedFinishThenDueDateFallback | `summary.missingDueDateCount == 1` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 28 | ZenoCoreTests/ResourceStatusTests.swift:95 | resourcesPersistThroughZenoFileRoundTrip | `loaded.resources.first?.name == "测试机"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 29 | ZenoCoreTests/ZenoFileTests.swift:20 | saveLoadRoundTripPreservesTasksAndMetadata | `loaded.metadata.title == "示例项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 30 | ZenoCoreTests/ZenoFileTests.swift:100 | saveToURLAndLoadFromURL | `loaded.metadata.title == "磁盘往返"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 31 | ZenoCoreTests/ZenoFileTests.swift:115 | fr_zeno_fmt_1_read_current_file_reports_current_source_version | `decoded.project.metadata.title == "当前版本"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 32 | ZenoCoreTests/ZenoFileTests.swift:142 | fr_zeno_fmt_5_legacy_file_resaves_as_current_version_and_reopens | `reopened.project.metadata.title == "旧项目"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 33 | ZenoCoreTests/ZenoCoreTests.swift:135 | explanationSummarizesClauses | `text.contains("筛选")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 34 | ZenoCoreTests/ZenoCoreTests.swift:136 | explanationSummarizesClauses | `text.contains("逾期")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 35 | ZenoCoreTests/ZenoCoreTests.swift:157 | applyFiltersFixtureTasks | `overdue.first?.title == "逾期任务"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 36 | ZenoCoreTests/ZenoCoreTests.swift:161 | applyFiltersFixtureTasks | `dueToday.first?.title == "今日任务"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 37 | ZenoCoreTests/ZenoCoreTests.swift:168 | applyFiltersFixtureTasks | `done.first?.title == "完成任务"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
+| 38 | ZenoCoreTests/ZenoCoreTests.swift:180 | applyAndCombinesClauses | `result.first?.title == "支付网关"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
 
 ## 4. 接口层（CLI / MCP）（18 条）
 
@@ -347,10 +347,10 @@
 | 6 | InterfaceTests/CLITests.swift:347 | taskListJSONEncodesStableFields | `item.title == "接口设计"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
 | 7 | InterfaceTests/CLITests.swift:350 | taskListJSONEncodesStableFields | `item.tags == ["设计"]` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
 | 8 | InterfaceTests/CLITests.swift:468 | resourceAddAndListPersist | `project.resources.first?.name == "李工"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
-| 9 | InterfaceTests/CLITests.swift:549 | fr_kairo_fmt_6_cliProjectCommandsPrintFormatVersion | `!saveOutput.contains("已从 v")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 10 | InterfaceTests/CLITests.swift:555 | fr_kairo_fmt_6_cliProjectCommandsPrintFormatVersion | `openOutput.contains("源格式版本：v\(KairoFile.currentFormatVersion)（当前 v\(KairoFile.currentFo…` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 11 | InterfaceTests/CLITests.swift:556 | fr_kairo_fmt_6_cliProjectCommandsPrintFormatVersion | `!openOutput.contains("保存后升级")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 12 | InterfaceTests/CLITests.swift:573 | fr_kairo_fmt_6_cliFormatVersionLineRendersUpgradeSource | `CLIRouter.formatVersionLine(written: current, upgradedFrom: nil) == "格式版本：v\(current)"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 9 | InterfaceTests/CLITests.swift:549 | fr_zeno_fmt_6_cliProjectCommandsPrintFormatVersion | `!saveOutput.contains("已从 v")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 10 | InterfaceTests/CLITests.swift:555 | fr_zeno_fmt_6_cliProjectCommandsPrintFormatVersion | `openOutput.contains("源格式版本：v\(ZenoFile.currentFormatVersion)（当前 v\(ZenoFile.currentFo…` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 11 | InterfaceTests/CLITests.swift:556 | fr_zeno_fmt_6_cliProjectCommandsPrintFormatVersion | `!openOutput.contains("保存后升级")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 12 | InterfaceTests/CLITests.swift:573 | fr_zeno_fmt_6_cliFormatVersionLineRendersUpgradeSource | `CLIRouter.formatVersionLine(written: current, upgradedFrom: nil) == "格式版本：v\(current)"` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
 | 13 | InterfaceTests/InterfaceTests.swift:135 | unknownMethodReturnsJSONRPCError | `response.objectValue?["error"]?.objectValue?["message"]?.stringValue?.contains("未知方法") …` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
 | 14 | InterfaceTests/InterfaceTests.swift:196 | resourceAddThenListRoundTrip | `resources.first?.objectValue?["name"]?.stringValue == "李工"` | 应改语义 | 中文仅作测试输入（任务标题/备注/项目名为用户数据，不翻译）→ 断结构值，建议抽为具名常量 |
 | 15 | InterfaceTests/InterfaceTests.swift:373 | usE102A1_cliTaskAddWithAssigneePersists | `detail.contains("负责人：dev-coder-core")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
@@ -358,23 +358,23 @@
 | 17 | InterfaceTests/TaskHookTests.swift:115 | duplicateTitlesAreSkipped | `result.stderr.contains("匹配 2 个")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
 | 18 | InterfaceTests/TaskHookTests.swift:127 | missingTitleIsSkipped | `result.stderr.contains("匹配 0 个")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
 
-## 5. 更新模块（KairoUpdater）（3 条）
+## 5. 更新模块（ZenoUpdater）（3 条）
 
 | # | 位置 | 用例 | 断言（摘要） | 分类 | 理由 |
 |---|---|---|---|---|---|
-| 1 | KairoUpdaterTests/UpdaterManagerTests.swift:150 | belowMinimumFailsClosed | `message.contains("最低版本")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 2 | KairoUpdaterTests/InstallerTests.swift:70 | replacementScriptWaitsBacksUpReplacesAndReports | `decoded.message.contains("自动启动失败")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
-| 3 | KairoUpdaterTests/InstallerTests.swift:108 | launchPathMismatchFailsFast | `launched.isEmpty` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
+| 1 | ZenoUpdaterTests/UpdaterManagerTests.swift:150 | belowMinimumFailsClosed | `message.contains("最低版本")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 2 | ZenoUpdaterTests/InstallerTests.swift:70 | replacementScriptWaitsBacksUpReplacesAndReports | `decoded.message.contains("自动启动失败")` | 需跟译 | 期望值是界面/回执/错误文案，切语言即失效 → 改按语言取词，或断错误码 + 占位符个数 |
+| 3 | ZenoUpdaterTests/InstallerTests.swift:108 | launchPathMismatchFailsFast | `launched.isEmpty` | 应改语义 | 中文仅在失败提示，断言对象是数值/布尔 → 保持语义断言，不受语言影响 |
 
 ## 6. 三类计数与自校验
 
 | target | 条数 | 需跟译 | 应改语义 | 应删 |
 |---|---|---|---|---|
 | AppTests | 187 | 50 | 137 | 0 |
-| KairoPresentationTests | 81 | 17 | 64 | 0 |
-| KairoCoreTests | 38 | 8 | 30 | 0 |
+| ZenoPresentationTests | 81 | 17 | 64 | 0 |
+| ZenoCoreTests | 38 | 8 | 30 | 0 |
 | InterfaceTests | 18 | 9 | 9 | 0 |
-| KairoUpdaterTests | 3 | 2 | 1 | 0 |
+| ZenoUpdaterTests | 3 | 2 | 1 | 0 |
 | **合计** | **327** | **86** | **241** | **0** |
 
 自校验：327 = 187（App）+ 81（Presentation）+ 38（Core）+ 18（Interface）+ 3（Updater），且 86 + 241 + 0 = 327。两个等式同时成立才算清单完整。

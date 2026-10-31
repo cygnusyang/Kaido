@@ -1,6 +1,6 @@
 import SwiftUI
-import KairoCore
-import KairoPresentation
+import ZenoCore
+import ZenoPresentation
 
 /// 基线管理面板（v0.15 / docs/features/08-baselines.md §5、10-multi-baseline-gantt.md §5）。
 ///

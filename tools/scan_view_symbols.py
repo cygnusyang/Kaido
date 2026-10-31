@@ -13,7 +13,7 @@ import os
 import re
 import sys
 
-PATTERN = re.compile(r"\b(Project|TaskItem|KairoSession|exportProject)\b")
+PATTERN = re.compile(r"\b(Project|TaskItem|ZenoSession|exportProject)\b")
 
 
 def strip_line(line: str) -> str:

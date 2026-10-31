@@ -5,22 +5,22 @@
 // 哪个 build。武装 / terminate / 裁决三个时刻此后各留一行。
 //
 // 双写：
-//   - os_log（subsystem app.kairo.macos / category ota）——与 KairoUpdater 同通道
-//   - ~/Library/Logs/Kairo/ota.log —— tools/ota-local-verify.sh 直接 grep 这个文件
+//   - os_log（subsystem app.zeno.macos / category ota）——与 ZenoUpdater 同通道
+//   - ~/Library/Logs/Zeno/ota.log —— tools/ota-local-verify.sh 直接 grep 这个文件
 //
 // 纪律：日志是旁路，任何写入失败一律静默——不给安装路径引入新的失败点；
 // 文案一律 ASCII（tools/i18n-lint.sh 扫 Apps/macos/Sources 的中文字面量）。
 
 import Foundation
-import KairoUpdater
+import ZenoUpdater
 import os
 
 /// OTA 决策日志（os_log + 文件双写）。
 enum OTAInstallLog {
-    private static let logger = Logger(subsystem: "app.kairo.macos", category: "ota")
+    private static let logger = Logger(subsystem: "app.zeno.macos", category: "ota")
     private static let logURL = FileManager.default
         .homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Logs/Kairo/ota.log", isDirectory: false)
+        .appendingPathComponent("Library/Logs/Zeno/ota.log", isDirectory: false)
 
     /// 构建标识 `1.3.0+20261028.0912`：判断「跑的是哪个 build」的第一手信息。
     static var buildTag: String {

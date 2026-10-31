@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import KairoInterop
+import ZenoInterop
 import InteropMSPDI
 
 /// MSPDI 写出（P1）与往返对拍。
@@ -9,12 +9,12 @@ import InteropMSPDI
 /// 1. **往返**：真实样本 → IR → 写 → 再读，计数与关键字段逐项相等；
 /// 2. **幂等**：同一份 IR 写两次字节完全相同；
 /// 3. **语义**：四类依赖、正负/小数前导、里程碑零工期、群组 Summary；
-/// 4. **降级**：Kairo 独有信息只进 FidelityLedger，不进 XML（尤其不污染 Notes）。
+/// 4. **降级**：Zeno 独有信息只进 FidelityLedger，不进 XML（尤其不污染 Notes）。
 @Suite("MSPDI 写出")
 struct MSPDIWriteTests {
     private let adapter = MSPDIAdapter()
 
-    private static let samplePath = ProcessInfo.processInfo.environment["KAIRO_MSPDI_SAMPLE"]
+    private static let samplePath = ProcessInfo.processInfo.environment["ZENO_MSPDI_SAMPLE"]
         ?? "/tmp/plb2012.xml"
 
     private static var sampleAvailable: Bool {
@@ -222,7 +222,7 @@ struct MSPDIWriteTests {
     func calendarPolicy() throws {
         let start = date("2026-01-05T08:00:00")
 
-        // 无日历（Kairo 默认 7 天）：写 7 天全工作周，日期可直接往返。
+        // 无日历（Zeno 默认 7 天）：写 7 天全工作周，日期可直接往返。
         var sevenDay = InteropDocument()
         sevenDay.tasks = [InteropTask(id: "1", title: "任务", plannedStart: start, durationSeconds: 28_800)]
         let sevenExport = try adapter.export(sevenDay)
@@ -248,8 +248,8 @@ struct MSPDIWriteTests {
 
     // MARK: - 降级
 
-    @Test("Kairo 独有信息进 Ledger，不进 XML、不污染 Notes")
-    func kairoOnlyGoesToLedger() throws {
+    @Test("Zeno 独有信息进 Ledger，不进 XML、不污染 Notes")
+    func zenoOnlyGoesToLedger() throws {
         var document = InteropDocument(metadata: InteropMetadata(title: "导出样本"))
         document.customFields = [InteropCustomFieldDefinition(id: "188743731", fieldName: "Text1", alias: "差异时间")]
         document.tasks = [
@@ -261,13 +261,13 @@ struct MSPDIWriteTests {
                 durationSeconds: 28_800,
                 constraint: .startNoEarlierThan(date("2026-01-05T08:00:00")),
                 attributes: [
-                    "kairo.status": "cancelled",
-                    "kairo.cancelReason": "客户取消：预算冻结",
+                    "zeno.status": "cancelled",
+                    "zeno.cancelReason": "客户取消：预算冻结",
                     "Text1": "差异值"
                 ]
             )
         ]
-        // 文档级 Kairo 独有信息由上层预置在 ledger 里（IR 不表达基线颜色）。
+        // 文档级 Zeno 独有信息由上层预置在 ledger 里（IR 不表达基线颜色）。
         document.ledger.record(
             field: "baseline.color",
             kind: .dropped,
@@ -282,7 +282,7 @@ struct MSPDIWriteTests {
         let cancelReason = try #require(export.ledger.entry(field: "cancelReason"))
         #expect(cancelReason.count == 1)
         #expect(cancelReason.samples == ["客户取消：预算冻结"])
-        // 专属说明必须命中：拿去掉前缀的名字去比 kairo.cancelReason 会永远落到兜底文案。
+        // 专属说明必须命中：拿去掉前缀的名字去比 zeno.cancelReason 会永远落到兜底文案。
         #expect(cancelReason.detail.contains("审计"))
         let status = try #require(export.ledger.entry(field: "status"))
         #expect(status.count == 1)
@@ -292,10 +292,10 @@ struct MSPDIWriteTests {
         #expect(constraint.kind == .degraded)
         #expect(constraint.count == 1)
 
-        // 原文备注保留；Kairo 独有信息既不进 Notes，也不出现在 XML 任何位置。
+        // 原文备注保留；Zeno 独有信息既不进 Notes，也不出现在 XML 任何位置。
         #expect(xml.contains("原有备注：与客户确认过范围"))
         #expect(!xml.contains("客户取消：预算冻结"))
-        #expect(!xml.contains("kairo."))
+        #expect(!xml.contains("zeno."))
         #expect(xml.contains("差异值"))
     }
 
@@ -336,7 +336,7 @@ struct MSPDIWriteTests {
             return
         }
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-mspdi-export-\(UUID().uuidString).xml")
+            .appendingPathComponent("zeno-mspdi-export-\(UUID().uuidString).xml")
         try data.write(to: url)
         defer { try? FileManager.default.removeItem(at: url) }
 

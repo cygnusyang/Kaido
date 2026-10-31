@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoCommands
-@testable import KairoMCP
-@testable import KairoCLI
+import ZenoCore
+import ZenoCommands
+@testable import ZenoMCP
+@testable import ZenoCLI
 
 // 判据 6 / 12（docs/features/08-baselines.md §9-6 / §9-12）：
 // - 任何偏差输出都带 baselineID / name / createdAt；
@@ -20,17 +20,17 @@ private let utcCalendar: Calendar = {
     return calendar
 }()
 
-/// 建临时工作目录与 .kairo 路径；调用方用 defer 清理目录。
-private func makeScratch() throws -> (dir: URL, kairo: URL) {
+/// 建临时工作目录与 .zeno 路径；调用方用 defer 清理目录。
+private func makeScratch() throws -> (dir: URL, zeno: URL) {
     let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("kairo-baseline-interface-\(UUID().uuidString)")
+        .appendingPathComponent("zeno-baseline-interface-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    return (dir: dir, kairo: dir.appendingPathComponent("baseline.kairo"))
+    return (dir: dir, zeno: dir.appendingPathComponent("baseline.zeno"))
 }
 
 /// 跑一条 CLI 命令并捕获 stdout（语言钉死 zh-Hans）。
 private func runCLI(_ arguments: [String]) throws -> String {
-    try cliOutput(arguments: arguments, environment: ["KAIRO_LANG": "zh-Hans"], preferredLanguages: [])
+    try cliOutput(arguments: arguments, environment: ["ZENO_LANG": "zh-Hans"], preferredLanguages: [])
 }
 
 /// 跑一条 CLI 命令，把 --json 输出的最后一行解析为 JSONValue。
@@ -78,7 +78,7 @@ private struct BaselineFixture {
 
 private func makeFixture() throws -> BaselineFixture {
     let scratch = try makeScratch()
-    let file = scratch.kairo
+    let file = scratch.zeno
     try CLIRouter.execute(arguments: [
         "project", "create", "基线接口夹具", "--start", "2030-01-01", "--end", "2030-02-01",
         "--file", file.path,
@@ -88,7 +88,7 @@ private func makeFixture() throws -> BaselineFixture {
     }
     try CLIRouter.execute(arguments: ["baseline", "create", "--name", "基线甲", "--file", file.path])
 
-    let afterCreate = try KairoFile.load(from: file)
+    let afterCreate = try ZenoFile.load(from: file)
     let baseline = try #require(afterCreate.baselines.first)
     let ids = Dictionary(uniqueKeysWithValues: afterCreate.tasks.map { ($0.title, $0.id) })
     let rescheduledID = try #require(ids["任务甲"])
@@ -100,7 +100,7 @@ private func makeFixture() throws -> BaselineFixture {
     )
 
     // 基线与计划脱钩：计划工期 +3 天；实际提前 1 天完成；丙被删（孤儿）；丁在基线之后新增。
-    let session = KairoSession()
+    let session = ZenoSession()
     _ = try session.openProject(at: file)
     _ = try session.updateTask(id: rescheduledID, durationDays: Double(baselineSpan + 3))
     _ = try session.setActualStart(id: rescheduledID, date: entry.start)
@@ -122,7 +122,7 @@ private func makeFixture() throws -> BaselineFixture {
 
 /// 引擎直算报告（对等性基准）。时钟与接口层同为运行时刻；逾期恒为 0 故与时钟无关。
 private func engineReport(_ fixture: BaselineFixture) throws -> BaselineVarianceReport {
-    let session = KairoSession()
+    let session = ZenoSession()
     _ = try session.openProject(at: fixture.file)
     let project = try #require(session.project)
     let result = try session.computeSchedule()
@@ -210,7 +210,7 @@ private func expectReportMatches(_ report: JSONValue, _ expected: BaselineVarian
 @Test func baselineCLICreateListDeleteRoundTrip() throws {
     let scratch = try makeScratch()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let file = scratch.kairo
+    let file = scratch.zeno
 
     try CLIRouter.execute(arguments: ["project", "create", "基线会话", "--start", "2030-01-01", "--file", file.path])
     try CLIRouter.execute(arguments: ["task", "add", "任务一", "--duration", "2", "--file", file.path])
@@ -237,7 +237,7 @@ private func expectReportMatches(_ report: JSONValue, _ expected: BaselineVarian
     #expect(deleted.contains(rawID))
     #expect(deleted.contains("验收基线"))
     #expect(deleted.contains(createdAt))
-    #expect(try KairoFile.load(from: file).baselines.isEmpty)
+    #expect(try ZenoFile.load(from: file).baselines.isEmpty)
     let empty = try runCLI(["baseline", "list", "--file", file.path])
     #expect(empty.contains("尚未创建基线"))
 }
@@ -245,9 +245,9 @@ private func expectReportMatches(_ report: JSONValue, _ expected: BaselineVarian
 @Test func baselineCLIDeleteRejectsTooShortPrefix() throws {
     let scratch = try makeScratch()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    try CLIRouter.execute(arguments: ["project", "create", "前缀校验", "--file", scratch.kairo.path])
+    try CLIRouter.execute(arguments: ["project", "create", "前缀校验", "--file", scratch.zeno.path])
     #expect(throws: UsageError.self) {
-        try CLIRouter.execute(arguments: ["baseline", "delete", "abc", "--file", scratch.kairo.path])
+        try CLIRouter.execute(arguments: ["baseline", "delete", "abc", "--file", scratch.zeno.path])
     }
 }
 
@@ -429,7 +429,7 @@ private func expectReportMatches(_ report: JSONValue, _ expected: BaselineVarian
     _ = try mcpCall(server, id: 2, name: "task_add", arguments: #"{"title":"任务甲","durationDays":1}"#)
     let (isError, payload) = try mcpCallResult(server, id: 3, name: "baseline_variance", arguments: "{}")
     #expect(isError)
-    #expect(payload.objectValue?["reason"]?.stringValue == KairoErrorCode.baselineNotFound.rawValue)
+    #expect(payload.objectValue?["reason"]?.stringValue == ZenoErrorCode.baselineNotFound.rawValue)
     #expect(payload.objectValue?["code"]?.stringValue == "invalid_argument")
 }
 
@@ -438,7 +438,7 @@ private func expectReportMatches(_ report: JSONValue, _ expected: BaselineVarian
     _ = try mcpCall(server, id: 1, name: "project_create", arguments: #"{"title":"空名基线","projectStart":"2030-01-01T00:00:00Z"}"#)
     let (isError, payload) = try mcpCallResult(server, id: 2, name: "baseline_create", arguments: #"{"name":"   "}"#)
     #expect(isError)
-    #expect(payload.objectValue?["reason"]?.stringValue == KairoErrorCode.baselineNameEmpty.rawValue)
+    #expect(payload.objectValue?["reason"]?.stringValue == ZenoErrorCode.baselineNameEmpty.rawValue)
 }
 
 // MARK: - v0.14 颜色索引（10-multi-baseline-gantt §4）
@@ -475,14 +475,14 @@ private func mcpColorIndexes(_ server: MCPServer, id: Int) throws -> [String: In
 private func makeMultiBaselineFixture(names: [String]) throws -> (dir: URL, file: URL, ids: [UUID]) {
     let scratch = try makeScratch()
     try CLIRouter.execute(arguments: [
-        "project", "create", "多基线配色", "--start", "2030-01-01", "--file", scratch.kairo.path,
+        "project", "create", "多基线配色", "--start", "2030-01-01", "--file", scratch.zeno.path,
     ])
-    try CLIRouter.execute(arguments: ["task", "add", "任务一", "--duration", "2", "--file", scratch.kairo.path])
+    try CLIRouter.execute(arguments: ["task", "add", "任务一", "--duration", "2", "--file", scratch.zeno.path])
     for name in names {
-        try CLIRouter.execute(arguments: ["baseline", "create", "--name", name, "--file", scratch.kairo.path])
+        try CLIRouter.execute(arguments: ["baseline", "create", "--name", name, "--file", scratch.zeno.path])
     }
-    let ids = try KairoFile.load(from: scratch.kairo).baselines.map(\.id)
-    return (dir: scratch.dir, file: scratch.kairo, ids: ids)
+    let ids = try ZenoFile.load(from: scratch.zeno).baselines.map(\.id)
+    return (dir: scratch.dir, file: scratch.zeno, ids: ids)
 }
 
 /// 判据 4（接口面）：同一条基线在 CLI 与 MCP 报出同一个颜色索引；create / list / variance 都带。
@@ -542,7 +542,7 @@ private func makeMultiBaselineFixture(names: [String]) throws -> (dir: URL, file
     #expect(listed.contains("颜色索引：5"))
     #expect(try cliColorIndexes(fixture.file)[baselineID.uuidString] == 5)
     // 已落盘：不是只改内存。
-    #expect(try KairoFile.load(from: fixture.file).baselines.first?.colorIndex == 5)
+    #expect(try ZenoFile.load(from: fixture.file).baselines.first?.colorIndex == 5)
 }
 
 /// MCP 改色：variance 返回体带新颜色，且落盘后 CLI 读到同一色。
@@ -595,7 +595,7 @@ private func makeMultiBaselineFixture(names: [String]) throws -> (dir: URL, file
             arguments: #"{"baselineID":"\#(baselineID.uuidString)","colorIndex":\#(raw)}"#
         )
         #expect(isError)
-        #expect(payload.objectValue?["reason"]?.stringValue == KairoErrorCode.baselineColorIndexInvalid.rawValue)
+        #expect(payload.objectValue?["reason"]?.stringValue == ZenoErrorCode.baselineColorIndexInvalid.rawValue)
         #expect(payload.objectValue?["code"]?.stringValue == "invalid_argument")
     }
     let listed = try mcpCall(server, id: 4, name: "baseline_list", arguments: "{}")
@@ -771,7 +771,7 @@ private func expectCSVRow(_ fields: [String], matches variance: TaskVariance, ti
     let fixture = try makeFixture()
     defer { try? FileManager.default.removeItem(at: fixture.dir) }
     let expected = try engineReport(fixture)
-    let titles = Dictionary(uniqueKeysWithValues: try KairoFile.load(from: fixture.file).tasks.map { ($0.id, $0.title) })
+    let titles = Dictionary(uniqueKeysWithValues: try ZenoFile.load(from: fixture.file).tasks.map { ($0.id, $0.title) })
     let csvURL = fixture.dir.appendingPathComponent("variance.csv")
 
     let receipt = try runCLI(["baseline", "variance", "--csv", csvURL.path, "--file", fixture.file.path])
@@ -896,7 +896,7 @@ private func expectCSVRow(_ fields: [String], matches variance: TaskVariance, ti
 @Test func baselineVarianceCSVQuotesCommasAndQuotesRoundTrip() throws {
     let scratch = try makeScratch()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let file = scratch.kairo
+    let file = scratch.zeno
     try CLIRouter.execute(arguments: [
         "project", "create", "逗号项目", "--start", "2030-01-01", "--end", "2030-02-01",
         "--file", file.path,
@@ -983,7 +983,7 @@ private func expectCSVRow(_ fields: [String], matches variance: TaskVariance, ti
     #expect(variance["orphanCount"]?.doubleValue == Double(reportObject["orphans"]?.arrayValue?.count ?? -1))
 
     // 项目字段与文件同源：直接按落盘内容算期望值，避免把夹具数字写死。
-    let loaded = try KairoFile.load(from: fixture.file)
+    let loaded = try ZenoFile.load(from: fixture.file)
     let project = try #require(summary.objectValue?["project"]?.objectValue)
     #expect(project["taskCount"]?.doubleValue == Double(loaded.tasks.count))
     #expect(project["groupCount"]?.doubleValue == Double(loaded.tasks.filter { $0.kind == .group }.count))
@@ -1002,7 +1002,7 @@ private func expectCSVRow(_ fields: [String], matches variance: TaskVariance, ti
 @Test func projectSummaryWithoutBaselineShowsNoVarianceBlock() throws {
     let scratch = try makeScratch()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let file = scratch.kairo
+    let file = scratch.zeno
     try CLIRouter.execute(arguments: [
         "project", "create", "无基线项目", "--start", "2030-01-01", "--end", "2030-02-01",
         "--file", file.path,

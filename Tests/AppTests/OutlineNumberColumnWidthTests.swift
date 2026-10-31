@@ -1,9 +1,9 @@
 import AppKit
 import CoreGraphics
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import ZenoCore
+import ZenoPresentation
+@testable import ZenoMacApp
 
 // #48「大纲序号显示不全」回归：序号列宽曾固定 44pt（为放下「10.12」而设），
 // 四级 / 多级序号（1.2.3.4、1.2.3.10）比它宽，超出的部分被行 `.clipped()` 吃掉，

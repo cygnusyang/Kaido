@@ -1,4 +1,4 @@
-# Kairo 架构决策文档（Architecture）
+# Zeno 架构决策文档（Architecture）
 
 > 版本 0.1 · 2026-10-17 · 状态：已接受（Sprint 0 产出，待评审）
 > 上游依据：[00-vision.md](00-vision.md)（跨平台核心 + 等价接口层）、[01-prd.md](01-prd.md)（需求）、[04-glossary.md](features/04-glossary.md)（术语）
@@ -8,15 +8,15 @@
 
 ### 1.1 分层图
 
-![Kairo 分层架构](architecture-layers.zh-CN.svg)
+![Zeno 分层架构](architecture-layers.zh-CN.svg)
 
-核心（KairoCore）承载全部业务逻辑：数据模型、调度引擎、存储、查询过滤；接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）互不依赖、能力对等，只复用核心。该结构对应 vision §4 与 G3 判据。
+核心（ZenoCore）承载全部业务逻辑：数据模型、调度引擎、存储、查询过滤；接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）互不依赖、能力对等，只复用核心。该结构对应 vision §4 与 G3 判据。
 
-Sprint 4 起，UI 与命令层之间加入 `KairoPresentation`（Foundation-only）：视图状态与核心数据经纯函数生成平台中立快照，视图只消费快照并发出动作。分层与写路径见 [ADR-013](#adr-013-呈现层与唯一写路径sprint-4)。
+Sprint 4 起，UI 与命令层之间加入 `ZenoPresentation`（Foundation-only）：视图状态与核心数据经纯函数生成平台中立快照，视图只消费快照并发出动作。分层与写路径见 [ADR-013](#adr-013-呈现层与唯一写路径sprint-4)。
 
 ### 1.2 数据流（核心闭环，vision §3）
 
-![Kairo 核心闭环数据流](architecture-dataflow.zh-CN.svg)
+![Zeno 核心闭环数据流](architecture-dataflow.zh-CN.svg)
 
 ## 2. 核心技术选型
 
@@ -43,7 +43,7 @@ Sprint 4 起，UI 与命令层之间加入 `KairoPresentation`（Foundation-only
 #### (c) Swift 核心（SwiftPM 跨平台包）
 
 - **跨平台成熟度**：中。Linux 为 Swift 官方支持平台（Swift.org 发布 Linux 工具链，Foundation/JSON/Codable 可用）；Windows 为官方提供但属社区维护级别（Swift 5.9+ 可构建，Foundation 部分功能受限）。需如实评估：核心只依赖 Foundation 子集时，Linux 编译可行、Windows 编译可行但有风险。
-- **与 SwiftUI macOS 应用集成成本**：最低。同一语言同一工具链，macOS 应用直接 `import KairoCore`，零桥接，调试无语言边界。
+- **与 SwiftUI macOS 应用集成成本**：最低。同一语言同一工具链，macOS 应用直接 `import ZenoCore`，零桥接，调试无语言边界。
 - **MCP SDK 生态**：早期。Swift MCP SDK 有官方/社区实现（如 `swift-mcp`、`mcp-swift`），活跃度低于 TS/Rust，需在 Sprint 1 前复核。
 - **长期维护**：单一语言单一代码库，模型、调度、UI 同步演进，维护成本最低；跨平台仅需关注 Foundation 子集的可移植性。
 - **结论**：与 SwiftUI 集成零成本、闭环验证最快，跨平台可满足 G3（Linux 编译），Windows 为风险项（本期不承诺）。
@@ -60,10 +60,10 @@ Sprint 4 起，UI 与命令层之间加入 `KairoPresentation`（Foundation-only
 **Phase 2（MVP 验收后）：评估迁移方案 (a) Rust。**
 
 - 触发条件：出现 Linux/Windows 发行需求、调度引擎成为性能瓶颈、或 Swift MCP SDK 长期不满足接口需求；
-- 迁移策略：KairoCore 从一开始按模块边界隔离（数据模型/调度引擎/存储均以协议与纯数据结构表达），保持「纯逻辑可移植子集」——若迁移，只迁该子集，UI 与接口层不变；
+- 迁移策略：ZenoCore 从一开始按模块边界隔离（数据模型/调度引擎/存储均以协议与纯数据结构表达），保持「纯逻辑可移植子集」——若迁移，只迁该子集，UI 与接口层不变；
 - 方案 (b) 维持否决：放弃纯 SwiftUI 的代价不可接受。
 
-**约束（本决策的落地要求）**：KairoCore 只依赖 Foundation 子集（Codable、Date、JSON、集合），不得 import AppKit/SwiftUI、Combine 等平台绑定框架（ADR-004）；该约束同时在 Sprint 0 重构 KairoCore 时用编译门禁验证。
+**约束（本决策的落地要求）**：ZenoCore 只依赖 Foundation 子集（Codable、Date、JSON、集合），不得 import AppKit/SwiftUI、Combine 等平台绑定框架（ADR-004）；该约束同时在 Sprint 0 重构 ZenoCore 时用编译门禁验证。
 
 ## 3. 接口层设计（契约草案）
 
@@ -93,7 +93,7 @@ Sprint 4 起，UI 与命令层之间加入 `KairoPresentation`（Foundation-only
 | `resource_list` | — | `[Resource]` | US-E1-05 |
 
 `dependencies` 元素为 `{"predecessorID":"UUID","type":"fs","lagDays":0}`；`constraint` 为
-`type:ISO8601`。工具清单以 `Sources/KairoMCP/Tools.swift` 为唯一事实源（ADR-005），
+`type:ISO8601`。工具清单以 `Sources/ZenoMCP/Tools.swift` 为唯一事实源（ADR-005），
 CLI 从同一命令层派生。
 
 后续规划工具（尚未实装）：`project_summary`、`dependency_add` / `dependency_remove` /
@@ -107,29 +107,29 @@ CLI 从同一命令层派生。
 动词与 MCP 工具对等（G3 判据 2）。输出默认人类可读，`--json` 时输出结构化数据（Sprint 3 先在 `task list` 落地，其余命令按需扩展）。
 
 ```
-kairo project open|create|save|summary <path> [--title] [--direction] [--precision]
-kairo task add <title> [--kind task|group|milestone] [--parent <id>] [--due <date>] [--priority] [--effort] [--notes] [--assignee <名字>]
-kairo task list [--filter "<自然语言>"] [--parent <id>] [--json]
-kairo task get <id>
-kairo task update <id> [--title] [--status] [--priority] [--progress] [--due] [--assignee <名字>]
-kairo task delete <id>                  # 连同全部子任务一并删除
-kairo wbs import -f <file.json|file.md> [--report]
-kairo dep add <taskID> --predecessor <id> [--type FS|FF|SS|SF] [--lag <expr>]
-kairo dep remove <taskID> --predecessor <id>
-kairo dep list <taskID>
-kairo schedule compute
-kairo schedule query [<taskID>]
-kairo schedule critical-path
-kairo status set <id> [--status] [--progress] [--done]
-kairo status batch -f <file.json>
-kairo violations
-kairo resource add <name> [--type person|equipment|material] [--units] [--efficiency]
-kairo resource assign <taskID> --resource <id> [--units]
-kairo report [--format markdown]
-kairo export <csv|json|markdown> [-o <path>]
-kairo import <csv> [--report]
-kairo schema > kairo.schema.json
-kairo version
+zeno project open|create|save|summary <path> [--title] [--direction] [--precision]
+zeno task add <title> [--kind task|group|milestone] [--parent <id>] [--due <date>] [--priority] [--effort] [--notes] [--assignee <名字>]
+zeno task list [--filter "<自然语言>"] [--parent <id>] [--json]
+zeno task get <id>
+zeno task update <id> [--title] [--status] [--priority] [--progress] [--due] [--assignee <名字>]
+zeno task delete <id>                  # 连同全部子任务一并删除
+zeno wbs import -f <file.json|file.md> [--report]
+zeno dep add <taskID> --predecessor <id> [--type FS|FF|SS|SF] [--lag <expr>]
+zeno dep remove <taskID> --predecessor <id>
+zeno dep list <taskID>
+zeno schedule compute
+zeno schedule query [<taskID>]
+zeno schedule critical-path
+zeno status set <id> [--status] [--progress] [--done]
+zeno status batch -f <file.json>
+zeno violations
+zeno resource add <name> [--type person|equipment|material] [--units] [--efficiency]
+zeno resource assign <taskID> --resource <id> [--units]
+zeno report [--format markdown]
+zeno export <csv|json|markdown> [-o <path>]
+zeno import <csv> [--report]
+zeno schema > zeno.schema.json
+zeno version
 ```
 
 ### 3.3 Claude Code 插件构成
@@ -137,30 +137,30 @@ kairo version
 插件是 MCP 的便捷封装，不新增能力（保持接口对等）。当前实装位于 `Plugins/claude-code/`：
 
 1. **斜杠命令**（`commands/`）：
-   - `/kairo plan <需求>`：读需求 → `wbs_import` → `schedule_compute` → `violations_list`；
-   - `/kairo done <任务ID>`：`status_update` 置完成并回报群组完成度；
-   - `/kairo status`：`task_list` + 排期 + 重要路径 + 违例汇总。
-2. **hooks**：尚未配置。Claude Code 任务工具与 Kairo 任务之间没有 ID 映射，
-   自动检测完成信号会误写；完成回写当前由 `/kairo done` 显式触发。
-3. **`.mcp.json`**：插件根目录提供，`command` 指向 `bin/kairo-mcp` 启动脚本；
-   脚本依次尝试 `KAIRO_MCP_BIN`、`.build/release/KairoMCP`、`.build/debug/KairoMCP`。
+   - `/zeno plan <需求>`：读需求 → `wbs_import` → `schedule_compute` → `violations_list`；
+   - `/zeno done <任务ID>`：`status_update` 置完成并回报群组完成度；
+   - `/zeno status`：`task_list` + 排期 + 重要路径 + 违例汇总。
+2. **hooks**：尚未配置。Claude Code 任务工具与 Zeno 任务之间没有 ID 映射，
+   自动检测完成信号会误写；完成回写当前由 `/zeno done` 显式触发。
+3. **`.mcp.json`**：插件根目录提供，`command` 指向 `bin/zeno-mcp` 启动脚本；
+   脚本依次尝试 `ZENO_MCP_BIN`、`.build/release/ZenoMCP`、`.build/debug/ZenoMCP`。
    MCP 服务不接收启动参数，项目由会话内 `project_open` 打开。
 
 插件清单与命令由 `claude plugin validate Plugins/claude-code` 校验。
 
 ### 3.4 macOS 应用层构成（Sprint 3）
 
-> 本小节记录 Sprint 3 的实现状态。Sprint 4 UI 重设计以 [ADR-013](#adr-013-呈现层与唯一写路径sprint-4) 为准：`ProjectStore` 由 `WorkspaceStore` 取代；`ContentView`、`GanttView` 拆分为大纲、时间画布与检查器组件；所有写入经 `KairoSession`。
+> 本小节记录 Sprint 3 的实现状态。Sprint 4 UI 重设计以 [ADR-013](#adr-013-呈现层与唯一写路径sprint-4) 为准：`ProjectStore` 由 `WorkspaceStore` 取代；`ContentView`、`GanttView` 拆分为大纲、时间画布与检查器组件；所有写入经 `ZenoSession`。
 
-应用层只做呈现与交互，业务判断全部下沉到 KairoCore 纯函数：
+应用层只做呈现与交互，业务判断全部下沉到 ZenoCore 纯函数：
 
 | 组件 | 职责 |
 |---|---|
-| `ProjectStore` | 应用门面：包装 `KairoSession`，把项目、排期、违例镜像为 `@Published`；承载选中项、视图模式、面板开关 |
+| `ProjectStore` | 应用门面：包装 `ZenoSession`，把项目、排期、违例镜像为 `@Published`；承载选中项、视图模式、面板开关 |
 | `ContentView` | 大纲/甘特切换、检查器、违例面板、查找栏与 ⌘K 面板挂载 |
 | `GanttView` | 绘制甘特并处理拖动标头平移、缩放菜单；几何来自 `GanttLayoutEngine` |
 | `CommandRegistry` / `CommandPalette` | 单一命令注册表（菜单栏与 ⌘K 面板同源，US-E4-05） |
-| 核心纯函数 | `GanttLayoutEngine`（布局几何/刻度/非工作带）、`OutlineEditor`（缩进/出缩进/新建同级）、`KairoDeepLink`（深链解析） |
+| 核心纯函数 | `GanttLayoutEngine`（布局几何/刻度/非工作带）、`OutlineEditor`（缩进/出缩进/新建同级）、`ZenoDeepLink`（深链解析） |
 
 非工作时段着色当前按周六、周日显示；工作日历模型（F-22-06）落地后改为读取项目/资源日历。
 
@@ -170,7 +170,7 @@ kairo version
 
 ### 4.1 实体关系
 
-![Kairo 项目实体关系](architecture-entities.zh-CN.svg)
+![Zeno 项目实体关系](architecture-entities.zh-CN.svg)
 
 要点：
 
@@ -179,9 +179,9 @@ kairo version
 - **群组聚合**：投入 = 子任务投入之和；持续时间 = 首任务开始至末任务结束的跨度；完成度 = 已完成投入 /（已完成 + 剩余）投入（[F-14-04](features/01-views-editing.md)、[F-20-03](features/02-inspectors-scheduling.md)）；
 - **版本历史**（`ChangeRecord`）为字段级追加日志，支撑撤销与冲突差异说明（US-E3-04/05）。
 
-### 4.2 单文件项目格式（.kairo）草案
+### 4.2 单文件项目格式（.zeno）草案
 
-`.kairo` 为单一 JSON 文件（本地优先，F-34-01）。草案 schema：
+`.zeno` 为单一 JSON 文件（本地优先，F-34-01）。草案 schema：
 
 ```json
 {
@@ -220,11 +220,11 @@ kairo version
 
 ## 5. 目录结构规划（monorepo）
 
-现有 `Sources/Kairo/`（单 target）重构为「核心 + 产品」多 target。macOS 应用迁入 `Apps/macos/`。
+现有 `Sources/Zeno/`（单 target）重构为「核心 + 产品」多 target。macOS 应用迁入 `Apps/macos/`。
 
-![Kairo 仓库目录结构](architecture-repo-layout.zh-CN.svg)
+![Zeno 仓库目录结构](architecture-repo-layout.zh-CN.svg)
 
-边界规则：KairoCore 不得反向依赖任何接口层或 UI；接口层只允许依赖 KairoCore 公开 API；`Plugins/claude-code` 为配置与提示词，不含核心逻辑。
+边界规则：ZenoCore 不得反向依赖任何接口层或 UI；接口层只允许依赖 ZenoCore 公开 API；`Plugins/claude-code` 为配置与提示词，不含核心逻辑。
 
 ## 6. ADR 风格决策记录
 
@@ -232,7 +232,7 @@ kairo version
 |---|---|---|---|
 | ADR-001 | 架构：跨平台核心 + 等价接口层 | 已接受 | vision §4；MCP/CLI/应用同等重要，为 Windows/Linux/iOS/Android 留扩展位 |
 | ADR-002 | 核心语言：MVP 期 Swift（SwiftPM 包），Phase 2 评估 Rust 迁移 | 已接受 | Swift 与 SwiftUI 零成本集成、单语言闭环最快；Linux 官方支持满足 G3；Windows 仅社区级，本期不承诺 |
-| ADR-003 | 持久化：单文件 `.kairo`（JSON），本地优先 | 已接受 | F-34-01；天然兼容云盘与 git，无账号/无服务器（vision §6） |
+| ADR-003 | 持久化：单文件 `.zeno`（JSON），本地优先 | 已接受 | F-34-01；天然兼容云盘与 git，无账号/无服务器（vision §6） |
 | ADR-004 | 核心层零 UI 依赖（只依赖 Foundation 子集） | 已接受 | 可测试性 NFR-7/8；可移植性；Linux 编译（G3 判据 4） |
 | ADR-005 | 接口契约：MCP 工具清单为单一事实源，CLI/插件同源派生 | 已接受 | 接口对等（G3 判据 2）；防漂移（US-E5-05） |
 | ADR-006 | 协作：无服务器/账号，同步委托文件同步渠道 + AI 差异合并 | 已接受 | F-35-01/04/05；AI 时代减负；本期不做多用户实时协作 |
@@ -241,8 +241,8 @@ kairo version
 | ADR-009 | 现有 `assignee: String?` 迁移为资源分配（`TaskAssignment`），保留便捷显示 | 已接受 | 04-glossary「分配」；F-22-08/F-23-01；迁移兼容 |
 | ADR-010 | MVP 期自实现最小 stdio JSON-RPC（零第三方依赖，仅 initialize/tools 列表/工具调用 三组方法），Phase 2 复核官方 Swift MCP SDK | 已接受 | 2026-10-17 lead 裁定；协议面小可全量测试，消除 SDK 演进风险；接口契约（ADR-005）不受影响 |
 | ADR-012 | 嵌套可选结构（如 WBSNode.children）一律自定义 `init(from:)`，禁用合成 Codable 的必填语义 | 已接受 | Sprint 1 回顾 P3；叶子节点解码失败教训 |
-| ADR-011 | `.kairo` 读写兼容规则：文件携带 `formatVersion`；读取忽略未知字段（前向兼容）；字段只增不改语义；读取 1…current 并按序迁移，拒绝更高版本；保存恒写 current | 已接受 | 2026-10-17 lead 裁定，2026-10-20 补充迁移策略；JSON 人工可读、AI 可写、git 友好（ADR-003 补充） |
-| ADR-013 | 引入 Foundation-only 呈现层 `KairoPresentation`：视图只消费 `WorkspaceSnapshot` 并发出 `WorkspaceAction`；所有写入经 `KairoSession` 唯一写路径；排期缓存按写置脏、按读重算 | 已接受 | 2026-10-18 lead 裁定；UI 与 MCP/CLI 语义同源；快照边界支撑多平台与可测试性。详见 §6.1 |
+| ADR-011 | `.zeno` 读写兼容规则：文件携带 `formatVersion`；读取忽略未知字段（前向兼容）；字段只增不改语义；读取 1…current 并按序迁移，拒绝更高版本；保存恒写 current | 已接受 | 2026-10-17 lead 裁定，2026-10-20 补充迁移策略；JSON 人工可读、AI 可写、git 友好（ADR-003 补充） |
+| ADR-013 | 引入 Foundation-only 呈现层 `ZenoPresentation`：视图只消费 `WorkspaceSnapshot` 并发出 `WorkspaceAction`；所有写入经 `ZenoSession` 唯一写路径；排期缓存按写置脏、按读重算 | 已接受 | 2026-10-18 lead 裁定；UI 与 MCP/CLI 语义同源；快照边界支撑多平台与可测试性。详见 §6.1 |
 
 ### ADR-013 呈现层与唯一写路径（Sprint 4）
 
@@ -250,18 +250,18 @@ kairo version
 
 ![ADR-013 呈现层与唯一写路径分层](architecture-adr013-layers.zh-CN.svg)
 
-依赖方向单向。`KairoPresentation` 不得 import SwiftUI、AppKit 或 Combine。`KairoCore`、`KairoCommands`、`KairoPresentation` 必须能在 iOS 与 Linux 编译；macOS 应用仍是本期唯一 UI 壳。
+依赖方向单向。`ZenoPresentation` 不得 import SwiftUI、AppKit 或 Combine。`ZenoCore`、`ZenoCommands`、`ZenoPresentation` 必须能在 iOS 与 Linux 编译；macOS 应用仍是本期唯一 UI 壳。
 
 决策：
 
 1. **快照边界**：视图不读 `Project`、不绑定 `TaskItem`。视图只接收 `WorkspaceSnapshot` 并发出 `WorkspaceAction`。
-2. **唯一写路径**：所有变更经 `KairoSession`。UI 不得直接调用 `Project.add/update/remove`。MCP、CLI 与 UI 使用同一命令语义。
+2. **唯一写路径**：所有变更经 `ZenoSession`。UI 不得直接调用 `Project.add/update/remove`。MCP、CLI 与 UI 使用同一命令语义。
 3. **排期缓存**：会话的每个写方法置脏；读取排期时按需重算一次。UI 不自行重算排期。
 4. **项目时间线缺失**（D-003）：`ScheduleEngine` 按「最早任务 `startDate` → 今天」推导锚点，并在结果中记录 `projectStartDerived`。界面显示推导提示与「设置项目开始日期」入口，禁止从 1970 年起排。该推导只决定时间轴原点，不固定任务自身开始。
 5. **行对齐与画布分层**：计划模式使用单一纵向滚动容器加 `LazyVStack` 提供行骨架；时间画布使用一个与内容等高、宽度为画布视口的 `Canvas` 叠加层统一绘制。禁止两个独立滚动视图用偏移同步。
 6. **撤销**：应用层维护快照式撤销栈（`ProjectState`，50 步，连续输入 500ms 合并）。撤销记录同时保存选择与展开集合；恢复后校验目标仍存在，缺失则回项目页。
 7. **日期语义**：`startDate` 是用户意图 + 排期下界——前向传播把显式 `startDate`（日粒度归一为当天零点）与项目锚点、时限下界、相关性下界取较晚者作为「开始不早于」，即它不驱动任务提前，但排期结果不得早于该日（群组忽略自身 `startDate`，由子任务聚合；里程碑同样适用）；后向传播（最晚开始/结束、宽延）口径不变；`dueDate` 是截止日期，只用于风险提示与时限窗口，不驱动排期。逾期口径为「计划结束 < 今天且未完成」，无排期时退回 `dueDate`；截止风险口径为「`dueDate` 存在且计划结束 > `dueDate` 且未完成」。
-8. **外部更新**：应用前台每 2 秒比较 `.kairo` 的 mtime。会话维护 `hasUnsavedChanges`；保存后清除并记录自身写入的 mtime。用户选择「保留本地」后记录已确认的 mtime，文件再次变化才重新提示。本期不做差异比较与自动合并。
+8. **外部更新**：应用前台每 2 秒比较 `.zeno` 的 mtime。会话维护 `hasUnsavedChanges`；保存后清除并记录自身写入的 mtime。用户选择「保留本地」后记录已确认的 mtime，文件再次变化才重新提示。本期不做差异比较与自动合并。
 
 核心层新增：
 
@@ -274,7 +274,7 @@ kairo version
 - `ScheduleResult.unscheduledTaskIDs`：依赖环、空群组等无法排期的任务；`hasSchedule` 为存在有效排期且不在该集合。
 - `ProjectMetadata.direction`：默认 `.forward`；按 ADR-011/ADR-012 写自定义 `init(from:)` 与 `decodeIfPresent`，旧文件缺省为 forward。
 - `ViolationEngine.ruleCategories`：规则目录（代码、名称、severity），违例页空态与检查器共用。
-- `KairoSession` 字段更新使用显式 patch 语义（unchanged / set / clear）；`dueDate`、`assignee` 可被清空；状态、进度与 `completedAt` 走统一状态回写入口。
+- `ZenoSession` 字段更新使用显式 patch 语义（unchanged / set / clear）；`dueDate`、`assignee` 可被清空；状态、进度与 `completedAt` 走统一状态回写入口。
 
 不变量：
 
@@ -286,12 +286,12 @@ kairo version
 
 1. MCP SDK：自实现最小 stdio JSON-RPC（ADR-010）；官方 SDK 移入 Phase 2 复核清单。
 2. Linux CI：GitHub Actions `ubuntu-latest` + 官方 `swift:6.x` 容器镜像，Sprint 2 起作为构建门禁（R1 缓解措施）。
-3. `.kairo` 格式与兼容：JSON + `formatVersion` + 未知字段忽略（ADR-011）。
+3. `.zeno` 格式与兼容：JSON + `formatVersion` + 未知字段忽略（ADR-011）。
 4. monorepo 重构边界：按本文档 §5 结构一次性迁移，Sprint 0 单次原子提交；`Apps/`、`Interfaces/`、`Plugins/` 大写目录名以本节为准。
 
 > 原「待确认」条目全部落定，遗留跟踪项见 03-roadmap 风险登记簿。问题
 
 1. **Swift MCP SDK**：选择官方还是社区维护的 SDK，需在 Sprint 1 复核活跃度；若不足，可自实现最小 MCP JSON-RPC 传输（工具面小、成本可控）。
 2. **Linux CI**：Swift Linux 工具链版本与镜像需在 Sprint 0 确认（见 [03-roadmap.md](03-roadmap.md) 风险 R1）。
-3. **`.kairo` 向后兼容策略**：已于 2026-10-20 定稿——读取 1…current 并顺序迁移，拒绝更高版本；保存恒写 current（ADR-011）。
-4. **monorepo 与现有仓库关系**：重构 `Sources/Kairo/` → `KairoCore` 的动作是否独立提交、是否保留旧 tag，需在 Sprint 0 计划会确认。
+3. **`.zeno` 向后兼容策略**：已于 2026-10-20 定稿——读取 1…current 并顺序迁移，拒绝更高版本；保存恒写 current（ADR-011）。
+4. **monorepo 与现有仓库关系**：重构 `Sources/Zeno/` → `ZenoCore` 的动作是否独立提交、是否保留旧 tag，需在 Sprint 0 计划会确认。

@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 597" width="920" height="597"
-     role="img" aria-labelledby="kairo-fig-title kairo-fig-desc">
-  <title id="kairo-fig-title">Kairo 项目实体关系</title>
-  <desc id="kairo-fig-desc">Project 聚合设置、任务、相关性、资源、分配、工作日历、基线、变更历史与元数据；Task、TaskDependency、Resource、TaskAssignment 各自展开字段。</desc>
+     role="img" aria-labelledby="zeno-fig-title zeno-fig-desc">
+  <title id="zeno-fig-title">Zeno 项目实体关系</title>
+  <desc id="zeno-fig-desc">Project 聚合设置、任务、相关性、资源、分配、工作日历、基线、变更历史与元数据；Task、TaskDependency、Resource、TaskAssignment 各自展开字段。</desc>
   <style>
     .canvas { fill: #FFFFFF; }
     .panel { fill: #FFFFFF; stroke: #D8DAE0; stroke-width: 1; }
@@ -31,7 +31,7 @@
     }
   </style>
   <defs>
-    <marker id="kairo-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
+    <marker id="zeno-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
             orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0,0 L8,4 L0,8 Z" class="arrow-head"/>
     </marker>

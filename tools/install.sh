@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# 将 dist/Kairo.app 安装到 /Applications（可用 INSTALL_DIR 覆盖）。
+# 将 dist/Zeno.app 安装到 /Applications（可用 INSTALL_DIR 覆盖）。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST_DIR="${DIST_DIR:-$ROOT/dist}"
-APP_NAME="Kairo"
+APP_NAME="Zeno"
 APP_SRC="$DIST_DIR/${APP_NAME}.app"
 INSTALL_DIR="${INSTALL_DIR:-/Applications}"
 APP_DST="$INSTALL_DIR/${APP_NAME}.app"
@@ -72,7 +72,7 @@ fi
 echo "==> 复制到 $APP_DST"
 cp -R "$APP_SRC" "$APP_DST"
 
-# 刷新 Launch Services，便于识别 kairo:// 与 .kairo
+# 刷新 Launch Services，便于识别 zeno:// 与 .zeno
 if command -v lsregister >/dev/null 2>&1; then
   lsregister -f "$APP_DST" >/dev/null 2>&1 || true
 elif [[ -x /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister ]]; then

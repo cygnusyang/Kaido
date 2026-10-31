@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import ZenoCore
+import ZenoPresentation
+@testable import ZenoMacApp
 
 // 横向翻窗增量刷新的**应用层**正确性门禁（D-038）。
 //
@@ -38,7 +38,7 @@ struct WorkspaceStoreWindowPanTests {
     }
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.apptests.windowpan.\(UUID().uuidString)"
+        let suite = "zeno.apptests.windowpan.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults)
@@ -47,9 +47,9 @@ struct WorkspaceStoreWindowPanTests {
     /// 100 群组 × 9 子任务（展开后恰好 1000 行，含群组行的聚合口径）。
     private func makeFixture() throws -> Fixture {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-windowpan-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("zeno-windowpan-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let url = directory.appendingPathComponent("windowpan.kairo")
+        let url = directory.appendingPathComponent("windowpan.zeno")
 
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: Date())
@@ -77,7 +77,7 @@ struct WorkspaceStoreWindowPanTests {
             }
         }
 
-        try KairoFile.save(project, to: url)
+        try ZenoFile.save(project, to: url)
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let store = makeStore()

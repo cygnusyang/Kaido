@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import Combine
 import CryptoKit
-import KairoUpdater
+import ZenoUpdater
 
 /// issue #19 / #20 / #21：OTA 三条尾巴。
 ///
@@ -192,11 +192,11 @@ struct OTAHygieneTests {
     }
 
     private func makeEnv() throws -> Env {
-        let suite = "kairo.apptests.ota.hygiene.\(UUID().uuidString)"
+        let suite = "zeno.apptests.ota.hygiene.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-ota-hygiene-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("zeno-ota-hygiene-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         return Env(defaults: defaults, suite: suite, root: root)
     }
@@ -213,14 +213,14 @@ struct OTAHygieneTests {
     private func makeProducts(_ env: Env) throws -> Products {
         let fm = FileManager.default
         let extractionDir = fm.temporaryDirectory
-            .appendingPathComponent("kairo-ota-\(UUID().uuidString)", isDirectory: true)
-        let extractionApp = extractionDir.appendingPathComponent("Kairo.app", isDirectory: true)
+            .appendingPathComponent("zeno-ota-\(UUID().uuidString)", isDirectory: true)
+        let extractionApp = extractionDir.appendingPathComponent("Zeno.app", isDirectory: true)
         try fm.createDirectory(
             at: extractionApp.appendingPathComponent("Contents/MacOS"), withIntermediateDirectories: true)
         let archive = fm.temporaryDirectory
-            .appendingPathComponent("kairo-ota-download-\(UUID().uuidString).zip")
+            .appendingPathComponent("zeno-ota-download-\(UUID().uuidString).zip")
         try Data("stub".utf8).write(to: archive)
-        let backup = env.root.appendingPathComponent("Kairo-1700000000.app", isDirectory: true)
+        let backup = env.root.appendingPathComponent("Zeno-1700000000.app", isDirectory: true)
         try fm.createDirectory(at: backup, withIntermediateDirectories: true)
         return Products(
             extractionDir: extractionDir,
@@ -228,8 +228,8 @@ struct OTAHygieneTests {
             archive: archive,
             backupDir: env.root,
             backup: backup,
-            script: env.root.appendingPathComponent("kairo-ota-install-\(UUID().uuidString).sh"),
-            result: env.root.appendingPathComponent("kairo-ota-result-\(UUID().uuidString).json"))
+            script: env.root.appendingPathComponent("zeno-ota-install-\(UUID().uuidString).sh"),
+            result: env.root.appendingPathComponent("zeno-ota-result-\(UUID().uuidString).json"))
     }
 
     /// 真签名清单（版本 1.1.0，当前版本 1.0.0）：check() 会走到「有新版本」。
@@ -237,11 +237,11 @@ struct OTAHygieneTests {
         let key = Curve25519.Signing.PrivateKey()
         var dict: [String: Any] = [
             "schemaVersion": 1,
-            "appId": "app.kairo.test",
+            "appId": "app.zeno.test",
             "version": "1.1.0",
             "minimumVersion": "1.0.0",
             "buildTime": "2026-10-20T08:00:00Z",
-            "downloadUrl": "https://github.com/example/test/releases/download/v1.1.0/Kairo-1.1.0.zip",
+            "downloadUrl": "https://github.com/example/test/releases/download/v1.1.0/Zeno-1.1.0.zip",
             "cdHash": String(repeating: "a", count: 40),
             "securityCritical": false,
             "sha256": try UpdateChecksum.sha256Hex(of: archive),
@@ -264,9 +264,9 @@ struct OTAHygieneTests {
     ) -> UpdaterManager {
         UpdaterManager(
             manifestURL: URL(string: "https://github.com/example/test/releases/latest/download/update-manifest.json")!,
-            expectedAppId: "app.kairo.test",
+            expectedAppId: "app.zeno.test",
             currentVersion: "1.0.0",
-            currentAppURL: URL(fileURLWithPath: "/Applications/Kairo.app"),
+            currentAppURL: URL(fileURLWithPath: "/Applications/Zeno.app"),
             publicKeyBase64: manifest.publicKeyBase64,
             policy: UpdateEndpointPolicy(allowedHosts: ["github.com"]),
             fetcher: StubFetcher(data: manifest.data),
@@ -625,16 +625,16 @@ struct OTAHygieneTests {
 
         let fm = FileManager.default
         let extractionDir = env.root.appendingPathComponent(
-            "kairo-ota-\(UUID().uuidString)", isDirectory: true)
+            "zeno-ota-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(
-            at: extractionDir.appendingPathComponent("Kairo.app", isDirectory: true),
+            at: extractionDir.appendingPathComponent("Zeno.app", isDirectory: true),
             withIntermediateDirectories: true)
         // 残留是「上一版留下的」：把 mtime 拨到一岁以外（陈旧解压目录判据）。
         try fm.setAttributes(
             [.modificationDate: Date(timeIntervalSinceNow: -7200)],
             ofItemAtPath: extractionDir.path)
         let legacyScript = env.root.appendingPathComponent(
-            "kairo-ota-install-\(UUID().uuidString).sh")
+            "zeno-ota-install-\(UUID().uuidString).sh")
         try Data("#!/bin/bash\n".utf8).write(to: legacyScript)
 
         // 旧版 pending：三个键，且 result 的 uuid 与脚本/解压目录都对不上。
@@ -667,11 +667,11 @@ struct OTAHygieneTests {
 
         let fm = FileManager.default
         let freshDir = env.root.appendingPathComponent(
-            "kairo-ota-\(UUID().uuidString)", isDirectory: true)
+            "zeno-ota-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(
-            at: freshDir.appendingPathComponent("Kairo.app", isDirectory: true),
+            at: freshDir.appendingPathComponent("Zeno.app", isDirectory: true),
             withIntermediateDirectories: true)
-        let foreign = env.root.appendingPathComponent("kairo-ota-notes.txt")
+        let foreign = env.root.appendingPathComponent("zeno-ota-notes.txt")
         try Data("keep".utf8).write(to: foreign)
 
         try InstallerScript.encodeResult(

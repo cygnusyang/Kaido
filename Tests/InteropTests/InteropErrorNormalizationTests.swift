@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import KairoInterop
+import ZenoInterop
 
 /// `InteropError.normalized` 的契约测试：适配器读入口只允许把 `InteropError` 递给调用方。
 ///

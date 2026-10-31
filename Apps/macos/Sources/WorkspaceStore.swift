@@ -2,16 +2,16 @@ import AppKit
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
-import KairoCommands
-import KairoCore
-import KairoInterop
-import KairoPresentation
+import ZenoCommands
+import ZenoCore
+import ZenoInterop
+import ZenoPresentation
 import InteropMSPDI
 import InteropOmniPlan
 
 /// 应用适配层（ADR-013）：持有会话、视图状态与撤销栈，输出平台中立快照。
 ///
-/// 所有变更经 `KairoSession`；视图只发 `WorkspaceAction`，不读写 `Project`。
+/// 所有变更经 `ZenoSession`；视图只发 `WorkspaceAction`，不读写 `Project`。
 @MainActor
 final class WorkspaceStore: ObservableObject {
     @Published private(set) var snapshot: WorkspaceSnapshot
@@ -55,7 +55,7 @@ final class WorkspaceStore: ObservableObject {
 
     @Published var pendingBaselineDeletion: PendingBaselineDeletion?
 
-    /// 打开的磁盘文件早于当前格式；保存/另存为后升级并清除（FR-KAIRO-FMT）。
+    /// 打开的磁盘文件早于当前格式；保存/另存为后升级并清除（FR-ZENO-FMT）。
     @Published private(set) var needsFormatUpgrade = false
     /// 磁盘文件已被外部修改且本地存在未保存修改。
     @Published private(set) var externalUpdatePending = false
@@ -71,11 +71,11 @@ final class WorkspaceStore: ObservableObject {
     /// 最近打开的项目文件（最新在前，最多 5 条）；「最近打开」菜单与命令面板消费。
     @Published private(set) var recentProjects: [URL] = []
 
-    private let session: KairoSession
+    private let session: ZenoSession
     private let calendar: Calendar
     private let defaults: UserDefaults
     private let recentStore: RecentProjects
-    /// 本次启动是否已收到显式打开请求（双击 `.kairo`、深链、菜单选择）。
+    /// 本次启动是否已收到显式打开请求（双击 `.zeno`、深链、菜单选择）。
     /// 置位后启动时的「默认打开最近项目」让位，避免抢走用户明确要打开的文件。
     private var didReceiveExplicitOpen = false
     /// 启动默认打开只尝试一次：文件不可用后不再反复试探。
@@ -107,7 +107,7 @@ final class WorkspaceStore: ObservableObject {
     private var fullSnapshotRevision: UInt64?
 
     /// 视图偏好在 `UserDefaults` 中的键名；测试按此键读写偏好 JSON。
-    static let preferencesKey = "kairo.workspace.preferences.v1"
+    static let preferencesKey = "zeno.workspace.preferences.v1"
     /// 当前偏好 schema 版本；写盘恒写该值。
     ///
     /// v2 = 启动窗口固定为 7 天并锚定今天：`windowStart` 不再持久化。
@@ -315,7 +315,7 @@ final class WorkspaceStore: ObservableObject {
         defaults: UserDefaults = .standard,
         seedsDemoData: Bool = false,
         projectLoader: @escaping @Sendable (URL) throws -> DecodedProject = {
-            try KairoFile.read(from: $0)
+            try ZenoFile.read(from: $0)
         }
     ) {
         var calendar = Calendar(identifier: .gregorian)
@@ -325,7 +325,7 @@ final class WorkspaceStore: ObservableObject {
         self.recentStore = RecentProjects(defaults: defaults)
         self.projectLoader = projectLoader
 
-        let session = KairoSession()
+        let session = ZenoSession()
         self.session = session
         _ = try? session.createProject(title: I18n.t("alert.project.default_title", "Untitled Project"))
         // AC-1：默认空启动不灌示例数据；seedsDemoData 供测试与旧行为显式启用。
@@ -409,7 +409,7 @@ final class WorkspaceStore: ObservableObject {
     // MARK: - 派生
 
     /// 测试观测缝（@testable 消费）：暴露会话以断言缓存行为（如 D-014 排期计数）。
-    var sessionForTesting: KairoSession { session }
+    var sessionForTesting: ZenoSession { session }
 
     /// 测试观测缝（@testable 消费）：撤销栈深度，用于断言被拒绝的动作不产生撤销点。
     var undoDepthForTesting: Int { undoStack.count }
@@ -543,7 +543,7 @@ final class WorkspaceStore: ObservableObject {
 
     private static func makeSnapshot(
         state: ProjectState,
-        session: KairoSession,
+        session: ZenoSession,
         viewState: WorkspaceViewState,
         viewport: WorkspaceViewport,
         saveState: SaveState,
@@ -1136,7 +1136,7 @@ final class WorkspaceStore: ObservableObject {
     }
 
     /// 列顺序（v0.16 / #12）：应用级视图偏好，与列宽 / 显隐同域——走 `mutateView`，
-    /// 不进撤销栈、不置脏、不写 `.kairo`。
+    /// 不进撤销栈、不置脏、不写 `.zeno`。
     ///
     /// 归一化在写入口一次做完（去重 + 补齐缺失列）：视图只负责把「拖到哪」翻译成数组，
     /// 不必各自判重。与当前顺序相同时直接返回——拖回原位不该留下一份看起来改过的偏好。
@@ -1948,7 +1948,7 @@ final class WorkspaceStore: ObservableObject {
 
     /// 把示例项目内容灌入当前会话项目（不写磁盘；供 init 种子与载入示例共用）。
     /// 静态：init 属性初始化前即可调用。
-    private static func seed(_ seed: Project, into session: KairoSession) {
+    private static func seed(_ seed: Project, into session: ZenoSession) {
         guard let project = session.project else { return }
         project.metadata.projectStart = seed.metadata.projectStart
         project.metadata.projectEnd = seed.metadata.projectEnd
@@ -2060,7 +2060,7 @@ final class WorkspaceStore: ObservableObject {
         guard saveState != .failed else { return }
         if wasUpgrade {
             // finishOpen 会用载入警告重置 notice；升级提示需跨过这次打开保留。
-            pendingUpgradeNoticeAfterOpen = I18n.t("alert.upgraded_to", "Upgraded to v%1$ld", KairoFile.currentFormatVersion)
+            pendingUpgradeNoticeAfterOpen = I18n.t("alert.upgraded_to", "Upgraded to v%1$ld", ZenoFile.currentFormatVersion)
         }
         discardChangesAndOpenPending()
     }
@@ -2159,7 +2159,7 @@ final class WorkspaceStore: ObservableObject {
                 notice = I18n.t("alert.kept_local", "Kept the local version")
             } else if wasUpgrade {
                 // 每次保存至多提示一次：保存成功后来源版本即为当前版本。
-                notice = I18n.t("alert.upgraded_to", "Upgraded to v%1$ld", KairoFile.currentFormatVersion)
+                notice = I18n.t("alert.upgraded_to", "Upgraded to v%1$ld", ZenoFile.currentFormatVersion)
             }
             recordDiskVersion(at: session.projectURL)
             noteRecentProject(session.projectURL)
@@ -2171,9 +2171,9 @@ final class WorkspaceStore: ObservableObject {
         }
     }
 
-    /// 复制任务深链（`kairo://task/<id>`），由适配层写入剪贴板。
+    /// 复制任务深链（`zeno://task/<id>`），由适配层写入剪贴板。
     func copyTaskLink(_ id: UUID) {
-        let link = "kairo://task/\(id.uuidString)"
+        let link = "zeno://task/\(id.uuidString)"
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(link, forType: .string)
         notice = I18n.t("alert.link_copied", "Task link copied")
@@ -2207,7 +2207,7 @@ final class WorkspaceStore: ObservableObject {
         if revision == nil || revision != session.revision {
             save(to: url)
             if wasUpgrade, saveState != .failed {
-                notice = I18n.t("alert.saved_as_upgraded", "Saved as a new file and upgraded to v%1$ld", KairoFile.currentFormatVersion)
+                notice = I18n.t("alert.saved_as_upgraded", "Saved as a new file and upgraded to v%1$ld", ZenoFile.currentFormatVersion)
             }
             return
         }
@@ -2215,7 +2215,7 @@ final class WorkspaceStore: ObservableObject {
         saveState = .saved
         needsFormatUpgrade = session.needsFormatUpgrade
         if wasUpgrade {
-            notice = I18n.t("alert.saved_as_upgraded", "Saved as a new file and upgraded to v%1$ld", KairoFile.currentFormatVersion)
+            notice = I18n.t("alert.saved_as_upgraded", "Saved as a new file and upgraded to v%1$ld", ZenoFile.currentFormatVersion)
         }
         recordDiskVersion(at: url)
         noteRecentProject(url)
@@ -2397,7 +2397,7 @@ final class WorkspaceStore: ObservableObject {
         }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.commaSeparatedText]
-        panel.nameFieldStringValue = "kairo-variance.csv"
+        panel.nameFieldStringValue = "zeno-variance.csv"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try exportVarianceCSV(to: url)
@@ -2459,7 +2459,7 @@ final class WorkspaceStore: ObservableObject {
             let adapter = try InteropFormats.importAdapter(for: url, data: data, registry: registry)
             let document = try adapter.read(data)
             let report = try adapter.preflight(data)
-            let bridged = KairoBridge().makeProject(from: document)
+            let bridged = ZenoBridge().makeProject(from: document)
             pendingImportProject = bridged.project
             importPreflight = ImportPreflight(
                 document: document,
@@ -2555,9 +2555,9 @@ final class WorkspaceStore: ObservableObject {
             currentURL: nil,
             title: session.project?.metadata.title ?? ""
         )
-        let kairoSuffix = ".kairo"
-        guard suggested.hasSuffix(kairoSuffix) else { return suggested + ".\(suffix)" }
-        return String(suggested.dropLast(kairoSuffix.count)) + ".\(suffix)"
+        let zenoSuffix = ".zeno"
+        guard suggested.hasSuffix(zenoSuffix) else { return suggested + ".\(suffix)" }
+        return String(suggested.dropLast(zenoSuffix.count)) + ".\(suffix)"
     }
 
     /// 菜单入口：保存面板 → 写 XML + 旁注 → 提示单向快照。
@@ -2638,7 +2638,7 @@ final class WorkspaceStore: ObservableObject {
         return try writeExport(to: url, formatID: OmniPlanAdapter.formatID, data: export.data, ledger: export.ledger)
     }
 
-    /// Kairo 项目 → IR（导出方向的唯一入口）。
+    /// Zeno 项目 → IR（导出方向的唯一入口）。
     ///
     /// 排期取当前结果；算不出来时按「无计划日期」导出（宁可少写日期，也不在这里现算一份）。
     private func exportDocument() -> InteropDocument {
@@ -2665,7 +2665,7 @@ final class WorkspaceStore: ObservableObject {
             attachedFileName: url.lastPathComponent,
             ledger: ledger,
             exportedAt: Date(),
-            appVersion: KairoMenuCommands.appVersion
+            appVersion: ZenoMenuCommands.appVersion
         )
         do {
             try data.write(to: url, options: .atomic)
@@ -2716,7 +2716,7 @@ final class WorkspaceStore: ObservableObject {
     private func report(_ error: Error) {
         if let sessionError = error as? SessionError {
             alertMessage = sessionError.message
-        } else if let fileError = error as? KairoFileError {
+        } else if let fileError = error as? ZenoFileError {
             alertMessage = fileError.description
         } else {
             alertMessage = error.localizedDescription

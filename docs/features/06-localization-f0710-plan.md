@@ -1,7 +1,7 @@
 # F-0710 断言改造执行计划
 
 > 依据：[06-localization-cases.md](./06-localization-cases.md)、[06-localization-assertions.md](./06-localization-assertions.md)、[06-localization.md](./06-localization.md) §8。
-> **名称已与已提交源码对齐**（`ViolationReason` / `KairoErrorCode` / `ZoomPreset` / `ZoomIndicator` / `DateFieldAvailability`），对不上的 3 处单列于 §7。
+> **名称已与已提交源码对齐**（`ViolationReason` / `ZenoErrorCode` / `ZoomPreset` / `ZoomIndicator` / `DateFieldAvailability`），对不上的 3 处单列于 §7。
 > 本文只定「哪条断言改成什么、依赖谁先落地」，**不含测试文件改动**。Tests/ 按 target 分属 G2/G3/G4，F-0710 开工前不动一行。
 
 ## 0. 边界与口径
@@ -16,10 +16,10 @@
 | target | 需跟译 | 常量抽取 | 合计 | 归属 | 主依赖 |
 |---|---|---|---|---|---|
 | AppTests | 50 | 40 | 90 | G4 | F-0705（需 G4 暴露 noticeKey） / F-0705（需 G4 暴露 alertKey） |
-| KairoPresentationTests | 17 | 2 | 19 | G2 | F-0704 / F-0712 |
-| KairoCoreTests | 8 | 28 | 36 | G2 | F-0703 / F-0702 |
+| ZenoPresentationTests | 17 | 2 | 19 | G2 | F-0704 / F-0712 |
+| ZenoCoreTests | 8 | 28 | 36 | G2 | F-0703 / F-0702 |
 | InterfaceTests | 9 | 9 | 18 | G3 | F-0707 / F-0708 |
-| KairoUpdaterTests | 2 | 0 | 2 | G2 | F-0703（已交付 UpdaterErrorCode） |
+| ZenoUpdaterTests | 2 | 0 | 2 | G2 | F-0703（已交付 UpdaterErrorCode） |
 | **合计** | **86** | **79** | **165** | — | — |
 
 ## 2. 逐文件改造计划
@@ -45,14 +45,14 @@
 | :94 | `store.notice?.contains("已升级") != true` | noticeKey != "alert.upgraded_to" | F-0705（需 G4 暴露 noticeKey） |
 | :149 | `store.exportProject.metadata.title == "旧版项目"` | 抽为文件顶部常量，断言不变 | — |
 | :152 | `store.notice?.contains("已升级") != true` | noticeKey != "alert.upgraded_to" | F-0705（需 G4 暴露 noticeKey） |
-| :169 | `store.notice == "已升级到 v\(KairoFile.currentFormatVersion)"` | noticeKey == "alert.upgraded_to" && noticeArgs.count == 1 | F-0705（需 G4 暴露 noticeKey） |
+| :169 | `store.notice == "已升级到 v\(ZenoFile.currentFormatVersion)"` | noticeKey == "alert.upgraded_to" && noticeArgs.count == 1 | F-0705（需 G4 暴露 noticeKey） |
 | :176 | `store.notice?.contains("已升级") != true` | noticeKey != "alert.upgraded_to" | F-0705（需 G4 暴露 noticeKey） |
 | :246 | `store.notice?.contains("已升级") != true` | noticeKey != "alert.upgraded_to" | F-0705（需 G4 暴露 noticeKey） |
-| :280 | `store.notice == "已升级到 v\(KairoFile.currentFormatVersion)"` | noticeKey == "alert.upgraded_to" && noticeArgs.count == 1 | F-0705（需 G4 暴露 noticeKey） |
+| :280 | `store.notice == "已升级到 v\(ZenoFile.currentFormatVersion)"` | noticeKey == "alert.upgraded_to" && noticeArgs.count == 1 | F-0705（需 G4 暴露 noticeKey） |
 | :325 | `store.notice?.contains("已升级") != true` | noticeKey != "alert.upgraded_to" | F-0705（需 G4 暴露 noticeKey） |
 | :326 | `store.exportProject.metadata.title == "第三个项目"` | 抽为文件顶部常量，断言不变 | — |
 | :346 | `store.notice?.contains("已升级") != true` | noticeKey != "alert.upgraded_to" | F-0705（需 G4 暴露 noticeKey） |
-| :385 | `notice.contains("已升级到 v\(KairoFile.currentFormatVersion)")` | noticeKey == "alert.upgraded_to" && noticeArgs.count == 1 | F-0705（需 G4 暴露 noticeKey） |
+| :385 | `notice.contains("已升级到 v\(ZenoFile.currentFormatVersion)")` | noticeKey == "alert.upgraded_to" && noticeArgs.count == 1 | F-0705（需 G4 暴露 noticeKey） |
 | :386 | `notice.contains("已按群组处理")` | noticeKey == "alert.notice.combined" && noticeArgs.count == 2 | F-0705（需 G4 暴露 noticeKey） |
 
 **AppTests/WorkspaceStoreTests.swift**
@@ -135,20 +135,20 @@
 | :67 | `saveAs.aliases.contains("保存副本")` | saveAs.aliases.isEmpty == false && saveAs.id == "file.saveAs"（不再比对文案） | F-0705 |
 | :69 | `CommandPalette.matching("另存为", in: commands).contains { $0.id == "file.saveAs" }` | CommandPalette.matching(t("command.file.saveAs.title"), in: commands).contains { $0.id == "file.saveAs" } | F-0705 |
 | :70 | `CommandPalette.matching("保存副本", in: commands).contains { $0.id == "file.saveAs"…` | CommandPalette.matching(t("command.file.saveAs.alias.saveCopy"), in: commands).contains { $0.id == "file.saveAs" } | F-0705 |
-| :108 | `SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度/") == "季度.kairo"` | 抽为文件顶部常量，断言不变 | — |
-| :109 | `SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度 - ") == "季度.kairo"` | 抽为文件顶部常量，断言不变 | — |
-| :133 | `fromTitle == String(repeating: "计", count: 64) + ".kairo"` | 抽常量 Fixture.longCJKTitle（64×"计"），断言不变 | — |
-| :140 | `fromURL == String(repeating: "计", count: 64) + ".kairo"` | 抽常量 Fixture.longCJKTitle，断言不变 | — |
-| :177 | `store.suggestedSaveFilename == "未命名项目.kairo"` | suggestedSaveFilename == t("file.defaultProjectName") + ".kairo" | F-0705 |
-| :180 | `store.suggestedSaveFilename == "路线 - 图.kairo"` | 抽常量 Fixture.projectTitle，断言不变 | — |
-| :184 | `store.suggestedSaveFilename == "已有.kairo"` | 抽常量 Fixture.existingProjectTitle，断言不变 | — |
+| :108 | `SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度/") == "季度.zeno"` | 抽为文件顶部常量，断言不变 | — |
+| :109 | `SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度 - ") == "季度.zeno"` | 抽为文件顶部常量，断言不变 | — |
+| :133 | `fromTitle == String(repeating: "计", count: 64) + ".zeno"` | 抽常量 Fixture.longCJKTitle（64×"计"），断言不变 | — |
+| :140 | `fromURL == String(repeating: "计", count: 64) + ".zeno"` | 抽常量 Fixture.longCJKTitle，断言不变 | — |
+| :177 | `store.suggestedSaveFilename == "未命名项目.zeno"` | suggestedSaveFilename == t("file.defaultProjectName") + ".zeno" | F-0705 |
+| :180 | `store.suggestedSaveFilename == "路线 - 图.zeno"` | 抽常量 Fixture.projectTitle，断言不变 | — |
+| :184 | `store.suggestedSaveFilename == "已有.zeno"` | 抽常量 Fixture.existingProjectTitle，断言不变 | — |
 | :209 | `reopened.metadata.title == "格式版本检查"` | 抽为文件顶部常量，断言不变 | — |
-| :270 | `try KairoFile.load(from: newURL).metadata.title == "另存后再修改"` | 抽为文件顶部常量，断言不变 | — |
+| :270 | `try ZenoFile.load(from: newURL).metadata.title == "另存后再修改"` | 抽为文件顶部常量，断言不变 | — |
 | :294 | `store.notice?.hasPrefix("已载入外部更新") != true` | noticeKey != "alert.external_update_loaded" | F-0705（需 G4 暴露 noticeKey） |
-| :297 | `try KairoFile.load(from: originalURL).metadata.title == "旧文件被外部改写"` | 抽为文件顶部常量，断言不变 | — |
-| :318 | `try KairoFile.load(from: newURL).metadata.title == "面板打开期间的编辑"` | 抽为文件顶部常量，断言不变 | — |
+| :297 | `try ZenoFile.load(from: originalURL).metadata.title == "旧文件被外部改写"` | 抽为文件顶部常量，断言不变 | — |
+| :318 | `try ZenoFile.load(from: newURL).metadata.title == "面板打开期间的编辑"` | 抽为文件顶部常量，断言不变 | — |
 | :344 | `store.exportProject.metadata.title == "面板中修改"` | 抽为文件顶部常量，断言不变 | — |
-| :399 | `try KairoFile.load(from: newURL).metadata.title == "取消后直接保存"` | 抽为文件顶部常量，断言不变 | — |
+| :399 | `try ZenoFile.load(from: newURL).metadata.title == "取消后直接保存"` | 抽为文件顶部常量，断言不变 | — |
 
 **AppTests/DayWidthUxAcceptanceTests.swift**
 
@@ -156,9 +156,9 @@
 |---|---|---|---|
 | :143 | `WorkspacePresenter.zoomDetail(dayWidth: 1e16).hasSuffix("点/天")` | 见 §3 | F-0712 |
 
-### 2.2 KairoPresentationTests（归属 G2）
+### 2.2 ZenoPresentationTests（归属 G2）
 
-**KairoPresentationTests/DayWidthAcceptanceTests.swift**
+**ZenoPresentationTests/DayWidthAcceptanceTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -169,7 +169,7 @@
 | :675 | `preset.zoomLabel == "日"` | preset.zoom.preset == .day | F-0704 |
 | :692 | `fit.zoomLabel == "适合项目"` | fit.zoom.preset == .fit | F-0704 |
 
-**KairoPresentationTests/PresenterTests.swift**
+**ZenoPresentationTests/PresenterTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -178,7 +178,7 @@
 | :423 | `inspector.groups[0].items[0].name == "相关性环"` | 抽为文件顶部常量，断言不变 | — |
 | :483 | `snapshot.statusBar.zoomLabel == "日"` | snapshot.statusBar.zoom.preset == .day | F-0704 |
 
-**KairoPresentationTests/DayWidthTests.swift**
+**ZenoPresentationTests/DayWidthTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -192,9 +192,9 @@
 | :353 | `fit.zoomDetail?.hasSuffix("点/天") == true` | 见 §3 | F-0712 |
 | :362 | `statusBar.zoomLabel == "自定义"` | statusBar.zoom.preset == .custom | F-0704 |
 
-### 2.3 KairoCoreTests（归属 G2）
+### 2.3 ZenoCoreTests（归属 G2）
 
-**KairoCoreTests/GanttLayoutTests.swift**
+**ZenoCoreTests/GanttLayoutTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -202,7 +202,7 @@
 | :200 | `lower.map(\.label) == ["11月", "12月"]` | 见 §3 | F-0702 |
 | :204 | `upper.map(\.label) == ["2026年"]` | 见 §3 | F-0702 |
 
-**KairoCoreTests/TaskPatchTests.swift**
+**ZenoCoreTests/TaskPatchTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -210,7 +210,7 @@
 | :56 | `task.notes == "备注"` | 抽为文件顶部常量，断言不变 | — |
 | :58 | `task.tags == ["设计"]` | 抽为文件顶部常量，断言不变 | — |
 
-**KairoCoreTests/FormatMigrationTests.swift**
+**ZenoCoreTests/FormatMigrationTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -220,7 +220,7 @@
 | :321 | `reason.contains("合成迁移拒绝继续")` | migrationError == .migrationFailed（已知限制：合成拒绝与解码失败共用此码，见 §7-2） | F-0703 |
 | :343 | `reason.contains("解码")` | migrationError == .migrationFailed（已知限制：合成拒绝与解码失败共用此码，见 §7-2） | F-0703 |
 
-**KairoCoreTests/ProjectStateTests.swift**
+**ZenoCoreTests/ProjectStateTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -229,13 +229,13 @@
 | :47 | `project.metadata.title == "原项目"` | 抽为文件顶部常量，断言不变 | — |
 | :59 | `project.metadata.title == "空"` | 抽为文件顶部常量，断言不变 | — |
 
-**KairoCoreTests/SessionCacheTests.swift**
+**ZenoCoreTests/SessionCacheTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
 | :127 | `try session.listTasks().map(\.title) == ["原任务"]` | 抽为文件顶部常量，断言不变 | — |
 
-**KairoCoreTests/OutlineTreeTests.swift**
+**ZenoCoreTests/OutlineTreeTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -244,13 +244,13 @@
 | :157 | `tree.rows.map(\.task.title) == ["组", "B"]` | 抽为文件顶部常量，断言不变 | — |
 | :196 | `tree.rows.map(\.task.title) == ["孤儿"]` | 抽为文件顶部常量，断言不变 | — |
 
-**KairoCoreTests/ProjectDirectionTests.swift**
+**ZenoCoreTests/ProjectDirectionTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
 | :21 | `decoded.title == "旧文件"` | 抽为文件顶部常量，断言不变 | — |
 
-**KairoCoreTests/OutlineMovingTests.swift**
+**ZenoCoreTests/OutlineMovingTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -258,19 +258,19 @@
 | :41 | `updated.map(\.title) == ["组", "子", "孙", "其他"]` | 抽为文件顶部常量，断言不变 | — |
 | :51 | `updated.map(\.title) == ["子", "孙", "组", "其他"]` | 抽为文件顶部常量，断言不变 | — |
 
-**KairoCoreTests/DeepLinkTests.swift**
+**ZenoCoreTests/DeepLinkTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
 | :23 | `link.target == .taskTitle("验收")` | 抽为文件顶部常量，断言不变 | — |
 
-**KairoCoreTests/ResourceStatusTests.swift**
+**ZenoCoreTests/ResourceStatusTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
 | :95 | `loaded.resources.first?.name == "测试机"` | 抽为文件顶部常量，断言不变 | — |
 
-**KairoCoreTests/KairoFileTests.swift**
+**ZenoCoreTests/ZenoFileTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -279,7 +279,7 @@
 | :115 | `decoded.project.metadata.title == "当前版本"` | 抽为文件顶部常量，断言不变 | — |
 | :142 | `reopened.project.metadata.title == "旧项目"` | 抽为文件顶部常量，断言不变 | — |
 
-**KairoCoreTests/KairoCoreTests.swift**
+**ZenoCoreTests/ZenoCoreTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -305,7 +305,7 @@
 | :350 | `item.tags == ["设计"]` | 抽为文件顶部常量，断言不变 | — |
 | :468 | `project.resources.first?.name == "李工"` | 抽为文件顶部常量，断言不变 | — |
 | :549 | `!saveOutput.contains("已从 v")` | JSON 输出格式版本字段：saveJSON["formatVersion"] 存在且 upgradedFrom 为 nil | F-0707 |
-| :555 | `openOutput.contains("源格式版本：v\(KairoFile.currentFormatVersion)（当前 v\(KairoFile.c…` | openJSON["formatVersion"] == KairoFile.currentFormatVersion && openJSON["upgradedFrom"] == 1 | F-0707 |
+| :555 | `openOutput.contains("源格式版本：v\(ZenoFile.currentFormatVersion)（当前 v\(ZenoFile.c…` | openJSON["formatVersion"] == ZenoFile.currentFormatVersion && openJSON["upgradedFrom"] == 1 | F-0707 |
 | :556 | `!openOutput.contains("保存后升级")` | openJSON["formatVersion"] 与 upgradedFrom 各自断言（不再匹配「保存后升级」文案） | F-0707 |
 | :573 | `CLIRouter.formatVersionLine(written: current, upgradedFrom: nil) == "格式版本：v\(cu…` | CLIRouter.formatVersion(written: current, upgradedFrom: nil) == (current, nil)（结构化，不拼串） | F-0707 |
 
@@ -325,15 +325,15 @@
 | :115 | `result.stderr.contains("匹配 2 个")` | stderrJSON["matched"] == 2 && stderrJSON["updated"] == 0 | F-0707 |
 | :127 | `result.stderr.contains("匹配 0 个")` | stderrJSON["matched"] == 0 | F-0707 |
 
-### 2.5 KairoUpdaterTests（归属 G2）
+### 2.5 ZenoUpdaterTests（归属 G2）
 
-**KairoUpdaterTests/UpdaterManagerTests.swift**
+**ZenoUpdaterTests/UpdaterManagerTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
 | :150 | `message.contains("最低版本")` | errorCode == .minimumVersionUnmet | F-0703（已交付 UpdaterErrorCode） |
 
-**KairoUpdaterTests/InstallerTests.swift**
+**ZenoUpdaterTests/InstallerTests.swift**
 
 | 位置 | 现行断言 | 目标断言 | 依赖 |
 |---|---|---|---|
@@ -369,7 +369,7 @@
 | 批次 | 内容 | 前置 | 条数 | 验收命令 |
 |---|---|---|---|---|
 | **B0** | 输入常量抽取（断言表达式不动）：79 条数据类 + 5 条「分类为需跟译、动作同为抽常量」的行 | 无依赖；但需等归属 coder 释放文件 | 84 | `swift test --disable-sandbox --filter <Target>` |
-| **B1** | 错误码 / 通知码 / 快照枚举 / 迁移码 / 更新器错误码 | F-0703、F-0704 合入 | 55 | `swift test --disable-sandbox --filter KairoCoreTests`；`--filter KairoPresentationTests`；`--filter AppTests` |
+| **B1** | 错误码 / 通知码 / 快照枚举 / 迁移码 / 更新器错误码 | F-0703、F-0704 合入 | 55 | `swift test --disable-sandbox --filter ZenoCoreTests`；`--filter ZenoPresentationTests`；`--filter AppTests` |
 | **B2** | CLI `--json` 字段与 MCP `error.code` | F-0707、F-0708 合入 | 9 | `swift test --disable-sandbox --filter InterfaceTests` |
 | **B3** | 日期/单位 16 条 + 视图键断言 | F-0712、F-0705 合入 | 17 | `swift test --disable-sandbox`（全量）+ 双 Locale 复跑 |
 
@@ -410,8 +410,8 @@ B0 在 Presentation / Updater 两个 target 实跑时，除计划内条目外发
 
 | # | 位置 | 现象 | 影响判据 |
 |---|---|---|---|
-| 1 | `Sources/KairoCore/Query/AIFilter.swift:62-66` → `Sources/KairoPresentation/Presenter.swift:273` | `AIFilterTranslator.explanation()` 返回中文整句（`"筛选："…`、`"全部任务"`），被写进 `OutlineSnapshot.filterSummary: String?` | **C-01 必红**：同一项目在 en/zh 下快照不相等。对应断言 `PresenterTests:131`（`filterSummary?.contains("筛选")`）无法改成枚举，只能继续断文案 |
-| 2 | `Sources/KairoUpdater/InstallerSupport.swift:80,85,90,94` → `UpdaterManager.swift:258-261` → `UpdateSheet` 的 detail 行 | 安装脚本把三条中文失败文案写进结果 JSON（`"等待当前应用退出超时，未执行替换"` / `"备份当前应用失败，未执行替换"` / `"安装新版本失败，已回滚"`），`UpdaterManager` 原样塞进 `.installFailed(parameters["detail"])`，更新面板直接渲染 | **A-03 / §8 非豁免项**：更新面板错误行会出现中文。对应断言 `InstallerTests:70` 现在只能断 `message.contains("自动启动失败")`，本身也是「断文案」 |
+| 1 | `Sources/ZenoCore/Query/AIFilter.swift:62-66` → `Sources/ZenoPresentation/Presenter.swift:273` | `AIFilterTranslator.explanation()` 返回中文整句（`"筛选："…`、`"全部任务"`），被写进 `OutlineSnapshot.filterSummary: String?` | **C-01 必红**：同一项目在 en/zh 下快照不相等。对应断言 `PresenterTests:131`（`filterSummary?.contains("筛选")`）无法改成枚举，只能继续断文案 |
+| 2 | `Sources/ZenoUpdater/InstallerSupport.swift:80,85,90,94` → `UpdaterManager.swift:258-261` → `UpdateSheet` 的 detail 行 | 安装脚本把三条中文失败文案写进结果 JSON（`"等待当前应用退出超时，未执行替换"` / `"备份当前应用失败，未执行替换"` / `"安装新版本失败，已回滚"`），`UpdaterManager` 原样塞进 `.installFailed(parameters["detail"])`，更新面板直接渲染 | **A-03 / §8 非豁免项**：更新面板错误行会出现中文。对应断言 `InstallerTests:70` 现在只能断 `message.contains("自动启动失败")`，本身也是「断文案」 |
 
 **建议处置**（均属实现侧，本计划不动代码）：
 1. `explanation()` 改为返回结构化 `FilterSummary`（clauses 数组）或枚举 + 参数，`Presenter` 只透传；视图按 Catalog 渲染。C-01 随之可判定。

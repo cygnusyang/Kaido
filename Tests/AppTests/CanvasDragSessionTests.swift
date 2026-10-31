@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import ZenoCore
+import ZenoPresentation
+@testable import ZenoMacApp
 
 // F-14-09 画布拖拽状态机单测（引用语义直驱，GUIRenderTests 无法模拟手势事件的替代载体）。
 //

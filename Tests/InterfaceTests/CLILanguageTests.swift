@@ -5,8 +5,8 @@ import Darwin
 import Glibc
 #endif
 import Testing
-import KairoCore
-@testable import KairoCLI
+import ZenoCore
+@testable import ZenoCLI
 
 // F-0707 CLI 语言策略的验收用例。
 // 用例编号对应 docs/features/06-localization-cases.md 的 D 组与 G-01/G-02。
@@ -22,12 +22,12 @@ private func containsHan(_ text: String) -> Bool {
     text.range(of: "\\p{Han}", options: .regularExpression) != nil
 }
 
-/// 建临时工作目录，返回目录与 .kairo 路径；调用方 defer 清理。
-private func makeScratch() throws -> (dir: URL, kairo: URL) {
+/// 建临时工作目录，返回目录与 .zeno 路径；调用方 defer 清理。
+private func makeScratch() throws -> (dir: URL, zeno: URL) {
     let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("kairo-i18n-\(UUID().uuidString)")
+        .appendingPathComponent("zeno-i18n-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    return (dir: dir, kairo: dir.appendingPathComponent("demo.kairo"))
+    return (dir: dir, zeno: dir.appendingPathComponent("demo.zeno"))
 }
 
 /// 单条命令的人类输出收集器。
@@ -85,10 +85,10 @@ private func captureStderr(_ body: () throws -> Void) throws -> String {
 
 struct CLILanguageOptionTests {
     /// 建一个含单个 ASCII 标题任务的项目（标题是用户数据，不能用中文干扰「无中文」判据）。
-    private func makeProject() throws -> (dir: URL, kairo: URL) {
+    private func makeProject() throws -> (dir: URL, zeno: URL) {
         let scratch = try makeScratch()
-        try runCLI(["project", "create", "Lang Demo", "--file", scratch.kairo.path])
-        try runCLI(["task", "add", "Alpha", "--file", scratch.kairo.path])
+        try runCLI(["project", "create", "Lang Demo", "--file", scratch.zeno.path])
+        try runCLI(["task", "add", "Alpha", "--file", scratch.zeno.path])
         return scratch
     }
 
@@ -96,7 +96,7 @@ struct CLILanguageOptionTests {
     @Test func langFlagSwitchesHumanOutput() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.kairo.path
+        let file = scratch.zeno.path
         try runCLI(["project", "create", "Lang Demo", "--file", file])
 
         let en = try runCLI(["task", "add", "Alpha", "--lang", "en", "--file", file]).text
@@ -111,7 +111,7 @@ struct CLILanguageOptionTests {
     @Test func langOptionIsPositionIndependent() throws {
         let scratch = try makeProject()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.kairo.path
+        let file = scratch.zeno.path
 
         let after = try runCLI(["task", "list", "--lang", "en", "--file", file]).text
         let before = try runCLI(["--lang", "en", "task", "list", "--file", file]).text
@@ -123,17 +123,17 @@ struct CLILanguageOptionTests {
         #expect(after.contains("Alpha"))
     }
 
-    /// D-02 / G-02：\`KAIRO_LANG\` 生效；非法值静默回退系统语言；系统不可判定回退 zh-Hans。
+    /// D-02 / G-02：\`ZENO_LANG\` 生效；非法值静默回退系统语言；系统不可判定回退 zh-Hans。
     @Test func environmentLanguageAndSilentFallback() throws {
         let scratch = try makeProject()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.kairo.path
+        let file = scratch.zeno.path
         let args = ["task", "list", "--file", file]
 
         let explicitEN = try runCLI(["task", "list", "--lang", "en", "--file", file]).text
         let envEN = try runCLI(
             args,
-            environment: ["KAIRO_LANG": "en"],
+            environment: ["ZENO_LANG": "en"],
             preferredLanguages: ["zh-Hans-CN"]
         ).text
         #expect(envEN == explicitEN)
@@ -142,7 +142,7 @@ struct CLILanguageOptionTests {
         #expect(containsHan(systemZH))
 
         // G-02：非法环境变量不得让命令失败，输出与不设逐字节一致。
-        let badEnv = try runCLI(args, environment: ["KAIRO_LANG": "xx"], preferredLanguages: ["zh-Hans-CN"]).text
+        let badEnv = try runCLI(args, environment: ["ZENO_LANG": "xx"], preferredLanguages: ["zh-Hans-CN"]).text
         #expect(badEnv == systemZH)
 
         // 系统语言不可判定（如法语）→ zh-Hans 兜底，不破坏既有中文脚本。
@@ -154,12 +154,12 @@ struct CLILanguageOptionTests {
     @Test func commandLineBeatsEnvironment() throws {
         let scratch = try makeProject()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.kairo.path
+        let file = scratch.zeno.path
 
         let flagEN = try runCLI(["task", "list", "--lang", "en", "--file", file]).text
         let flagOverEnvironment = try runCLI(
             ["task", "list", "--lang", "en", "--file", file],
-            environment: ["KAIRO_LANG": "zh-Hans"],
+            environment: ["ZENO_LANG": "zh-Hans"],
             preferredLanguages: ["zh-Hans-CN"]
         ).text
         #expect(flagOverEnvironment == flagEN)
@@ -167,7 +167,7 @@ struct CLILanguageOptionTests {
         let zh = try runCLI(["task", "list", "--lang", "zh-Hans", "--file", file]).text
         let flagOverEnglishEnvironment = try runCLI(
             ["task", "list", "--lang", "zh-Hans", "--file", file],
-            environment: ["KAIRO_LANG": "en"],
+            environment: ["ZENO_LANG": "en"],
             preferredLanguages: ["en-US"]
         ).text
         #expect(flagOverEnglishEnvironment == zh)
@@ -177,12 +177,12 @@ struct CLILanguageOptionTests {
     @Test func jsonOutputIsLanguageIndependent() throws {
         let scratch = try makeProject()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.kairo.path
+        let file = scratch.zeno.path
 
         let settings: [(arguments: [String], environment: [String: String], preferred: [String])] = [
             (["task", "list", "--json", "--lang", "en", "--file", file], [:], ["zh-Hans-CN"]),
             (["task", "list", "--json", "--lang", "zh-Hans", "--file", file], [:], ["en-US"]),
-            (["task", "list", "--json", "--file", file], ["KAIRO_LANG": "en"], ["zh-Hans-CN"]),
+            (["task", "list", "--json", "--file", file], ["ZENO_LANG": "en"], ["zh-Hans-CN"]),
             (["task", "list", "--json", "--file", file], [:], ["zh-Hans-CN"]),
         ]
         var outputs: [String] = []
@@ -202,7 +202,7 @@ struct CLILanguageOptionTests {
     func exitCodesAreLanguageInvariant(_ language: String) throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.kairo.path
+        let file = scratch.zeno.path
         try runCLI(["project", "create", "Codes", "--file", file])
 
         let success = CLIRouter.run(
@@ -213,7 +213,7 @@ struct CLILanguageOptionTests {
         #expect(success == 0)
 
         let runtimeError = CLIRouter.run(
-            arguments: ["task", "list", "--lang", language, "--file", "/nonexistent/kairo/demo.kairo"],
+            arguments: ["task", "list", "--lang", language, "--file", "/nonexistent/zeno/demo.zeno"],
             environment: [:],
             preferredLanguages: ["zh-Hans-CN"]
         )
@@ -232,7 +232,7 @@ struct CLILanguageOptionTests {
     func invalidLanguageIsUsageError(_ raw: String) throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.kairo.path
+        let file = scratch.zeno.path
 
         let code = CLIRouter.run(
             arguments: ["task", "list", "--lang", raw, "--file", file],

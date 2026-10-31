@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 编译 Kairo（Release）并打包 macOS 应用 Kairo.app。
+# 编译 Zeno（Release）并打包 macOS 应用 Zeno.app。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -7,9 +7,9 @@ cd "$ROOT"
 
 CONFIGURATION="${CONFIGURATION:-release}"
 DIST_DIR="${DIST_DIR:-$ROOT/dist}"
-APP_NAME="Kairo"
+APP_NAME="Zeno"
 APP_BUNDLE="$DIST_DIR/${APP_NAME}.app"
-BINARY_PRODUCT="KairoMacApp"
+BINARY_PRODUCT="ZenoMacApp"
 
 usage() {
   cat <<USAGE
@@ -94,9 +94,9 @@ cp "$SRC_BIN" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 # 一并放出 CLI / MCP，方便脚本与插件引用
-cp "$BUILD_DIR/KairoCLI" "$DIST_DIR/KairoCLI"
-cp "$BUILD_DIR/KairoMCP" "$DIST_DIR/KairoMCP"
-chmod +x "$DIST_DIR/KairoCLI" "$DIST_DIR/KairoMCP"
+cp "$BUILD_DIR/ZenoCLI" "$DIST_DIR/ZenoCLI"
+cp "$BUILD_DIR/ZenoMCP" "$DIST_DIR/ZenoMCP"
+chmod +x "$DIST_DIR/ZenoCLI" "$DIST_DIR/ZenoMCP"
 
 cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -113,7 +113,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key>
   <string>${APP_NAME}</string>
   <key>CFBundleIdentifier</key>
-  <string>app.kairo.macos</string>
+  <string>app.zeno.macos</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
@@ -138,18 +138,18 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <array>
     <dict>
       <key>CFBundleTypeName</key>
-      <string>Kairo Project</string>
+      <string>Zeno Project</string>
       <key>CFBundleTypeRole</key>
       <string>Editor</string>
       <key>LSHandlerRank</key>
       <string>Owner</string>
       <key>LSItemContentTypes</key>
       <array>
-        <string>app.kairo.project</string>
+        <string>app.zeno.project</string>
       </array>
       <key>CFBundleTypeExtensions</key>
       <array>
-        <string>kairo</string>
+        <string>zeno</string>
       </array>
     </dict>
   </array>
@@ -157,9 +157,9 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <array>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>app.kairo.project</string>
+      <string>app.zeno.project</string>
       <key>UTTypeDescription</key>
-      <string>Kairo Project</string>
+      <string>Zeno Project</string>
       <key>UTTypeConformsTo</key>
       <array>
         <string>public.data</string>
@@ -169,7 +169,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
       <dict>
         <key>public.filename-extension</key>
         <array>
-          <string>kairo</string>
+          <string>zeno</string>
         </array>
       </dict>
     </dict>
@@ -178,10 +178,10 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <array>
     <dict>
       <key>CFBundleURLName</key>
-      <string>Kairo Deep Link</string>
+      <string>Zeno Deep Link</string>
       <key>CFBundleURLSchemes</key>
       <array>
-        <string>kairo</string>
+        <string>zeno</string>
       </array>
     </dict>
   </array>
@@ -202,9 +202,9 @@ fi
 MENUBAR_SRC="$ROOT/design/icons/menubar"
 if [[ -d "$MENUBAR_SRC" ]]; then
   mkdir -p "$APP_BUNDLE/Contents/Resources"
-  cp "$MENUBAR_SRC/kairo-menubarTemplate.png" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
+  cp "$MENUBAR_SRC/zeno-menubarTemplate.png" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
   # @2x 倍图一并入包（NSStatusItem 目前在代码里尚未启用，先备好资源不缺位）
-  cp "$MENUBAR_SRC/kairo-menubarTemplate@2x.png" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
+  cp "$MENUBAR_SRC/zeno-menubarTemplate@2x.png" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
 fi
 
 printf 'APPL????' > "$APP_BUNDLE/Contents/PkgInfo"
@@ -232,11 +232,11 @@ if command -v codesign >/dev/null 2>&1; then
 fi
 
 cat > "$DIST_DIR/README.txt" <<NOTE
-Kairo 构建产物
+Zeno 构建产物
 ==============
 - ${APP_NAME}.app     macOS 应用（可 open 或拖到 /Applications）
-- KairoCLI            命令行
-- KairoMCP            MCP 服务（stdio）
+- ZenoCLI            命令行
+- ZenoMCP            MCP 服务（stdio）
 
 安装应用:
   bash tools/install.sh
@@ -244,5 +244,5 @@ NOTE
 
 echo "==> 完成"
 echo "    App:  $APP_BUNDLE"
-echo "    CLI:  $DIST_DIR/KairoCLI"
-echo "    MCP:  $DIST_DIR/KairoMCP"
+echo "    CLI:  $DIST_DIR/ZenoCLI"
+echo "    MCP:  $DIST_DIR/ZenoMCP"

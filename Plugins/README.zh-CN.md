@@ -1,19 +1,19 @@
-# 用 AI 智能体做项目：Kairo 接入指南
+# 用 AI 智能体做项目：Zeno 接入指南
 
 [English](README.md) · **简体中文**
 
-> 面向两种人：① 想让 AI 帮忙拆 WBS、排期、盯进度的人；② 要给某个智能体（Claude Code / CodeBuddy / Codex）接上 Kairo 的人。
-> 本文命令在 Kairo v0.8.0（2026-10-23）用 release 产物实测通过；宿主侧配置按官方格式给出，边界见文末「验证范围」。
+> 面向两种人：① 想让 AI 帮忙拆 WBS、排期、盯进度的人；② 要给某个智能体（Claude Code / CodeBuddy / Codex）接上 Zeno 的人。
+> 本文命令在 Zeno v0.8.0（2026-10-23）用 release 产物实测通过；宿主侧配置按官方格式给出，边界见文末「验证范围」。
 
 ## 0. 一句话说清分工
 
 | 角色 | 干什么 | 不干什么 |
 |---|---|---|
 | AI 智能体 | 读需求、拆任务、估投入、写代码、完成后回写状态 | 不做长期记忆，不维护进度账本 |
-| Kairo | 存 WBS 与依赖、算排期、查违例与重要路径、聚合完成度 | 不写代码、不替 AI 做技术判断 |
+| Zeno | 存 WBS 与依赖、算排期、查违例与重要路径、聚合完成度 | 不写代码、不替 AI 做技术判断 |
 | 人 | 定边界（起止日期、验收口径）、看甘特与违例、干预 | 不逐条盯任务 |
 
-Kairo 的三个入口同源（共用同一套写路径 `KairoSession`）：**MCP 工具 16 个**、**CLI 命令**、**macOS 应用**。数据只有一个落点：`.kairo` 单文件（JSON）。AI 走前两个，人走第三个。
+Zeno 的三个入口同源（共用同一套写路径 `ZenoSession`）：**MCP 工具 16 个**、**CLI 命令**、**macOS 应用**。数据只有一个落点：`.zeno` 单文件（JSON）。AI 走前两个，人走第三个。
 
 ## 1. 为什么只有 Claude Code 有插件
 
@@ -26,7 +26,7 @@ Kairo 的三个入口同源（共用同一套写路径 `KairoSession`）：**MCP
 | `TaskCompleted` hook | **不能** | 唯一真正值钱的部分 |
 | 清单 / 市场分发 | 不能 | 只在对外分发时值钱 |
 
-而 hook 的用途是**桥接 Claude Code 自己的任务系统**（TaskCreate / TaskCompleted）到 Kairo。Codex 没有等价事件；CodeBuddy 的插件格式是 Claude 格式的分叉（清单目录、根变量名都改了）。给它们各做一个壳，收益是「省一次配置」，成本是「永远跟着对方格式改」。
+而 hook 的用途是**桥接 Claude Code 自己的任务系统**（TaskCreate / TaskCompleted）到 Zeno。Codex 没有等价事件；CodeBuddy 的插件格式是 Claude 格式的分叉（清单目录、根变量名都改了）。给它们各做一个壳，收益是「省一次配置」，成本是「永远跟着对方格式改」。
 
 所以本仓库的取舍：
 
@@ -38,28 +38,28 @@ Kairo 的三个入口同源（共用同一套写路径 `KairoSession`）：**MCP
 ## 2. 共用前置：构建 + 建项目
 
 ```bash
-# 1) 改这一行：指向你的 Kairo 仓库
-export KAIRO="$HOME/work/opc/04-开发项目/Kairo"
+# 1) 改这一行：指向你的 Zeno 仓库
+export ZENO="$HOME/work/opc/04-开发项目/Zeno"
 
 # 2) 构建（MCP 与 CLI 两个产物一次出来）
-cd "$KAIRO" && swift build -c release
+cd "$ZENO" && swift build -c release
 
 # 3) 建工作目录和项目文件
 mkdir -p "$HOME/Projects/demo" && cd "$HOME/Projects/demo"
-"$KAIRO/.build/release/KairoCLI" project create "示例项目" \
-  --start 2026-11-02 --end 2026-11-20 --file demo.kairo
+"$ZENO/.build/release/ZenoCLI" project create "示例项目" \
+  --start 2026-11-02 --end 2026-11-20 --file demo.zeno
 ```
 
 成功输出：
 
 ```
 已创建项目：52F28B11「示例项目」
-已保存：/Users/you/Projects/demo/demo.kairo
+已保存：/Users/you/Projects/demo/demo.zeno
 格式版本：v1
 ```
 
 > `--start` / `--end` 是排期引擎的默认边界，超出会报违例。日期一律 `YYYY-MM-DD`。
-> CLI 语言按 `--lang <bcp47>` → `KAIRO_LANG` → 系统语言决定，默认回退简体中文；`--json` 输出与语言无关。
+> CLI 语言按 `--lang <bcp47>` → `ZENO_LANG` → 系统语言决定，默认回退简体中文；`--json` 输出与语言无关。
 
 可选：验证 MCP 服务本身（两行，看到 serverInfo 与 tools 即通）：
 
@@ -67,7 +67,7 @@ mkdir -p "$HOME/Projects/demo" && cd "$HOME/Projects/demo"
 printf '%s\n%s\n' \
  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}}' \
  '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
- | "$KAIRO/.build/release/KairoMCP" | head -c 400
+ | "$ZENO/.build/release/ZenoMCP" | head -c 400
 ```
 
 ## 3. 共用约定：把这段放进宿主的规则文件
@@ -75,9 +75,9 @@ printf '%s\n%s\n' \
 Codex 放 `AGENTS.md`，CodeBuddy 放 `CODEBUDDY.md`，Claude Code 放 `CLAUDE.md`（都在**项目根目录**）。把路径换成你的真实路径：
 
 ```markdown
-## Kairo 项目管理
+## Zeno 项目管理
 
-本项目用 Kairo 管理 WBS 与排期，项目文件固定为：/Users/you/Projects/demo/demo.kairo
+本项目用 Zeno 管理 WBS 与排期，项目文件固定为：/Users/you/Projects/demo/demo.zeno
 
 - 开工前先 task_list 读现状，已有任务不要重复创建。
 - 拆解顺序：里程碑 → 群组 → 叶子。叶子必须给 effortHours（按 8 小时/人日估），群组与里程碑不给投入。
@@ -85,7 +85,7 @@ Codex 放 `AGENTS.md`，CodeBuddy 放 `CODEBUDDY.md`，Claude Code 放 `CLAUDE.m
 - 拆完立刻 wbs_import，然后 schedule_compute；violations_list 有输出先报告，不要擅自改期限或依赖。
 - 每完成一个任务，必须调用 status_update 把状态置 done（进度自动 100%），不要只改进度数字。
 - 任务 ID 接受完整 UUID 或 ≥4 位唯一前缀；前缀不唯一时先列候选让用户选，禁止猜。
-- 只建计划不写代码时，明确声明「本次只更新 Kairo 计划」。
+- 只建计划不写代码时，明确声明「本次只更新 Zeno 计划」。
 ```
 
 这段约定是三个宿主**唯一**共用的智能层。要改，只改这里，不要在别处再抄一份。
@@ -99,7 +99,7 @@ cd "$HOME/Projects/demo"
 cat > .mcp.json <<EOF
 {
   "mcpServers": {
-    "kairo": { "command": "$KAIRO/.build/release/KairoMCP" }
+    "zeno": { "command": "$ZENO/.build/release/ZenoMCP" }
   }
 }
 EOF
@@ -110,17 +110,17 @@ EOF
 ### 接法 B：完整插件（斜杠命令 + 自动回写）
 
 ```bash
-export KAIRO_PROJECT="$HOME/Projects/demo/demo.kairo"
-claude --plugin-dir "$KAIRO/Plugins/claude-code"
+export ZENO_PROJECT="$HOME/Projects/demo/demo.zeno"
+claude --plugin-dir "$ZENO/Plugins/claude-code"
 ```
 
 | 命令 | 作用 |
 |---|---|
-| `/kairo plan <需求文档路径或需求描述>` | 读需求 → 建 WBS → 排期 → 列违例 |
-| `/kairo done <任务ID 或前缀>` | 标记完成并回报群组完成度 |
-| `/kairo status` | 任务表、重要路径、违例汇总 |
+| `/zeno plan <需求文档路径或需求描述>` | 读需求 → 建 WBS → 排期 → 列违例 |
+| `/zeno done <任务ID 或前缀>` | 标记完成并回报群组完成度 |
+| `/zeno status` | 任务表、重要路径、违例汇总 |
 
-插件还注册 `TaskCompleted` hook：Claude Code 任务完成时按**标题精确匹配**找到同名 Kairo 任务并回写 `done`。因此参与回写的标题必须项目内唯一，否则跳过（重名）或误标（跨任务同名）。hook 直写文件，与应用并发编辑会互相覆盖，回写期间建议关掉应用。
+插件还注册 `TaskCompleted` hook：Claude Code 任务完成时按**标题精确匹配**找到同名 Zeno 任务并回写 `done`。因此参与回写的标题必须项目内唯一，否则跳过（重名）或误标（跨任务同名）。hook 直写文件，与应用并发编辑会互相覆盖，回写期间建议关掉应用。
 
 ## 5. CodeBuddy
 
@@ -131,11 +131,11 @@ claude --plugin-dir "$KAIRO/Plugins/claude-code"
 cd "$HOME/Projects/demo"
 # §4 已建过 .mcp.json 可跳过
 cat > .mcp.json <<EOF
-{ "mcpServers": { "kairo": { "command": "$KAIRO/.build/release/KairoMCP" } } }
+{ "mcpServers": { "zeno": { "command": "$ZENO/.build/release/ZenoMCP" } } }
 EOF
 
 # 方式二：用户级（所有项目可见）
-codebuddy mcp add --scope user kairo -- "$KAIRO/.build/release/KairoMCP"
+codebuddy mcp add --scope user zeno -- "$ZENO/.build/release/ZenoMCP"
 ```
 
 项目根放 `CODEBUDDY.md`，内容用 §3 那段。启动 `codebuddy` 后首次连接项目级 MCP 需批准；非交互模式加 `--settings '{"enableAllProjectMcpServers": true}'`。
@@ -143,7 +143,7 @@ codebuddy mcp add --scope user kairo -- "$KAIRO/.build/release/KairoMCP"
 验证：
 
 ```bash
-codebuddy -p "用 kairo 的 task_list 列出 demo.kairo 的任务，只输出标题和状态"
+codebuddy -p "用 zeno 的 task_list 列出 demo.zeno 的任务，只输出标题和状态"
 ```
 
 ## 6. Codex
@@ -154,8 +154,8 @@ Codex 没有斜杠命令、没有可挂的任务完成事件，只有 `config.to
 # 1) 注册 MCP → 写入 ~/.codex/config.toml
 cat >> ~/.codex/config.toml <<EOF
 
-[mcp_servers.kairo]
-command = "$KAIRO/.build/release/KairoMCP"
+[mcp_servers.zeno]
+command = "$ZENO/.build/release/ZenoMCP"
 args = []
 EOF
 
@@ -164,21 +164,21 @@ EOF
 cd "$HOME/Projects/demo" && codex
 ```
 
-Codex 里没有 `/kairo plan`，用一句话触发同样流程：
+Codex 里没有 `/zeno plan`，用一句话触发同样流程：
 
 ```
-按 AGENTS.md 的 Kairo 流程，把 docs/需求.md 拆成 WBS 导入 demo.kairo，
+按 AGENTS.md 的 Zeno 流程，把 docs/需求.md 拆成 WBS 导入 demo.zeno，
 估算投入，然后排期并列出违例。只更新计划，不写代码。
 ```
 
 任务完成时让它走 CLI（比走 MCP 更可控，也方便终端复核）：
 
 ```bash
-"$KAIRO/.build/release/KairoCLI" status update 3AE8 --status done \
-  --file "$HOME/Projects/demo/demo.kairo"
+"$ZENO/.build/release/ZenoCLI" status update 3AE8 --status done \
+  --file "$HOME/Projects/demo/demo.zeno"
 ```
 
-> 本机 `codex` CLI 不在 PATH（装的是桌面版），上述 `config.toml` 按其现有 `[mcp_servers.*]` 结构给出；首次使用请确认 `codex` 能列出 kairo 工具。
+> 本机 `codex` CLI 不在 PATH（装的是桌面版），上述 `config.toml` 按其现有 `[mcp_servers.*]` 结构给出；首次使用请确认 `codex` 能列出 zeno 工具。
 
 ## 7. WBS 怎么拆（重点）
 
@@ -230,11 +230,11 @@ Codex 里没有 `/kairo plan`，用一句话触发同样流程：
 
 ```bash
 cd "$HOME/Projects/demo"
-BIN="$KAIRO/.build/release/KairoCLI"
+BIN="$ZENO/.build/release/ZenoCLI"
 
 # ⓪ 没有项目就先建一个（已有则跳过，不会覆盖）
-[ -f demo.kairo ] || "$BIN" project create "示例项目" \
-  --start 2026-11-02 --end 2026-11-20 --file demo.kairo
+[ -f demo.zeno ] || "$BIN" project create "示例项目" \
+  --start 2026-11-02 --end 2026-11-20 --file demo.zeno
 
 # ① 写一份 WBS（嵌套 JSON，叶子省略 children 也合法）
 cat > wbs.json <<'EOF'
@@ -249,10 +249,10 @@ cat > wbs.json <<'EOF'
 EOF
 
 # ② 导入（整棵树一次成型）
-"$BIN" wbs import wbs.json --file demo.kairo
+"$BIN" wbs import wbs.json --file demo.zeno
 
 # ③ 看清单（跳过也行，④ 用标题自动取前缀）
-"$BIN" task list --file demo.kairo
+"$BIN" task list --file demo.zeno
 ```
 
 输出（前缀以本地为准）：
@@ -267,24 +267,24 @@ EF44782F 客户端接入 待办 · 投入 24 小时
 
 ```bash
 # ④ 连依赖：用标题取前缀，不用手抄 ID
-id() { "$BIN" task list --file demo.kairo --json \
+id() { "$BIN" task list --file demo.zeno --json \
   | python3 -c "import json,sys;print([t['id'][:4] for t in json.load(sys.stdin) if t['title']=='$1'][0])"; }
 
-"$BIN" task update "$(id 服务端实现)" --dep "$(id 接口设计):fs" --file demo.kairo
-"$BIN" task update "$(id 客户端接入)" --dep "$(id 服务端实现):fs" --file demo.kairo
-"$BIN" task update "$(id 联调验收)" --dep "$(id 客户端接入):fs" --file demo.kairo
+"$BIN" task update "$(id 服务端实现)" --dep "$(id 接口设计):fs" --file demo.zeno
+"$BIN" task update "$(id 客户端接入)" --dep "$(id 服务端实现):fs" --file demo.zeno
+"$BIN" task update "$(id 联调验收)" --dep "$(id 客户端接入):fs" --file demo.zeno
 
 # ⑤ 排期
-"$BIN" schedule compute --file demo.kairo
+"$BIN" schedule compute --file demo.zeno
 
 # ⑥ 重要路径（宽延为 0 的任务链）
-"$BIN" schedule path --file demo.kairo
+"$BIN" schedule path --file demo.zeno
 
 # ⑦ 违例（环、越界、时限冲突）
-"$BIN" violations --file demo.kairo
+"$BIN" violations --file demo.zeno
 
 # ⑧ 回写（AI 每完成一个任务做一次）
-"$BIN" status update "$(id 接口设计)" --status done --file demo.kairo
+"$BIN" status update "$(id 接口设计)" --status done --file demo.zeno
 ```
 
 实测输出要点：
@@ -328,14 +328,14 @@ AI：逐任务实现 → status_update done → 群组完成度自动聚合
 
 | 现象 | 原因 | 处理 |
 |---|---|---|
-| `command not found` / 找不到 KairoMCP | 未构建或路径写错 | `swift build -c release`，配置里用绝对路径 |
+| `command not found` / 找不到 ZenoMCP | 未构建或路径写错 | `swift build -c release`，配置里用绝对路径 |
 | MCP 连上但工具报「未打开项目」 | 工具不会读环境变量，需显式路径 | 先 `project_open`，或在规则文件里写死路径 |
-| `kairo-mcp: 未找到 KairoMCP 构建产物` | 用了插件启动脚本但没构建 | 构建，或设 `KAIRO_MCP_BIN` |
-| Claude Code 任务完成但没回写 | 标题不唯一 / 缺 `KAIRO_PROJECT` / 找不到 CLI | 看 stderr 的 `kairo-hook:` 行；设 `KAIRO_CLI_BIN` |
-| 应用与 AI 同时改同一个 `.kairo` | 无自动合并 | 应用会提示重新载入；回写期间关应用 |
+| `zeno-mcp: 未找到 ZenoMCP 构建产物` | 用了插件启动脚本但没构建 | 构建，或设 `ZENO_MCP_BIN` |
+| Claude Code 任务完成但没回写 | 标题不唯一 / 缺 `ZENO_PROJECT` / 找不到 CLI | 看 stderr 的 `zeno-hook:` 行；设 `ZENO_CLI_BIN` |
+| 应用与 AI 同时改同一个 `.zeno` | 无自动合并 | 应用会提示重新载入；回写期间关应用 |
 | 排期日期差一天 | 输出是 UTC，应用显示本地 | 以应用或 `--json` 的本地日期为准 |
 
 ## 11. 验证范围
 
-- **实测通过**（macOS，Kairo v0.8.0 release 产物，2026-10-23）：§2、§4A、§4B、§5 的 Kairo 侧命令，§8 全流程，插件 hook 回写。
-- **未实测**：Codex 桌面版加载 `[mcp_servers.kairo]` 后工具是否即时可见（本机 `codex` CLI 不在 PATH）；CodeBuddy 的 `TaskCompleted` 事件 payload 字段（文档只列事件名未列字段，故未做 CodeBuddy 版 hook）。
+- **实测通过**（macOS，Zeno v0.8.0 release 产物，2026-10-23）：§2、§4A、§4B、§5 的 Zeno 侧命令，§8 全流程，插件 hook 回写。
+- **未实测**：Codex 桌面版加载 `[mcp_servers.zeno]` 后工具是否即时可见（本机 `codex` CLI 不在 PATH）；CodeBuddy 的 `TaskCompleted` 事件 payload 字段（文档只列事件名未列字段，故未做 CodeBuddy 版 hook）。

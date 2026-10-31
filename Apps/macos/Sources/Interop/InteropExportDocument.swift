@@ -1,25 +1,25 @@
 import Foundation
-import KairoCore
-import KairoInterop
+import ZenoCore
+import ZenoInterop
 
-/// Kairo → IR（导出方向）。
+/// Zeno → IR（导出方向）。
 ///
-/// 与 `KairoBridge`（IR → Kairo）成镜像：那边把「来源工作日」折成 Kairo 的工作日数，这边把
-/// Kairo 的工作日数折回来源的秒；两处都只读项目日历的 `hoursPerDay`，不做别的换算口径。
+/// 与 `ZenoBridge`（IR → Zeno）成镜像：那边把「来源工作日」折成 Zeno 的工作日数，这边把
+/// Zeno 的工作日数折回来源的秒；两处都只读项目日历的 `hoursPerDay`，不做别的换算口径。
 ///
 /// 只做「模型 → IR」，不写字节：写盘与格式细节属于适配器，旁注渲染属于 `InteropExportNotes`。
 enum InteropExportDocument {
     /// 导出时项目日历的 IR id（MSPDI 侧会被重新编号成整数 UID）。
-    static let calendarID = "kairo-calendar"
+    static let calendarID = "zeno-calendar"
 
-    /// Kairo 独有信息在 IR 里的承载约定。
+    /// Zeno 独有信息在 IR 里的承载约定。
     ///
-    /// 契约由 `MSPDIWriter` 一侧定义（带 `kairo.` 前缀的任务属性会被剥离并登记），
+    /// 契约由 `MSPDIWriter` 一侧定义（带 `zeno.` 前缀的任务属性会被剥离并登记），
     /// 这里只重复前缀与两个键名——IR 不表达五态状态，导出方向只能靠这条约定把它带出来。
-    enum KairoOnlyKey {
-        static let prefix = "kairo."
-        static let status = "kairo.status"
-        static let cancelReason = "kairo.cancelReason"
+    enum ZenoOnlyKey {
+        static let prefix = "zeno."
+        static let status = "zeno.status"
+        static let cancelReason = "zeno.cancelReason"
     }
 
     /// 把项目落成 IR。
@@ -29,7 +29,7 @@ enum InteropExportDocument {
     ///   - scheduled: 当前排期结果，按任务 id 索引；nil = 排期算不出来（依赖环、会话未打开）。
     ///     缺失的任务按「无计划日期」导出——宁可少写日期，也不在这里现算一份排期，
     ///     免得导出与界面显示两个日期。
-    /// - Returns: IR 文档；Kairo 独有信息的丢失已预置在 `document.ledger` 里。
+    /// - Returns: IR 文档；Zeno 独有信息的丢失已预置在 `document.ledger` 里。
     static func make(from project: Project, scheduled: [UUID: ScheduledTask]?) -> InteropDocument {
         let calendar = project.calendar ?? WorkCalendar()
         let hoursPerDay = calendar.effectiveHoursPerDay
@@ -83,7 +83,7 @@ enum InteropExportDocument {
                     calendarID: nil,
                     // 手动排期 → MS Project 的 Manual="1"；自动不写，保持与手写/他源文件的最小差异。
                     isManuallyScheduled: task.schedulingMode == .manual,
-                    attributes: kairoAttributes(of: task)
+                    attributes: zenoAttributes(of: task)
                 )
             )
         }
@@ -94,7 +94,7 @@ enum InteropExportDocument {
             count: implicitDependencyCount,
             detail: I18n.t(
                 "interop.export.detail.implicit_dependency",
-                "Kairo pushes group dependencies down to every leaf in the subtree (effectiveDependencies). "
+                "Zeno pushes group dependencies down to every leaf in the subtree (effectiveDependencies). "
                     + "They are written as explicit links so the other tool schedules the same way, "
                     + "but those links no longer belong to a group: re-importing them turns them into the task's own dependencies."
             ),
@@ -106,7 +106,7 @@ enum InteropExportDocument {
             count: priorityCount,
             detail: I18n.t(
                 "interop.export.detail.priority",
-                "Kairo's four priority levels have no counterpart in the MSPDI writer: priority is dropped and the other tool shows its default."
+                "Zeno's four priority levels have no counterpart in the MSPDI writer: priority is dropped and the other tool shows its default."
             )
         )
         ledger.record(
@@ -115,7 +115,7 @@ enum InteropExportDocument {
             count: tagCount,
             detail: I18n.t(
                 "interop.export.detail.tags",
-                "Task tags are a Kairo-local classification and MSPDI has no field for them: tags are dropped."
+                "Task tags are a Zeno-local classification and MSPDI has no field for them: tags are dropped."
             )
         )
         ledger.record(
@@ -124,7 +124,7 @@ enum InteropExportDocument {
             count: assigneeCount,
             detail: I18n.t(
                 "interop.export.detail.assignee",
-                "Kairo's assignee is free text and does not point at the resource table, while MSPDI only has resource assignments. "
+                "Zeno's assignee is free text and does not point at the resource table, while MSPDI only has resource assignments. "
                     + "The assignee is dropped: use assignments, not the assignee, when the other side needs working hours."
             )
         )
@@ -144,7 +144,7 @@ enum InteropExportDocument {
             count: dueDateCount,
             detail: I18n.t(
                 "interop.export.detail.due_date",
-                "Kairo's due date only drives overdue display and never touches scheduling, while MSPDI's Deadline does. "
+                "Zeno's due date only drives overdue display and never touches scheduling, while MSPDI's Deadline does. "
                     + "Writing it across would look successful while changing what it means, so it is dropped."
             ),
             samples: dueDateSamples
@@ -305,16 +305,16 @@ enum InteropExportDocument {
         }
     }
 
-    /// 任务的 Kairo 独有状态：只带「对方表达不了」的那两态与取消原因。
+    /// 任务的 Zeno 独有状态：只带「对方表达不了」的那两态与取消原因。
     ///
     /// pending / in_progress / done 由完成度与起止日期即可还原，写进去只会把旁注清单撑长。
-    private static func kairoAttributes(of task: TaskItem) -> [String: String] {
+    private static func zenoAttributes(of task: TaskItem) -> [String: String] {
         var attributes: [String: String] = [:]
         if task.status == .blocked || task.status == .cancelled {
-            attributes[KairoOnlyKey.status] = task.status.rawValue
+            attributes[ZenoOnlyKey.status] = task.status.rawValue
         }
         if let reason = task.cancelReason, !reason.isEmpty {
-            attributes[KairoOnlyKey.cancelReason] = reason
+            attributes[ZenoOnlyKey.cancelReason] = reason
         }
         return attributes
     }

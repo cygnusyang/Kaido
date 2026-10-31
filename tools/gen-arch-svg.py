@@ -10,7 +10,7 @@
 import io
 import os
 
-LANG = os.environ.get("KAIRO_SVG_LANG", "en")
+LANG = os.environ.get("ZENO_SVG_LANG", "en")
 
 DOCS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "docs")
 
@@ -45,7 +45,7 @@ STYLE = """  <style>
 """
 
 DEFS = """  <defs>
-    <marker id="kairo-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
+    <marker id="zeno-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
             orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0,0 L8,4 L0,8 Z" class="arrow-head"/>
     </marker>
@@ -58,16 +58,16 @@ def esc(s):
 
 
 # ------------------------------------------------------------------ 双语
-# KAIRO_SVG_LANG=zh 出中文图；默认 en。中文原文即键，缺键视为无需翻译。
+# ZENO_SVG_LANG=zh 出中文图；默认 en。中文原文即键，缺键视为无需翻译。
 # 图内坐标按内容自动排布，英文比中文宽，译文长度需受控（见各图注释里的宽度上限）。
 EN = {
     # ---- 1.1 分层图
-    "Kairo 分层架构": "Kairo layered architecture",
-    "等价接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）之下依次为 KairoPresentation "
-    "与 KairoCommands，底部为跨平台核心 KairoCore（数据模型、调度引擎、存储、查询过滤）。"
+    "Zeno 分层架构": "Zeno layered architecture",
+    "等价接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）之下依次为 ZenoPresentation "
+    "与 ZenoCommands，底部为跨平台核心 ZenoCore（数据模型、调度引擎、存储、查询过滤）。"
     "箭头方向为依赖方向。":
         "Four equivalent interfaces (macOS app, MCP server, CLI, Claude Code plugin) sit on top of "
-        "KairoPresentation and KairoCommands; the cross-platform core KairoCore (model, scheduler, "
+        "ZenoPresentation and ZenoCommands; the cross-platform core ZenoCore (model, scheduler, "
         "storage, queries) is at the bottom. Arrows point along the dependency direction.",
     "等价接口层（能力对等）": "Equivalent interface layer (same capability)",
     "macOS 应用": "macOS app",
@@ -76,31 +76,31 @@ EN = {
     "斜杠命令 + hooks": "slash commands + hooks",
     "（经 MCP 服务 / CLI 接入）": "(via MCP server / CLI)",
     "视图状态 → 平台中立快照 + 动作": "view state → snapshot + actions",
-    "KairoSession（唯一写入口）；MCP 服务与 CLI 共用同一命令语义":
-        "KairoSession (single write path); MCP server and CLI share one command semantics",
-    "跨平台核心 KairoCore（纯逻辑）": "Cross-platform core KairoCore (pure logic)",
+    "ZenoSession（唯一写入口）；MCP 服务与 CLI 共用同一命令语义":
+        "ZenoSession (single write path); MCP server and CLI share one command semantics",
+    "跨平台核心 ZenoCore（纯逻辑）": "Cross-platform core ZenoCore (pure logic)",
     "数据模型": "Data model",
     "调度引擎": "Scheduler",
     "存储": "Storage",
     "查询过滤": "Query",
-    "箭头方向 = 依赖方向（上层依赖下层）。KairoCore / KairoCommands / KairoPresentation "
+    "箭头方向 = 依赖方向（上层依赖下层）。ZenoCore / ZenoCommands / ZenoPresentation "
     "均为 Foundation-only，":
         "Arrows point along the dependency direction (upper depends on lower).",
-    "可在 iOS 与 Linux 编译。macOS 应用是本期唯一 UI 壳；MCP 服务与 CLI 经 KairoCommands "
+    "可在 iOS 与 Linux 编译。macOS 应用是本期唯一 UI 壳；MCP 服务与 CLI 经 ZenoCommands "
     "共享同一命令语义，接口层互不依赖。":
-        "KairoCore, KairoCommands, KairoPresentation are Foundation-only (iOS/Linux); the app is the "
+        "ZenoCore, ZenoCommands, ZenoPresentation are Foundation-only (iOS/Linux); the app is the "
         "only UI shell, and interface layers are independent.",
 
     # ---- 1.2 数据流
-    "Kairo 核心闭环数据流": "Kairo core loop: data flow",
-    "需求文档经 AI 读取得到 WBS 分解，MCP/CLI 建任务树后由 KairoCore 排期；"
+    "Zeno 核心闭环数据流": "Zeno core loop: data flow",
+    "需求文档经 AI 读取得到 WBS 分解，MCP/CLI 建任务树后由 ZenoCore 排期；"
     "状态回写经 MCP/CLI 回到 AI 逐功能开发，人随时在 macOS 应用审阅与干预。":
         "The AI reads the requirements document into a WBS; MCP/CLI build the task tree and "
-        "KairoCore schedules it. Status flows back through MCP/CLI to the AI, which builds feature "
+        "ZenoCore schedules it. Status flows back through MCP/CLI to the AI, which builds feature "
         "by feature while the human reviews in the macOS app.",
     "需求文档": "Requirements",
     "WBS 分解": "WBS breakdown",
-    "KairoCore 排期": "KairoCore scheduling",
+    "ZenoCore 排期": "ZenoCore scheduling",
     "AI 读取": "read by AI",
     "(MCP/CLI: 建任务树)": "(MCP/CLI: build task tree)",
     "AI 逐功能开发": "AI implements",
@@ -111,7 +111,7 @@ EN = {
         "requirements → plan → build → write-back.",
 
     # ---- 4.1 实体关系
-    "Kairo 项目实体关系": "Kairo project entity relations",
+    "Zeno 项目实体关系": "Zeno project entity relations",
     "Project 聚合设置、任务、相关性、资源、分配、工作日历、基线、变更历史与元数据；"
     "Task、TaskDependency、Resource、TaskAssignment 各自展开字段。":
         "Project aggregates settings, tasks, dependencies, resources, assignments, work calendar, "
@@ -126,7 +126,7 @@ EN = {
         "the other aggregates state their shape only.",
 
     # ---- 5 目录结构
-    "Kairo 仓库目录结构": "Kairo repository layout",
+    "Zeno 仓库目录结构": "Zeno repository layout",
     "monorepo 目录：Package.swift 根清单、Sources 跨平台核心、Apps/macOS 应用、"
     "Interfaces（MCP / CLI）、Plugins/claude-code、Tests 与 docs。":
         "Monorepo: Package.swift at the root, Sources for the cross-platform core, Apps/macOS for the "
@@ -137,14 +137,14 @@ EN = {
         "cross-platform core (pure logic; no AppKit/SwiftUI import)",
     "调度引擎（相关性传播/重要路径/宽延/违例）":
         "scheduler (dependency propagation, critical path, slack, violations)",
-    ".kairo 编解码 / 模板 / 导入导出": ".kairo codec / templates / import and export",
+    ".zeno 编解码 / 模板 / 导入导出": ".zeno codec / templates / import and export",
     "AIFilter 迁移 + 查询/过滤接口": "AIFilter migration + query/filter interfaces",
-    "macOS SwiftUI 应用（import KairoCore）": "macOS SwiftUI app (imports KairoCore)",
-    "ContentView / 甘特 / 命令面板 / kairo:// 深链":
-        "ContentView / Gantt / command palette / kairo:// deep links",
-    "MCP 服务（复用 KairoCore）": "MCP server (reuses KairoCore)",
-    "CLI（复用 KairoCore；从 MCP 契约派生命令）":
-        "CLI (reuses KairoCore; commands derived from the MCP contract)",
+    "macOS SwiftUI 应用（import ZenoCore）": "macOS SwiftUI app (imports ZenoCore)",
+    "ContentView / 甘特 / 命令面板 / zeno:// 深链":
+        "ContentView / Gantt / command palette / zeno:// deep links",
+    "MCP 服务（复用 ZenoCore）": "MCP server (reuses ZenoCore)",
+    "CLI（复用 ZenoCore；从 MCP 契约派生命令）":
+        "CLI (reuses ZenoCore; commands derived from the MCP contract)",
     "斜杠命令 + hooks + .mcp.json 模板": "slash commands + hooks + .mcp.json template",
     "核心全量单测（Linux 亦编译；现有 17 项迁入）":
         "full core unit tests (also build on Linux)",
@@ -153,26 +153,26 @@ EN = {
     "MCP/CLI 对等性契约测试（US-E5-05）": "MCP/CLI parity contract tests (US-E5-05)",
     "本文档集（00-vision / 01-prd / 02-architecture / 03-roadmap / features）":
         "this documentation set (00-vision / 01-prd / 02-architecture / 03-roadmap / features)",
-    "边界规则：KairoCore 不得反向依赖任何接口层或 UI；接口层只允许依赖 KairoCore 公开 API。":
-        "Boundary rule: KairoCore never depends on an interface layer or UI; interface layers may only "
-        "use the public KairoCore API.",
+    "边界规则：ZenoCore 不得反向依赖任何接口层或 UI；接口层只允许依赖 ZenoCore 公开 API。":
+        "Boundary rule: ZenoCore never depends on an interface layer or UI; interface layers may only "
+        "use the public ZenoCore API.",
 
     # ---- 6.1 ADR-013 分层
     "ADR-013 呈现层与唯一写路径分层": "ADR-013 presentation layer and single write path",
-    "KairoMacApp 依赖 KairoPresentation，KairoPresentation 依赖 KairoCommands，"
-    "KairoCommands 依赖 KairoCore；KairoMCP 与 KairoCLI 经 KairoCommands 接入核心。":
-        "KairoMacApp depends on KairoPresentation, which depends on KairoCommands, which depends on "
-        "KairoCore; KairoMCP and KairoCLI reach the core through KairoCommands.",
+    "ZenoMacApp 依赖 ZenoPresentation，ZenoPresentation 依赖 ZenoCommands，"
+    "ZenoCommands 依赖 ZenoCore；ZenoMCP 与 ZenoCLI 经 ZenoCommands 接入核心。":
+        "ZenoMacApp depends on ZenoPresentation, which depends on ZenoCommands, which depends on "
+        "ZenoCore; ZenoMCP and ZenoCLI reach the core through ZenoCommands.",
     "SwiftUI：WorkspaceStore 适配、壳层、绘制与手势":
         "SwiftUI: WorkspaceStore adapter, shell, drawing and gestures",
     "Foundation-only：视图状态 → 平台中立快照 + 动作":
         "Foundation-only: view state → neutral snapshot + actions",
-    "Foundation-only：KairoSession（唯一写入口）":
-        "Foundation-only: KairoSession (single write path)",
+    "Foundation-only：ZenoSession（唯一写入口）":
+        "Foundation-only: ZenoSession (single write path)",
     "Foundation-only：模型、排期、违例、查询、布局几何":
         "Foundation-only: model, scheduling, violations, queries, layout geometry",
-    "箭头指向被依赖层，依赖方向单向。KairoPresentation 不得 import SwiftUI、AppKit 或 Combine；":
-        "Arrows point at the depended-on layer; dependencies are one-way. KairoPresentation must not "
+    "箭头指向被依赖层，依赖方向单向。ZenoPresentation 不得 import SwiftUI、AppKit 或 Combine；":
+        "Arrows point at the depended-on layer; dependencies are one-way. ZenoPresentation must not "
         "import SwiftUI, AppKit or Combine;",
     "三层 Foundation-only 模块必须能在 iOS 与 Linux 编译。":
         "the three Foundation-only modules must build on iOS and Linux.",
@@ -194,7 +194,7 @@ def rect(x, y, w, h, cls="panel", rx=8):
 
 
 def path(d, cls="line", marker=True):
-    m = ' marker-end="url(#kairo-arrow)"' if marker else ""
+    m = ' marker-end="url(#zeno-arrow)"' if marker else ""
     return '  <path class="%s" d="%s"%s/>\n' % (cls, d, m)
 
 
@@ -214,9 +214,9 @@ def label_w(name, mono=True):
 def head(w, h, title, desc):
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d"\n'
-        '     role="img" aria-labelledby="kairo-fig-title kairo-fig-desc">\n'
-        '  <title id="kairo-fig-title">%s</title>\n'
-        '  <desc id="kairo-fig-desc">%s</desc>\n'
+        '     role="img" aria-labelledby="zeno-fig-title zeno-fig-desc">\n'
+        '  <title id="zeno-fig-title">%s</title>\n'
+        '  <desc id="zeno-fig-desc">%s</desc>\n'
         % (w, h, w, h, esc(tr(title)), esc(tr(desc)))
     ) + STYLE + DEFS + '  <rect class="canvas" x="0" y="0" width="%d" height="%d"/>\n' % (w, h)
 
@@ -232,9 +232,9 @@ def write(name, body):
 
 def layers():
     W, H = 900, 614
-    s = head(W, H, "Kairo 分层架构",
-             "等价接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）之下依次为 KairoPresentation "
-             "与 KairoCommands，底部为跨平台核心 KairoCore（数据模型、调度引擎、存储、查询过滤）。"
+    s = head(W, H, "Zeno 分层架构",
+             "等价接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）之下依次为 ZenoPresentation "
+             "与 ZenoCommands，底部为跨平台核心 ZenoCore（数据模型、调度引擎、存储、查询过滤）。"
              "箭头方向为依赖方向。")
 
     # 接口层
@@ -248,7 +248,7 @@ def layers():
     s += text(330, 122, "MCP SDK", "t-sub", "middle")
     s += rect(436, 58, 180, 100)
     s += text(526, 100, "CLI", "t-title", "middle")
-    s += text(526, 122, "kairo cmd", "t-sub", "middle")
+    s += text(526, 122, "zeno cmd", "t-sub", "middle")
     s += rect(632, 58, 224, 100)
     s += text(744, 82, "Claude Code 插件", "t-title", "middle")
     s += text(744, 104, "斜杠命令 + hooks", "t-sub", "middle")
@@ -257,11 +257,11 @@ def layers():
 
     # 呈现层 / 命令层
     s += rect(44, 222, 250, 64, "accent")
-    s += text(169, 248, "KairoPresentation", "t-title", "middle")
+    s += text(169, 248, "ZenoPresentation", "t-title", "middle")
     s += text(169, 270, "视图状态 → 平台中立快照 + 动作", "t-sub", "middle")
     s += rect(44, 326, 812, 60, "accent")
-    s += text(60, 352, "KairoCommands", "t-title")
-    s += text(60, 372, "KairoSession（唯一写入口）；MCP 服务与 CLI 共用同一命令语义", "t-sub")
+    s += text(60, 352, "ZenoCommands", "t-title")
+    s += text(60, 372, "ZenoSession（唯一写入口）；MCP 服务与 CLI 共用同一命令语义", "t-sub")
 
     # 依赖箭头
     s += path("M134,158 L134,222")
@@ -272,16 +272,16 @@ def layers():
 
     # 核心层
     s += rect(20, 420, 860, 154, "core", 12)
-    s += text(36, 444, "跨平台核心 KairoCore（纯逻辑）", "t-band")
+    s += text(36, 444, "跨平台核心 ZenoCore（纯逻辑）", "t-band")
     for x, name, sub in [(44, "数据模型", "Model"), (251, "调度引擎", "Schedule"),
                           (458, "存储", "Storage"), (665, "查询过滤", "Query")]:
         s += rect(x, 456, 191, 96)
         s += text(x + 95, 492, name, "t-title", "middle")
         s += text(x + 95, 514, sub, "t-sub", "middle")
 
-    s += text(20, 588, "箭头方向 = 依赖方向（上层依赖下层）。KairoCore / KairoCommands / KairoPresentation "
+    s += text(20, 588, "箭头方向 = 依赖方向（上层依赖下层）。ZenoCore / ZenoCommands / ZenoPresentation "
                        "均为 Foundation-only，", "t-note")
-    s += text(20, 606, "可在 iOS 与 Linux 编译。macOS 应用是本期唯一 UI 壳；MCP 服务与 CLI 经 KairoCommands "
+    s += text(20, 606, "可在 iOS 与 Linux 编译。macOS 应用是本期唯一 UI 壳；MCP 服务与 CLI 经 ZenoCommands "
                        "共享同一命令语义，接口层互不依赖。", "t-note")
     return s + "</svg>\n"
 
@@ -290,8 +290,8 @@ def layers():
 
 def dataflow():
     W, H = 880, 320
-    s = head(W, H, "Kairo 核心闭环数据流",
-             "需求文档经 AI 读取得到 WBS 分解，MCP/CLI 建任务树后由 KairoCore 排期；"
+    s = head(W, H, "Zeno 核心闭环数据流",
+             "需求文档经 AI 读取得到 WBS 分解，MCP/CLI 建任务树后由 ZenoCore 排期；"
              "状态回写经 MCP/CLI 回到 AI 逐功能开发，人随时在 macOS 应用审阅与干预。")
 
     s += rect(40, 44, 150, 56, "panel")
@@ -299,7 +299,7 @@ def dataflow():
     s += rect(290, 44, 150, 56, "panel")
     s += text(365, 77, "WBS 分解", "t-title", "middle")
     s += rect(610, 44, 210, 56, "core")
-    s += text(715, 77, "KairoCore 排期", "t-title", "middle")
+    s += text(715, 77, "ZenoCore 排期", "t-title", "middle")
 
     s += path("M190,72 L290,72")
     s += text(240, 62, "AI 读取", "t-sub", "middle")
@@ -365,7 +365,7 @@ def entities():
     height = y + 14
     width = 920
 
-    s = head(width, height, "Kairo 项目实体关系",
+    s = head(width, height, "Zeno 项目实体关系",
              "Project 聚合设置、任务、相关性、资源、分配、工作日历、基线、变更历史与元数据；"
              "Task、TaskDependency、Resource、TaskAssignment 各自展开字段。")
     s += rect(x_root, y_root, box_w, box_h, "accent")
@@ -393,28 +393,28 @@ def repo_layout():
     tree = [
         ("Package.swift", "SwiftPM 根清单（core + 各产品 target 同仓）", []),
         ("Sources/", "", [
-            ("KairoCore/", "跨平台核心（纯逻辑；零 AppKit/SwiftUI import）", [
+            ("ZenoCore/", "跨平台核心（纯逻辑；零 AppKit/SwiftUI import）", [
                 ("Model/", "Task/TaskDependency/Resource/WorkCalendar/Project/ProjectSettings", []),
                 ("Schedule/", "调度引擎（相关性传播/重要路径/宽延/违例）", []),
-                ("Storage/", ".kairo 编解码 / 模板 / 导入导出", []),
+                ("Storage/", ".zeno 编解码 / 模板 / 导入导出", []),
                 ("Query/", "AIFilter 迁移 + 查询/过滤接口", []),
             ]),
         ]),
         ("Apps/", "", [
-            ("macos/", "macOS SwiftUI 应用（import KairoCore）", [
-                ("Sources/", "ContentView / 甘特 / 命令面板 / kairo:// 深链", []),
+            ("macos/", "macOS SwiftUI 应用（import ZenoCore）", [
+                ("Sources/", "ContentView / 甘特 / 命令面板 / zeno:// 深链", []),
                 ("Resources/", "", []),
             ]),
         ]),
         ("Interfaces/", "", [
-            ("mcp/", "MCP 服务（复用 KairoCore）", []),
-            ("cli/", "CLI（复用 KairoCore；从 MCP 契约派生命令）", []),
+            ("mcp/", "MCP 服务（复用 ZenoCore）", []),
+            ("cli/", "CLI（复用 ZenoCore；从 MCP 契约派生命令）", []),
         ]),
         ("Plugins/", "", [
             ("claude-code/", "斜杠命令 + hooks + .mcp.json 模板", []),
         ]),
         ("Tests/", "", [
-            ("KairoCoreTests/", "核心全量单测（Linux 亦编译；现有 17 项迁入）", []),
+            ("ZenoCoreTests/", "核心全量单测（Linux 亦编译；现有 17 项迁入）", []),
             ("AppTests/", "应用层测试（Store 交互 + ImageRenderer 离屏渲染）", []),
             ("InterfaceTests/", "MCP/CLI 对等性契约测试（US-E5-05）", []),
         ]),
@@ -446,11 +446,11 @@ def repo_layout():
     height = entries[-1]["y"] + line_h + 18
     width = 920
 
-    s = head(width, height, "Kairo 仓库目录结构",
+    s = head(width, height, "Zeno 仓库目录结构",
              "monorepo 目录：Package.swift 根清单、Sources 跨平台核心、Apps/macOS 应用、"
              "Interfaces（MCP / CLI）、Plugins/claude-code、Tests 与 docs。")
     s += rect(x_root, y_root, box_w, box_h, "accent")
-    s += text(x_root + box_w / 2, y_root + 23, "Kairo/", "t-title", "middle")
+    s += text(x_root + box_w / 2, y_root + 23, "Zeno/", "t-title", "middle")
 
     def lx(depth):
         return x_root + 14 + depth * indent
@@ -473,7 +473,7 @@ def repo_layout():
             s += vline(cx(e["depth"] + 1), entries[kids[0]]["y"], entries[kids[-1]]["y"])
 
     s += text(20, height - 6,
-              "边界规则：KairoCore 不得反向依赖任何接口层或 UI；接口层只允许依赖 KairoCore 公开 API。",
+              "边界规则：ZenoCore 不得反向依赖任何接口层或 UI；接口层只允许依赖 ZenoCore 公开 API。",
               "t-note")
     return s + "</svg>\n"
 
@@ -483,14 +483,14 @@ def repo_layout():
 def adr013_layers():
     W, H = 880, 440
     s = head(W, H, "ADR-013 呈现层与唯一写路径分层",
-             "KairoMacApp 依赖 KairoPresentation，KairoPresentation 依赖 KairoCommands，"
-             "KairoCommands 依赖 KairoCore；KairoMCP 与 KairoCLI 经 KairoCommands 接入核心。")
+             "ZenoMacApp 依赖 ZenoPresentation，ZenoPresentation 依赖 ZenoCommands，"
+             "ZenoCommands 依赖 ZenoCore；ZenoMCP 与 ZenoCLI 经 ZenoCommands 接入核心。")
 
     bars = [
-        ("KairoMacApp", "SwiftUI：WorkspaceStore 适配、壳层、绘制与手势", "accent"),
-        ("KairoPresentation", "Foundation-only：视图状态 → 平台中立快照 + 动作", "accent"),
-        ("KairoCommands", "Foundation-only：KairoSession（唯一写入口）", "accent"),
-        ("KairoCore", "Foundation-only：模型、排期、违例、查询、布局几何", "core"),
+        ("ZenoMacApp", "SwiftUI：WorkspaceStore 适配、壳层、绘制与手势", "accent"),
+        ("ZenoPresentation", "Foundation-only：视图状态 → 平台中立快照 + 动作", "accent"),
+        ("ZenoCommands", "Foundation-only：ZenoSession（唯一写入口）", "accent"),
+        ("ZenoCore", "Foundation-only：模型、排期、违例、查询、布局几何", "core"),
     ]
     x, w, bh, step = 40, 560, 54, 26
     y0 = 26
@@ -505,20 +505,20 @@ def adr013_layers():
     bx, bw, bh2 = 640, 220, 84
     by = y0 + 2 * (bh + step) - 14
     s += rect(bx, by, bw, bh2, "soft")
-    s += text(bx + 16, by + 26, "KairoMCP / KairoCLI", "t-title")
-    s += text(bx + 16, by + 48, "→ KairoCommands", "t-mono")
-    s += text(bx + 16, by + 68, "→ KairoCore", "t-mono")
+    s += text(bx + 16, by + 26, "ZenoMCP / ZenoCLI", "t-title")
+    s += text(bx + 16, by + 48, "→ ZenoCommands", "t-mono")
+    s += text(bx + 16, by + 68, "→ ZenoCore", "t-mono")
     s += path("M%d,%d L%d,%d" % (bx, by + bh2 // 2, x + w, by + bh2 // 2))
 
     s += text(20, H - 32,
-              "箭头指向被依赖层，依赖方向单向。KairoPresentation 不得 import SwiftUI、AppKit 或 Combine；",
+              "箭头指向被依赖层，依赖方向单向。ZenoPresentation 不得 import SwiftUI、AppKit 或 Combine；",
               "t-note")
     s += text(20, H - 15, "三层 Foundation-only 模块必须能在 iOS 与 Linux 编译。", "t-note")
     return s + "</svg>\n"
 
 
 if __name__ == "__main__":
-    # 默认出英文（仓库主语言），KAIRO_SVG_LANG=zh 出中文；中文文件名加 .zh-CN 后缀。
+    # 默认出英文（仓库主语言），ZENO_SVG_LANG=zh 出中文；中文文件名加 .zh-CN 后缀。
     for lang in ("en", "zh"):
         globals()["LANG"] = lang
         suffix = "" if lang == "en" else ".zh-CN"

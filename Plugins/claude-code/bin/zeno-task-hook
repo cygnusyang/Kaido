@@ -1,0 +1,6 @@
+#!/bin/sh
+# Claude Code TaskCompleted hook：把同名 Zeno 任务标记完成。
+# 以 -I 运行 Python，避免从当前项目目录加载同名模块。
+set -eu
+here="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+exec python3 -I "$here/zeno-task-hook.py"

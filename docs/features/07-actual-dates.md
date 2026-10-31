@@ -29,7 +29,7 @@
 
 ## 3. 自动记录（确定结论，不留选项）
 
-唯一触发点：`KairoSession.applyStatus(status:progress:now:to:)`（状态/进度的统一回写入口）。
+唯一触发点：`ZenoSession.applyStatus(status:progress:now:to:)`（状态/进度的统一回写入口）。
 
 | 场景 | 行为 |
 | --- | --- |
@@ -74,14 +74,14 @@
 ## 6. 接口契约（core ↔ ui 分界）
 
 ```swift
-// KairoCore — Model
+// ZenoCore — Model
 public var actualStart: Date?                          // TaskItem 新增，CodingKey "actualStart"
 public init(…, assignments: [TaskAssignment] = [], actualStart: Date? = nil)  // 参数追加在末尾
 
-// KairoCore — Diagnostics
+// ZenoCore — Diagnostics
 case actualDateOrderInvalid = "model_actual_date_order_invalid"   // 只增不改，追加到 model 组
 
-// KairoCommands — KairoSession（唯一的写入口）
+// ZenoCommands — ZenoSession（唯一的写入口）
 @discardableResult
 public func statusUpdate(id: UUID, status: TaskStatus? = nil, progress: Double? = nil,
                          now: Date = Date()) throws -> TaskItem
@@ -91,7 +91,7 @@ public func setActualStart(id: UUID, date: Date?) throws -> TaskItem
 public func setActualFinish(id: UUID, date: Date?) throws -> TaskItem
 private static func applyStatus(status: TaskStatus?, progress: Double?, now: Date, to task: inout TaskItem)
 
-// KairoPresentation — 快照
+// ZenoPresentation — 快照
 public struct PlanRow { public var actualStart: Date?; public var actualFinish: Date? }   // init 末尾追加，默认 nil
 public struct TaskInspector { public var actualStart: Date? }                            // completedAt 保持原字段名
 public enum OutlineColumn { case actualStart, actualFinish }                             // width = 78 * scale
@@ -100,7 +100,7 @@ public static func visibleColumns(outlineWidth: Double, hidden: Set<OutlineColum
                                   shownOptional: Set<OutlineColumn> = []) -> [OutlineColumn]
 public struct WorkspaceViewState { public var visibleOptionalColumns: Set<String> = [] } // 键 = OutlineColumn.rawValue
 
-// KairoPresentation — 动作
+// ZenoPresentation — 动作
 case setActualStart(UUID, Date?)
 case setActualFinish(UUID, Date?)
 ```
@@ -110,14 +110,14 @@ case setActualFinish(UUID, Date?)
 ## 7. 存储与向后兼容
 
 - JSON 键：新增 `actualStart`（ISO8601，同 `startDate` 写法）；实际结束继续写 `completedAt`。
-- 旧文件可读：`decodeIfPresent` → `nil`，**不升 `KairoFile.currentFormatVersion`**（仍为 1），不做迁移。
+- 旧文件可读：`decodeIfPresent` → `nil`，**不升 `ZenoFile.currentFormatVersion`**（仍为 1），不做迁移。
 - 新文件被旧版本读：Codable 忽略未知键，不报错。
 - ADR-011 前向兼容口径不变；无需 `FormatMigration` 改动。
 
 ## 8. CLI / MCP 输出
 
-- `kairo task get <id>`：新增两行「实际开始」「实际结束」（`CLIStrings` 新增 `actualStart(_:)` / `actualFinish(_:)`；
-  `kairo status update` 现有 `completedAt` 输出行的标签一并改为「实际结束」，方法名可保留或改名，行为不变）。
+- `zeno task get <id>`：新增两行「实际开始」「实际结束」（`CLIStrings` 新增 `actualStart(_:)` / `actualFinish(_:)`；
+  `zeno status update` 现有 `completedAt` 输出行的标签一并改为「实际结束」，方法名可保留或改名，行为不变）。
 - MCP：**无代码改动**——`task_get` / `task_list` 走 `JSONValue.json(task)` 的 Codable 直出，
   自动多出 `actualStart` 键，实际结束仍是 `completedAt`。
 - 写入口不扩：CLI/MCP 本期不提供写实际时间的参数（见§10 非目标），避免绕过 §4 的顺序校验与状态耦合。
@@ -133,10 +133,10 @@ case setActualFinish(UUID, Date?)
 7. `setActualStart(nil)` 清空；对 pending 任务写非 nil → status 变 `.inProgress`；对 done 任务写 → status 不变。
 8. `setActualFinish(nil)` 只清 `completedAt`，status 保持 done；非 nil → done + progress 1。
 9. `actualStart > actualFinish` → 抛 `model_actual_date_order_invalid`，任务不被修改、不产生撤销点。
-10. 旧 .kairo（无 `actualStart` 键）打开 → 字段 `nil`、`formatVersion` 仍为 1；保存后可被旧版本读回。
+10. 旧 .zeno（无 `actualStart` 键）打开 → 字段 `nil`、`formatVersion` 仍为 1；保存后可被旧版本读回。
 11. 大纲两列默认不出现；开启后位置在 `.finish` 之后、只读、无值显示 `—`；列宽可拖、可再隐藏。
 12. 群组行：`PlanRow.actualStart/actualFinish` 与 `TaskInspector.actualStart` 均为 `nil`，检查器无「实际」分区。
-13. `kairo task get` 输出两行实际时间；`task_get` 的 JSON 含 `actualStart`。
+13. `zeno task get` 输出两行实际时间；`task_get` 的 JSON 含 `actualStart`。
 14. 时间注入：`statusUpdate(…, now:)` 让上述断言不依赖墙钟。
 
 ## 10. 非目标
@@ -152,15 +152,15 @@ case setActualFinish(UUID, Date?)
 
 | 组 | 文件（互斥范围） | 前置 |
 | --- | --- | --- |
-| **A core** | `Sources/KairoCore/Model/TaskItem.swift`、`Sources/KairoCore/Diagnostics/KairoErrorCode.swift`、`Tests/KairoCoreTests/TaskItemActualDatesTests.swift`（新建） | — |
-| **B cmds** | `Sources/KairoCommands/KairoSession.swift`、`Tests/KairoCoreTests/SessionActualDatesTests.swift`（新建） | A |
-| **C pres** | `Sources/KairoPresentation/Snapshots.swift`、`OutlineColumnPreferences.swift`、`InspectorSnapshots.swift`、`WorkspaceAction.swift`、`ViewState.swift`、`Presenter.swift`、`Tests/KairoPresentationTests/ActualDatesPresentationTests.swift`（新建） | A |
-| **D cli** | `Sources/KairoCLI/CLIRouter.swift`、`Sources/KairoCLI/CLIStrings.swift` | A |
+| **A core** | `Sources/ZenoCore/Model/TaskItem.swift`、`Sources/ZenoCore/Diagnostics/ZenoErrorCode.swift`、`Tests/ZenoCoreTests/TaskItemActualDatesTests.swift`（新建） | — |
+| **B cmds** | `Sources/ZenoCommands/ZenoSession.swift`、`Tests/ZenoCoreTests/SessionActualDatesTests.swift`（新建） | A |
+| **C pres** | `Sources/ZenoPresentation/Snapshots.swift`、`OutlineColumnPreferences.swift`、`InspectorSnapshots.swift`、`WorkspaceAction.swift`、`ViewState.swift`、`Presenter.swift`、`Tests/ZenoPresentationTests/ActualDatesPresentationTests.swift`（新建） | A |
+| **D cli** | `Sources/ZenoCLI/CLIRouter.swift`、`Sources/ZenoCLI/CLIStrings.swift` | A |
 | **E app** | `Apps/macos/Sources/WorkspaceStore.swift`、`Workspace/WorkspaceView.swift`、`Workspace/Outline/OutlineTable.swift`、`Workspace/Display.swift`、`Workspace/Inspector/InspectorView.swift`、`Apps/macos/Resources/Localizable.xcstrings` | B + C |
 
 - 波次 1：A（唯一地基，必须先落）。
 - 波次 2：**B / C / D 并行**——B、C、D 文件范围两两不重叠，测试文件也各自独立。
 - 波次 3：E（需要 B 的会话方法与 C 的快照字段，串行）。
 - 不可并行：E 与 B/C；A 与任何其它组。
-- 需同步的既有测试：`Tests/KairoPresentationTests/OutlineColumnPreferencesTests.swift` 对 `visibleColumns` 的精确数组断言
+- 需同步的既有测试：`Tests/ZenoPresentationTests/OutlineColumnPreferencesTests.swift` 对 `visibleColumns` 的精确数组断言
   在签名加默认值后仍应通过（默认 `shownOptional: []`）；若新增 `optional` 集合断言，归 C 组。

@@ -10,7 +10,7 @@
 // hasUnsavedChanges == false，退出守卫不必再介入这条非交互路径。
 
 import Foundation
-import KairoUpdater
+import ZenoUpdater
 
 /// 安装前的落盘收口。
 @MainActor

@@ -1,6 +1,6 @@
 import Foundation
-import KairoCore
-import KairoPresentation
+import ZenoCore
+import ZenoPresentation
 
 /// 一条基线在「基线」菜单里的状态（v0.14 / docs/features/10-multi-baseline-gantt.md §5）。
 ///

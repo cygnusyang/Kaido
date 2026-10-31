@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import KairoInterop
+import ZenoInterop
 import InteropMSPDI
 
 /// MSPDI 适配器契约测试（14-interop-architecture §2 硬规则 4）。
@@ -114,19 +114,19 @@ struct MSPDIConformanceTests {
     }
 
     /// `preflight()` 是「拿清单的人」唯一入口，清单不能只有 IR 侧登记：
-    /// 约束降级、任务 id 丢失这些只在 IR → Kairo 阶段发生，必须由装配处补齐。
+    /// 约束降级、任务 id 丢失这些只在 IR → Zeno 阶段发生，必须由装配处补齐。
     @Test("预检台账 = IR 登记 + 桥接追加，不重不漏")
     func preflightLedgerIsComplete() throws {
         let data = try #require(MSPDIFixtures.all.first { $0.label.hasPrefix("群组") }?.data)
         let document = try adapter.read(data)
         let report = try adapter.preflight(data)
-        let bridged = KairoBridge().makeProject(from: document)
+        let bridged = ZenoBridge().makeProject(from: document)
 
         // 两份来源各自的出处不变：IR 侧就是文档登记，桥接层就是桥接追加。
         #expect(report.irLedger == document.ledger)
         #expect(report.bridgeLedger == bridged.bridgeLedger)
         #expect(report.ledger == bridged.ledger)
-        // 桥接层确实往台账里加了东西（任务 id 无法保留只在 IR → Kairo 阶段发生）。
+        // 桥接层确实往台账里加了东西（任务 id 无法保留只在 IR → Zeno 阶段发生）。
         #expect(report.irLedger.entry(field: "taskID") == nil)
         #expect(report.ledger.entry(field: "taskID")?.count == 3)
 

@@ -6,11 +6,11 @@
 // 「按按钮」换成应用内驱动：同一份 OTAInstallSequence，同一套状态机，只是触发者
 // 从鼠标换成了环境变量。
 //
-// 只在 DEBUG 编译存在（release 里这段代码与 `KAIRO_OTA_AUTOPILOT` 一起消失）。
+// 只在 DEBUG 编译存在（release 里这段代码与 `ZENO_OTA_AUTOPILOT` 一起消失）。
 //
 // 环境变量：
-//   KAIRO_OTA_AUTOPILOT=1        启用自动驾驶
-//   KAIRO_OTA_AUTOPILOT_STATE    （可选）状态文件路径：记录 pid 与替换脚本要写的
+//   ZENO_OTA_AUTOPILOT=1        启用自动驾驶
+//   ZENO_OTA_AUTOPILOT_STATE    （可选）状态文件路径：记录 pid 与替换脚本要写的
 //                                结果文件路径，供闭环脚本抓取安装结果
 //
 // 留痕格式（写 ota.log，tools/ota-loop-verify.sh 直接 grep）：
@@ -21,7 +21,7 @@
 #if DEBUG
 
 import Foundation
-import KairoUpdater
+import ZenoUpdater
 
 /// DEBUG 自动驾驶。
 ///
@@ -29,9 +29,9 @@ import KairoUpdater
 /// 单测可同步断言。只有真正驱动 UI 与状态机的 start / drive 标注 @MainActor。
 enum OTAAutopilot {
     /// 启用开关（值为 `1` 才算开启，其余一律不启用）。
-    static let environmentKey = "KAIRO_OTA_AUTOPILOT"
+    static let environmentKey = "ZENO_OTA_AUTOPILOT"
     /// 状态文件路径（可选；未设则不写）。
-    static let statePathKey = "KAIRO_OTA_AUTOPILOT_STATE"
+    static let statePathKey = "ZENO_OTA_AUTOPILOT_STATE"
     /// 启动宽限：等窗口与 SwiftUI 场景就绪再动手（面板要能真的弹出并被收起）。
     static let startupDelayNanoseconds: UInt64 = 3_000_000_000
 

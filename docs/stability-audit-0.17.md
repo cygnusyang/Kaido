@@ -2,7 +2,7 @@
 
 审计对象：`Apps/macos/Sources/WorkspaceStore.swift`、`Apps/macos/Sources/AppDelegate.swift`（v0.16.0 基线）。
 方法：逐条读代码 → 用独立会话重写磁盘模拟外部写入 → 每条判定配一条可证伪断言（回滚修复必红）。
-范围外：KairoCore / KairoCommands / KairoPresentation / CLI / MCP / OutlineTable 未改动。
+范围外：ZenoCore / ZenoCommands / ZenoPresentation / CLI / MCP / OutlineTable 未改动。
 
 ## 一、缺陷（已修）
 
@@ -17,7 +17,7 @@
 ## 二、核对无缺陷（保留现状，断言已锁）
 
 - **保存失败不得报已保存**：`save()` 失败 → `.failed`（:1907），`refresh()` 遇 `.failed` 不降级（:413）；失败不动 `projectURL` 与磁盘旧文件（`failedSaveKeepsPreviousFileAndPath`）。
-- **写盘原子性**：`KairoFile.save` 走 `Data.write(options: .atomic)`，崩溃不会留半截文件；无草稿/恢复机制是既有设计（见第四节）。
+- **写盘原子性**：`ZenoFile.save` 走 `Data.write(options: .atomic)`，崩溃不会留半截文件；无草稿/恢复机制是既有设计（见第四节）。
 - **外部提示不重复**：同一 mtime 三轮询只立一次横幅、不弹窗不刷 notice；「保留本地」后同一磁盘版本不再立起（`repeatedChecks…` / `keepLocalSilences…`）。读失败按 mtime 记 `failedExternalMtime`，同一坏版本只提示一次（既有用例 `unrulyExternalFileIsNotRetriedRepeatedly`）。
 - **监视定时器**：`monitorTimer` 只做外部更新轮询（2s，`.common` 模式），不承担自动保存；`deinit` 失效，block 弱引用 self，无循环引用。**本版本无自动保存**。
 - **退出守卫必拦**：脏 → 询问；取消 → `.terminateCancel` 且内容不变；丢弃 → 直接退；保存成功才退（`quitGuardBlocksDirty…` 等 6 条）。

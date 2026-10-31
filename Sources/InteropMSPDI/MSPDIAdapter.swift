@@ -1,11 +1,11 @@
 import Foundation
-import KairoInterop
+import ZenoInterop
 
 /// MS Project XML（MSPDI）适配器（docs/features/13-interop-mapping.md）。
 ///
 /// 边界（评审硬门槛）：
-/// - 只 `import KairoInterop`，**不 import KairoCore**：所有「工作日 ↔ 日历天」换算在
-///   `KairoBridge`，本 target 只做 XML ↔ IR；
+/// - 只 `import ZenoInterop`，**不 import ZenoCore**：所有「工作日 ↔ 日历天」换算在
+///   `ZenoBridge`，本 target 只做 XML ↔ IR；
 /// - 不 import 任何别的适配器，删掉别的 target 仍能编译；
 /// - 版本前置：`SaveVersion` 不在支持范围内一律拒绝。
 ///
@@ -47,7 +47,7 @@ public struct MSPDIAdapter: FormatAdapter {
 
     /// 写出 IR；丢弃导出侧登记（只需要字节时用它）。
     ///
-    /// 需要「哪些 Kairo 独有信息带不走」时改用 `export(_:)`，把登记渲染成导出旁注文件。
+    /// 需要「哪些 Zeno 独有信息带不走」时改用 `export(_:)`，把登记渲染成导出旁注文件。
     public func write(_ document: InteropDocument) throws -> Data {
         try export(document).data
     }
@@ -60,9 +60,9 @@ public struct MSPDIAdapter: FormatAdapter {
         MSPDIWriter().write(document)
     }
 
-    /// 预检：版本号 + 规模 + 有损清单，不产出 Kairo 项目。
+    /// 预检：版本号 + 规模 + 有损清单，不产出 Zeno 项目。
     ///
-    /// 有损清单走 `PreflightReport.assembling`：IR 侧登记 + `KairoBridge` 追加的登记，
+    /// 有损清单走 `PreflightReport.assembling`：IR 侧登记 + `ZenoBridge` 追加的登记，
     /// 与真正导入时产出的台账同源（约束降级、自定义域丢弃都在里面）。
     public func preflight(_ data: Data) throws -> PreflightReport {
         let (document, saveVersion) = try InteropError.normalized { try MSPDIReader().read(data) }

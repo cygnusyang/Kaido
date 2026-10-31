@@ -1,12 +1,12 @@
 {
-  "description": "Claude Code 任务完成时自动回写同名 Kairo 任务（US-E5-03 验收 3）",
+  "description": "Claude Code 任务完成时自动回写同名 Zeno 任务（US-E5-03 验收 3）",
   "hooks": {
     "TaskCompleted": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/bin/kairo-task-hook",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/zeno-task-hook",
             "args": [],
             "timeout": 30
           }

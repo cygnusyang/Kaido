@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 518" width="920" height="518"
-     role="img" aria-labelledby="kairo-fig-title kairo-fig-desc">
-  <title id="kairo-fig-title">Kairo repository layout</title>
-  <desc id="kairo-fig-desc">Monorepo: Package.swift at the root, Sources for the cross-platform core, Apps/macOS for the app, Interfaces (MCP / CLI), Plugins/claude-code, Tests and docs.</desc>
+     role="img" aria-labelledby="zeno-fig-title zeno-fig-desc">
+  <title id="zeno-fig-title">Zeno repository layout</title>
+  <desc id="zeno-fig-desc">Monorepo: Package.swift at the root, Sources for the cross-platform core, Apps/macOS for the app, Interfaces (MCP / CLI), Plugins/claude-code, Tests and docs.</desc>
   <style>
     .canvas { fill: #FFFFFF; }
     .panel { fill: #FFFFFF; stroke: #D8DAE0; stroke-width: 1; }
@@ -31,21 +31,21 @@
     }
   </style>
   <defs>
-    <marker id="kairo-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
+    <marker id="zeno-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
             orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0,0 L8,4 L0,8 Z" class="arrow-head"/>
     </marker>
   </defs>
   <rect class="canvas" x="0" y="0" width="920" height="518"/>
   <rect class="accent" x="24" y="24" width="110" height="34" rx="8"/>
-  <text class="t-title" x="79.0" y="47" text-anchor="middle">Kairo/</text>
+  <text class="t-title" x="79.0" y="47" text-anchor="middle">Zeno/</text>
   <path class="tree" d="M38,80 L50,80"/>
   <text class="t-name" x="56" y="94">Package.swift</text>
   <text class="t-sub" x="170.79999999999998" y="94"># SwiftPM manifest (core and product targets in one repo)</text>
   <path class="tree" d="M38,99 L50,99"/>
   <text class="t-name" x="56" y="113">Sources/</text>
   <path class="tree" d="M56,121 L68,121"/>
-  <text class="t-name" x="74" y="135">KairoCore/</text>
+  <text class="t-name" x="74" y="135">ZenoCore/</text>
   <text class="t-sub" x="166.0" y="135"># cross-platform core (pure logic; no AppKit/SwiftUI import)</text>
   <path class="tree" d="M74,143 L86,143"/>
   <text class="t-name" x="92" y="157">Model/</text>
@@ -55,7 +55,7 @@
   <text class="t-sub" x="176.4" y="176"># scheduler (dependency propagation, critical path, slack, violations)</text>
   <path class="tree" d="M74,181 L86,181"/>
   <text class="t-name" x="92" y="195">Storage/</text>
-  <text class="t-sub" x="168.8" y="195"># .kairo codec / templates / import and export</text>
+  <text class="t-sub" x="168.8" y="195"># .zeno codec / templates / import and export</text>
   <path class="tree" d="M74,200 L86,200"/>
   <text class="t-name" x="92" y="214">Query/</text>
   <text class="t-sub" x="153.6" y="214"># AIFilter migration + query/filter interfaces</text>
@@ -63,20 +63,20 @@
   <text class="t-name" x="56" y="233">Apps/</text>
   <path class="tree" d="M56,241 L68,241"/>
   <text class="t-name" x="74" y="255">macos/</text>
-  <text class="t-sub" x="135.6" y="255"># macOS SwiftUI app (imports KairoCore)</text>
+  <text class="t-sub" x="135.6" y="255"># macOS SwiftUI app (imports ZenoCore)</text>
   <path class="tree" d="M74,263 L86,263"/>
   <text class="t-name" x="92" y="277">Sources/</text>
-  <text class="t-sub" x="168.8" y="277"># ContentView / Gantt / command palette / kairo:// deep links</text>
+  <text class="t-sub" x="168.8" y="277"># ContentView / Gantt / command palette / zeno:// deep links</text>
   <path class="tree" d="M74,282 L86,282"/>
   <text class="t-name" x="92" y="296">Resources/</text>
   <path class="tree" d="M38,301 L50,301"/>
   <text class="t-name" x="56" y="315">Interfaces/</text>
   <path class="tree" d="M56,323 L68,323"/>
   <text class="t-name" x="74" y="337">mcp/</text>
-  <text class="t-sub" x="120.4" y="337"># MCP server (reuses KairoCore)</text>
+  <text class="t-sub" x="120.4" y="337"># MCP server (reuses ZenoCore)</text>
   <path class="tree" d="M56,342 L68,342"/>
   <text class="t-name" x="74" y="356">cli/</text>
-  <text class="t-sub" x="120.4" y="356"># CLI (reuses KairoCore; commands derived from the MCP contract)</text>
+  <text class="t-sub" x="120.4" y="356"># CLI (reuses ZenoCore; commands derived from the MCP contract)</text>
   <path class="tree" d="M38,361 L50,361"/>
   <text class="t-name" x="56" y="375">Plugins/</text>
   <path class="tree" d="M56,383 L68,383"/>
@@ -85,7 +85,7 @@
   <path class="tree" d="M38,402 L50,402"/>
   <text class="t-name" x="56" y="416">Tests/</text>
   <path class="tree" d="M56,424 L68,424"/>
-  <text class="t-name" x="74" y="438">KairoCoreTests/</text>
+  <text class="t-name" x="74" y="438">ZenoCoreTests/</text>
   <text class="t-sub" x="203.99999999999997" y="438"># full core unit tests (also build on Linux)</text>
   <path class="tree" d="M56,443 L68,443"/>
   <text class="t-name" x="74" y="457">AppTests/</text>
@@ -104,5 +104,5 @@
   <path class="tree" d="M56,323 L56,342"/>
   <path class="tree" d="M56,383 L56,383"/>
   <path class="tree" d="M56,424 L56,462"/>
-  <text class="t-note" x="20" y="512">Boundary rule: KairoCore never depends on an interface layer or UI; interface layers may only use the public KairoCore API.</text>
+  <text class="t-note" x="20" y="512">Boundary rule: ZenoCore never depends on an interface layer or UI; interface layers may only use the public ZenoCore API.</text>
 </svg>

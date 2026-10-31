@@ -1,6 +1,6 @@
 import Foundation
 import UniformTypeIdentifiers
-import KairoInterop
+import ZenoInterop
 import InteropMSPDI
 import InteropOmniPlan
 
@@ -71,7 +71,7 @@ enum InteropFormats {
         throw InteropError.malformedDocument(
             I18n.t(
                 "interop.error.unknown_format",
-                "Not a plan file Kairo can read: expected MS Project XML or an OmniPlan .oplx package."
+                "Not a plan file Zeno can read: expected MS Project XML or an OmniPlan .oplx package."
             )
         )
     }

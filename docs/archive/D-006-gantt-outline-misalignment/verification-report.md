@@ -1,13 +1,13 @@
 # 验证报告 — 验证员 Vic
 
 - 日期：2026-10-20
-- 验证对象：Kairo「计划」tab 大纲/甘特纵向错位修复，commit `fd3b248`，分支 `feat/plan-workspace-redesign`
+- 验证对象：Zeno「计划」tab 大纲/甘特纵向错位修复，commit `fd3b248`，分支 `feat/plan-workspace-redesign`
 - 结论：**PASS**
 
 ## 1. 验证环境
 
 - macOS arm64（arm64e-apple-macos14.0），Swift Testing Library Version 1743
-- 仓库：/Users/cygnus/work/opc/04-开发项目/Kairo
+- 仓库：/Users/cygnus/work/opc/04-开发项目/Zeno
 - 所有 swift 命令按本机系统策略要求带 `--disable-sandbox`
 - 全程只运行未修改任何代码；唯一临时操作为 git worktree（已清理，见 §2.4）
 
@@ -27,13 +27,13 @@
 |---|---|
 | `swift test --disable-sandbox --filter OutlineAlignmentTests` | `✔ Test outlineRowsListHeightMatchesTimelinePitch() passed` — 1/1 |
 | `swift test --disable-sandbox --filter GUIRenderTests` | `Test run with 8 tests in 1 suite passed` — 8/8 |
-| `swift test --disable-sandbox --filter KairoCoreTests` | `Test run with 234 tests in 32 suites passed` — 234/234 |
+| `swift test --disable-sandbox --filter ZenoCoreTests` | `Test run with 234 tests in 32 suites passed` — 234/234 |
 | `swift test --disable-sandbox --filter AppTests`（额外全量回归） | `Test run with 99 tests in 6 suites passed` — 99/99 |
 | `swift build --disable-sandbox -c release -Xswiftc -warnings-as-errors` | `Build complete!`，exit 0，无警告 |
 
 ### 2.3 回归证明（新测试确实抓住原缺陷）✅
 
-用 `git worktree add /tmp/kairo-prefix-verify ac8e360`（修复前提交）临时挂出旧代码，将 `OutlineAlignmentTests.swift` 复制进 worktree 后运行：
+用 `git worktree add /tmp/zeno-prefix-verify ac8e360`（修复前提交）临时挂出旧代码，将 `OutlineAlignmentTests.swift` 复制进 worktree 后运行：
 
 ```
 ✘ Test outlineRowsListHeightMatchesTimelinePitch() recorded an issue at
@@ -44,7 +44,7 @@
 
 在旧代码上测试**FAIL**，实测 1160pt vs 期望 1120pt，恰为 40 行 × 1pt Divider 的占位开销，与根因描述精确吻合；修复后同测试转绿（1/1 passed）。红→绿闭环独立复现成立。
 
-清理：`git worktree remove --force /tmp/kairo-prefix-verify` 已执行，`git worktree list` 确认仅剩主工作区，工作区状态与验证前一致（仅 `CommandRegistry.swift` 预存改动 + `.agent-runs/`、`.omc/` 未跟踪目录）。
+清理：`git worktree remove --force /tmp/zeno-prefix-verify` 已执行，`git worktree list` 确认仅剩主工作区，工作区状态与验证前一致（仅 `CommandRegistry.swift` 预存改动 + `.agent-runs/`、`.omc/` 未跟踪目录）。
 
 ### 2.4 根因闭环（代码审查）✅
 
@@ -64,7 +64,7 @@
 | 标准 | 判定 | 证据 |
 |---|---|---|
 | 报告含提交范围核查结果 | ✅ | §2.1：commit 仅含 2 个约定文件；CommandRegistry.swift 预存改动未被带入 |
-| 报告含复跑测试的命令与输出摘要 | ✅ | §2.2：5 条命令全绿（新测试 1/1、GUIRender 8/8、KairoCore 234/234、AppTests 99/99、release build 通过） |
+| 报告含复跑测试的命令与输出摘要 | ✅ | §2.2：5 条命令全绿（新测试 1/1、GUIRender 8/8、ZenoCore 234/234、AppTests 99/99、release build 通过） |
 | 回归证明（新测试在旧代码上 FAIL） | ✅ | §2.3：worktree @ ac8e360 实测 FAIL（1160 vs 1120），与 Max 报告数字独立吻合；worktree 已清理 |
 | 根因闭环（无占布局 Divider、断言与 rowHeight=28 一致） | ✅ | §2.4 |
 | 边角检查（折叠/展开下分隔线仍在 28pt 行内） | ✅ | §2.5 |
@@ -74,7 +74,7 @@
 
 - §2.1 提交范围：`git show --stat fd3b248` / `git status` 输出（本报告引用）
 - §2.2 测试输出：各 swift test/build 命令 stdout 摘要（本报告引用，均为本会话独立复跑）
-- §2.3 红测输出：/tmp/kairo-prefix-verify 内运行结果（worktree 已删，输出留存于本报告）
+- §2.3 红测输出：/tmp/zeno-prefix-verify 内运行结果（worktree 已删，输出留存于本报告）
 
 ## 5. 最终结论
 

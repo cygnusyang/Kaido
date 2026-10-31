@@ -1,12 +1,12 @@
 name: Bug report
-description: Something broke — the app, the CLI, the MCP server or a .kairo file
+description: Something broke — the app, the CLI, the MCP server or a .zeno file
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
         Thanks for the report. The three fields that decide how fast this gets fixed:
-        exact command, expected result, actual result. If a `.kairo` file is involved,
+        exact command, expected result, actual result. If a `.zeno` file is involved,
         a minimal one helps a lot.
   - type: textarea
     id: what-happened
@@ -27,9 +27,9 @@ body:
       label: Steps to reproduce
       description: Numbered steps, or the exact command line. A failing test is even better.
       placeholder: |
-        1. kairo project create ... --file demo.kairo
-        2. kairo wbs import wbs.json --file demo.kairo
-        3. kairo schedule compute --file demo.kairo
+        1. zeno project create ... --file demo.zeno
+        2. zeno wbs import wbs.json --file demo.zeno
+        3. zeno schedule compute --file demo.zeno
     validations:
       required: true
   - type: dropdown
@@ -42,7 +42,7 @@ body:
         - CLI
         - MCP server
         - Claude Code plugin
-        - .kairo file / migration
+        - .zeno file / migration
         - Build or tests
     validations:
       required: true

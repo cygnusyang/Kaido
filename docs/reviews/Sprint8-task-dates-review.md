@@ -30,8 +30,8 @@ git diff --numstat fb8e75e..HEAD -- Tests/               → 5 个文件全部�
 
 ### H-1 夏令时下「结束」落点比所选日少一天（跨层日期口径不一致）
 
-- **文件**：`Sources/KairoCore/Schedule/ScheduleEngine.swift:314`（`scheduledFinish: addDays(selectedStart, duration)`）
-  对照 `ScheduleEngine.swift:340-342`（`addDays` = `+ days * 86400`），与 `Sources/KairoPresentation/ScheduleDateMath.swift:34-57`（日历整日加减）。
+- **文件**：`Sources/ZenoCore/Schedule/ScheduleEngine.swift:314`（`scheduledFinish: addDays(selectedStart, duration)`）
+  对照 `ScheduleEngine.swift:340-342`（`addDays` = `+ days * 86400`），与 `Sources/ZenoPresentation/ScheduleDateMath.swift:34-57`（日历整日加减）。
 - **问题**：S8 新增的换算层用 Calendar 整日相减/相加，而引擎仍用 86 400 秒乘除。`selectedStart` 已被 `startOfDay`
   归一到本地零点，`+ duration * 86400` 一旦跨越夏令时切换就落到前一天 23:00。已实测复现（America/New_York，2025-11-01 起）：
 
@@ -94,12 +94,12 @@ guard let current, ScheduleDateMath.dayOffset(from: current, to: start) == 0 els
 
 ### M-1 ALAP/下界与后向传播分叉：负宽延噪声 + `scheduledFinish > latestFinish`
 
-- **文件**：`Sources/KairoCore/Schedule/ScheduleEngine.swift:296-318`（`selectedStart` 收敛），后向传播 `:246-275` 未消费下界。
+- **文件**：`Sources/ZenoCore/Schedule/ScheduleEngine.swift:296-318`（`selectedStart` 收敛），后向传播 `:246-275` 未消费下界。
 - **问题**：选定值被夹到 `startDate` 下界，而 `latestStart/latestFinish/totalSlack` 仍是未夹取结果。
-  `Tests/KairoCoreTests/ScheduleStartDateBoundTests.swift:144 alapTaskNeverStartsBeforeStartDate` 固化了该形态：
+  `Tests/ZenoCoreTests/ScheduleStartDateBoundTests.swift:144 alapTaskNeverStartsBeforeStartDate` 固化了该形态：
   `latestStart = 11-04`、`scheduledStart = 11-20`、`scheduledFinish = 11-21`（> `latestFinish` 11-05）。
   当 `totalSlack < 0` 时 `ViolationEngine.negativeSlackViolations` 抛「任务无法安排：最晚开始早于最早开始」
-  （`Sources/KairoCore/Schedule/ViolationEngine.swift:135-143`）。
+  （`Sources/ZenoCore/Schedule/ViolationEngine.swift:135-143`）。
 - **影响**：用户只是给任务设了个晚于项目结束的开始日，却收到错误级违例，且文案归因于依赖而非其输入；
   `ScheduledTask` 内部出现 `latest < earliest` 的自相矛盾，宽延/画布读数可能对不上。
   E1 把该矛盾的触发面从「时限下界」扩大到「任何显式开始日」。
@@ -144,7 +144,7 @@ guard let current, ScheduleDateMath.dayOffset(from: current, to: start) == 0 els
 
 ### M-6 `startDate` 的日粒度归一不在 Store/会话层
 
-- **文件**：`WorkspaceStore.swift:545-550`；`Sources/KairoCommands/KairoSession.swift:393`（`Self.apply(patch.startDate, to: &task.startDate)` 原样写入）。
+- **文件**：`WorkspaceStore.swift:545-550`；`Sources/ZenoCommands/ZenoSession.swift:393`（`Self.apply(patch.startDate, to: &task.startDate)` 原样写入）。
 - **问题**：AC-S8-01 要求「写入 startOfDay」，但归一只发生在视图（`CalendarPopover.pick`）。任何绕过该视图的入口
   （画布拖拽、将来的 CLI/内联编辑、测试）都会把带时分秒的值原样落库；引擎虽会归一，但文件里存的是脏值。
 - **影响**：当前无可见故障（画布路径也归了），属单源缺失；新增入口即出现「同一字段两种精度」。
@@ -183,7 +183,7 @@ guard let current, ScheduleDateMath.dayOffset(from: current, to: start) == 0 els
 | 判据 | 缺口 | 建议 |
 |---|---|---|
 | **AC-S8-02** | 引擎层已覆盖（9 例）；**App 层「甘特条体 x 前移 4 天」无自动化**（`futureStartDateMovesScheduledStartAndGanttBar` 待补写） | 落盘时按判据「禁止只验 startDate 回显」实现，用布局结果断言 |
-| AC-S8-03 | `plannedStartHelper`（副行「计划开始」）零断言，且是 private 视图计算属性不可测 | 下沉为 KairoPresentation 纯函数后补 3 例（相等/差 1 天/无排期） |
+| AC-S8-03 | `plannedStartHelper`（副行「计划开始」）零断言，且是 private 视图计算属性不可测 | 下沉为 ZenoPresentation 纯函数后补 3 例（相等/差 1 天/无排期） |
 | AC-S8-05 b/c | 已有（`setTaskFinishRejectsFinishEqualToStart` / `…EarlierThanStart` / `rejectedFinishDoesNotPushUndoPoint`）；**缺「撤销栈深度不变」直接断言**（现为间接证明） | 暴露只读撤销栈深度或断言 `canUndo` 语义 |
 | AC-S8-08 b/c | 里程碑/无起点的禁用与文案无自动化；`finishDisabledReason` 为 private 计算属性，只能人工 | 抽出纯函数（kind/isAggregate/finishStart → reason）补 4 例 |
 | AC-S8-09 a | 单笔编辑=一步撤销仅被 `rejectedFinishDoesNotPushUndoPoint` 间接覆盖；`eachTaskStartEditIsOneUndoStep`（:181）实测的是**合并**，与用例名不符 | 增一条只 dispatch 一次的用例，并把 :181 更名 `sameFieldEditsWithin500msMergeIntoOneStep` |
@@ -223,10 +223,10 @@ guard let current, ScheduleDateMath.dayOffset(from: current, to: start) == 0 els
 - **token 单源**：`DateFieldRow.swift` 全文无字面色（`Color(…)`/`.black`/`.white`/`NSColor`/`ColorLiteral` 均 0 命中），
   越界/非本月 0.3/0.45 与 §3.5 一致，选中走 `semanticText(_:isSelected:)`；`DesignTokens.swift` 零改动。
 - **分层**：`ScheduleDateMath`/`CalendarGrid` 仅 import Foundation（+模型类型），无 SwiftUI/AppKit；
-  `KairoCore` 改动仅 `ScheduleEngine.swift` + 文档；`.kairo` 无新增字段（`Format*` 用例全绿）。
+  `ZenoCore` 改动仅 `ScheduleEngine.swift` + 文档；`.zeno` 无新增字段（`Format*` 用例全绿）。
 - **回归**：635/635 通过（含 `GanttCanvasEditTests`），`Tests/` diff 全为新增文件（无断言被改写，AC-S8-21 满足）。
 - **安全清单**：本改动无网络、无凭据、无路径拼接、无外部输入解析（日期来自系统日历控件）→ **N/A**；
-  未发现越权写入路径（写操作仍全部经 `KairoSession`，无直接 FileManager 调用）。
+  未发现越权写入路径（写操作仍全部经 `ZenoSession`，无直接 FileManager 调用）。
 
 ## 7. 复审门槛（建议）
 

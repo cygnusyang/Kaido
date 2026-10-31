@@ -24,7 +24,7 @@
 
 ## 3. 架构
 
-### 3.1 可测策略（KairoPresentation 新文件 `OutlineDateEditing.swift`）
+### 3.1 可测策略（ZenoPresentation 新文件 `OutlineDateEditing.swift`）
 
 ```swift
 public enum OutlineDateEditing {

@@ -5,10 +5,10 @@ import Darwin
 import Glibc
 #endif
 import Testing
-import KairoCore
-import KairoCommands
-@testable import KairoMCP
-@testable import KairoCLI
+import ZenoCore
+import ZenoCommands
+@testable import ZenoMCP
+@testable import ZenoCLI
 
 // 接口对等性契约测试（US-E5-05）：MCP 侧 JSON-RPC 编解码与工具往返。
 // CLI 侧路由测试见 CLITests.swift。
@@ -39,7 +39,7 @@ private func toolResult(_ value: JSONValue) throws -> JSONValue {
     #expect(response.objectValue?["id"] == .number(1))
     let result = response.objectValue?["result"]?.objectValue
     #expect(result?["protocolVersion"]?.stringValue == "2024-11-05")
-    #expect(result?["serverInfo"]?.objectValue?["name"]?.stringValue == "kairo")
+    #expect(result?["serverInfo"]?.objectValue?["name"]?.stringValue == "zeno")
     #expect(result?["capabilities"]?.objectValue?["tools"] != nil)
 }
 
@@ -120,7 +120,7 @@ private func cjkResidue(in value: JSONValue, path: String = "") -> [String] {
 // MARK: - violations_list 文案（F-0720）
 
 /// 阶段一契约：violations_list 必须同时返回结构化字段与人类可读 message，
-/// 且 message 由 KairoCommands.ViolationText 产出（与 CLI 同一实现）。
+/// 且 message 由 ZenoCommands.ViolationText 产出（与 CLI 同一实现）。
 @Test func violationsListCarriesCodeReasonAndMessage() throws {
     let server = MCPServer()
     _ = try send(server, #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_create","arguments":{"title":"违例项目"}}}"#)
@@ -391,12 +391,12 @@ private func cjkResidue(in value: JSONValue, path: String = "") -> [String] {
 // - task update：CLITests.swift 的 RouteErrorTests。
 // task add 未知标志静默忽略为顺延项，不在本版测试范围内。
 
-/// 建临时工作目录（CLI 用例用），返回目录与 .kairo 路径；调用方用 defer 清理。
-private func makeScratchDir() throws -> (dir: URL, kairo: URL) {
+/// 建临时工作目录（CLI 用例用），返回目录与 .zeno 路径；调用方用 defer 清理。
+private func makeScratchDir() throws -> (dir: URL, zeno: URL) {
     let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("kairo-interface-\(UUID().uuidString)")
+        .appendingPathComponent("zeno-interface-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    return (dir: dir, kairo: dir.appendingPathComponent("demo.kairo"))
+    return (dir: dir, zeno: dir.appendingPathComponent("demo.zeno"))
 }
 
 /// 跑一条 CLI 命令并捕获其 stdout —— 走 `CLIRouter.execute(... emit:)` 注入，**不碰进程级 fd 1**。
@@ -422,14 +422,14 @@ func cliOutput(
 @Test func usE102A1_cliTaskAddWithAssigneePersists() throws {
     let scratch = try makeScratchDir()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let file = scratch.kairo
+    let file = scratch.zeno
 
     try CLIRouter.execute(arguments: ["project", "create", "负责人 CLI 添加", "--file", file.path])
     try CLIRouter.execute(arguments: [
         "task", "add", "负责人任务", "--assignee", "dev-coder-core", "--file", file.path,
     ])
 
-    let project = try KairoFile.load(from: file)
+    let project = try ZenoFile.load(from: file)
     let task = try #require(project.tasks.first { $0.title == "负责人任务" })
     #expect(task.assignee == "dev-coder-core")
     // task list --json 输出该值（US-E1-02-A1 输出要求）。
@@ -437,7 +437,7 @@ func cliOutput(
     #expect(json.contains("\"assignee\":\"dev-coder-core\""))
     // task get 文本输出含负责人行（US-E1-02-A1 输出要求，HIGH-1）。
     // 断言中文回执：显式钉死语言，避免 CI（英文系统语言）下 CLI 默认出英文而假红。
-    let detail = try cliOutput(arguments: ["task", "get", task.id.uuidString, "--file", file.path], environment: ["KAIRO_LANG": "zh-Hans"], preferredLanguages: [])
+    let detail = try cliOutput(arguments: ["task", "get", task.id.uuidString, "--file", file.path], environment: ["ZENO_LANG": "zh-Hans"], preferredLanguages: [])
     #expect(detail.contains("负责人：dev-coder-core"))
 }
 
@@ -445,23 +445,23 @@ func cliOutput(
 @Test func usE102A2_cliTaskUpdateAssigneePersistsAndClears() throws {
     let scratch = try makeScratchDir()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let file = scratch.kairo
+    let file = scratch.zeno
 
     try CLIRouter.execute(arguments: ["project", "create", "负责人 CLI 更新", "--file", file.path])
     try CLIRouter.execute(arguments: ["task", "add", "待更新任务", "--file", file.path])
-    let id = try #require(try KairoFile.load(from: file).tasks.first).id
+    let id = try #require(try ZenoFile.load(from: file).tasks.first).id
 
     try CLIRouter.execute(arguments: [
         "task", "update", id.uuidString, "--assignee", "dev-coder-core", "--file", file.path,
     ])
-    var task = try #require(try KairoFile.load(from: file).tasks.first)
+    var task = try #require(try ZenoFile.load(from: file).tasks.first)
     #expect(task.assignee == "dev-coder-core")
 
     // 空字符串清空 → assignee 变 nil。
     try CLIRouter.execute(arguments: [
         "task", "update", id.uuidString, "--assignee", "", "--file", file.path,
     ])
-    task = try #require(try KairoFile.load(from: file).tasks.first)
+    task = try #require(try ZenoFile.load(from: file).tasks.first)
     #expect(task.assignee == nil)
 }
 
@@ -515,13 +515,13 @@ func cliOutput(
     #expect(cleared.objectValue?["assignee"] == nil)
 }
 
-// MARK: - FR-KAIRO-FMT-6：MCP 报告写入版本与升级来源
+// MARK: - FR-ZENO-FMT-6：MCP 报告写入版本与升级来源
 
-@Test func fr_kairo_fmt_6_mcpProjectToolsReportFormatVersion() throws {
+@Test func fr_zeno_fmt_6_mcpProjectToolsReportFormatVersion() throws {
     let scratch = try makeScratchDir()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
     let server = MCPServer()
-    let current = Double(KairoFile.currentFormatVersion)
+    let current = Double(ZenoFile.currentFormatVersion)
 
     let create = try toolResult(try send(
         server,
@@ -531,14 +531,14 @@ func cliOutput(
 
     let save = try toolResult(try send(
         server,
-        #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"project_save","arguments":{"path":"\#(scratch.kairo.path)"}}}"#
+        #"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"project_save","arguments":{"path":"\#(scratch.zeno.path)"}}}"#
     ))
     #expect(save.objectValue?["formatVersion"]?.doubleValue == current)
     #expect(save.objectValue?["upgradedFrom"] == nil)
 
     let open = try toolResult(try send(
         server,
-        #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"project_open","arguments":{"path":"\#(scratch.kairo.path)"}}}"#
+        #"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"project_open","arguments":{"path":"\#(scratch.zeno.path)"}}}"#
     ))
     // project_open：formatVersion 描述磁盘文件版本；另报当前版本与是否需要升级。
     #expect(open.objectValue?["formatVersion"]?.doubleValue == current)
@@ -547,14 +547,14 @@ func cliOutput(
     #expect(open.objectValue?["upgradedFrom"] == nil)
 }
 
-@Test func fr_kairo_fmt_6_mcpOpenReportsDiskVersionAndUpgradeNeed() throws {
+@Test func fr_zeno_fmt_6_mcpOpenReportsDiskVersionAndUpgradeNeed() throws {
     // current == 1 时磁盘上不存在合法旧文件；经会话接缝构造来源版本 0，校验 open 结果组装。
-    let session = KairoSession()
+    let session = ZenoSession()
     let project = Project()
     project.metadata.title = "旧格式会话"
     session.adoptProject(
         project,
-        from: URL(fileURLWithPath: "/tmp/kairo-old-source.kairo"),
+        from: URL(fileURLWithPath: "/tmp/zeno-old-source.zeno"),
         formatVersion: 0
     )
     let opened = try #require(
@@ -562,22 +562,22 @@ func cliOutput(
             .objectValue
     )
     #expect(opened["formatVersion"]?.doubleValue == 0)
-    #expect(opened["currentFormatVersion"]?.doubleValue == Double(KairoFile.currentFormatVersion))
+    #expect(opened["currentFormatVersion"]?.doubleValue == Double(ZenoFile.currentFormatVersion))
     #expect(opened["needsUpgrade"]?.boolValue == true)
     #expect(opened["upgradedFrom"] == nil)
 }
 
-@Test func fr_kairo_fmt_6_mcpSaveReportsUpgradedFromWithoutTouchingOriginal() throws {
+@Test func fr_zeno_fmt_6_mcpSaveReportsUpgradedFromWithoutTouchingOriginal() throws {
     let scratch = try makeScratchDir()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let original = scratch.kairo
-    let target = scratch.dir.appendingPathComponent("upgraded.kairo")
+    let original = scratch.zeno
+    let target = scratch.dir.appendingPathComponent("upgraded.zeno")
     // 原文件先以当前版本落盘，用于校验「保存到其他路径不改动原文件」。
-    try KairoFile.save(Project(), to: original)
+    try ZenoFile.save(Project(), to: original)
     let originalBytes = try Data(contentsOf: original)
 
     // 合成旧来源版本（current == 1 时磁盘上不存在合法旧文件，故经会话接缝构造）。
-    let session = KairoSession()
+    let session = ZenoSession()
     let project = Project()
     project.metadata.title = "旧格式会话"
     session.adoptProject(project, from: original, formatVersion: 0)
@@ -587,7 +587,7 @@ func cliOutput(
         server,
         #"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"project_save","arguments":{"path":"\#(target.path)"}}}"#
     ))
-    #expect(save.objectValue?["formatVersion"]?.doubleValue == Double(KairoFile.currentFormatVersion))
+    #expect(save.objectValue?["formatVersion"]?.doubleValue == Double(ZenoFile.currentFormatVersion))
     #expect(save.objectValue?["upgradedFrom"]?.doubleValue == 0)
     #expect(save.objectValue?["path"]?.stringValue == target.path)
     #expect(try Data(contentsOf: original) == originalBytes)

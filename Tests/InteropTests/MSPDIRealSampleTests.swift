@@ -1,16 +1,16 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoInterop
+import ZenoCore
+import ZenoInterop
 import InteropMSPDI
 
 /// 真实样本验收（docs/features/15-mpp-sample-analysis.md §2）。
 ///
 /// 样本是客户真实计划，**不进仓库**：默认读 `/tmp/plb2012.xml`，
-/// 可用环境变量 `KAIRO_MSPDI_SAMPLE` 指向别处；文件不存在时用例自动跳过。
+/// 可用环境变量 `ZENO_MSPDI_SAMPLE` 指向别处；文件不存在时用例自动跳过。
 @Suite("MSPDI 真实样本（PLB2012）")
 struct MSPDIRealSampleTests {
-    private static let samplePath = ProcessInfo.processInfo.environment["KAIRO_MSPDI_SAMPLE"]
+    private static let samplePath = ProcessInfo.processInfo.environment["ZENO_MSPDI_SAMPLE"]
         ?? "/tmp/plb2012.xml"
 
     private static var sampleAvailable: Bool {
@@ -83,7 +83,7 @@ struct MSPDIRealSampleTests {
 
         // 两份来源对得上：预检的 IR 层就是文档自己的登记，桥接层就是桥接追加的那一份。
         #expect(report.irLedger == document.ledger)
-        #expect(report.bridgeLedger == KairoBridge().makeProject(from: document).bridgeLedger)
+        #expect(report.bridgeLedger == ZenoBridge().makeProject(from: document).bridgeLedger)
 
         // 不重不漏：合并后的每一条计数恰好等于两份来源之和，键集合恰好是二者并集。
         let irIDs = Set(report.irLedger.entries.map(\.id))
@@ -99,7 +99,7 @@ struct MSPDIRealSampleTests {
 
     @Test("桥接后的有损登记：硬约束、日历换算、自定义域", .enabled(if: sampleAvailable))
     func bridgeLedger() throws {
-        let result = KairoBridge().makeProject(from: try loadDocument())
+        let result = ZenoBridge().makeProject(from: try loadDocument())
 
         let constraint = try #require(result.ledger.entry(field: "constraint"))
         #expect(constraint.kind == .degraded)
@@ -111,7 +111,7 @@ struct MSPDIRealSampleTests {
         #expect(calendar.count == 187)
         #expect(calendar.samples.first == "周一至周五")
 
-        // 166 条分配全部指向 Project 的「未分配」占位资源，Kairo 无处落地。
+        // 166 条分配全部指向 Project 的「未分配」占位资源，Zeno 无处落地。
         #expect(result.ledger.entry(field: "assignment")?.count == 166)
         #expect(result.ledger.entry(field: "resource.name")?.count == 1)
         #expect(result.ledger.entry(field: "baseline.progress")?.count == 478)
@@ -125,7 +125,7 @@ struct MSPDIRealSampleTests {
 
     @Test("桥接后的项目形态", .enabled(if: sampleAvailable))
     func bridgedProject() throws {
-        let result = KairoBridge().makeProject(from: try loadDocument())
+        let result = ZenoBridge().makeProject(from: try loadDocument())
         #expect(result.project.tasks.count == 187)
         #expect(result.project.tasks.flatMap { $0.dependencies }.count == 126)
         #expect(result.project.baselines.count == 4)

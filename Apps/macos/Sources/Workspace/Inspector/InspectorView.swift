@@ -1,6 +1,6 @@
 import SwiftUI
-import KairoCore
-import KairoPresentation
+import ZenoCore
+import ZenoPresentation
 
 /// 检查器（280–420pt）：任务 / 项目 / 违例三页。
 struct InspectorView: View {

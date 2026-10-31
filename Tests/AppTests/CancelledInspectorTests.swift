@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import KairoCommands
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import ZenoCommands
+import ZenoCore
+import ZenoPresentation
+@testable import ZenoMacApp
 
 /// v0.16 D：检查器的「已取消」状态选择与取消原因（应用适配层 + 视图口径）。
 ///
@@ -13,13 +13,13 @@ import KairoPresentation
 @Suite("已取消状态（检查器）")
 struct CancelledInspectorTests {
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.apptests.cancelled.\(UUID().uuidString)"
+        let suite = "zeno.apptests.cancelled.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         let store = WorkspaceStore(
             defaults: defaults,
             seedsDemoData: true,
-            projectLoader: { try KairoFile.read(from: $0) }
+            projectLoader: { try ZenoFile.read(from: $0) }
         )
         // 启动窗口是 [今天, 今天+7)：示例里结束在昨天的任务不画条。
         // 本套用例拿 hasGanttBar 当正反判据——没有条时「!hasGanttBar」会必然成立（假绿），

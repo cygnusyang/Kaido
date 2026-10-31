@@ -1,16 +1,16 @@
 import Foundation
-import KairoInterop
+import ZenoInterop
 
 /// OmniPlan `.oplx` 适配器（docs/features/11-interop-omniplan.md、14-interop-architecture.md）。
 ///
 /// 边界（评审硬门槛）：
-/// - 只 `import KairoInterop`：**不 import InteropMSPDI、不 import KairoCore**，
+/// - 只 `import ZenoInterop`：**不 import InteropMSPDI、不 import ZenoCore**，
 ///   删掉任一通道本 target 仍能编译；
 /// - 容器与 XML 解析各自持有（`ZipArchive` / `OmniPlanXML`），不向别的通道借代码；
 /// - 版本前置：`file-format-version` 不是 3 一律抛 `unsupportedFormatVersion`。
 ///
 /// 读写都实现（P2 读 + P3 写）：写出端是 `OmniPlanWriter`，容器按 11 §7 实测的最小必需集
-/// 落盘（`__TOC.xml` + `Actual.xml`）。写不回去的 Kairo 独有信息登记在 `OmniPlanExport.ledger`。
+/// 落盘（`__TOC.xml` + `Actual.xml`）。写不回去的 Zeno 独有信息登记在 `OmniPlanExport.ledger`。
 public struct OmniPlanAdapter: FormatAdapter {
     /// 稳定的格式标识。
     public static let formatID = "omniplan"
@@ -53,7 +53,7 @@ public struct OmniPlanAdapter: FormatAdapter {
 
     /// 写出 IR；丢弃导出侧登记（只需要字节时用它）。
     ///
-    /// 需要「哪些 Kairo 独有信息带不走」时改用 `export(_:)`，把登记渲染成导出旁注文件。
+    /// 需要「哪些 Zeno 独有信息带不走」时改用 `export(_:)`，把登记渲染成导出旁注文件。
     public func write(_ document: InteropDocument) throws -> Data {
         try export(document).data
     }
@@ -66,10 +66,10 @@ public struct OmniPlanAdapter: FormatAdapter {
         try OmniPlanWriter().write(document)
     }
 
-    /// 预检：版本号 + 规模 + **完整**有损台账，不产出 Kairo 项目。
+    /// 预检：版本号 + 规模 + **完整**有损台账，不产出 Zeno 项目。
     ///
     /// 台账交给 `PreflightReport.assembling` 装配：适配器只看得见「来源 → IR」的损失，
-    /// 桥接层追加的项（约束降级、自定义域丢弃等）只有 `KairoBridge` 算得出来，
+    /// 桥接层追加的项（约束降级、自定义域丢弃等）只有 `ZenoBridge` 算得出来，
     /// 自己拼一份会少报（真实样本 IR 侧 2 条、桥接追加 8 条）。
     /// 版本号仍用本通道的口径（`file-format-version 3`），默认实现的「supported: 3」读不出实际版本。
     public func preflight(_ data: Data) throws -> PreflightReport {

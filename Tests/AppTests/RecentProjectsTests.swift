@@ -1,14 +1,14 @@
 import Foundation
 import Testing
-import KairoCore
-@testable import KairoMacApp
+import ZenoCore
+@testable import ZenoMacApp
 
 /// 最近打开的项目：存储口径（去重、上限、失效剔除）、启动默认打开、菜单与面板入口。
 @MainActor
 @Suite("最近打开的项目")
 struct RecentProjectsTests {
     private func makeDefaults() -> UserDefaults {
-        let suite = "kairo.apptests.recent.\(UUID().uuidString)"
+        let suite = "zeno.apptests.recent.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults
@@ -16,12 +16,12 @@ struct RecentProjectsTests {
 
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-recent-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("zeno-recent-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
 
-    /// 造一个真实 `.kairo` 文件；写盘用的 store 顺手把路径记进同一个 defaults 域。
+    /// 造一个真实 `.zeno` 文件；写盘用的 store 顺手把路径记进同一个 defaults 域。
     @discardableResult
     private func makeProjectFile(
         named name: String,
@@ -42,7 +42,7 @@ struct RecentProjectsTests {
     /// 最多 5 条，最新在前，超出的旧条目被挤掉。
     @Test func keepsAtMostFiveNewestFirst() {
         let store = RecentProjects(defaults: makeDefaults())
-        let urls = (0..<7).map { URL(fileURLWithPath: "/tmp/kairo-recent-\($0).kairo") }
+        let urls = (0..<7).map { URL(fileURLWithPath: "/tmp/zeno-recent-\($0).zeno") }
         for url in urls {
             store.note(url)
         }
@@ -53,8 +53,8 @@ struct RecentProjectsTests {
     /// 同一文件重复打开只留一条，并提到最前。
     @Test func notingSameFileAgainMovesItToFront() {
         let store = RecentProjects(defaults: makeDefaults())
-        let first = URL(fileURLWithPath: "/tmp/a.kairo")
-        let second = URL(fileURLWithPath: "/tmp/b.kairo")
+        let first = URL(fileURLWithPath: "/tmp/a.zeno")
+        let second = URL(fileURLWithPath: "/tmp/b.zeno")
         store.note(first)
         store.note(second)
         store.note(first)
@@ -66,8 +66,8 @@ struct RecentProjectsTests {
     /// 路径写法不同（相对路径 / 多余分隔符）算同一个文件。
     @Test func deduplicatesByStandardizedPath() {
         let store = RecentProjects(defaults: makeDefaults())
-        store.note(URL(fileURLWithPath: "/tmp/kairo/./a.kairo"))
-        store.note(URL(fileURLWithPath: "/tmp/kairo/a.kairo"))
+        store.note(URL(fileURLWithPath: "/tmp/zeno/./a.zeno"))
+        store.note(URL(fileURLWithPath: "/tmp/zeno/a.zeno"))
         #expect(store.urls.count == 1)
     }
 
@@ -80,8 +80,8 @@ struct RecentProjectsTests {
 
     /// 已删除的文件从列表剔除，最近可打开的目标顺延到下一条。
     @Test func missingFilesArePrunedBeforeUse() {
-        let existing = URL(fileURLWithPath: "/tmp/kairo-recent/existing.kairo")
-        let gone = URL(fileURLWithPath: "/tmp/kairo-recent/gone.kairo")
+        let existing = URL(fileURLWithPath: "/tmp/zeno-recent/existing.zeno")
+        let gone = URL(fileURLWithPath: "/tmp/zeno-recent/gone.zeno")
         let defaults = makeDefaults()
         let store = RecentProjects(defaults: defaults)
         store.note(existing)
@@ -96,14 +96,14 @@ struct RecentProjectsTests {
     /// 重名文件用父目录消歧，菜单里不会出现两条一模一样的标题。
     @Test func displayNamesDisambiguateDuplicateFilenames() {
         let urls = [
-            URL(fileURLWithPath: "/work/alpha/demo.kairo"),
-            URL(fileURLWithPath: "/work/beta/demo.kairo"),
-            URL(fileURLWithPath: "/work/gamma/other.kairo"),
+            URL(fileURLWithPath: "/work/alpha/demo.zeno"),
+            URL(fileURLWithPath: "/work/beta/demo.zeno"),
+            URL(fileURLWithPath: "/work/gamma/other.zeno"),
         ]
         #expect(RecentProjects.displayNames(for: urls) == [
-            "alpha/demo.kairo",
-            "beta/demo.kairo",
-            "other.kairo",
+            "alpha/demo.zeno",
+            "beta/demo.zeno",
+            "other.zeno",
         ])
     }
 
@@ -113,7 +113,7 @@ struct RecentProjectsTests {
     @Test func openingRecordsProjectAndFailureDoesNot() throws {
         let defaults = makeDefaults()
         let directory = try makeTemporaryDirectory()
-        let url = try makeProjectFile(named: "opened.kairo", in: directory, defaults: defaults)
+        let url = try makeProjectFile(named: "opened.zeno", in: directory, defaults: defaults)
 
         let store = WorkspaceStore(defaults: defaults)
         store.clearRecentProjects()
@@ -122,7 +122,7 @@ struct RecentProjectsTests {
         #expect(store.open(url: url))
         #expect(store.recentProjects.map { RecentProjects.path(of: $0) } == [RecentProjects.path(of: url)])
 
-        let missing = directory.appendingPathComponent("missing.kairo")
+        let missing = directory.appendingPathComponent("missing.zeno")
         store.clearRecentProjects()
         #expect(store.open(url: missing) == false)
         #expect(store.recentProjects.isEmpty)
@@ -135,8 +135,8 @@ struct RecentProjectsTests {
     @Test func launchOpensTheMostRecentProject() async throws {
         let defaults = makeDefaults()
         let directory = try makeTemporaryDirectory()
-        try makeProjectFile(named: "older.kairo", in: directory, defaults: defaults)
-        let newest = try makeProjectFile(named: "newest.kairo", in: directory, defaults: defaults)
+        try makeProjectFile(named: "older.zeno", in: directory, defaults: defaults)
+        let newest = try makeProjectFile(named: "newest.zeno", in: directory, defaults: defaults)
 
         let store = WorkspaceStore(defaults: defaults)
         #expect(store.openMostRecentProjectOnLaunch())
@@ -151,7 +151,7 @@ struct RecentProjectsTests {
     @Test func explicitOpenRequestSuppressesLaunchOpen() throws {
         let defaults = makeDefaults()
         let directory = try makeTemporaryDirectory()
-        try makeProjectFile(named: "recent.kairo", in: directory, defaults: defaults)
+        try makeProjectFile(named: "recent.zeno", in: directory, defaults: defaults)
 
         let store = WorkspaceStore(defaults: defaults)
         store.noteExplicitOpenRequest()
@@ -166,7 +166,7 @@ struct RecentProjectsTests {
         #expect(store.openMostRecentProjectOnLaunch() == false)
 
         let directory = try makeTemporaryDirectory()
-        try makeProjectFile(named: "late.kairo", in: directory, defaults: defaults)
+        try makeProjectFile(named: "late.zeno", in: directory, defaults: defaults)
         #expect(store.openMostRecentProjectOnLaunch() == false)
         #expect(store.projectURL == nil)
     }
@@ -175,7 +175,7 @@ struct RecentProjectsTests {
     @Test func clearingRecentProjectsKeepsCurrentProject() throws {
         let defaults = makeDefaults()
         let directory = try makeTemporaryDirectory()
-        let url = try makeProjectFile(named: "keep.kairo", in: directory, defaults: defaults)
+        let url = try makeProjectFile(named: "keep.zeno", in: directory, defaults: defaults)
 
         let store = WorkspaceStore(defaults: defaults)
         #expect(store.open(url: url))
@@ -191,11 +191,11 @@ struct RecentProjectsTests {
     @Test func catalogExposesRecentCommands() throws {
         let defaults = makeDefaults()
         let directory = try makeTemporaryDirectory()
-        let url = try makeProjectFile(named: "alpha.kairo", in: directory, defaults: defaults)
+        let url = try makeProjectFile(named: "alpha.zeno", in: directory, defaults: defaults)
 
         let store = WorkspaceStore(defaults: defaults)
         #expect(store.open(url: url))
-        let commands = KairoCommandCatalog.make(
+        let commands = ZenoCommandCatalog.make(
             store: store,
             requestOpen: {},
             requestSave: {},
@@ -204,7 +204,7 @@ struct RecentProjectsTests {
 
         let item = try #require(commands.first { $0.id == "file.openRecent.item.0" })
         #expect(item.group == .file)
-        #expect(item.title == "alpha.kairo")
+        #expect(item.title == "alpha.zeno")
         #expect(item.aliases.contains(RecentProjects.path(of: url)))
         #expect(CommandPalette.matching("alpha", in: commands).contains { $0.id == item.id })
 
@@ -216,7 +216,7 @@ struct RecentProjectsTests {
     @Test func catalogOmitsRecentCommandsWhenEmpty() {
         let store = WorkspaceStore(defaults: makeDefaults())
         store.clearRecentProjects()
-        let commands = KairoCommandCatalog.make(
+        let commands = ZenoCommandCatalog.make(
             store: store,
             requestOpen: {},
             requestSave: {},

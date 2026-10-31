@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "kairo": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/kairo-mcp",
+    "zeno": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/zeno-mcp",
       "args": []
     }
   }

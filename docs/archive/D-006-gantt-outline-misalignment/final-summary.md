@@ -20,7 +20,7 @@ PASS — 缺陷已修复并独立验证通过。commit `fd3b248`（分支 `feat/
 
 ## VERIFICATION
 
-- Vic 独立复跑：OutlineAlignmentTests 1/1、GUIRenderTests 8/8、AppTests 99/99、KairoCoreTests 234/234、`swift build -c release`（warnings-as-errors）通过；gate-ui / gate-core 门禁通过。
+- Vic 独立复跑：OutlineAlignmentTests 1/1、GUIRenderTests 8/8、AppTests 99/99、ZenoCoreTests 234/234、`swift build -c release`（warnings-as-errors）通过；gate-ui / gate-core 门禁通过。
 - 回归证明：worktree 挂修复前代码（ac8e360）跑新测试实测 FAIL（measured 1160 vs expected 1120），红→绿闭环独立复现。
 - 提交范围核查：fd3b248 仅含 OutlineTable.swift + OutlineAlignmentTests.swift。
 - 注：本机 SwiftPM 跑测试需 `--disable-sandbox`（系统策略）。

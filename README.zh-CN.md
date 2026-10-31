@@ -1,49 +1,49 @@
-# Kairo
+# Zeno
 
 [English](README.md) · **简体中文**
 
 > **发音** · /ˈkaɪ.roʊ/（美）· /ˈkaɪ.rəʊ/（英）—— 读作「凯罗」，与城市「开罗」同音；不是「卡伊罗」，也不读「KAY-ee-roh」。
 
-[![Release](https://img.shields.io/github/v/release/cygnusyang/Kairo?color=blue)](https://github.com/cygnusyang/Kairo/releases/latest)
+[![Release](https://img.shields.io/github/v/release/cygnusyang/Zeno?color=blue)](https://github.com/cygnusyang/Zeno/releases/latest)
 [![License](https://img.shields.io/badge/license-PolyForm--Noncommercial--1.0.0-blue.svg)](LICENSE)
-[![CI](https://github.com/cygnusyang/Kairo/actions/workflows/ci.yml/badge.svg)](https://github.com/cygnusyang/Kairo/actions/workflows/ci.yml)
-[![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)](https://github.com/cygnusyang/Kairo/releases/latest)
+[![CI](https://github.com/cygnusyang/Zeno/actions/workflows/ci.yml/badge.svg)](https://github.com/cygnusyang/Zeno/actions/workflows/ci.yml)
+[![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)](https://github.com/cygnusyang/Zeno/releases/latest)
 [![Swift](https://img.shields.io/badge/swift-5.9%2B-orange)](Package.swift)
 
-AI 编码智能体的项目管理软件。Claude Code、Codex 负责执行，Kairo 负责 WBS 分解、排期、依赖与进度对照 —— 让「AI 干到哪了、还剩什么、什么时候能完」有账可查。
+AI 编码智能体的项目管理软件。Claude Code、Codex 负责执行，Zeno 负责 WBS 分解、排期、依赖与进度对照 —— 让「AI 干到哪了、还剩什么、什么时候能完」有账可查。
 
 > Project management for AI coding agents: WBS breakdown, dependencies, scheduling and progress tracking. AI executes, you review.
 
-![Kairo 计划工作台：左侧大纲与右侧时间画布逐行对齐取证](docs/images/app-plan-workbench.png)
+![Zeno 计划工作台：左侧大纲与右侧时间画布逐行对齐取证](docs/images/app-plan-workbench.png)
 
-**[下载 macOS 应用](https://github.com/cygnusyang/Kairo/releases/latest)** · **[五分钟上手（英文）](QUICKSTART.md)** · **[架构说明（英文）](ARCHITECTURE.md)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.zh-CN.md)**
+**[下载 macOS 应用](https://github.com/cygnusyang/Zeno/releases/latest)** · **[五分钟上手（英文）](QUICKSTART.md)** · **[架构说明（英文）](ARCHITECTURE.md)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.zh-CN.md)**
 
 ```bash
-brew install --cask cygnusyang/kairo/kairo
+brew install --cask cygnusyang/zeno/zeno
 ```
 
 
-**状态：开发中。** 已完成 Sprint 0–3 与 ADR-013 计划工作台重设计（核心模型、`.kairo` 持久化、调度引擎与违例检查、状态回写、大纲与时间画布工作台、Claude Code 插件与深链）；669 项测试通过。更新：2026-10-18。
+**状态：开发中。** 已完成 Sprint 0–3 与 ADR-013 计划工作台重设计（核心模型、`.zeno` 持久化、调度引擎与违例检查、状态回写、大纲与时间画布工作台、Claude Code 插件与深链）；669 项测试通过。更新：2026-10-18。
 
 ## 它解决什么问题
 
-AI 编码智能体擅长执行单个任务，但缺少调度侧的「对照物」：复杂项目需要的 WBS、依赖关系、排期与进度状态，目前散落在对话上下文和临时 Markdown 里。Kairo 把这部分独立出来，形成 AI 与人的分工闭环：
+AI 编码智能体擅长执行单个任务，但缺少调度侧的「对照物」：复杂项目需要的 WBS、依赖关系、排期与进度状态，目前散落在对话上下文和临时 Markdown 里。Zeno 把这部分独立出来，形成 AI 与人的分工闭环：
 
-![Kairo 分工闭环](docs/kairo-loop.zh-CN.svg)
+![Zeno 分工闭环](docs/zeno-loop.zh-CN.svg)
 
 - AI 通过 **MCP** 或 **CLI** 读写任务与排期（程序化接口是一等公民）；
 - 人通过 **macOS 应用** 审阅甘特、违例与全局进度并干预。
 
 ## 四种用法
 
-同一份能力，四个对等的入口。数据都落在同一个 `.kairo`（JSON 单文件）上。
+同一份能力，四个对等的入口。数据都落在同一个 `.zeno`（JSON 单文件）上。
 
 | 入口 | 服务对象 | 形态 |
 |---|---|---|
 | macOS 应用 | 人 | SwiftUI 计划工作台：大纲与时间画布逐行对齐、检查器（任务/项目/违例）、⌘K 命令面板 |
 | MCP 服务 | AI 智能体 | stdio JSON-RPC，16 个工具 |
 | CLI | AI 智能体 / 脚本 / 终端 | 与 MCP 能力对等的命令行 |
-| Claude Code 插件 | Claude Code | 斜杠命令 `/kairo plan|done|status` + `TaskCompleted` 自动回写 hook |
+| Claude Code 插件 | Claude Code | 斜杠命令 `/zeno plan|done|status` + `TaskCompleted` 自动回写 hook |
 
 > Codex 与 CodeBuddy 不装插件：直接用 MCP + 一段写进 `AGENTS.md` / `CODEBUDDY.md` 的约定。三个宿主怎么接、WBS 怎么拆、每条命令怎么复制，见 **[Plugins/README.zh-CN.md](Plugins/README.zh-CN.md)**。
 
@@ -51,20 +51,20 @@ AI 编码智能体擅长执行单个任务，但缺少调度侧的「对照物�
 
 macOS 应用提供英文与简体中文，跟随系统语言。语言在启动时按包内 `CFBundleLocalizations`（`en`、`zh-Hans`）协商确定——在「系统设置 › 通用 › 语言与地区」切换语言后重启应用生效。英文系统下出现中文即为缺陷，请带上界面名反馈。
 
-CLI 不读应用包：语言按 `--lang <bcp47>` → `KAIRO_LANG` → 系统语言的顺序决定；系统语言不可判定时回退简体中文，保证既有中文脚本不被破坏。`--json` 输出与语言无关，两种语言下字节一致。
+CLI 不读应用包：语言按 `--lang <bcp47>` → `ZENO_LANG` → 系统语言的顺序决定；系统语言不可判定时回退简体中文，保证既有中文脚本不被破坏。`--json` 输出与语言无关，两种语言下字节一致。
 
 实现方式（String Catalog 打包期编译成 `.lproj`、键文法、CI 门禁）见 [docs/features/06-localization.md](docs/features/06-localization.md)。English README: [README.md](README.md)。
 
 ## 和 AI 一起做项目：WBS 怎么走
 
-分工是固定的：**人定边界，AI 拆与执行，Kairo 记账并算账。**
+分工是固定的：**人定边界，AI 拆与执行，Zeno 记账并算账。**
 
 ```
 人：定起止日期与验收口径
  ↓
 AI：task_list 看现状 → 拆 WBS（里程碑→群组→叶子）→ wbs_import
  ↓
-Kairo：schedule_compute 排期 → violations_list 报违例 → schedule_critical_path 给重要路径
+Zeno：schedule_compute 排期 → violations_list 报违例 → schedule_critical_path 给重要路径
  ↓
 人：在 macOS 应用看甘特与违例，批准或改期限/依赖
  ↓
@@ -83,10 +83,10 @@ AI：逐任务实现 → status_update done → 群组完成度按投入加权�
 最小可跑的一段（复制即用，路径换成自己的）：
 
 ```bash
-export KAIRO="$HOME/path/to/Kairo"
-BIN="$KAIRO/.build/release/KairoCLI"
+export ZENO="$HOME/path/to/Zeno"
+BIN="$ZENO/.build/release/ZenoCLI"
 
-"$BIN" project create "示例项目" --start 2026-11-02 --end 2026-11-20 --file demo.kairo
+"$BIN" project create "示例项目" --start 2026-11-02 --end 2026-11-20 --file demo.zeno
 cat > wbs.json <<'EOF'
 [
   {"title": "支付模块", "kind": "group", "children": [
@@ -97,20 +97,20 @@ cat > wbs.json <<'EOF'
   ]}
 ]
 EOF
-"$BIN" wbs import wbs.json --file demo.kairo
-"$BIN" task list --file demo.kairo                 # 看清单（AI 也可直接 --json）
+"$BIN" wbs import wbs.json --file demo.zeno
+"$BIN" task list --file demo.zeno                 # 看清单（AI 也可直接 --json）
 
 # 用标题取 4 位前缀，避免手抄 ID
-id() { "$BIN" task list --file demo.kairo --json \
+id() { "$BIN" task list --file demo.zeno --json \
   | python3 -c "import json,sys;print([t['id'][:4] for t in json.load(sys.stdin) if t['title']=='$1'][0])"; }
 
-"$BIN" task update "$(id 服务端实现)" --dep "$(id 接口设计):fs" --file demo.kairo
-"$BIN" task update "$(id 客户端接入)" --dep "$(id 服务端实现):fs" --file demo.kairo
-"$BIN" task update "$(id 联调验收)" --dep "$(id 客户端接入):fs" --file demo.kairo
-"$BIN" schedule compute --file demo.kairo          # 排期
-"$BIN" schedule path --file demo.kairo             # 重要路径与宽延
-"$BIN" violations --file demo.kairo                # 环 / 越界 / 时限冲突
-"$BIN" status update "$(id 接口设计)" --status done --file demo.kairo  # AI 完成一个回写一个
+"$BIN" task update "$(id 服务端实现)" --dep "$(id 接口设计):fs" --file demo.zeno
+"$BIN" task update "$(id 客户端接入)" --dep "$(id 服务端实现):fs" --file demo.zeno
+"$BIN" task update "$(id 联调验收)" --dep "$(id 客户端接入):fs" --file demo.zeno
+"$BIN" schedule compute --file demo.zeno          # 排期
+"$BIN" schedule path --file demo.zeno             # 重要路径与宽延
+"$BIN" violations --file demo.zeno                # 环 / 越界 / 时限冲突
+"$BIN" status update "$(id 接口设计)" --status done --file demo.zeno  # AI 完成一个回写一个
 ```
 
 ## 快速开始
@@ -126,19 +126,19 @@ id() { "$BIN" task list --file demo.kairo --json \
 swift build                 # Debug 构建
 swift build -c release      # Release 构建
 swift test                  # 全量测试
-bash tools/gate-core.sh     # 核心门禁：KairoCore/KairoCommands/KairoPresentation 不得 import AppKit/SwiftUI/Cocoa/Combine
-bash tools/gate-ui.sh       # 视图门禁：视图不直接引用 Project/TaskItem/KairoSession
-bash tools/build.sh         # Release 构建并打包 dist/Kairo.app（另产出 KairoCLI / KairoMCP）
-bash tools/install.sh       # 将 Kairo.app 安装到 /Applications（缺产物时会先 build）
+bash tools/gate-core.sh     # 核心门禁：ZenoCore/ZenoCommands/ZenoPresentation 不得 import AppKit/SwiftUI/Cocoa/Combine
+bash tools/gate-ui.sh       # 视图门禁：视图不直接引用 Project/TaskItem/ZenoSession
+bash tools/build.sh         # Release 构建并打包 dist/Zeno.app（另产出 ZenoCLI / ZenoMCP）
+bash tools/install.sh       # 将 Zeno.app 安装到 /Applications（缺产物时会先 build）
 ```
 
 ### 1. macOS 应用
 
 ```bash
-swift run KairoMacApp
+swift run ZenoMacApp
 ```
 
-启动后为空项目（无示例数据）。想看效果可选「文件 → 载入示例项目」填充一组示例任务；⌘O 打开已有 `.kairo` 文件、⌘S 保存。常用键：
+启动后为空项目（无示例数据）。想看效果可选「文件 → 载入示例项目」填充一组示例任务；⌘O 打开已有 `.zeno` 文件、⌘S 保存。常用键：
 
 | 操作 | 快捷键 |
 |---|---|
@@ -152,19 +152,19 @@ swift run KairoMacApp
 ### 2. CLI
 
 ```bash
-swift run KairoCLI <命令>          # 下文简写为 kairo
+swift run ZenoCLI <命令>          # 下文简写为 zeno
 ```
 
-每次调用是独立的：打开 `--file` 指定的项目 → 执行 → 保存。未指定 `--file` 时默认 `./project.kairo`。
+每次调用是独立的：打开 `--file` 指定的项目 → 执行 → 保存。未指定 `--file` 时默认 `./project.zeno`。
 
 ```bash
-kairo project create "Kairo Sprint 3 演示" --file demo.kairo
-kairo task add "接口设计" --file demo.kairo --effort 3
-kairo task add "界面开发" --file demo.kairo --effort 5 --dep <接口设计ID>:fs
-kairo task list --file demo.kairo --json
-kairo schedule compute --file demo.kairo
-kairo violations --file demo.kairo
-kairo status update <任务ID> --status done --file demo.kairo
+zeno project create "Zeno Sprint 3 演示" --file demo.zeno
+zeno task add "接口设计" --file demo.zeno --effort 3
+zeno task add "界面开发" --file demo.zeno --effort 5 --dep <接口设计ID>:fs
+zeno task list --file demo.zeno --json
+zeno schedule compute --file demo.zeno
+zeno violations --file demo.zeno
+zeno status update <任务ID> --status done --file demo.zeno
 ```
 
 命令清单：
@@ -188,10 +188,10 @@ kairo status update <任务ID> --status done --file demo.kairo
 ### 3. MCP 服务
 
 ```bash
-.build/release/KairoMCP        # 或 .build/debug/KairoMCP
+.build/release/ZenoMCP        # 或 .build/debug/ZenoMCP
 ```
 
-stdio JSON-RPC，逐行请求。可用环境变量 `KAIRO_MCP_BIN` 指定可执行文件。
+stdio JSON-RPC，逐行请求。可用环境变量 `ZENO_MCP_BIN` 指定可执行文件。
 
 工具清单：`project_create` `project_open` `project_save` `task_add` `task_list` `task_get` `task_update` `task_delete` `wbs_import` `schedule_compute` `schedule_critical_path` `violations_list` `status_update` `status_batch_update` `resource_add` `resource_list`。
 
@@ -199,17 +199,17 @@ stdio JSON-RPC，逐行请求。可用环境变量 `KAIRO_MCP_BIN` 指定可执�
 
 ```bash
 swift build -c release
-export KAIRO_PROJECT=/path/to/demo.kairo
-claude --plugin-dir /path/to/Kairo/Plugins/claude-code
+export ZENO_PROJECT=/path/to/demo.zeno
+claude --plugin-dir /path/to/Zeno/Plugins/claude-code
 ```
 
 | 命令 | 作用 |
 |---|---|
-| `/kairo plan <需求>` | 读需求、建 WBS、排期、列违例 |
-| `/kairo done <任务ID>` | 标记任务完成并回报群组完成度 |
-| `/kairo status` | 任务表、重要路径与违例汇总 |
+| `/zeno plan <需求>` | 读需求、建 WBS、排期、列违例 |
+| `/zeno done <任务ID>` | 标记任务完成并回报群组完成度 |
+| `/zeno status` | 任务表、重要路径与违例汇总 |
 
-插件注册 `TaskCompleted` hook：Claude Code 任务完成时按标题精确匹配 Kairo 任务，唯一命中则经 CLI 回写 `done`。重名、0 命中、缺 `KAIRO_PROJECT` 等负路径只写 stderr 不回写，且始终以 0 退出。环境变量：`KAIRO_PROJECT`、`KAIRO_MCP_BIN`、`KAIRO_CLI_BIN`。
+插件注册 `TaskCompleted` hook：Claude Code 任务完成时按标题精确匹配 Zeno 任务，唯一命中则经 CLI 回写 `done`。重名、0 命中、缺 `ZENO_PROJECT` 等负路径只写 stderr 不回写，且始终以 0 退出。环境变量：`ZENO_PROJECT`、`ZENO_MCP_BIN`、`ZENO_CLI_BIN`。
 
 详见 [Plugins/claude-code/README.md](Plugins/claude-code/README.md)。
 
@@ -220,17 +220,17 @@ claude --plugin-dir /path/to/Kairo/Plugins/claude-code
 **Claude Code / CodeBuddy 共用**（项目根 `.mcp.json`，两个宿主都读）：
 
 ```bash
-KAIRO="$HOME/path/to/Kairo"          # ← 改成你的仓库路径
+ZENO="$HOME/path/to/Zeno"          # ← 改成你的仓库路径
 cat > .mcp.json <<EOF
-{ "mcpServers": { "kairo": { "command": "$KAIRO/.build/release/KairoMCP" } } }
+{ "mcpServers": { "zeno": { "command": "$ZENO/.build/release/ZenoMCP" } } }
 EOF
 ```
 
 **Codex**（写入 `~/.codex/config.toml`）：
 
 ```toml
-[mcp_servers.kairo]
-command = "/absolute/path/to/Kairo/.build/release/KairoMCP"
+[mcp_servers.zeno]
+command = "/absolute/path/to/Zeno/.build/release/ZenoMCP"
 args = []
 ```
 
@@ -238,7 +238,7 @@ args = []
 
 ### 深链
 
-应用支持 `kairo://task/<完整 UUID 或 ≥4 位前缀>`、`kairo://task?title=<标题>`、`kairo://project/<id>`，可在 MCP/CLI 输出中返回给人工审阅跳转。
+应用支持 `zeno://task/<完整 UUID 或 ≥4 位前缀>`、`zeno://task?title=<标题>`、`zeno://project/<id>`，可在 MCP/CLI 输出中返回给人工审阅跳转。
 
 ### 发版
 
@@ -256,12 +256,12 @@ tools/release.sh 0.8.3 --dry-run
 产物由 `tools/package.sh` 生成（本地与 CI 同源）：
 
 ```bash
-tools/package.sh v0.8.3            # 构建 + 打包，产出 dist/Kairo-v0.8.3.{dmg,zip}
+tools/package.sh v0.8.3            # 构建 + 打包，产出 dist/Zeno-v0.8.3.{dmg,zip}
 tools/package.sh v0.8.3 --skip-build --out /tmp/out
 ```
 
-- `Kairo-vX.Y.Z.dmg`：人装，挂载后拖入 Applications；
-- `Kairo-vX.Y.Z.zip`：OTA 载体（ditto 保留签名），配 `update-manifest.json` 使用；
+- `Zeno-vX.Y.Z.dmg`：人装，挂载后拖入 Applications；
+- `Zeno-vX.Y.Z.zip`：OTA 载体（ditto 保留签名），配 `update-manifest.json` 使用；
 - 打包前会校验应用内版本号等于 tag，不一致直接失败。
 
 推送 tag 后 GitHub Actions 复跑测试、重新打包、签名更新清单、归档 `artifacts` 分支并创建 Release。
@@ -270,19 +270,19 @@ tools/package.sh v0.8.3 --skip-build --out /tmp/out
 
 ```
 Package.swift               SwiftPM 清单（6 个 target）
-Sources/KairoCore/          跨平台核心：模型、调度引擎、违例、查询与布局几何（零 UI 依赖）
-Sources/KairoCommands/      唯一写路径 KairoSession（MCP/CLI/UI 共用）
-Sources/KairoPresentation/  平台中立呈现层：快照、视图状态与动作（零 UI 依赖）
-Sources/KairoMCP/           MCP 服务（stdio JSON-RPC）
-Sources/KairoCLI/           CLI
+Sources/ZenoCore/          跨平台核心：模型、调度引擎、违例、查询与布局几何（零 UI 依赖）
+Sources/ZenoCommands/      唯一写路径 ZenoSession（MCP/CLI/UI 共用）
+Sources/ZenoPresentation/  平台中立呈现层：快照、视图状态与动作（零 UI 依赖）
+Sources/ZenoMCP/           MCP 服务（stdio JSON-RPC）
+Sources/ZenoCLI/           CLI
 Apps/macos/Sources/         macOS SwiftUI 工作台（WorkspaceStore 适配层 + 视图）
 Plugins/README.zh-CN.md  AI 协作指南（中文）：Claude Code / CodeBuddy / Codex 接法与 WBS 拆解规程
 Plugins/claude-code/        Claude Code 插件（斜杠命令 + hooks）
-Tests/                      KairoCoreTests / KairoPresentationTests / InterfaceTests / AppTests
+Tests/                      ZenoCoreTests / ZenoPresentationTests / InterfaceTests / AppTests
 tools/gate-core.sh          核心与呈现层门禁
 tools/gate-ui.sh            视图快照边界门禁
-tools/build.sh              Release 构建并打包 Kairo.app
-tools/install.sh            安装 Kairo.app 到 /Applications
+tools/build.sh              Release 构建并打包 Zeno.app
+tools/install.sh            安装 Zeno.app 到 /Applications
 design/                     视觉设计：启动图标、状态栏图标、品牌色
 docs/                       需求、架构、设计系统、路线图与 Sprint 验收记录
 ```
@@ -303,7 +303,7 @@ docs/                       需求、架构、设计系统、路线图与 Sprint
 
 ## 已知限制
 
-- hook 与应用并发写同一 `.kairo` 不自动合并：应用检测到磁盘更新会提示「重新载入 / 保留本地」，回写期间仍建议关闭应用或回写后重新打开。
+- hook 与应用并发写同一 `.zeno` 不自动合并：应用检测到磁盘更新会提示「重新载入 / 保留本地」，回写期间仍建议关闭应用或回写后重新打开。
 - 拖条改期、拖拽建依赖、多选、基线与资源视图不在本期；依赖创建从检查器进入。
 - 非工作时段目前只按周六/周日着色，项目与资源工作日历属后续版本。
 
@@ -313,7 +313,7 @@ docs/                       需求、架构、设计系统、路线图与 Sprint
 
 - **非商业使用免费**：个人学习、爱好与私人项目、科研、实验与测试，且不预期任何商业应用。
 - **非商业组织免费**：慈善机构、教育机构、公共研究机构、公共安全或卫生机构、环保组织、政府机构，不论资金来源。
-- **商业使用需购买商业授权**：任何预期商业应用的场景（包括在营利公司内部用 Kairo 管自己的项目）都不在本许可范围内，请联系 <ruohuyang@gmail.com> 获取条款与报价。
-- 再分发 Kairo 或其修改版本时，必须一并传递本许可条款（或链接）以及所有 `Required Notice:` 行。
+- **商业使用需购买商业授权**：任何预期商业应用的场景（包括在营利公司内部用 Zeno 管自己的项目）都不在本许可范围内，请联系 <ruohuyang@gmail.com> 获取条款与报价。
+- 再分发 Zeno 或其修改版本时，必须一并传递本许可条款（或链接）以及所有 `Required Notice:` 行。
 - **没有**自动转开源条款；**v1.3.2 及以前**的版本按 MIT 发布，该授权继续有效。
 - PolyForm Noncommercial 属于「源码可得」（source-available），不是 OSI 认证的开源许可。

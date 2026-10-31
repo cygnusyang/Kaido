@@ -4,17 +4,17 @@
 # 为什么需要它：真实 OTA 只有在「线上有新版本」时才能触发，出问题时现场只剩一个
 # 替换脚本写的 app_not_quitting，链路上每个判断都无从复核。本脚本用本地构建的包 +
 # 本地清单 + 本地丢弃密钥对，把检查 -> 下载 -> 验签 -> 武装 -> terminate -> 替换 ->
-# relaunch 整条路在同一台机器上跑一遍，并把每一步写进 ~/Library/Logs/Kairo/ota.log。
+# relaunch 整条路在同一台机器上跑一遍，并把每一步写进 ~/Library/Logs/Zeno/ota.log。
 #
 # 关键前提（务必先读懂）：
 #   * 环境变量覆盖只在 DEBUG 构建里编译存在，所以这里构建的是 debug 配置；
-#   * 安装目标是临时副本（KAIRO_OTA_APP_PATH），不会覆盖 /Applications/Kairo.app；
-#   * 签名用脚本现生成的丢弃密钥，App 经 KAIRO_OTA_PUBKEY_BASE64 信任它的公钥，
+#   * 安装目标是临时副本（ZENO_OTA_APP_PATH），不会覆盖 /Applications/Zeno.app；
+#   * 签名用脚本现生成的丢弃密钥，App 经 ZENO_OTA_PUBKEY_BASE64 信任它的公钥，
 #     生产私钥（GitHub secret UPDATE_SIGNING_KEY_BASE64）不参与；
-#   * 必须没有任何旧 Kairo 进程在跑 —— OTA 由旧 build 执行会重演 #17。
+#   * 必须没有任何旧 Zeno 进程在跑 —— OTA 由旧 build 执行会重演 #17。
 #
 # 要「无人值守跑 N 轮并自动判定成败/失败阶段」，用 tools/ota-loop-verify.sh：
-# 它靠 DEBUG 构建的 KAIRO_OTA_AUTOPILOT=1 自己按面板那条内部序列走，不需要人点按钮。
+# 它靠 DEBUG 构建的 ZENO_OTA_AUTOPILOT=1 自己按面板那条内部序列走，不需要人点按钮。
 # 本脚本保留「人工点按钮」的用法：现场排查、想亲眼看每一步步进时仍然有用。
 #
 # 用法：
@@ -34,13 +34,13 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TMP_ROOT=$TMPDIR
 if [ -z "$TMP_ROOT" ]; then TMP_ROOT=/tmp; fi
 TMP_ROOT=${TMP_ROOT%/}
-WORK=$KAIRO_OTA_VERIFY_DIR
-if [ -z "$WORK" ]; then WORK="$TMP_ROOT/kairo-ota-verify"; fi
-PORT=$KAIRO_OTA_VERIFY_PORT
+WORK=$ZENO_OTA_VERIFY_DIR
+if [ -z "$WORK" ]; then WORK="$TMP_ROOT/zeno-ota-verify"; fi
+PORT=$ZENO_OTA_VERIFY_PORT
 if [ -z "$PORT" ]; then PORT=8123; fi
-LOG="$HOME/Library/Logs/Kairo/ota.log"
-APP="$WORK/Kairo.app"
-PAYLOAD="$WORK/payload/Kairo.app"
+LOG="$HOME/Library/Logs/Zeno/ota.log"
+APP="$WORK/Zeno.app"
+PAYLOAD="$WORK/payload/Zeno.app"
 SERVE="$WORK/serve"
 PIDFILE="$WORK/server.pid"
 
@@ -75,32 +75,32 @@ stop_server() {
 }
 
 # 清掉 app 侧遗留状态：pending 五键 + 上次的临时产物。
-# 只删形状匹配的 kairo-ota-* 条目，绝不整目录清空（$TMPDIR 下有别家的文件）。
+# 只删形状匹配的 zeno-ota-* 条目，绝不整目录清空（$TMPDIR 下有别家的文件）。
 clean_state() {
   local key
-  for key in kairo_ota_pending_result_path kairo_ota_pending_backup_path kairo_ota_pending_backup_dir kairo_ota_pending_script_path kairo_ota_pending_extraction_path; do
-    defaults delete app.kairo.macos "$key" >/dev/null 2>&1 || true
+  for key in zeno_ota_pending_result_path zeno_ota_pending_backup_path zeno_ota_pending_backup_dir zeno_ota_pending_script_path zeno_ota_pending_extraction_path; do
+    defaults delete app.zeno.macos "$key" >/dev/null 2>&1 || true
   done
   local path name
-  for path in "$TMP_ROOT"/kairo-ota-*; do
+  for path in "$TMP_ROOT"/zeno-ota-*; do
     [ -e "$path" ] || continue
     # 自己的构建工作区不动（--no-build 复跑要靠它）
     if [ "$path" = "$WORK" ]; then continue; fi
     name=$(basename "$path")
     case "$name" in
-      kairo-ota-*) rm -rf -- "$path" ;;
+      zeno-ota-*) rm -rf -- "$path" ;;
     esac
   done
-  say "已清 pending 键与 $TMP_ROOT 下的 kairo-ota-* 残留"
+  say "已清 pending 键与 $TMP_ROOT 下的 zeno-ota-* 残留"
 }
 
 # 旧进程是 #17 复发的头号原因：OTA 由「装了新版之前的那个 build」执行时，
 # 新代码里的武装旁路根本不存在。
 warn_stale_process() {
   local pids
-  pids=$(pgrep -f "/Applications/Kairo.app/Contents/MacOS/Kairo" | tr "\n" " ")
+  pids=$(pgrep -f "/Applications/Zeno.app/Contents/MacOS/Zeno" | tr "\n" " ")
   if [ -n "$pids" ]; then
-    warn "stale Kairo still running, pid: $pids"
+    warn "stale Zeno still running, pid: $pids"
     warn "请先手动退出它：OTA 由旧 build 执行时跑的是旧逻辑，验证结论无效。"
   fi
 }
@@ -110,7 +110,7 @@ build_app() {
   bash "$ROOT/tools/build.sh" -c debug -o "$WORK/dist" --skip-gate || die "构建失败"
   rm -rf "$APP"
   mkdir -p "$WORK"
-  cp -R "$WORK/dist/Kairo.app" "$APP" || die "拷贝 App 失败"
+  cp -R "$WORK/dist/Zeno.app" "$APP" || die "拷贝 App 失败"
   codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || die "adhoc 重签失败（需要 Xcode 命令行工具）"
 }
 
@@ -148,7 +148,7 @@ prepare_payload() {
 
 sign_and_serve() {
   local version="$1"
-  local zip="$SERVE/Kairo-ota-local.zip"
+  local zip="$SERVE/Zeno-ota-local.zip"
   local sha cdhash i
   rm -rf "$SERVE"
   mkdir -p "$SERVE"
@@ -159,7 +159,7 @@ sign_and_serve() {
   MF_VERSION="$version" \
   MF_MINIMUM_VERSION=1.0.0 \
   MF_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  MF_DOWNLOAD_URL="http://127.0.0.1:$PORT/Kairo-ota-local.zip" \
+  MF_DOWNLOAD_URL="http://127.0.0.1:$PORT/Zeno-ota-local.zip" \
   MF_CDHASH="$cdhash" \
   MF_SHA256="$sha" \
   MF_NOTES="local verification build" \
@@ -188,22 +188,22 @@ sign_and_serve() {
 
 launch_app() {
   say "启动被测 App（DEBUG）"
-  # 子 shell 里 cd 到工作区再启动：App 的 cwd 若是仓库根，它自动落盘的 .kairo
+  # 子 shell 里 cd 到工作区再启动：App 的 cwd 若是仓库根，它自动落盘的 .zeno
   # 会直接掉在仓库里（实测过一次）。
   (
     cd "$WORK" || exit 1
-    KAIRO_OTA_MANIFEST_URL="http://127.0.0.1:$PORT/update-manifest.json" \
-    KAIRO_OTA_ALLOWED_HOSTS=127.0.0.1 \
-    KAIRO_OTA_PUBKEY_BASE64="$PUB" \
-    KAIRO_OTA_APP_PATH="$APP" \
-    KAIRO_OTA_ALLOW_HTTP=1 \
-    nohup "$APP/Contents/MacOS/Kairo" >"$WORK/app-stdout.log" 2>&1 &
+    ZENO_OTA_MANIFEST_URL="http://127.0.0.1:$PORT/update-manifest.json" \
+    ZENO_OTA_ALLOWED_HOSTS=127.0.0.1 \
+    ZENO_OTA_PUBKEY_BASE64="$PUB" \
+    ZENO_OTA_APP_PATH="$APP" \
+    ZENO_OTA_ALLOW_HTTP=1 \
+    nohup "$APP/Contents/MacOS/Zeno" >"$WORK/app-stdout.log" 2>&1 &
   )
   sleep 1
   cat <<STEPS
 
-请在已启动的 Kairo 里操作：
-  1) 菜单栏 Kairo -> 检查更新…（或 ⌘K 输入「检查更新」）
+请在已启动的 Zeno 里操作：
+  1) 菜单栏 Zeno -> 检查更新…（或 ⌘K 输入「检查更新」）
   2) 面板出现新版本 -> Download Update
   3) 下载并验签通过 -> Quit and Install
   App 应在 0.5s 内自行退出并 relaunch；替换脚本最多等 60s。
@@ -277,11 +277,11 @@ else
   cat <<STEPS
 
 已就绪，手动启动 App（必须带这些环境变量，否则走生产端点）：
-  KAIRO_OTA_MANIFEST_URL=http://127.0.0.1:$PORT/update-manifest.json \\
-  KAIRO_OTA_ALLOWED_HOSTS=127.0.0.1 \\
-  KAIRO_OTA_PUBKEY_BASE64=$PUB \\
-  KAIRO_OTA_APP_PATH=$APP \\
-  KAIRO_OTA_ALLOW_HTTP=1 \\
-  "$APP/Contents/MacOS/Kairo"
+  ZENO_OTA_MANIFEST_URL=http://127.0.0.1:$PORT/update-manifest.json \\
+  ZENO_OTA_ALLOWED_HOSTS=127.0.0.1 \\
+  ZENO_OTA_PUBKEY_BASE64=$PUB \\
+  ZENO_OTA_APP_PATH=$APP \\
+  ZENO_OTA_ALLOW_HTTP=1 \\
+  "$APP/Contents/MacOS/Zeno"
 STEPS
 fi

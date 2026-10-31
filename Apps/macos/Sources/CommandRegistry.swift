@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
-import KairoCore
-import KairoPresentation
+import ZenoCore
+import ZenoPresentation
 import InteropOmniPlan
 
 /// 就地编辑时的原生文本撤销。
@@ -30,7 +30,7 @@ enum FieldEditorUndo {
 }
 
 /// 命令快捷键（菜单与命令面板共用同一份定义）。
-struct KairoShortcut {
+struct ZenoShortcut {
     let key: KeyEquivalent
     let modifiers: EventModifiers
 
@@ -54,7 +54,7 @@ struct KairoShortcut {
 ///
 /// 用中文串当标识会让「菜单构建匹配分组」和「面板显示分组名」绑在同一份可变文案上——
 /// 换语言就会静默失配（菜单变空）。这里只留 case，文案由 `title` 查 Catalog。
-enum KairoCommandGroup: String, CaseIterable, Hashable, Sendable {
+enum ZenoCommandGroup: String, CaseIterable, Hashable, Sendable {
     case file, edit, outline, task, view, project, baseline, find
 
     /// 菜单标题 / 面板分组标签。
@@ -74,12 +74,12 @@ enum KairoCommandGroup: String, CaseIterable, Hashable, Sendable {
 }
 
 /// 一条可执行命令（US-E4-05 / F-41-01）。菜单栏与 ⌘K 面板均消费此注册表。
-struct KairoCommand: Identifiable {
+struct ZenoCommand: Identifiable {
     let id: String
     let title: String
     /// 菜单分组（文件 / 编辑 / 大纲 / 任务 / 视图 / 查找）。
-    let group: KairoCommandGroup
-    let shortcut: KairoShortcut?
+    let group: ZenoCommandGroup
+    let shortcut: ZenoShortcut?
     /// 旧标题，仅用于命令面板搜索（不显示在菜单）。
     let aliases: [String]
     /// 不进 ⌘K 面板（菜单里仍然有）。
@@ -100,8 +100,8 @@ struct KairoCommand: Identifiable {
     init(
         id: String,
         title: String,
-        group: KairoCommandGroup,
-        shortcut: KairoShortcut? = nil,
+        group: ZenoCommandGroup,
+        shortcut: ZenoShortcut? = nil,
         aliases: [String] = [],
         isPaletteHidden: Bool = false,
         isDestructive: Bool = false,
@@ -124,90 +124,90 @@ struct KairoCommand: Identifiable {
 
 /// 命令注册表：应用内唯一的命令定义来源（US-E4-05 验收 3）。
 @MainActor
-enum KairoCommandCatalog {
+enum ZenoCommandCatalog {
     static func make(
         store: WorkspaceStore,
         requestOpen: @escaping @MainActor () -> Void,
         requestSave: @escaping @MainActor () -> Void,
         requestSaveAs: @escaping @MainActor () -> Void
-    ) -> [KairoCommand] {
+    ) -> [ZenoCommand] {
         [
-            KairoCommand(
+            ZenoCommand(
                 id: "file.open",
                 title: I18n.t("menu.file.open_project", "Open Project…"),
                 group: .file,
-                shortcut: KairoShortcut(key: "o", modifiers: .command),
+                shortcut: ZenoShortcut(key: "o", modifiers: .command),
                 action: requestOpen
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "file.save",
                 title: I18n.t("menu.file.save", "Save"),
                 group: .file,
-                shortcut: KairoShortcut(key: "s", modifiers: .command),
+                shortcut: ZenoShortcut(key: "s", modifiers: .command),
                 action: requestSave
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "file.saveAs",
                 title: I18n.t("menu.file.save_as", "Save As…"),
                 group: .file,
-                shortcut: KairoShortcut(key: "s", modifiers: [.command, .shift]),
+                shortcut: ZenoShortcut(key: "s", modifiers: [.command, .shift]),
                 aliases: [I18n.t("menu.file.save_as.alias", "Save a copy")],
                 action: requestSaveAs
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "file.loadExample",
                 title: I18n.t("menu.file.load_example", "Load Example Project"),
                 group: .file,
                 aliases: [I18n.t("menu.file.load_example.alias_demo", "Load demo data"), I18n.t("menu.file.load_example.alias_example", "Example project")],
                 action: { store.loadExampleProject() }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "edit.undo",
                 title: I18n.t("menu.edit.undo", "Undo"),
                 group: .edit,
-                shortcut: KairoShortcut(key: "z", modifiers: .command),
+                shortcut: ZenoShortcut(key: "z", modifiers: .command),
                 action: {
                     if !FieldEditorUndo.perform(redo: false) {
                         store.dispatch(.undo)
                     }
                 }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "edit.redo",
                 title: I18n.t("menu.edit.redo", "Redo"),
                 group: .edit,
-                shortcut: KairoShortcut(key: "z", modifiers: [.command, .shift]),
+                shortcut: ZenoShortcut(key: "z", modifiers: [.command, .shift]),
                 action: {
                     if !FieldEditorUndo.perform(redo: true) {
                         store.dispatch(.redo)
                     }
                 }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "outline.indent",
                 title: I18n.t("action.indent", "Indent"),
                 group: .outline,
-                shortcut: KairoShortcut(key: "]", modifiers: .command),
+                shortcut: ZenoShortcut(key: "]", modifiers: .command),
                 action: {
                     guard let id = store.selection else { return }
                     store.dispatch(.indent(id))
                 }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "outline.outdent",
                 title: I18n.t("action.outdent", "Outdent"),
                 group: .outline,
-                shortcut: KairoShortcut(key: "[", modifiers: .command),
+                shortcut: ZenoShortcut(key: "[", modifiers: .command),
                 action: {
                     guard let id = store.selection else { return }
                     store.dispatch(.outdent(id))
                 }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "outline.newSibling",
                 title: I18n.t("action.new_sibling", "New Sibling Task"),
                 group: .outline,
-                shortcut: KairoShortcut(key: .return, modifiers: .command),
+                shortcut: ZenoShortcut(key: .return, modifiers: .command),
                 action: {
                     if let id = store.selection {
                         store.dispatch(.createSibling(after: id))
@@ -216,29 +216,29 @@ enum KairoCommandCatalog {
                     }
                 }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "task.new",
                 title: I18n.t("action.new_task", "New Task"),
                 group: .task,
-                shortcut: KairoShortcut(key: "n", modifiers: [.command, .option]),
+                shortcut: ZenoShortcut(key: "n", modifiers: [.command, .option]),
                 action: { store.dispatch(.createTask(parentID: nil, kind: .task)) }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "task.newGroup",
                 title: I18n.t("action.new_group", "New Group"),
                 group: .task,
-                shortcut: KairoShortcut(key: "g", modifiers: [.command, .option]),
+                shortcut: ZenoShortcut(key: "g", modifiers: [.command, .option]),
                 action: { store.dispatch(.createTask(parentID: nil, kind: .group)) }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "task.newMilestone",
                 title: I18n.t("action.new_milestone", "New Milestone"),
                 group: .task,
-                shortcut: KairoShortcut(key: "m", modifiers: [.command, .option]),
+                shortcut: ZenoShortcut(key: "m", modifiers: [.command, .option]),
                 action: { store.dispatch(.createTask(parentID: nil, kind: .milestone)) }
             ),
             // 项目设置（F-22-06）：工作日历的唯一编辑入口；菜单与 ⌘K 同源。
-            KairoCommand(
+            ZenoCommand(
                 id: "project.settings",
                 title: I18n.t("menu.project.settings", "Project Settings…"),
                 group: .project,
@@ -250,7 +250,7 @@ enum KairoCommandCatalog {
             ),
             // 互操作（v1.2 / 14 §P4）：导入必须先过预检再落地；导出是单向快照 + 旁注。
             // 三个入口都在「项目」分组下：它们作用于整份计划，不在某一行任务上。
-            KairoCommand(
+            ZenoCommand(
                 id: "project.import",
                 title: I18n.t("menu.project.import", "Import…"),
                 group: .project,
@@ -260,7 +260,7 @@ enum KairoCommandCatalog {
                 ],
                 action: { store.presentImport() }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "project.exportMSProjectXML",
                 title: I18n.t("menu.project.export_mspdi", "Export as MS Project XML…"),
                 group: .project,
@@ -270,7 +270,7 @@ enum KairoCommandCatalog {
                 ],
                 action: { store.presentMSProjectXMLExport() }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "project.exportOmniPlan",
                 title: I18n.t("menu.project.export_omniplan", "Export as OmniPlan…"),
                 group: .project,
@@ -281,48 +281,48 @@ enum KairoCommandCatalog {
                 isEnabled: InteropFormats.canWrite(formatID: OmniPlanAdapter.formatID),
                 action: { store.presentOmniPlanExport() }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "view.plan",
                 title: I18n.t("menu.view.plan", "Plan"),
                 group: .view,
-                shortcut: KairoShortcut(key: "1", modifiers: [.command, .option]),
+                shortcut: ZenoShortcut(key: "1", modifiers: [.command, .option]),
                 aliases: [I18n.t("menu.view.plan.alias", "Task view")],
                 action: { store.dispatch(.setMode(.plan)) }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "view.outline",
                 title: I18n.t("menu.view.outline", "Outline"),
                 group: .view,
-                shortcut: KairoShortcut(key: "2", modifiers: [.command, .option]),
+                shortcut: ZenoShortcut(key: "2", modifiers: [.command, .option]),
                 aliases: [I18n.t("menu.view.outline.alias", "Gantt view")],
                 action: { store.dispatch(.setMode(.outline)) }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "view.focus",
                 title: I18n.t("menu.view.chart_focus", "Focus Chart"),
                 group: .view,
-                shortcut: KairoShortcut(key: "l", modifiers: [.command, .option]),
+                shortcut: ZenoShortcut(key: "l", modifiers: [.command, .option]),
                 action: { store.dispatch(.toggleChartFocus) }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "view.violations",
                 title: I18n.t("menu.view.violations", "Show Inspector · Violations"),
                 group: .view,
-                shortcut: KairoShortcut(key: "v", modifiers: [.command, .option]),
+                shortcut: ZenoShortcut(key: "v", modifiers: [.command, .option]),
                 aliases: [I18n.t("menu.view.violations.alias", "Show/hide the violations panel")],
                 action: {
                     store.dispatch(.setInspectorVisible(true))
                     store.dispatch(.setInspectorTab(.violations))
                 }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "view.today",
                 title: I18n.t("menu.view.today", "Go to Today"),
                 group: .view,
-                shortcut: KairoShortcut(key: "t", modifiers: [.command, .option]),
+                shortcut: ZenoShortcut(key: "t", modifiers: [.command, .option]),
                 action: { store.dispatch(.goToToday) }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "view.nonWorkingDays",
                 title: I18n.t("menu.view.non_working_days", "Show/Hide Non-Working Days"),
                 group: .view,
@@ -330,14 +330,14 @@ enum KairoCommandCatalog {
             ),
             // 基线入口（v0.13.3 → v0.14）：工具栏那颗棋盘旗在窄窗口会被系统收进溢出菜单，
             // 单独设一个顶级「基线」菜单后，新建入口恒为该项第 1 条（D-035）。
-            KairoCommand(
+            ZenoCommand(
                 id: BaselineMenuID.create,
                 title: I18n.t("menu.baseline.create", "New Baseline"),
                 group: .baseline,
-                shortcut: KairoShortcut(key: "b", modifiers: [.command, .option]),
+                shortcut: ZenoShortcut(key: "b", modifiers: [.command, .option]),
                 action: { store.dispatch(.createBaseline(nil)) }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: BaselineMenuID.compareClear,
                 title: I18n.t("menu.baseline.none", "Stop Comparing Baseline"),
                 group: .baseline,
@@ -345,7 +345,7 @@ enum KairoCommandCatalog {
             ),
             // 面板入口（v0.15）：逐条基线的完整管理（条目数 / 孤儿 / 基线后新增）。
             // 静态命令：⌘K 里必须找得到（D-035），但不给快捷键——这是低频的管理动作。
-            KairoCommand(
+            ZenoCommand(
                 id: BaselineMenuID.manage,
                 title: I18n.t("menu.baseline.manage", "Manage Baselines…"),
                 group: .baseline,
@@ -353,93 +353,93 @@ enum KairoCommandCatalog {
                 action: { store.presentBaselinePanel() }
             ),
             // v0.15.1：CSV 导出此前只在 CLI 有入口，界面里找不到（用户实测）。
-            KairoCommand(
+            ZenoCommand(
                 id: BaselineMenuID.exportCSV,
                 title: I18n.t("menu.baseline.export_csv", "Export Variance CSV…"),
                 group: .baseline,
                 aliases: [I18n.t("menu.baseline.export_csv.alias", "Save baseline variance as a spreadsheet")],
                 action: { store.presentVarianceCSVExport() }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "view.criticalPath",
                 title: I18n.t("menu.view.critical_path", "Show/Hide Critical Path"),
                 group: .view,
                 action: { store.dispatch(.toggleCriticalPath) }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "view.filterBar",
                 title: I18n.t("menu.view.filter_bar", "Show Filter Bar"),
                 group: .view,
                 action: { store.filterBarVisible = true }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "view.dayWidthWider",
                 title: I18n.t("menu.view.day_width_wider", "Wider Days"),
                 group: .view,
-                shortcut: KairoShortcut(key: "+", modifiers: .command),
+                shortcut: ZenoShortcut(key: "+", modifiers: .command),
                 aliases: [I18n.t("menu.view.day_width_wider.alias_a", "Increase day width"), I18n.t("menu.view.day_width_wider.alias_b", "Zoom day width in")],
                 action: { store.dispatch(.nudgeCustomDayWidth(by: GanttScale.dayWidthStep)) }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "view.dayWidthNarrower",
                 title: I18n.t("menu.view.day_width_narrower", "Narrower Days"),
                 group: .view,
-                shortcut: KairoShortcut(key: "-", modifiers: .command),
+                shortcut: ZenoShortcut(key: "-", modifiers: .command),
                 aliases: [I18n.t("menu.view.day_width_narrower.alias_a", "Decrease day width"), I18n.t("menu.view.day_width_narrower.alias_b", "Zoom day width out")],
                 action: { store.dispatch(.nudgeCustomDayWidth(by: -GanttScale.dayWidthStep)) }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "view.dayWidthReset",
                 title: I18n.t("menu.view.day_width_reset", "Reset Day Width"),
                 group: .view,
-                shortcut: KairoShortcut(key: "0", modifiers: .command),
+                shortcut: ZenoShortcut(key: "0", modifiers: .command),
                 aliases: [I18n.t("menu.view.day_width_reset.alias", "Reset day width")],
                 action: { store.dispatch(.clearCustomDayWidth) }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "find.show",
                 title: I18n.t("menu.find.show", "Find…"),
                 group: .find,
-                shortcut: KairoShortcut(key: "f", modifiers: .command),
+                shortcut: ZenoShortcut(key: "f", modifiers: .command),
                 action: {
                     store.filterBarVisible = true
                     store.showFindBar = true
                     store.findFocusToken += 1
                 }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "find.next",
                 title: I18n.t("menu.find.next", "Find Next"),
                 group: .find,
-                shortcut: KairoShortcut(key: "g", modifiers: .command),
+                shortcut: ZenoShortcut(key: "g", modifiers: .command),
                 action: { store.find.findNext() }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "find.previous",
                 title: I18n.t("menu.find.previous", "Find Previous"),
                 group: .find,
-                shortcut: KairoShortcut(key: "g", modifiers: [.command, .shift]),
+                shortcut: ZenoShortcut(key: "g", modifiers: [.command, .shift]),
                 action: { store.find.findPrevious() }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "find.regex",
                 title: I18n.t("menu.find.regex", "Toggle Regex Mode"),
                 group: .find,
-                shortcut: KairoShortcut(key: "e", modifiers: [.command, .option]),
+                shortcut: ZenoShortcut(key: "e", modifiers: [.command, .option]),
                 action: { store.find.regexMode.toggle() }
             ),
-            KairoCommand(
+            ZenoCommand(
                 id: "palette.show",
                 title: I18n.t("menu.find.command_palette", "Command Palette"),
                 group: .find,
-                shortcut: KairoShortcut(key: "k", modifiers: .command),
+                shortcut: ZenoShortcut(key: "k", modifiers: .command),
                 action: { store.showCommandPalette = true }
             )
         ] + recentCommands(store: store) + baselineCommands(store: store) + OutlineColumnPreferences.toggleable.map { column in
             // 大纲列显隐（F-14-20 / F-0719）：与表头右键菜单同源动作；
             // 序号/任务说明固定显示，故由 `toggleable`（可隐藏列 + 可选列）派生，
             // 不手写条目以免两处漂移。
-            KairoCommand(
+            ZenoCommand(
                 id: "view.outlineColumn.\(column.rawValue)",
                 title: I18n.t("menu.view.outline_column", "Show/Hide %1$@ Column", Display.outlineColumnTitle(column)),
                 group: .view,
@@ -453,10 +453,10 @@ enum KairoCommandCatalog {
     /// id 用基线 UUID 而不是数组下标：删掉中间一条后下标会漂移，命令就可能指到别人的
     /// 基线上；UUID 让「哪条命令动哪条基线」在菜单重建前后一致。
     /// 颜色项标 isPaletteHidden——8 色 × N 条进 ⌘K 会把面板挤成色卡（§5）。
-    private static func baselineCommands(store: WorkspaceStore) -> [KairoCommand] {
-        store.baselines.flatMap { baseline -> [KairoCommand] in
-            var items: [KairoCommand] = [
-                KairoCommand(
+    private static func baselineCommands(store: WorkspaceStore) -> [ZenoCommand] {
+        store.baselines.flatMap { baseline -> [ZenoCommand] in
+            var items: [ZenoCommand] = [
+                ZenoCommand(
                     id: BaselineMenuID.visibility(baseline.id),
                     title: I18n.t("menu.baseline.show_in_gantt", "Show in Gantt"),
                     group: .baseline,
@@ -475,7 +475,7 @@ enum KairoCommandCatalog {
                         store.dispatch(.setBaselineVisible(baseline.id, !isVisible))
                     }
                 ),
-                KairoCommand(
+                ZenoCommand(
                     id: BaselineMenuID.compare(baseline.id),
                     title: I18n.t("menu.baseline.set_compared", "Compare Against This Baseline"),
                     group: .baseline,
@@ -487,7 +487,7 @@ enum KairoCommandCatalog {
                 ),
             ]
             items += (0 ..< BaselineColorNames.count).map { colorIndex in
-                KairoCommand(
+                ZenoCommand(
                     id: BaselineMenuID.color(baseline.id, colorIndex),
                     title: BaselineColorNames.title(colorIndex),
                     group: .baseline,
@@ -495,7 +495,7 @@ enum KairoCommandCatalog {
                     action: { store.dispatch(.setBaselineColor(baseline.id, colorIndex)) }
                 )
             }
-            items.append(KairoCommand(
+            items.append(ZenoCommand(
                 id: BaselineMenuID.rename(baseline.id),
                 title: I18n.t("menu.baseline.rename", "Rename Baseline…"),
                 group: .baseline,
@@ -505,7 +505,7 @@ enum KairoCommandCatalog {
                     }
                 }
             ))
-            items.append(KairoCommand(
+            items.append(ZenoCommand(
                 id: BaselineMenuID.delete(baseline.id),
                 title: I18n.t("menu.baseline.delete", "Delete Baseline…"),
                 group: .baseline,
@@ -521,11 +521,11 @@ enum KairoCommandCatalog {
     ///
     /// id 用序号而不是路径：路径可能含空格、斜杠与变音符，当 SwiftUI 标识或菜单键都不稳；
     /// 顺序即列表顺序，action 已捕获 URL。
-    private static func recentCommands(store: WorkspaceStore) -> [KairoCommand] {
+    private static func recentCommands(store: WorkspaceStore) -> [ZenoCommand] {
         let urls = store.recentProjects
         let names = RecentProjects.displayNames(for: urls)
         let items = zip(urls, names).enumerated().map { index, pair in
-            KairoCommand(
+            ZenoCommand(
                 id: "file.openRecent.item.\(index)",
                 title: pair.1,
                 group: .file,
@@ -535,7 +535,7 @@ enum KairoCommandCatalog {
         }
         guard !items.isEmpty else { return [] }
         return items + [
-            KairoCommand(
+            ZenoCommand(
                 id: "file.openRecent.clear",
                 title: I18n.t("menu.file.open_recent.clear", "Clear Menu"),
                 group: .file,
@@ -559,8 +559,8 @@ extension View {
 }
 
 /// 由注册表生成菜单栏（US-E4-05 验收 3：菜单命令与面板同源）。
-struct KairoMenuCommands: Commands {
-    let commands: [KairoCommand]
+struct ZenoMenuCommands: Commands {
+    let commands: [ZenoCommand]
     /// 语言偏好的可观察镜像：写偏好不会触发 SwiftUI 重算，勾选态需要它才会立刻更新。
     @AppStorage(AppLanguage.defaultsKey) private var languageRaw = AppLanguage.system.rawValue
     /// 工作台状态：顶级「基线」菜单要按当前基线渲染子菜单与图例。
@@ -572,7 +572,7 @@ struct KairoMenuCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
-            Button(I18n.t("menu.app.about", "About Kairo")) { Self.showAboutPanel() }
+            Button(I18n.t("menu.app.about", "About Zeno")) { Self.showAboutPanel() }
             if let checkForUpdates {
                 Button(I18n.t("menu.app.check_for_updates", "Check for Updates…")) { checkForUpdates() }
             }
@@ -591,21 +591,21 @@ struct KairoMenuCommands: Commands {
             Divider()
             items(group: .outline)
         }
-        CommandMenu(KairoCommandGroup.task.title) {
+        CommandMenu(ZenoCommandGroup.task.title) {
             items(group: .task)
         }
-        CommandMenu(KairoCommandGroup.view.title) {
+        CommandMenu(ZenoCommandGroup.view.title) {
             items(group: .view)
         }
         // 「项目」独立成顶级菜单：设置作用于整个项目，混在「任务」里语义不对。
-        CommandMenu(KairoCommandGroup.project.title) {
+        CommandMenu(ZenoCommandGroup.project.title) {
             items(group: .project)
         }
         // 「基线」独立成顶级菜单（v0.14 §5）：创建入口不再只靠工具栏溢出菜单（D-035）。
-        CommandMenu(KairoCommandGroup.baseline.title) {
+        CommandMenu(ZenoCommandGroup.baseline.title) {
             BaselineMenuContent(store: store, commands: commands)
         }
-        CommandMenu(KairoCommandGroup.find.title) {
+        CommandMenu(ZenoCommandGroup.find.title) {
             items(group: .find)
         }
     }
@@ -630,7 +630,7 @@ struct KairoMenuCommands: Commands {
                 }
             }
             Divider()
-            Text(I18n.t("menu.language.restart_hint", "Takes effect after restarting Kairo"))
+            Text(I18n.t("menu.language.restart_hint", "Takes effect after restarting Zeno"))
         }
     }
 
@@ -649,7 +649,7 @@ struct KairoMenuCommands: Commands {
         )
         alert.informativeText = I18n.t(
             "alert.language.changed.message",
-            "Quit and reopen Kairo to apply it — the window title bar, menus and system dialogs switch together."
+            "Quit and reopen Zeno to apply it — the window title bar, menus and system dialogs switch together."
         )
         alert.alertStyle = .informational
         alert.addButton(withTitle: I18n.t("action.ok", "OK"))
@@ -657,7 +657,7 @@ struct KairoMenuCommands: Commands {
     }
 
     @ViewBuilder
-    private func items(group: KairoCommandGroup) -> some View {
+    private func items(group: ZenoCommandGroup) -> some View {
         if group == .file {
             ForEach(commands.filter { $0.group == .file && !Self.isRecent($0) }) { command in
                 commandButton(command)
@@ -672,7 +672,7 @@ struct KairoMenuCommands: Commands {
     }
 
     /// 该命令是否承载「最近打开」（菜单子项 + ⌘K 面板条目），这类项不直接平铺到文件菜单。
-    private static func isRecent(_ command: KairoCommand) -> Bool {
+    private static func isRecent(_ command: ZenoCommand) -> Bool {
         command.id.hasPrefix("file.openRecent.")
     }
 
@@ -696,7 +696,7 @@ struct KairoMenuCommands: Commands {
     }
 
     @ViewBuilder
-    private func commandButton(_ command: KairoCommand) -> some View {
+    private func commandButton(_ command: ZenoCommand) -> some View {
         if let shortcut = command.shortcut {
             Button(command.title) { command.action() }
                 .keyboardShortcut(shortcut.key, modifiers: shortcut.modifiers)
@@ -717,12 +717,12 @@ struct KairoMenuCommands: Commands {
     /// 版权与联系邮箱：法律声明，不随界面语言变化，也不进 String Catalog。
     static let copyrightNotice = "Copyright (c) 2026 cygnusyang <ruohuyang@gmail.com>"
 
-    /// 「关于 Kairo」面板：版本号 + 编译时间 + 版权。
+    /// 「关于 Zeno」面板：版本号 + 编译时间 + 版权。
     /// 打包应用读 Info.plist 的 CFBundleVersion（构建时写入的时间戳）；
     /// 开发态（swift run）取可执行文件的修改时间作为编译时间。
     static func showAboutPanel() {
         NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: "Kairo",
+            .applicationName: "Zeno",
             .applicationVersion: appVersion,
             .credits: NSAttributedString(
                 // 首行是构建时间（随语言）；次行是版权与联系邮箱，法律声明不参与翻译。

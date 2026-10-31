@@ -1,6 +1,6 @@
 import Foundation
-import KairoCore
-import KairoPresentation
+import ZenoCore
+import ZenoPresentation
 
 /// 基线面板一行（v0.15 / docs/features/08-baselines.md §5、10-multi-baseline-gantt.md §5）。
 ///

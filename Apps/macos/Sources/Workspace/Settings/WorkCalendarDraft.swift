@@ -1,5 +1,5 @@
 import Foundation
-import KairoCore
+import ZenoCore
 
 /// 工作周模板（项目设置面板的四选一）。
 ///
@@ -74,7 +74,7 @@ struct WorkCalendarDraft: Equatable {
 
     /// 提交给会话的值。
     ///
-    /// 全周 7 天 + 默认工时 + 无例外时不落任何日历：`.kairo` 不写该键，
+    /// 全周 7 天 + 默认工时 + 无例外时不落任何日历：`.zeno` 不写该键，
     /// 排期与甘特渲染回到引入工作日历之前——「恢复默认」要真的恢复，而不是存一份等价物。
     var storedCalendar: WorkCalendar? {
         let value = WorkCalendar(

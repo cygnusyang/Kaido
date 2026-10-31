@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 440" width="880" height="440"
-     role="img" aria-labelledby="kairo-fig-title kairo-fig-desc">
-  <title id="kairo-fig-title">ADR-013 presentation layer and single write path</title>
-  <desc id="kairo-fig-desc">KairoMacApp depends on KairoPresentation, which depends on KairoCommands, which depends on KairoCore; KairoMCP and KairoCLI reach the core through KairoCommands.</desc>
+     role="img" aria-labelledby="zeno-fig-title zeno-fig-desc">
+  <title id="zeno-fig-title">ADR-013 presentation layer and single write path</title>
+  <desc id="zeno-fig-desc">ZenoMacApp depends on ZenoPresentation, which depends on ZenoCommands, which depends on ZenoCore; ZenoMCP and ZenoCLI reach the core through ZenoCommands.</desc>
   <style>
     .canvas { fill: #FFFFFF; }
     .panel { fill: #FFFFFF; stroke: #D8DAE0; stroke-width: 1; }
@@ -31,32 +31,32 @@
     }
   </style>
   <defs>
-    <marker id="kairo-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
+    <marker id="zeno-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
             orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0,0 L8,4 L0,8 Z" class="arrow-head"/>
     </marker>
   </defs>
   <rect class="canvas" x="0" y="0" width="880" height="440"/>
   <rect class="accent" x="40" y="26" width="560" height="54" rx="8"/>
-  <text class="t-title" x="60" y="49">KairoMacApp</text>
+  <text class="t-title" x="60" y="49">ZenoMacApp</text>
   <text class="t-sub" x="60" y="68">SwiftUI: WorkspaceStore adapter, shell, drawing and gestures</text>
-  <path class="line" d="M320,80 L320,106" marker-end="url(#kairo-arrow)"/>
+  <path class="line" d="M320,80 L320,106" marker-end="url(#zeno-arrow)"/>
   <rect class="accent" x="40" y="106" width="560" height="54" rx="8"/>
-  <text class="t-title" x="60" y="129">KairoPresentation</text>
+  <text class="t-title" x="60" y="129">ZenoPresentation</text>
   <text class="t-sub" x="60" y="148">Foundation-only: view state → neutral snapshot + actions</text>
-  <path class="line" d="M320,160 L320,186" marker-end="url(#kairo-arrow)"/>
+  <path class="line" d="M320,160 L320,186" marker-end="url(#zeno-arrow)"/>
   <rect class="accent" x="40" y="186" width="560" height="54" rx="8"/>
-  <text class="t-title" x="60" y="209">KairoCommands</text>
-  <text class="t-sub" x="60" y="228">Foundation-only: KairoSession (single write path)</text>
-  <path class="line" d="M320,240 L320,266" marker-end="url(#kairo-arrow)"/>
+  <text class="t-title" x="60" y="209">ZenoCommands</text>
+  <text class="t-sub" x="60" y="228">Foundation-only: ZenoSession (single write path)</text>
+  <path class="line" d="M320,240 L320,266" marker-end="url(#zeno-arrow)"/>
   <rect class="core" x="40" y="266" width="560" height="54" rx="8"/>
-  <text class="t-title" x="60" y="289">KairoCore</text>
+  <text class="t-title" x="60" y="289">ZenoCore</text>
   <text class="t-sub" x="60" y="308">Foundation-only: model, scheduling, violations, queries, layout geometry</text>
   <rect class="soft" x="640" y="172" width="220" height="84" rx="8"/>
-  <text class="t-title" x="656" y="198">KairoMCP / KairoCLI</text>
-  <text class="t-mono" x="656" y="220">→ KairoCommands</text>
-  <text class="t-mono" x="656" y="240">→ KairoCore</text>
-  <path class="line" d="M640,214 L600,214" marker-end="url(#kairo-arrow)"/>
-  <text class="t-note" x="20" y="408">Arrows point at the depended-on layer; dependencies are one-way. KairoPresentation must not import SwiftUI, AppKit or Combine;</text>
+  <text class="t-title" x="656" y="198">ZenoMCP / ZenoCLI</text>
+  <text class="t-mono" x="656" y="220">→ ZenoCommands</text>
+  <text class="t-mono" x="656" y="240">→ ZenoCore</text>
+  <path class="line" d="M640,214 L600,214" marker-end="url(#zeno-arrow)"/>
+  <text class="t-note" x="20" y="408">Arrows point at the depended-on layer; dependencies are one-way. ZenoPresentation must not import SwiftUI, AppKit or Combine;</text>
   <text class="t-note" x="20" y="425">the three Foundation-only modules must build on iOS and Linux.</text>
 </svg>

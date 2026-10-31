@@ -1,7 +1,7 @@
 import Foundation
 import Testing
-import KairoCore
-@testable import KairoMacApp
+import ZenoCore
+@testable import ZenoMacApp
 
 /// 状态选择规则（D-037）：转「已取消」必须先填原因，两个入口共用同一判据。
 @MainActor
@@ -30,13 +30,13 @@ struct OutlineStatusActionTests {
 
     /// 行内取消走的是 `cancelTask`（带原因），不是 `setStatus`：后者不落原因、会被会话拒绝。
     @Test func cancellingFromOutlineStoresReason() throws {
-        let suite = "kairo.tests.outline-cancel.\(UUID().uuidString)"
+        let suite = "zeno.tests.outline-cancel.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         let store = WorkspaceStore(
             defaults: defaults,
             seedsDemoData: true,
-            projectLoader: { try KairoFile.read(from: $0) }
+            projectLoader: { try ZenoFile.read(from: $0) }
         )
         let taskID = try #require(store.snapshot.outline.rows.first?.id)
 

@@ -2,19 +2,19 @@ import SwiftUI
 
 /// ⌘K 命令面板（US-E4-05 / F-41-01）：模糊过滤注册表中的全部命令并执行。
 struct CommandPalette: View {
-    let commands: [KairoCommand]
+    let commands: [ZenoCommand]
     let onDismiss: () -> Void
 
     @State private var query = ""
     @FocusState private var fieldFocused: Bool
 
-    private var filtered: [KairoCommand] {
+    private var filtered: [ZenoCommand] {
         // isPaletteHidden：菜单专用项（基线 8 色 × N 条）不进面板，否则面板被色卡挤满（10 §5）。
         Self.matching(query, in: commands.filter { !$0.isPaletteHidden })
     }
 
     /// 按命令标题与搜索别名不区分大小写过滤（US-E4-05 验收 2）；空查询返回全部命令。
-    static func matching(_ query: String, in commands: [KairoCommand]) -> [KairoCommand] {
+    static func matching(_ query: String, in commands: [ZenoCommand]) -> [ZenoCommand] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return commands }
         return commands.filter { command in
@@ -80,7 +80,7 @@ struct CommandPalette: View {
         .onExitCommand(perform: onDismiss)
     }
 
-    private func row(_ command: KairoCommand) -> some View {
+    private func row(_ command: ZenoCommand) -> some View {
         Button {
             run(command)
         } label: {
@@ -113,7 +113,7 @@ struct CommandPalette: View {
         run(first)
     }
 
-    private func run(_ command: KairoCommand) {
+    private func run(_ command: ZenoCommand) {
         guard command.isEnabled else { return }
         command.action()
         onDismiss()

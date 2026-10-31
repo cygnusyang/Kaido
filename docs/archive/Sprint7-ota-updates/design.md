@@ -1,16 +1,16 @@
-# Sprint 7（前置）/ v0.3.0 设计稿 —— 应用内 OTA 更新（KairoUpdater）
+# Sprint 7（前置）/ v0.3.0 设计稿 —— 应用内 OTA 更新（ZenoUpdater）
 
 > 2026-10-20 · 状态：已实现并发版（v0.3.0 / v0.3.1）
 > 参照实现：COFFER `macos/Coffer/Updater/`（~/work/github/coffer，9 文件 1537 行 + 签名工具 + CI 接线）
-> 用户指令：把 COFFER 的 OTA 做成标准通用模块，在 Kairo 中支持；编译好的 OTA 产物放到 git 仓库上。
+> 用户指令：把 COFFER 的 OTA 做成标准通用模块，在 Zeno 中支持；编译好的 OTA 产物放到 git 仓库上。
 
 ## 1. 通用化改造（与 COFFER 的差异裁定）
 
-| 项 | COFFER | Kairo 裁定 | 理由 |
+| 项 | COFFER | Zeno 裁定 | 理由 |
 |---|---|---|---|
-| 模块形态 | App 内目录 | 独立库 target `KairoUpdater`（Apple 平台门禁） | 「标准通用模块」要求；appId/公钥/feed/白名单全部 init 注入 |
-| 验签层级 | 三级（DR anchor apple generic + TeamID + CDHash） | 两级（identifier + CDHash） | Kairo 为 ad-hoc 签名，无 TeamID；CDHash 由 CI 对实际产物提取并签名锚定 |
-| 安装载体 | 嵌套 helper .app（沙盒 App 不能写 /Applications） | detached bash 脚本 | Kairo 非沙盒；替换协议（等退出→备份→替换→relaunch→result 握手）与守卫不变 |
+| 模块形态 | App 内目录 | 独立库 target `ZenoUpdater`（Apple 平台门禁） | 「标准通用模块」要求；appId/公钥/feed/白名单全部 init 注入 |
+| 验签层级 | 三级（DR anchor apple generic + TeamID + CDHash） | 两级（identifier + CDHash） | Zeno 为 ad-hoc 签名，无 TeamID；CDHash 由 CI 对实际产物提取并签名锚定 |
+| 安装载体 | 嵌套 helper .app（沙盒 App 不能写 /Applications） | detached bash 脚本 | Zeno 非沙盒；替换协议（等退出→备份→替换→relaunch→result 握手）与守卫不变 |
 | 诊断日志 | DiagLog | 注入式 logger（默认 os.log） | 解耦 |
 | 自动检查 | 无（零网络姿态裁定） | 启动 5s + 每 4h 静默检查（v0.3.1 用户指令） | 用户显式要求；静默语义 = 失败不弹面板、发现新版才弹、同版本去重 |
 | 跳过版本 | UpdateCopy（UI 层） | UpdaterManager 内建 `skipCurrentUpdate()` | 语义一致（securityCritical 禁跳） |
@@ -25,7 +25,7 @@
 
 ## 3. 替换协议（detached 脚本）
 
-`InstallerScript.replacement` 生成脚本：等当前 pid 退出（0.2s × 300 上限）→ `mv` 备份（`Kairo-<stamp>.app`）→ `cp -R` 替换 → `open` relaunch → 写 result JSON（0=成功 / 1=已装但自动启动失败 / 2=安装失败已回滚 / 3=备份失败 / 4=等待退出超时）。路径全部单引号包裹；消费侧目录前缀 + 文件名形状双守卫（fail-closed 不误删）。
+`InstallerScript.replacement` 生成脚本：等当前 pid 退出（0.2s × 300 上限）→ `mv` 备份（`Zeno-<stamp>.app`）→ `cp -R` 替换 → `open` relaunch → 写 result JSON（0=成功 / 1=已装但自动启动失败 / 2=安装失败已回滚 / 3=备份失败 / 4=等待退出超时）。路径全部单引号包裹；消费侧目录前缀 + 文件名形状双守卫（fail-closed 不误删）。
 
 ## 4. CI 接线（release.yml）
 
@@ -33,7 +33,7 @@ secrets 校验 → 构建 → OTA 载体 zip（ditto，SHA256 入 env）→ `ext
 
 ## 5. 测试与验证
 
-- 单测 27 条（`Tests/KairoUpdaterTests` + `UpdaterConfigurationTests`）：验签往返/篡改拒绝/缺签名/错钥、清单解析 fail-closed、白名单（含前缀伪装域拒绝）、SHA256 标准向量、状态机全迁移（stub 注入不联网）、脚本契约真机跑（备份+替换+result 握手）、启动路径错位拦截、配置自洽。
+- 单测 27 条（`Tests/ZenoUpdaterTests` + `UpdaterConfigurationTests`）：验签往返/篡改拒绝/缺签名/错钥、清单解析 fail-closed、白名单（含前缀伪装域拒绝）、SHA256 标准向量、状态机全迁移（stub 注入不联网）、脚本契约真机跑（备份+替换+result 握手）、启动路径错位拦截、配置自洽。
 - 本机端到端：临时密钥走完整签名→验签链路 VALID。
 - 发版实测（v0.3.0）：CI 一次通过；latest feed 拉取 + 真实公钥验签 VALID；v0.3.1 起补 artifacts 分支归档。
 

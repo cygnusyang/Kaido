@@ -21,7 +21,7 @@
 - 拖拽绘制 SSn/FF 时限（constraint）：写回面不同，留后续。
 - 拖条内进度白点改 progress：检查器已有 setProgress，画布版留 P2。
 - 多选/框选、跨视图拖拽（大纲↔画布）、拖拽改层级。
-- `schedulingType = .manual`：Kairo 无该类型。**裁定**：拖条改期 = 显式 `startDate` 锚定
+- `schedulingType = .manual`：Zeno 无该类型。**裁定**：拖条改期 = 显式 `startDate` 锚定
   （`TaskPatch.startDate = .set(...)`），排程尊重显式开始，语义等价 OmniPlan 手动安排。
 
 ### 对象适配裁定
@@ -37,9 +37,9 @@
 
 ## 2. 架构
 
-### 2.1 命中测试（纯函数，KairoPresentation 新文件 `GanttHitTesting.swift`）
+### 2.1 命中测试（纯函数，ZenoPresentation 新文件 `GanttHitTesting.swift`）
 
-GanttBar 定义在 KairoPresentation（Snapshots.swift:175-220），命中测试放同层而非 KairoCore，测试进 KairoPresentationTests。
+GanttBar 定义在 ZenoPresentation（Snapshots.swift:175-220），命中测试放同层而非 ZenoCore，测试进 ZenoPresentationTests。
 
 ```swift
 enum GanttDragTarget: Equatable {
@@ -101,7 +101,7 @@ case canvasEditSchedule(UUID, startDate: Date?, durationDays: Double?)
 
 - Store 端组装 `TaskPatch`：move = `startDate: .set`；resize 右端 = `durationDays: .set`；
   resize 左端 = `startDate: .set` + `durationDays: .set(新duration)`（end 不变）。
-- duration 下限 1 天（日粒度拖拽天然满足）；`updateTask(id:patch:)`（KairoSession.swift:372-415）已支持全部字段，**命令层零改动**。
+- duration 下限 1 天（日粒度拖拽天然满足）；`updateTask(id:patch:)`（ZenoSession.swift:372-415）已支持全部字段，**命令层零改动**。
 - 依赖建/删直接复用 `.addDependency(taskID:predecessorID:type:lagDays:)` / `.removeDependency`；环检测免费获得。
 - 撤销 mergeKey：`"canvas-move-\(id)"` / `"canvas-resize-\(id)"`；依赖增删 `mergeKey: nil`（结构性操作，沿用既有先例）。
 
@@ -126,7 +126,7 @@ case canvasEditSchedule(UUID, startDate: Date?, durationDays: Double?)
 
 | 层 | 用例 | 归宿 |
 |---|---|---|
-| 纯函数 | hitTest 区域表全分支（body/start/end/depStart/depEnd/line/none）× 三条类型（普通/里程碑/群组）；越界与 rowHeight/dayWidth 兜底 | KairoPresentationTests（新 GanttHitTestingTests.swift） |
+| 纯函数 | hitTest 区域表全分支（body/start/end/depStart/depEnd/line/none）× 三条类型（普通/里程碑/群组）；越界与 rowHeight/dayWidth 兜底 | ZenoPresentationTests（新 GanttHitTestingTests.swift） |
 | 纯函数 | date(atX:) 日粒度吸附、days(fromTranslationX:) 方向与 0.5 兜底 | 同上 |
 | 状态机 | 节流窗口内合并、finish 必提交末值、cancel 零提交、Escape 后重拖、注入时钟驱动时序 | AppTests（CanvasDragSessionTests.swift） |
 | Store 路由 | canvasEditSchedule 三语义（move 保 duration / resize 右端保 start / resize 左端 end 不变）；undo 合并为一步 | AppTests（Sprint7 Gantt Edit 用例） |

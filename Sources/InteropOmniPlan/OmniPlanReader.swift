@@ -1,10 +1,10 @@
 import Foundation
-import KairoInterop
+import ZenoInterop
 
 /// OmniPlan \`.oplx\` 读入器（docs/features/11-interop-omniplan.md §4）。
 ///
 /// 只做「\`.oplx\` ↔ IR」：层级、依赖四型、前导时间、分配、日历、约束。
-/// 任何「工作日 ↔ 日历天」「effort 秒 ↔ 人日」的换算都不在这里——统一在 \`KairoBridge\`
+/// 任何「工作日 ↔ 日历天」「effort 秒 ↔ 人日」的换算都不在这里——统一在 \`ZenoBridge\`
 /// （14 §2 硬规则 2），这里只把来源原值（秒、日号）换成 IR 口径并登记换算。
 ///
 /// 版本前置（硬规则 3）：\`__TOC.xml\` 的 \`file-format-version\` 不在支持范围即抛
@@ -209,7 +209,7 @@ public struct OmniPlanReader {
                 field: "calendar.hoursPerDay",
                 kind: .converted,
                 count: 1,
-                detail: "来源以 hours-per-day=\(Self.hoursText(declared)) 折算人日（Kairo 默认 8）："
+                detail: "来源以 hours-per-day=\(Self.hoursText(declared)) 折算人日（Zeno 默认 8）："
                     + "写死 8 会让所有工期整体差约 \(Self.hoursText(declared / 8)) 倍。",
                 sample: "hours-per-day=\(Self.hoursText(declared))"
             )
@@ -218,7 +218,7 @@ public struct OmniPlanReader {
                 field: "calendar.hoursPerDay",
                 kind: .derived,
                 count: 1,
-                detail: "来源没有 duration-format，工时按 Kairo 默认 8h/日 折算。"
+                detail: "来源没有 duration-format，工时按 Zeno 默认 8h/日 折算。"
             )
         }
 
@@ -263,7 +263,7 @@ public struct OmniPlanReader {
                     let end = event.attribute("et").flatMap(Double.init) ?? 0
                     let isFullDay = start <= 0 && end >= Self.secondsPerDay
                     if isOvertime {
-                        // 加班：Kairo 的例外只有「整天上班/不上班」，半天加班表达不了。
+                        // 加班：Zeno 的例外只有「整天上班/不上班」，半天加班表达不了。
                         if isFullDay {
                             exceptions.append(InteropCalendarException(date: date, isWorking: true))
                         } else {
@@ -288,7 +288,7 @@ public struct OmniPlanReader {
                 field: "calendar.workingWeekdays",
                 kind: .derived,
                 count: 1,
-                detail: "来源没有可用的 schedule-day，工作日历按全周 7 天（Kairo 默认）处理。"
+                detail: "来源没有可用的 schedule-day，工作日历按全周 7 天（Zeno 默认）处理。"
             )
         }
         if !exceptions.isEmpty {
@@ -296,7 +296,7 @@ public struct OmniPlanReader {
                 field: "calendar.exception",
                 kind: .converted,
                 count: exceptions.count,
-                detail: "Time Off / Overtime 事件按整天落到 Kairo 节假日："
+                detail: "Time Off / Overtime 事件按整天落到 Zeno 节假日："
                     + "日号（自 2001-01-01 起的天数）按 UTC 日换算，时间偏移丢弃。",
                 samples: exceptions.prefix(2).map { Self.dayText($0.date) + ($0.isWorking ? "（加班）" : "（停工）") }
             )
@@ -306,7 +306,7 @@ public struct OmniPlanReader {
                 field: "calendar.exception.partial",
                 kind: .degraded,
                 count: partialEvents,
-                detail: "半天请假/加班在 Kairo 没有落点（例外只有整天粒度），这些时段仍按全天上/下班处理。",
+                detail: "半天请假/加班在 Zeno 没有落点（例外只有整天粒度），这些时段仍按全天上/下班处理。",
                 sample: partialSample
             )
         }
@@ -326,7 +326,7 @@ public struct OmniPlanReader {
         )
     }
 
-    /// 资源自己的作息表（样本里设备是 0:00–23:59、群组是 24/7）：Kairo 没有资源日历，登记丢弃。
+    /// 资源自己的作息表（样本里设备是 0:00–23:59、群组是 24/7）：Zeno 没有资源日历，登记丢弃。
     ///
     /// 已被当作项目日历来源的那条资源不算丢弃。
     private func recordResourceSchedules(
@@ -342,7 +342,7 @@ public struct OmniPlanReader {
             field: "resource.calendar",
             kind: .dropped,
             count: withSchedule.count,
-            detail: "Kairo 没有资源日历（只有项目日历）：资源级作息表丢弃，资源按项目日历参与排期。",
+            detail: "Zeno 没有资源日历（只有项目日历）：资源级作息表丢弃，资源按项目日历参与排期。",
             samples: withSchedule.map { $0.childText("name") ?? ($0.attribute("id") ?? "未命名资源") }
         )
     }
@@ -380,7 +380,7 @@ public struct OmniPlanReader {
                     field: "resource.notes",
                     kind: .dropped,
                     count: 1,
-                    detail: "Kairo 的资源没有备注字段：来源资源备注（含预设计划表说明）丢弃。",
+                    detail: "Zeno 的资源没有备注字段：来源资源备注（含预设计划表说明）丢弃。",
                     sample: name
                 )
             }
@@ -389,7 +389,7 @@ public struct OmniPlanReader {
                     field: "resource.efficiency",
                     kind: .dropped,
                     count: 1,
-                    detail: "Kairo 的效率字段未参与导入：来源资源的效率被忽略，投入↔工期换算按 100% 处理。",
+                    detail: "Zeno 的效率字段未参与导入：来源资源的效率被忽略，投入↔工期换算按 100% 处理。",
                     sample: "\(name) efficiency=\(efficiency)"
                 )
             }
@@ -400,7 +400,7 @@ public struct OmniPlanReader {
                 field: "resource.kind",
                 kind: .degraded,
                 count: degradedSamples.count,
-                detail: "IR 只有人员/素材/成本三种资源种类：设备归素材，群组与项目容器归未知（Kairo 侧落为人员）。",
+                detail: "IR 只有人员/素材/成本三种资源种类：设备归素材，群组与项目容器归未知（Zeno 侧落为人员）。",
                 samples: degradedSamples
             )
         }
@@ -451,7 +451,7 @@ public struct OmniPlanReader {
         }
 
         // OmniPlan 文档必然带一个大纲根容器：只有一个无标题根、没有任何子任务时，
-        // 它就是「空计划」（与 MSPDI 的零任务空计划等价），不往 Kairo 里塞一个幻影任务。
+        // 它就是「空计划」（与 MSPDI 的零任务空计划等价），不往 Zeno 里塞一个幻影任务。
         if order.count == 1, let only = order.first,
            nodesByID[only.id]?.childText("title") == nil {
             return ([], [])
@@ -635,7 +635,7 @@ public struct OmniPlanReader {
                 field: "constraint.locked",
                 kind: .degraded,
                 count: 1,
-                detail: "锁定日期（locked-start-date / locked-end-date）是硬钉，Kairo 只有软时限："
+                detail: "锁定日期（locked-start-date / locked-end-date）是硬钉，Zeno 只有软时限："
                     + "降级为同时刻的「不早于 / 不晚于」，导入后可被拖动。",
                 sample: title
             )
@@ -677,7 +677,7 @@ public struct OmniPlanReader {
         for child in node.children { collectNote(child, pieces: &pieces, hasStyle: &hasStyle) }
     }
 
-    /// 成本：Kairo 无费率/成本，非零即登记丢弃（样本里全是 0，不制造假损失）。
+    /// 成本：Zeno 无费率/成本，非零即登记丢弃（样本里全是 0，不制造假损失）。
     private func recordCostIfPresent(
         _ node: OmniPlanXMLNode,
         title: String,
@@ -690,7 +690,7 @@ public struct OmniPlanReader {
             field: "cost",
             kind: .dropped,
             count: 1,
-            detail: "Kairo 没有成本/费率：任务的静态成本与小时费率丢弃。",
+            detail: "Zeno 没有成本/费率：任务的静态成本与小时费率丢弃。",
             sample: "\(title) 固定成本=\(staticCost) 费率=\(rate)"
         )
     }

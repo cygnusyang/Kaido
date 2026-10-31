@@ -26,7 +26,7 @@
 
 ## 3. 架构
 
-### 3.1 策略（KairoPresentation 新文件 `OutlineColumnPreferences.swift`，纯函数可测）
+### 3.1 策略（ZenoPresentation 新文件 `OutlineColumnPreferences.swift`，纯函数可测）
 
 ```swift
 public enum OutlineColumnPreferences {

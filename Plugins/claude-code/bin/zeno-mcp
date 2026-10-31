@@ -1,0 +1,17 @@
+#!/bin/sh
+# 启动 Zeno MCP 服务（stdio）。优先使用 ZENO_MCP_BIN，其次仓库构建产物。
+set -eu
+
+if [ -n "${ZENO_MCP_BIN:-}" ]; then
+  exec "$ZENO_MCP_BIN"
+fi
+
+root="$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)"
+for candidate in "$root/.build/release/ZenoMCP" "$root/.build/debug/ZenoMCP"; do
+  if [ -x "$candidate" ]; then
+    exec "$candidate"
+  fi
+done
+
+echo "zeno-mcp: 未找到 ZenoMCP 构建产物。请先运行 'swift build -c release'，或设置 ZENO_MCP_BIN。" >&2
+exit 1

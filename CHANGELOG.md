@@ -1,13 +1,13 @@
 # 更新日志
 
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
-版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kairo/releases)。
+版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Zeno/releases)。
 
 ## [Unreleased]
 
 ### 新增
 
-- **互操作骨架 + MSPDI 读（v1.2 P0）**：新增两个互不依赖的 target——`KairoInterop`（供应商无关 IR：任务树 / 时间 / 四型依赖 + 秒级 lag / 约束 / 资源与分配 / 日历 / 基线 / 自定义域；`FidelityLedger` 有损登记；`FormatAdapter` 协议 + `AdapterRegistry`；`KairoBridge` IR ↔ Kairo 模型）与 `InteropMSPDI`（MS Project XML 读）。适配器不 import `KairoCore`，工作日历换算只在 `KairoBridge` 一处。
+- **互操作骨架 + MSPDI 读（v1.2 P0）**：新增两个互不依赖的 target——`ZenoInterop`（供应商无关 IR：任务树 / 时间 / 四型依赖 + 秒级 lag / 约束 / 资源与分配 / 日历 / 基线 / 自定义域；`FidelityLedger` 有损登记；`FormatAdapter` 协议 + `AdapterRegistry`；`ZenoBridge` IR ↔ Zeno 模型）与 `InteropMSPDI`（MS Project XML 读）。适配器不 import `ZenoCore`，工作日历换算只在 `ZenoBridge` 一处。
 - **契约测试 `AdapterConformanceSuite`**：空计划 / 单任务 / 四类依赖 / lag / 里程碑 / 群组 / 多日历 / 基线 / 中文 emoji / 畸形 XML 共 12 个 MSPDI 样本，每次新增格式只加样本、不改断言。
 - **版本闸门**：`SaveVersion` 只接受 12–14，未知版本抛 `unsupportedFormatVersion`；命名空间必须是 `http://schemas.microsoft.com/project`。
 
@@ -68,9 +68,9 @@
 
 ### 判据
 
-- KairoCore：545 tests / 66 suites；KairoPresentation：335 tests / 31 suites（本地实跑，A7 冻结三组 `DayWidthTests` / `DayWidthAcceptanceTests` / `StartupWindowAnchorTests` 逐位不变）。
+- ZenoCore：545 tests / 66 suites；ZenoPresentation：335 tests / 31 suites（本地实跑，A7 冻结三组 `DayWidthTests` / `DayWidthAcceptanceTests` / `StartupWindowAnchorTests` 逐位不变）。
 - 新增 `OutlineTreeGroupWindowTests`（4 例，含「5 天工作日历下大纲工期 == 排期工期」这条先红后绿的判别用例）、`GanttWindowCoverageTests`（8 例：左右/双侧/边界取等/未排期/可见行过滤/无排期）、`WindowWidthModeTests`（15）、`RevealWindowTests`（7）、`PreferencesMigrationPlanTests`（8）、`V140AcceptanceTests`（Presentation 10 例 + App 3 例）。
-- App 层由 PR CI 验证（本机只有 CommandLineTools，`KairoMacApp` 缺 SwiftUIMacros 插件无法本地编译）：macOS 作业 **1673 tests / 176 suites 全绿**（较 v1.3.8 的 1602 / 165 净增 71 例 / 11 套件），Linux 作业 1034 tests / 110 suites 全绿。
+- App 层由 PR CI 验证（本机只有 CommandLineTools，`ZenoMacApp` 缺 SwiftUIMacros 插件无法本地编译）：macOS 作业 **1673 tests / 176 suites 全绿**（较 v1.3.8 的 1602 / 165 净增 71 例 / 11 套件），Linux 作业 1034 tests / 110 suites 全绿。
 
 ### 人工验收（未自动化）
 
@@ -119,7 +119,7 @@
 - `GanttPanningTests`（5 例）：像素 ↔ 天换算、负位移、日宽 0.5 兜底、往返一致。
 - `GanttScrollSurfaceTests`：controller 每帧提交（4pt/10pt = 0.4 天）、日宽切换即时生效、store 亚日平移 0.25 天保留相位。
 - `PanDragSessionTests`：拖拽平移亚日精度与同值抑制。
-- 本地 KairoCore + KairoPresentation **825 例全绿**；App 层（AppTests / 真机构建）随 CI macOS 作业验证。
+- 本地 ZenoCore + ZenoPresentation **825 例全绿**；App 层（AppTests / 真机构建）随 CI macOS 作业验证。
 
 
 ## v1.3.6 — 2026-10-29
@@ -130,7 +130,7 @@
 - **拖自动任务即转手动**：在甘特上拖动自动任务条，等于明确表达「我要这个日期」，提交时把该任务切成手动并写入起始日；只拖右端改工期不算改日期，任务保持自动。
 - **检查器新增「排期方式」**：自动 / 手动分段控件；切到手动时先把当前排期日钉进 `startDate`，避免切换瞬间日期跳变；群组行禁用（排期由子树聚合）。
 - **新违例码** `schedule_manual_start_conflict`：文案点明「钉在哪天、依赖要求最早哪天」，CLI 与界面各自渲染中英文。
-- **MSPDI 手动标记互通**：读 MS Project XML 的 `Manual="1"` → 手动排期；写出手动任务时带该属性（自动任务不写，保持与手写/他源文件的最小差异）。MS Project 里设成手动的任务导入后不会被依赖拖动，反过来导出也保留手动语义。- `.kairo` 增 `schedulingMode` 字段（缺省 `auto`）：老文件读入行为不变，写出后新字段随任务落盘。
+- **MSPDI 手动标记互通**：读 MS Project XML 的 `Manual="1"` → 手动排期；写出手动任务时带该属性（自动任务不写，保持与手写/他源文件的最小差异）。MS Project 里设成手动的任务导入后不会被依赖拖动，反过来导出也保留手动语义。- `.zeno` 增 `schedulingMode` 字段（缺省 `auto`）：老文件读入行为不变，写出后新字段随任务落盘。
 
 ### 修复
 
@@ -177,25 +177,25 @@
 
 ### 影响面
 
-- 改动集中在 `KairoPresentation` 的窗口/日宽解析与 `WorkspaceStore` 的视图状态；排期引擎、`.kairo` 文件格式、CLI/MCP 契约、互操作均未变。
-- 版本号三处同源更新（`tools/build.sh` / `Sources/KairoMCP/MCPServer.swift` / `Apps/macos/Sources/CommandRegistry.swift`）。
+- 改动集中在 `ZenoPresentation` 的窗口/日宽解析与 `WorkspaceStore` 的视图状态；排期引擎、`.zeno` 文件格式、CLI/MCP 契约、互操作均未变。
+- 版本号三处同源更新（`tools/build.sh` / `Sources/ZenoMCP/MCPServer.swift` / `Apps/macos/Sources/CommandRegistry.swift`）。
 ## v1.3.3 — 2026-10-29
 
 ### 修复
 
 - **OTA 取消点了没反应（#28）**：点下载后立刻点取消，界面无变化，下载照旧推进。根因是 `performCheck` / `performDownload` 从建任务到首次状态回写之间存在窗口，此时任务尚未登记为当前飞行，取消逻辑找不到可取消对象；可取消的状态范围也过窄。修法：两个入口加 `isCurrentFlight` 守卫堵住窗口，可取消范围扩到 `.checking` / `.updateAvailable` / `.downloading` / `.downloaded`，仅 `.installing` 不可取消（该态面板只给「关闭」，不存在死按钮）。验证：新增「取消后不得复活下载」用例并做反例红验证（`17ddcdb`），共 7 条用例先红后绿（`a816aea`）。
-- **跨版本升级后 OTA 临时目录清不掉（#24 复发）**：旧版 pending 键缺失时，按 uuid 反查脚本与 result 会落空，产物留在 `$TMPDIR`。修法：pending 缺键时按形状（同 uuid 的脚本 / result）清扫；解压目录因 prepare 与脚本 uuid 本就不同，改为「名字严格 `kairo-ota-<UUID>` + 内容恰好一个 `.app` + mtime 超 1 小时」三条件同时成立才删，仍不做宽前缀批量删除。验证：7 条用例先红后绿，与上条同一提交（`a816aea`）。
+- **跨版本升级后 OTA 临时目录清不掉（#24 复发）**：旧版 pending 键缺失时，按 uuid 反查脚本与 result 会落空，产物留在 `$TMPDIR`。修法：pending 缺键时按形状（同 uuid 的脚本 / result）清扫；解压目录因 prepare 与脚本 uuid 本就不同，改为「名字严格 `zeno-ota-<UUID>` + 内容恰好一个 `.app` + mtime 超 1 小时」三条件同时成立才删，仍不做宽前缀批量删除。验证：7 条用例先红后绿，与上条同一提交（`a816aea`）。
 - **甘特翻窗性能用例在共享 runner 上假红（#27）**：原判据是单帧 ≤50ms 墙钟绝对量，CI 上实测 50.98–51.58ms 抖动必红；且该判据对「翻窗退化成全量重建」这类真回归不敏感——慢化 20ms 时仍然绿。改为相对判据：翻窗中位 ≤ 全量重建中位 ×0.5（交替采样 7 轮、各预热 2 次、取中位），保留 500ms 病态兜底。验证：注入 20ms 慢化后比值 0.75 变红（旧判据为绿），20 次连跑 0 失败（`2d6aff7`）。
 - **macOS CI 作业测试改走 `tools/test.sh`**：与 Linux 作业同源看门狗 + 全新 scratch path，避免共享 `.build` 锁导致的长时间排队；Linux 作业保持直接 `swift test`（该环境无 `sample`，接上看门狗会失效）（`74676a6`）。
 
 ### 影响面
 
-- 改动集中在 KairoUpdater 的取消/清理路径与 Presentation 层测试判据；排期、互操作、`.kairo` 格式与 CLI/MCP 契约均无变化。
-- 版本号三处同源更新（`tools/build.sh` / `Sources/KairoMCP/MCPServer.swift` / `Apps/macos/Sources/CommandRegistry.swift`），产物版本由 `tools/release.sh` 派生。
+- 改动集中在 ZenoUpdater 的取消/清理路径与 Presentation 层测试判据；排期、互操作、`.zeno` 格式与 CLI/MCP 契约均无变化。
+- 版本号三处同源更新（`tools/build.sh` / `Sources/ZenoMCP/MCPServer.swift` / `Apps/macos/Sources/CommandRegistry.swift`），产物版本由 `tools/release.sh` 派生。
 
 ### 许可变更
 
-- 自 v1.3.3 起，许可由 MIT 改为 **PolyForm Noncommercial 1.0.0**：个人学习、爱好、科研、实验与非商业组织（慈善、教育、公共研究、公共安全/卫生、环保、政府）免费使用；任何预期商业应用的场景（含营利公司内部用 Kairo 管自己的项目）需另行取得商业授权。
+- 自 v1.3.3 起，许可由 MIT 改为 **PolyForm Noncommercial 1.0.0**：个人学习、爱好、科研、实验与非商业组织（慈善、教育、公共研究、公共安全/卫生、环保、政府）免费使用；任何预期商业应用的场景（含营利公司内部用 Zeno 管自己的项目）需另行取得商业授权。
 - **v1.3.2 及以前的已发布版本继续按 MIT 授权**，不追溯变更；本仓库的 git 历史与旧 tag 保持原样。
 - 再分发须随附本许可条款（或链接）与 `Required Notice:` 行；本许可无自动转开源条款，也不允许转授权。
 - 选择理由：目标客户是企业团队，「个人/教育免费、商业付费」直接对应定价模型，比 FSL 的两年独占窗更贴合按席位/按团队收费。代价是部分企业法务会禁止使用非 OSI 许可的软件，故 README 给出商业授权联系方式。详见 `LICENSE` 与 README「License / 许可证」节。
@@ -225,7 +225,7 @@
 
 ### 新增
 
-- **OTA 决策留痕（#23）**：terminationReply 记录 armed/unsaved 快照与 reply 结果，install 记录 requested → preflight → armed → terminate 全过程，os_log 与 ~/Library/Logs/Kairo/ota.log 同步双写。判定逻辑一字未改。
+- **OTA 决策留痕（#23）**：terminationReply 记录 armed/unsaved 快照与 reply 结果，install 记录 requested → preflight → armed → terminate 全过程，os_log 与 ~/Library/Logs/Zeno/ota.log 同步双写。判定逻辑一字未改。
 - **本地升级验证脚手架**：tools/ota-local-verify.sh 加 DEBUG-only 清单覆盖，可在本机走完整 OTA 链路（清残留 → 现签清单 → 本地服务 → 临时副本启动），不覆盖 /Applications；启动前若发现旧 build 在跑会 WARN。
 
 ### 判据
@@ -258,7 +258,7 @@
 - **OmniPlan 导入与导出**（`.oplx`）：读 26 任务样本；写出的文件已在 OmniPlan 4.10.3 实测打开，任务标题与层级回读正确。
 - **MS Project 导出（Beta）**：往返数据一致，但未经 Windows Project 实机验证，界面与旁注均如实标注。
 - **导入预检**：四块清单（丢失 / 已换算 / 日历 / 依赖明细）+ 不计漏不变量（四块计数之和必等于台账条目数），默认按钮为「取消」。
-- **互操作架构**：`KairoInterop`（IR + FormatAdapter + FidelityLedger + KairoBridge）与两个互不依赖的适配器 target；删掉任一通道，另一个仍可编译。
+- **互操作架构**：`ZenoInterop`（IR + FormatAdapter + FidelityLedger + ZenoBridge）与两个互不依赖的适配器 target；删掉任一通道，另一个仍可编译。
 
 ### 修复
 
@@ -299,7 +299,7 @@
 ### 变更
 
 - **`durationDays` 语义由「日历天」改为「工作日」**。默认全周 7 天时两者等价，**既有项目行为完全不变**（1343 个既有用例一条未改仍全绿）。
-- `.kairo` 仍为 **formatVersion 2**：日历是可选加法字段，全默认时不写键；旧文件读入即全周，旧版本读新文件不受影响。
+- `.zeno` 仍为 **formatVersion 2**：日历是可选加法字段，全默认时不写键；旧文件读入即全周，旧版本读新文件不受影响。
 
 ### 判据与证据
 
@@ -324,7 +324,7 @@
 
 ### 判据与证据
 
-- `perl -CSD` 扫描 `Sources/KairoMCP/Tools.swift`：`description:` 行含 CJK = **0**；全文仍有 96 行含 CJK（注释与冻结错误文案），证明检测不是空转。
+- `perl -CSD` 扫描 `Sources/ZenoMCP/Tools.swift`：`description:` 行含 CJK = **0**；全文仍有 96 行含 CJK（注释与冻结错误文案），证明检测不是空转。
 - 全量 **1343 tests / 126 suites** 通过；build 零 warning。
 
 ### 已知未做
@@ -335,7 +335,7 @@
 
 ### 修复
 
-- **应用只有 arm64 一份，Intel Mac 打不开**：`tools/build.sh` 一直只构建宿主架构，而下载页没有任何「仅 Apple Silicon」说明 —— Intel 用户拿到 DMG 会直接遇到「应用无法打开」。现改为默认产出 **universal（arm64 + x86_64）**，app / `KairoCLI` / `KairoMCP` 三者一致；交叉编译不可用时回退宿主架构并显式告警。
+- **应用只有 arm64 一份，Intel Mac 打不开**：`tools/build.sh` 一直只构建宿主架构，而下载页没有任何「仅 Apple Silicon」说明 —— Intel 用户拿到 DMG 会直接遇到「应用无法打开」。现改为默认产出 **universal（arm64 + x86_64）**，app / `ZenoCLI` / `ZenoMCP` 三者一致；交叉编译不可用时回退宿主架构并显式告警。
 
 ### 变更（发布链路）
 
@@ -343,7 +343,7 @@
 
 ### 判据与证据
 
-- `file dist/Kairo.app/Contents/MacOS/Kairo` → 双架构（x86_64 + arm64）；CLI / MCP 同。
+- `file dist/Zeno.app/Contents/MacOS/Zeno` → 双架构（x86_64 + arm64）；CLI / MCP 同。
 - 全量 **1342 tests / 126 suites** 通过；`-warnings-as-errors` 通过。
 - `update-manifest.json` 的 `sha256` 与发布的 zip 字节一致（OTA 载体完整性可自证）。
 
@@ -362,7 +362,7 @@
 
 ### 不兼容变更
 
-- **`.kairo` formatVersion 2 起冻结**：新增字段一律加法+可选；破坏性变更必须升版本并提供相邻迁移。**旧客户端（0.12 及更早）打开 v2 文件会被明确拒绝**（`unsupportedFormatVersion`），不会静默丢数据。降级前请先在 1.0 中「另存为」留档。
+- **`.zeno` formatVersion 2 起冻结**：新增字段一律加法+可选；破坏性变更必须升版本并提供相邻迁移。**旧客户端（0.12 及更早）打开 v2 文件会被明确拒绝**（`unsupportedFormatVersion`），不会静默丢数据。降级前请先在 1.0 中「另存为」留档。
 - 列位置改由「单一列顺序」决定，取代 0.15 的「可选列紧随 finish、找不到锚点就追加末尾」；默认顺序下渲染结果不变。
 - 取消任务必须填写原因，且只能通过 `status update`（`task update --status cancelled` 一律拒绝）。
 
@@ -378,7 +378,7 @@
 - 全量 **1342 tests / 126 suites** 连续两次通过；`-warnings-as-errors` 零告警。
 - 性能：5,000 任务 × 3 基线 release decode 0.155 s（门槛 1 s）；1,000 行翻窗 4.9 ms（预算 16.7 ms）。
 - 缺陷表无「待修复」项。
-- 下载校验：附件提供 `Kairo-v1.0.0.dmg.sha256`、`Kairo-v1.0.0.zip.sha256` 与汇总 `SHA256SUMS`；`update-manifest.json` 的 `sha256` 与 zip 字节一致（OTA 载体完整性）。
+- 下载校验：附件提供 `Zeno-v1.0.0.dmg.sha256`、`Zeno-v1.0.0.zip.sha256` 与汇总 `SHA256SUMS`；`update-manifest.json` 的 `sha256` 与 zip 字节一致（OTA 载体完整性）。
 
 ### 已知限制
 
@@ -465,7 +465,7 @@
 
 ### 变更
 
-- 列顺序与列显隐都进 `kairo.workspace.preferences.v1`（新字段 `outlineColumnOrder`，键名不升版）；默认顺序不写键，旧偏好缺失即按默认顺序。
+- 列顺序与列显隐都进 `zeno.workspace.preferences.v1`（新字段 `outlineColumnOrder`，键名不升版）；默认顺序不写键，旧偏好缺失即按默认顺序。
 - 大纲行内状态菜单不再列出「已取消」——该状态需要填原因，走行内「一点即改」会被会话拒绝（D-037）；取消统一从检查器或 CLI 发起。
 
 ### 修复
@@ -484,7 +484,7 @@
 ### 修复
 
 - **界面上找不到 CSV 导出（用户实测反馈）**：v0.15.0 的偏差 CSV 只有 CLI 入口（`baseline variance --csv`），应用里没有任何按钮或菜单项 —— 等于这个功能对 GUI 用户不存在。
-- 修复：把 CSV 组装从 CLI 目标搬到 **KairoCommands**（`VarianceCSV`），CLI 与 App 共用同一份实现（列头、BOM、RFC 4180 转义、孤儿分节全部同源，不可能漂移）；应用侧新增「基线 → 导出偏差 CSV…」菜单项与 ⌘K 命令，走 NSSavePanel 保存，成功后状态栏提示、失败弹应用内提示。
+- 修复：把 CSV 组装从 CLI 目标搬到 **ZenoCommands**（`VarianceCSV`），CLI 与 App 共用同一份实现（列头、BOM、RFC 4180 转义、孤儿分节全部同源，不可能漂移）；应用侧新增「基线 → 导出偏差 CSV…」菜单项与 ⌘K 命令，走 NSSavePanel 保存，成功后状态栏提示、失败弹应用内提示。
 
 ### 判据与证据
 
@@ -497,7 +497,7 @@
 
 - **基线面板**：菜单栏「基线 → 管理基线…」打开的清单，逐条显示颜色块、名称、创建时间、条目数、甘特显隐与主对比状态；行内可直接设为主对比、切换甘特显示、改色、重命名、删除（沿用二次确认）。底部固定两块：**孤儿条目**（任务已删除，只读，显示基线上的原始起止）与**基线之后新增**计数。
 - **项目摘要偏差块**：检查器「项目」页新增「与基线对比」，一次看到结束偏差、晚完成数、逾期未完成、无基线条目、基线后新增、已删除条目；未选基线时整段不出现，不做「缺省比最新」的静默回落。
-- **偏差 CSV 导出**：`kairo baseline variance --csv <路径>`，UTF-8 带 BOM 便于 Excel 直接打开；前三行是基线身份（id / 名称 / 创建时间），第四行起 11 列固定表头（taskID,title,baselineStart,baselineFinish,planStartVariance,planFinishVariance,actualStartVariance,actualFinishVariance,overdueDays,hasBaseline,isForecast）；空值留空不写 0，负数保留符号，孤儿条目单独分节且列数不变。`kairo project summary` 同步输出同一份偏差块。
+- **偏差 CSV 导出**：`zeno baseline variance --csv <路径>`，UTF-8 带 BOM 便于 Excel 直接打开；前三行是基线身份（id / 名称 / 创建时间），第四行起 11 列固定表头（taskID,title,baselineStart,baselineFinish,planStartVariance,planFinishVariance,actualStartVariance,actualFinishVariance,overdueDays,hasBaseline,isForecast）；空值留空不写 0，负数保留符号，孤儿条目单独分节且列数不变。`zeno project summary` 同步输出同一份偏差块。
 
 ### 修复
 
@@ -525,7 +525,7 @@
 
 ### 修复
 
-- **切换语言后没有任何反馈**：语言偏好写入 `UserDefaults` 不会触发 SwiftUI 重算，勾选态停在原处、菜单一关就再无动静，用户只能认为「没生效」。现在：① 菜单改用 `@AppStorage` 观察同一偏好键，选完立刻打勾到新语言；② 弹出提示「已切换语言：English —— 退出并重新打开 Kairo 后生效」。
+- **切换语言后没有任何反馈**：语言偏好写入 `UserDefaults` 不会触发 SwiftUI 重算，勾选态停在原处、菜单一关就再无动静，用户只能认为「没生效」。现在：① 菜单改用 `@AppStorage` 观察同一偏好键，选完立刻打勾到新语言；② 弹出提示「已切换语言：English —— 退出并重新打开 Zeno 后生效」。
 - **大纲序号显示不全**：「10.12」这类三级序号在 30pt 宽的序号列里会被截断或换行。列宽 30 → **44**，并加 `lineLimit(1)` + `minimumScaleFactor(0.8)` 兜底超深层级。
 
 ### 变更
@@ -569,19 +569,19 @@
 ### 修复
 
 - **切换英文后菜单栏残留中文（#15）**：`文件 / 编辑 / 显示 / 窗口 / 帮助` 这些 AppKit 标准菜单跟随的是**进程级**语言（`AppleLanguages`），而应用内文案走的是自己的 `.lproj` 选择 —— 两套来源互不影响，于是出现「自定义菜单已英文、系统菜单仍中文」的中英混排。
-- 修复：`AppLanguage.store(_:)` 与启动时（`applicationWillFinishLaunching`）都把当前语言同步写入 `AppleLanguages`（English → `["en"]`、简体中文 → `["zh-Hans"]`、跟随系统 → 移除该键）。与既有「切换语言后重启生效」同一时机；同时修复历史安装（早前只写了 `KairoLanguage`，系统菜单会一直停在系统语言）。
+- 修复：`AppLanguage.store(_:)` 与启动时（`applicationWillFinishLaunching`）都把当前语言同步写入 `AppleLanguages`（English → `["en"]`、简体中文 → `["zh-Hans"]`、跟随系统 → 移除该键）。与既有「切换语言后重启生效」同一时机；同时修复历史安装（早前只写了 `ZenoLanguage`，系统菜单会一直停在系统语言）。
 
 ### 判据与证据
 
 - 新增 2 例：`processLocalizationFollowsAppLanguage`（en / zh-Hans / system 三档映射）、`storingLanguageAlsoWritesProcessLocalization`（`store` 是唯一写入口，两个键同步落盘，杜绝半更新状态）。
-- 全量 **1203 tests / 107 suites** 通过。真机核验：`KairoLanguage = en` 重启后菜单栏全部为英文（含 File / Edit / View / Window / Help 及其系统项）。
+- 全量 **1203 tests / 107 suites** 通过。真机核验：`ZenoLanguage = en` 重启后菜单栏全部为英文（含 File / Edit / View / Window / Help 及其系统项）。
 
 ## v0.14.0 — 2026-10-25
 
 ### 新增
 
 - **甘特图上同时显示多条基线**：行内分轨，最多 3 条（保守 / 基准 / 激进），基线细条恒在计划条下方、与计划条共用同一时间轴，一眼看出「当时的承诺」相对现在偏了多少。基线轨只读，拖动不会改期。
-- **基线用颜色区分**：8 色调色板，创建时按「未占用的最小索引」分配，删除其它基线不会让已分配的颜色改变；颜色写进 `.kairo`（可选字段，**不升 formatVersion**），旧文件在保存时按创建顺序补齐，打开时不置脏。
+- **基线用颜色区分**：8 色调色板，创建时按「未占用的最小索引」分配，删除其它基线不会让已分配的颜色改变；颜色写进 `.zeno`（可选字段，**不升 formatVersion**），旧文件在保存时按创建顺序补齐，打开时不置脏。
 - **顶级「基线」菜单**：新建基线（⌥⌘B，恒为第一项）→ 每条基线的子菜单（在甘特图中显示 / 设为主对比 / 8 色改色 / 重命名 / 删除）→ 未显示条数提示 → 不对比 → 图例（颜色 · 名称 · 色名 · 创建日期）。菜单与 ⌘K 同源；颜色命令不进 ⌘K 以免挤爆面板。
 - **CLI / MCP**：`baseline color <id|前缀> <0…7>` 与 `baseline_set_color` 新增；`baseline list/create/variance` 的文本与 `--json` 都返回 `colorIndex`（缺字段按调色板派生，不写 0）。MCP 工具总数 20 → 21。
 
@@ -655,7 +655,7 @@
 
 ### 变更（不兼容，需注意）
 
-- **`.kairo` 格式版本 1 → 2**：新增顶层 `baselines` 数组；无基线的项目不写该键。**0.12.0 及更早版本打开 v2 文件会被明确拒绝**（`unsupportedFormatVersion`，提示升级 Kairo），不会静默丢基线。v1 文件打开时内存内迁移、**不落盘**，首次保存才写成 v2。
+- **`.zeno` 格式版本 1 → 2**：新增顶层 `baselines` 数组；无基线的项目不写该键。**0.12.0 及更早版本打开 v2 文件会被明确拒绝**（`unsupportedFormatVersion`，提示升级 Zeno），不会静默丢基线。v1 文件打开时内存内迁移、**不落盘**，首次保存才写成 v2。
 - 偏差字段名与符号规则自本版起作为对外契约（CLI `--json` 与 MCP 返回同名同义），后续改口径视为破坏性变更。
 - 基线删除不做软删除、不留审批痕迹（与 OmniPlan 一致，PMBOK 口径不适用单人工具）。
 
@@ -698,8 +698,8 @@
 
 ### 新增
 
-- **非工作日着色开关（F-14-14 / #10）**：时间轴默认不再把周六/周日画成灰底 —— Kairo 按日历天排期，「一周 7 天都算工作日」才和图上的条体一致。需要对照周末时，用「显示 → 显示/隐藏非工作日」（或 ⌘K 命令面板）打开，周末重新以灰带标出。
-- 该选择是应用级视图偏好（`UserDefaults` 的 `kairo.workspace.preferences.v1`），换项目与重启都保留；旧偏好在缺失该字段时回落为「不显示」。
+- **非工作日着色开关（F-14-14 / #10）**：时间轴默认不再把周六/周日画成灰底 —— Zeno 按日历天排期，「一周 7 天都算工作日」才和图上的条体一致。需要对照周末时，用「显示 → 显示/隐藏非工作日」（或 ⌘K 命令面板）打开，周末重新以灰带标出。
+- 该选择是应用级视图偏好（`UserDefaults` 的 `zeno.workspace.preferences.v1`），换项目与重启都保留；旧偏好在缺失该字段时回落为「不显示」。
 
 ### 变更
 
@@ -724,9 +724,9 @@
 
 ### 新增
 
-- **最近打开的项目（最多 5 个）**：成功打开或保存的 `.kairo` 文件记入最近列表，同一文件去重后置顶，超过 5 条挤掉最旧；文件被移动/删除后，失效路径在读取时剔除，菜单里不留打不开的死链。入口是「文件 → 最近打开」子菜单与 ⌘K 命令面板（标题为文件名，同名文件用父目录消歧），子菜单底部有「清除菜单」——只清列表，不动当前项目。
-- **启动默认打开最后一个项目**：本次启动没有显式打开请求（双击 `.kairo`、深链）且当前未载入项目时，启动 300ms 后自动打开最近列表中最新且仍存在的文件；有显式请求则让位，不抢用户要打开的文件。打开失败的文件不进列表。
-- 偏好键 `kairo.recent.projects.v1`（`UserDefaults`，路径数组；只存路径不存书签）。
+- **最近打开的项目（最多 5 个）**：成功打开或保存的 `.zeno` 文件记入最近列表，同一文件去重后置顶，超过 5 条挤掉最旧；文件被移动/删除后，失效路径在读取时剔除，菜单里不留打不开的死链。入口是「文件 → 最近打开」子菜单与 ⌘K 命令面板（标题为文件名，同名文件用父目录消歧），子菜单底部有「清除菜单」——只清列表，不动当前项目。
+- **启动默认打开最后一个项目**：本次启动没有显式打开请求（双击 `.zeno`、深链）且当前未载入项目时，启动 300ms 后自动打开最近列表中最新且仍存在的文件；有显式请求则让位，不抢用户要打开的文件。打开失败的文件不进列表。
+- 偏好键 `zeno.recent.projects.v1`（`UserDefaults`，路径数组；只存路径不存书签）。
 
 ## v0.9.1 — 2026-10-24
 
@@ -740,13 +740,13 @@
 
 ### 修复
 
-- **菜单栏图标误命名**：`design/icons/menubar` 下两个以邮箱命名的 PNG 实为 22pt / 18pt 的 @2x 倍图，改为 `kairo-menubarTemplate@2x.png` / `kairo-menubarTemplate-18@2x.png`；`tools/build.sh` 不再把这两个设计源文件当运行时资源拷进 `.app`。
+- **菜单栏图标误命名**：`design/icons/menubar` 下两个以邮箱命名的 PNG 实为 22pt / 18pt 的 @2x 倍图，改为 `zeno-menubarTemplate@2x.png` / `zeno-menubarTemplate-18@2x.png`；`tools/build.sh` 不再把这两个设计源文件当运行时资源拷进 `.app`。
 
 ## v0.9.0 — 2026-10-24
 
 ### 破坏性变更
 
-`KairoCore` / `KairoCommands` / `KairoPresentation` / `KairoUpdater` 仅有本仓库内部消费者，iPadOS 壳尚未发布；pre-1.0 不为下列删除保留兼容层。
+`ZenoCore` / `ZenoCommands` / `ZenoPresentation` / `ZenoUpdater` 仅有本仓库内部消费者，iPadOS 壳尚未发布；pre-1.0 不为下列删除保留兼容层。
 
 - 删除 `Violation.message`：违例只带 `reason`（语义枚举 + 参数）与派生的 `code`
 - **`violations_list` 的 `code` 取值改变**：原先返回规则码（`cycle`、`cannot_schedule_asap_alap` 等），现返回稳定错误码（`schedule_cycle`、`schedule_negative_slack` 等）。按旧码分支的脚本与提示词需改用新码或改用 `reason` 的语义字段。
@@ -756,22 +756,22 @@
 - 删除 `ViolationItem.name` / `message`：改为 `code` + `reason`
 - 删除 `WorkspacePresenter.zoomLabel(_:)` / `zoomDetail(dayWidth:)`
 - `OutlineDateEditing.disabledReason(for:)`（返回中文整句）改为属性 `disabledReason: DateFieldDisabledReason?`
-- `SessionError` 旧签名：增加 `reason: KairoErrorCode`；`code` 与 `message` 保留
+- `SessionError` 旧签名：增加 `reason: ZenoErrorCode`；`code` 与 `message` 保留
 - 删除 Updater 各类型的 `errorDescription`：改为 `UpdaterErrorCode`（码 + 参数）
 - `UpdaterState.failed(String)` → `failed(UpdaterFailure)`
-- `KairoSession.loadWarnings: [String]` → `[LoadWarning]`
+- `ZenoSession.loadWarnings: [String]` → `[LoadWarning]`
 
 ### 新增
 
 - **界面双语（英文 / 简体中文）**：英文为源语言，简体中文为译文；语言按系统语言协商，`CFBundleLocalizations` 声明 `en` 与 `zh-Hans`，启动时确定。
-- **应用语言设置（三档）**：跟随系统 / English / 简体中文，持久化到 `KairoLanguage`；缺失或非法值（含被手工改坏）回退跟随系统。
+- **应用语言设置（三档）**：跟随系统 / English / 简体中文，持久化到 `ZenoLanguage`；缺失或非法值（含被手工改坏）回退跟随系统。
 - **String Catalog（419 键）**：`Apps/macos/Resources/Localizable.xcstrings` 为唯一源文件；`.xcstrings` 不进任何 target 的 `resources`（SwiftPM 只原样拷贝、不编译，resource bundle 也没有 `Info.plist`），改由 `tools/i18n-compile.sh` 在打包期用 `xcstringstool` 编出 `en` / `zh-Hans` 两份 `.lproj`，`tools/build.sh` 在 `codesign` 之前拷进 `Contents/Resources/`；缺 Catalog 或任一语言目录直接失败，不产出单语包。
-- **`KairoErrorCode`（47 个稳定码）**：`<group>_<detail>` 文法，其中 `schedule_start_after_project_window` 归因「任务开始日落在项目窗口外」；v0.9.0 起冻结，只增不改。
+- **`ZenoErrorCode`（47 个稳定码）**：`<group>_<detail>` 文法，其中 `schedule_start_after_project_window` 归因「任务开始日落在项目窗口外」；v0.9.0 起冻结，只增不改。
 - **`UpdaterErrorCode`（34 个稳定码）**：`updater_` 前缀，覆盖清单解析、签名校验、校验和、端点策略、下载、安装与产品校验（含 F-0719 的 `install_app_still_running` / `install_backup_failed` / `install_replace_failed`）；更新面板按码翻译。
-- **违例文案单一实现（F-0720）**：`violations_list` 恢复 `message` 字段（v0.8.5 有此字段，语义化后一度缺失）；文案由 `KairoCommands.ViolationText` 统一渲染，CLI 与 MCP 共用一份，阶段一均为中文。
+- **违例文案单一实现（F-0720）**：`violations_list` 恢复 `message` 字段（v0.8.5 有此字段，语义化后一度缺失）；文案由 `ZenoCommands.ViolationText` 统一渲染，CLI 与 MCP 共用一份，阶段一均为中文。
 - **MCP 错误新增 `reason`**：`code` 六个取值冻结不变（`project_not_open` / `task_not_found` / `invalid_argument` / `file_unreadable` / `unsupported_format` / `internal_error`），`reason` 给出细粒度稳定码；`message` 保持中文原样，切英文排在 v0.10.0。
-- **CLI 语言策略**：`--lang <bcp47>` 与 `KAIRO_LANG`，优先级 命令行 > 环境变量 > 系统语言；系统语言不可判定时回退简体中文，既有中文脚本不受影响；`--json` 输出与语言无关，两种语言下字节一致。
-- **多语言 CI 门禁（`tools/i18n-lint.sh` + `tools/i18n-lint-selftest.sh`，31 例）**：零硬编码中文（白名单已清零）、`KairoCore` / `KairoCommands` / `KairoPresentation` 无 `Bundle.module`、两份 `.lproj` 的键集合与占位符一致、白名单为空；无跳过开关，Catalog 缺失即失败。
+- **CLI 语言策略**：`--lang <bcp47>` 与 `ZENO_LANG`，优先级 命令行 > 环境变量 > 系统语言；系统语言不可判定时回退简体中文，既有中文脚本不受影响；`--json` 输出与语言无关，两种语言下字节一致。
+- **多语言 CI 门禁（`tools/i18n-lint.sh` + `tools/i18n-lint-selftest.sh`，31 例）**：零硬编码中文（白名单已清零）、`ZenoCore` / `ZenoCommands` / `ZenoPresentation` 无 `Bundle.module`、两份 `.lproj` 的键集合与占位符一致、白名单为空；无跳过开关，Catalog 缺失即失败。
 
 ### 变更
 
@@ -793,10 +793,10 @@
 
 ### 新增
 
-- **发布附带 CLI / MCP 二进制**：Release 增加 `kairo-v0.8.5-macos-universal.tar.gz`（含 `kairo` 与 `kairo-mcp`，arm64 + x86_64 通用二进制）及 `.sha256` 校验文件。接入智能体不再需要装 Swift 工具链编译，解包即可用。
+- **发布附带 CLI / MCP 二进制**：Release 增加 `zeno-v0.8.5-macos-universal.tar.gz`（含 `zeno` 与 `zeno-mcp`，arm64 + x86_64 通用二进制）及 `.sha256` 校验文件。接入智能体不再需要装 Swift 工具链编译，解包即可用。
 - **持续集成**：新增 `.github/workflows/ci.yml`，push 与 PR 触发 macOS（测试 + 两道门禁）与 Linux（`swift:6.0-jammy`，验证 ADR-004 可移植性）双任务，README 挂 CI 徽章。
 - **可选签名与公证**：发布流水线支持 Developer ID 签名 + `notarytool` 公证 + staple；未配置证书时整段跳过，未签名发布照常进行。所需 secrets 见 `CONTRIBUTING.md`。
-- **英文文档**：新增 `QUICKSTART.md`、`ARCHITECTURE.md`、`CONTRIBUTING.md`、`SECURITY.md`、Issue / PR 模板；五张架构图改为中英双语生成（`tools/gen-arch-svg.py`，`KAIRO_SVG_LANG=en|zh`）。
+- **英文文档**：新增 `QUICKSTART.md`、`ARCHITECTURE.md`、`CONTRIBUTING.md`、`SECURITY.md`、Issue / PR 模板；五张架构图改为中英双语生成（`tools/gen-arch-svg.py`，`ZENO_SVG_LANG=en|zh`）。
 
 ### 修复
 
@@ -814,7 +814,7 @@
   - **不按事件窗口身份判定**：`scrollWheel` 的 `event.window` 常为 nil、`keyWindow` 可能指向辅助窗口，改为「光标是否在画布视口内」定位。
   - **「编辑中」按光标落点判定**：SwiftUI 工作台窗口在没有任何输入框获得焦点时，首响应者仍是窗口共用 field editor，原判据会把每条滚动当成编辑中放行 —— 这是最后一处、也是最隐蔽的一处。
   - 判定抽为纯函数 `GanttScrollRouter`；连续滚动由 `advance(byDays:)` 就地推进窗口起点（不再反复派发同一目标），整天推进改用 `Calendar` 加法（跨 DST 安全）。
-  - 现场诊断：新增 `os.Logger`（subsystem `ai.kairo.app` / category `gantt-pan`）记录安装、首个滚动事件（含视口/光标/是否命中）、每种放行原因与每次平移提交，可用 `log stream --predicate 'subsystem == "ai.kairo.app"'` 定位。
+  - 现场诊断：新增 `os.Logger`（subsystem `ai.zeno.app` / category `gantt-pan`）记录安装、首个滚动事件（含视口/光标/是否命中）、每种放行原因与每次平移提交，可用 `log stream --predicate 'subsystem == "ai.zeno.app"'` 定位。
   - 验证：合成 `CGEvent` 横向滚动 + 光标定位跑通端到端（日志显示 8 次滚动 → 7 次整天提交，状态栏窗口区间由 10/23–… 移至 10/17–11/2）；新增 26 例用例（含事件级消费与「编辑中」判据），全量 768/768。
 
 ### 变更
@@ -827,7 +827,7 @@
 ### 新增
 
 - **一键发版（`tools/release.sh`）**：`tools/release.sh 0.8.3` 一次完成发版全流程——前置校验（必须在 main、工作区干净、tag 不存在、版本递增、CHANGELOG 有对应章节）→ 同步三处版本号 → 全量测试 → 打包 → 提交 → annotated tag → 推送。`--dry-run` 只做校验、测试与打包，不动仓库。
-- **产物打包抽为 `tools/package.sh`**：本地与 CI 同源，一次产出 `Kairo-<tag>.dmg`（挂载后拖入 Applications）与 `Kairo-<tag>.zip`（OTA 载体，ditto 保留签名）。打包前校验应用内 `CFBundleShortVersionString` 与 tag 一致——版本号漏改会在打包阶段直接失败，而不是把旧版本装进新版本附件。
+- **产物打包抽为 `tools/package.sh`**：本地与 CI 同源，一次产出 `Zeno-<tag>.dmg`（挂载后拖入 Applications）与 `Zeno-<tag>.zip`（OTA 载体，ditto 保留签名）。打包前校验应用内 `CFBundleShortVersionString` 与 tag 一致——版本号漏改会在打包阶段直接失败，而不是把旧版本装进新版本附件。
 - **Release 说明单一来源 `tools/release_notes.sh`**：CI 与本地共用同一段 CHANGELOG 抽取逻辑，Release 说明即 `CHANGELOG.md` 的对应章节；章节缺失时回退为自动生成的提交列表。
 
 ### 变更
@@ -840,7 +840,7 @@
 
 - **发版归档步骤加固（D-026）**：产物推送失败不再让整轮发版白跑。
   - `git push origin artifacts` 连续失败时重试 3 次（间隔 10 秒）；提交已生成，重试不产生冗余提交。同时抬高 `http.postBuffer` 并放宽低速判定，减少 408 / 断连概率。
-  - `artifacts` 分支的 `latest/` 每次重建，只镜像当前版本；此前的 `Kairo-v0.3.1.*`、`Kairo-v0.4.0.*` 等历史残留随本次归档一并清除（`git add -Af` 记录删除）。
+  - `artifacts` 分支的 `latest/` 每次重建，只镜像当前版本；此前的 `Zeno-v0.3.1.*`、`Zeno-v0.4.0.*` 等历史残留随本次归档一并清除（`git add -Af` 记录删除）。
   - 同一 tag 重跑幂等：内容无变化时跳过提交，推送为 no-op 且判成功。
 
 ## v0.8.1 — 2026-10-23
@@ -873,7 +873,7 @@
   - 结束列：改写持续时间（结束为排他端点），最小可选日 = 起点次日；不允许清除。
   - 禁用语义与检查器一致：群组两列只读、里程碑结束只读、无排期时结束不可选，均以灰字 + tooltip 给出原因而不是静默无反应。
   - 写回动作与撤销粒度与检查器完全同源（`setTaskStart` / `setTaskFinish`，`task-start-*` / `task-finish-*`）；命令层零改动。
-- 新增 `OutlineDateEditing` 纯函数策略（KairoPresentation）承载启用/原因/最小日判定，视图不写规则；跨 DST 日期以日历加法而非 +86400 秒推进。
+- 新增 `OutlineDateEditing` 纯函数策略（ZenoPresentation）承载启用/原因/最小日判定，视图不写规则；跨 DST 日期以日历加法而非 +86400 秒推进。
 - 设计稿与测试矩阵：docs/archive/Sprint10-outline-date-cells/design.md（17 例策略测试 + 2 例同源断言）。
 
 ## v0.6.0 — 2026-10-22
@@ -885,7 +885,7 @@
   - 画布空白处按住拖拽平移，内容跟手；条体 / 端点 / 依赖线上的拖拽仍是 F-14-09 编辑行为，互不干扰。
   - 平移粒度为整天（布局契约）：滚动输入按亚日余量累积、跨整天才提交，慢速滑动不丢位移也不跳格；切换缩放档位时余量清零。
   - 平移自动退出「适合项目」，窗口起点按整天归一；Escape 可取消进行中的拖拽（已生效的平移不回滚，与表头拖拽一致）。
-- 实现：`HorizontalPanAccumulator` 纯函数（KairoPresentation）、`PanDragSession` 拖拽状态机与 `HorizontalPanContext` 引用上下文（App 层）、`HorizontalScrollMonitor` 事件捕获薄层；命令层与 Store 复用既有 `.panWindow`，零改动。
+- 实现：`HorizontalPanAccumulator` 纯函数（ZenoPresentation）、`PanDragSession` 拖拽状态机与 `HorizontalPanContext` 引用上下文（App 层）、`HorizontalScrollMonitor` 事件捕获薄层；命令层与 Store 复用既有 `.panWindow`，零改动。
 - 设计稿：docs/archive/Sprint9-gantt-horizontal-pan/design.md；F-14-13 原「本期不做横向滚动条」约束改写（仍不做滚动条，横向平移由触摸板/拖拽承担）。
 
 ## v0.5.0 — 2026-10-21
@@ -923,7 +923,7 @@
 ### 新增
 
 - **甘特图直接编辑（F-14-09）**：画布支持拖条改期（日粒度吸附，显式锚定开始日期）、拖右端点改持续、拖左端点改开始（结束不变）；从条端点外环带拖出绘制依赖线（FS / lag 0，拖出方向决定前后驱，成环自动拒绝）；点选依赖线后按 Delete/Backspace 删除。拖拽中显示虚线预览与目标日期标签，松手生效，Escape 取消。
-- 交互架构：`GanttHitTesting` 纯函数命中测试（KairoPresentation，区域表全分支单测）+ `CanvasDragSession` 引用语义节流状态机（100ms 节流、松手必提交末值、同值去重）；长拖拽多笔提交经撤销合并键（`canvas-move-*` / `canvas-resize-*`）并为一步撤销。命令层复用 `updateTask(id:patch:)` 与依赖动作，零改动。
+- 交互架构：`GanttHitTesting` 纯函数命中测试（ZenoPresentation，区域表全分支单测）+ `CanvasDragSession` 引用语义节流状态机（100ms 节流、松手必提交末值、同值去重）；长拖拽多笔提交经撤销合并键（`canvas-move-*` / `canvas-resize-*`）并为一步撤销。命令层复用 `updateTask(id:patch:)` 与依赖动作，零改动。
 - 对象适配：里程碑仅拖改期（菱形端点退化为条体）；群组聚合条不可拖（由子任务推导）；群组/里程碑仍可作依赖端点。
 - 设计稿：docs/archive/Sprint7-gantt-direct-edit/design.md；ui-redesign §10「画布禁拖」约束随本特性解除。
 
@@ -937,26 +937,26 @@
 
 ## v0.3.0 — 2026-10-20
 
-本版引入应用内 OTA 更新（通用更新模块 KairoUpdater，移植自 COFFER OTA 的安全设计）。
+本版引入应用内 OTA 更新（通用更新模块 ZenoUpdater，移植自 COFFER OTA 的安全设计）。
 
 ### 新增
 
 - **应用内 OTA 更新**：应用菜单「检查更新…」手动检查（零网络姿态：无启动静默检查、无定时后台检查）。安全链路与 COFFER OTA 同构——Ed25519 签名清单（canonical JSON）验证、下载 zip SHA256 完整性校验、产物 CDHash 与清单比对、GitHub host 白名单 + 强制 HTTPS + 重定向拦截、防降级地板（minimumVersion）；下载完成后经确认弹窗退出替换并自动重启，支持「跳过此版本」（安全关键版本禁跳）。
-- **通用更新模块 KairoUpdater**（独立库 target）：清单解析/验签、版本比较、端点白名单、网络层（协议注入、禁缓存）、8 态更新状态机、zip 安装器（非沙盒 detached 脚本替换协议：等退出→备份→替换→relaunch→result 握手），全部可独立测试；appId/公钥/feed/白名单经配置注入，可直接复用于其他 Apple 平台项目。
+- **通用更新模块 ZenoUpdater**（独立库 target）：清单解析/验签、版本比较、端点白名单、网络层（协议注入、禁缓存）、8 态更新状态机、zip 安装器（非沙盒 detached 脚本替换协议：等退出→备份→替换→relaunch→result 握手），全部可独立测试；appId/公钥/feed/白名单经配置注入，可直接复用于其他 Apple 平台项目。
 - Release 附件扩展：DMG（人装）之外新增 OTA 载体 zip 与签名清单 update-manifest.json（/releases/latest/download/ 永久链接即 feed）。
 
 ### 已知限制
 
 - v0.2.0 及更早版本不含 OTA 客户端：需手动安装 v0.3.0 一次，此后版本即可应用内更新。
-- 应用为 ad-hoc 签名（无 Apple 开发者证书）：首次打开需要在「系统设置 → 隐私与安全性」中点「仍要打开」，或执行 `xattr -cr /Applications/Kairo.app`。
+- 应用为 ad-hoc 签名（无 Apple 开发者证书）：首次打开需要在「系统设置 → 隐私与安全性」中点「仍要打开」，或执行 `xattr -cr /Applications/Zeno.app`。
 - 视图偏好文件任一字段缺失或损坏会使**全部**偏好回落默认值（项目数据不受影响，Sprint 7 改为逐字段容错）。
 - 「适合项目」在跨多年的超长项目下时间窗口无上限，逐日刻度绘制量偏大（Sprint 7 设上限）。
 - 拖条改期、拖拽建依赖、多选、基线与资源视图未实现；依赖创建从检查器进入。
 
 ### 安装
 
-1. 从本页附件下载 `Kairo-v0.3.0.dmg`。
-2. 打开 DMG，把 `Kairo.app` 拖入「应用程序」（窗口内有 Applications 快捷方式）。
+1. 从本页附件下载 `Zeno-v0.3.0.dmg`。
+2. 打开 DMG，把 `Zeno.app` 拖入「应用程序」（窗口内有 Applications 快捷方式）。
 3. 首次打开：右键点按 → 「打开」，或按上面的已知限制放行 Gatekeeper。
 4. 之后的新版本可直接在应用内「检查更新…」完成升级。
 
@@ -966,12 +966,12 @@
 
 ### 新增
 
-- 甘特图时间轴「日宽可自定义」：2–120 点/天连续可调，全轴由单一标量日宽驱动（每天等宽、每周等宽）；刻度粒度在启用自定义日宽时按实际日宽推导（≥18 逐日 / ≥6 逐周 / 其余逐月），预设档位与「适合项目」沿用既有粒度行为不变；标签不重叠、绘制量有界。入口为工具栏标尺弹出面板（滑杆 / ± 步进 / 档位芯片 / 重置）、缩放菜单步进项与 `⌘+` / `⌘-` / `⌘0`；自定义值持久化在视图偏好（`customDayWidth`），不改 `.kairo` 项目文件格式。
+- 甘特图时间轴「日宽可自定义」：2–120 点/天连续可调，全轴由单一标量日宽驱动（每天等宽、每周等宽）；刻度粒度在启用自定义日宽时按实际日宽推导（≥18 逐日 / ≥6 逐周 / 其余逐月），预设档位与「适合项目」沿用既有粒度行为不变；标签不重叠、绘制量有界。入口为工具栏标尺弹出面板（滑杆 / ± 步进 / 档位芯片 / 重置）、缩放菜单步进项与 `⌘+` / `⌘-` / `⌘0`；自定义值持久化在视图偏好（`customDayWidth`），不改 `.zeno` 项目文件格式。
 - CLI `task add/update` 增加 `--assignee`，MCP `task_add/task_update` 增加 `assignee` 属性：设置任务负责人，空串清空；与 Claude Code 协作时可填子智能体名（US-E1-02-A1…A4）。
 - `task get` 文本输出渲染负责人行。
 - 大纲「前置」列支持按大纲编号填写依赖（如 `1.1`、`1.1:fs`、`1.1:ss:1`），可与任务 ID 前缀混用；前置摘要同以大纲编号展示（US-E4-01-C1…C4）。
-- 「文件 → 另存为…」（⇧⌘S）：另存为新 `.kairo` 文件并继续在新文件上工作，原文件不变；保存面板预填当前文件名，未保存项目按项目标题生成；写入当前最新格式版本（FR-FILE-SAVEAS-1…6）。
-- `.kairo` 格式版本兼容：读取 1…当前版本并顺序迁移；读取更高版本或迁移失败时明确报错且不改动磁盘文件；保存与另存为恒写当前版本；CLI/MCP 打开结果报告磁盘版本与升级需求，保存结果报告写入版本与升级来源（FR-KAIRO-FMT-1…6）。
+- 「文件 → 另存为…」（⇧⌘S）：另存为新 `.zeno` 文件并继续在新文件上工作，原文件不变；保存面板预填当前文件名，未保存项目按项目标题生成；写入当前最新格式版本（FR-FILE-SAVEAS-1…6）。
+- `.zeno` 格式版本兼容：读取 1…当前版本并顺序迁移；读取更高版本或迁移失败时明确报错且不改动磁盘文件；保存与另存为恒写当前版本；CLI/MCP 打开结果报告磁盘版本与升级需求，保存结果报告写入版本与升级来源（FR-ZENO-FMT-1…6）。
 
 ### 修复
 
@@ -980,20 +980,20 @@
 
 ### 变更
 
-- `KairoPresentation` 公共 API 变更：新增 `WorkspaceAction` case（`setCustomDayWidth` / `nudgeCustomDayWidth` / `clearCustomDayWidth`，外部穷尽 switch 需补 `default`）、`GanttSnapshot` 新增 `tickGranularity` 字段（init 参数可选，缺省由 `zoom` 派生，旧构造点源码兼容）。
+- `ZenoPresentation` 公共 API 变更：新增 `WorkspaceAction` case（`setCustomDayWidth` / `nudgeCustomDayWidth` / `clearCustomDayWidth`，外部穷尽 switch 需补 `default`）、`GanttSnapshot` 新增 `tickGranularity` 字段（init 参数可选，缺省由 `zoom` 派生，旧构造点源码兼容）。
 - 应用启动不再默认加载示例数据：默认打开为空项目；「文件 → 载入示例项目」按需填充示例（有未保存修改时先确认）。
 
 ### 已知限制
 
-- 应用为 ad-hoc 签名（无 Apple 开发者证书）：首次打开需要在「系统设置 → 隐私与安全性」中点「仍要打开」，或执行 `xattr -cr /Applications/Kairo.app`。
+- 应用为 ad-hoc 签名（无 Apple 开发者证书）：首次打开需要在「系统设置 → 隐私与安全性」中点「仍要打开」，或执行 `xattr -cr /Applications/Zeno.app`。
 - 视图偏好文件任一字段缺失或损坏会使**全部**偏好回落默认值（含窗口布局与日宽自定义；项目数据不受影响，Sprint 7 改为逐字段容错）。
 - 「适合项目」在跨多年的超长项目下时间窗口无上限，逐日刻度绘制量偏大（Sprint 7 设上限）。
 - 拖条改期、拖拽建依赖、多选、基线与资源视图未实现；依赖创建从检查器进入。
 
 ### 安装
 
-1. 从本页附件下载 `Kairo-v0.2.0.dmg`。
-2. 打开 DMG，把 `Kairo.app` 拖入「应用程序」（窗口内有 Applications 快捷方式）。
+1. 从本页附件下载 `Zeno-v0.2.0.dmg`。
+2. 打开 DMG，把 `Zeno.app` 拖入「应用程序」（窗口内有 Applications 快捷方式）。
 3. 首次打开：右键点按 → 「打开」，或按上面的已知限制放行 Gatekeeper。
 
 ## v0.1.0 — 2026-10-18
@@ -1020,11 +1020,11 @@
 
 ### 已知限制
 
-- 应用为 ad-hoc 签名（无 Apple 开发者证书）：首次打开需要在「系统设置 → 隐私与安全性」中点「仍要打开」，或执行 `xattr -cr /Applications/Kairo.app`。
+- 应用为 ad-hoc 签名（无 Apple 开发者证书）：首次打开需要在「系统设置 → 隐私与安全性」中点「仍要打开」，或执行 `xattr -cr /Applications/Zeno.app`。
 - 拖条改期、拖拽建依赖、多选、基线与资源视图未实现；依赖创建从检查器进入。
 
 ### 安装
 
-1. 从本页附件下载 `Kairo-v0.1.0.zip`。
-2. 解压得到 `Kairo.app`，拖入「应用程序」。
+1. 从本页附件下载 `Zeno-v0.1.0.zip`。
+2. 解压得到 `Zeno.app`，拖入「应用程序」。
 3. 首次打开：右键点按 → 「打开」，或按上面的已知限制放行 Gatekeeper。

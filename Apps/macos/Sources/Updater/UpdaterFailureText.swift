@@ -1,9 +1,9 @@
 import Foundation
-import KairoUpdater
+import ZenoUpdater
 
 /// 更新失败文案的视图层渲染（F-0705 / 设计 §A.3）。
 ///
-/// `KairoUpdater` 只出稳定码与参数，`errorDescription` 已删除；文案在这里按
+/// `ZenoUpdater` 只出稳定码与参数，`errorDescription` 已删除；文案在这里按
 /// `update.error.<code>` 查 Catalog，参数用 `parameters` 里的原值，不回拼自然语言。
 enum UpdaterFailureText {
     static func text(_ failure: UpdaterFailure) -> String {
@@ -82,7 +82,7 @@ enum UpdaterFailureText {
         case .installResultUnreadable:
             return I18n.t("update.error.install_result_unreadable", "The previous update result could not be read and was ignored.")
         case .installAppStillRunning:
-            return I18n.t("update.error.install_app_still_running", "The update could not be installed because Kairo was still running (exit code %1$@).", param(failure, "exitCode"))
+            return I18n.t("update.error.install_app_still_running", "The update could not be installed because Zeno was still running (exit code %1$@).", param(failure, "exitCode"))
         case .installBackupFailed:
             return I18n.t("update.error.install_backup_failed", "Failed to back up the current app; nothing was replaced (exit code %1$@).", param(failure, "exitCode"))
         case .installReplaceFailed:

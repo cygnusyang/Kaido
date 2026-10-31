@@ -65,7 +65,7 @@ enum DesignTokens {
 
     // MARK: - 基线调色板（10-multi-baseline-gantt §4）
 
-    // 索引语义与 KairoCore.BaselinePalette.count 一一对应（8 色），顺序即索引：
+    // 索引语义与 ZenoCore.BaselinePalette.count 一一对应（8 色），顺序即索引：
     // 0 青 / 1 琥珀 / 2 绿 / 3 品红 / 4 橄榄 / 5 深靛 / 6 棕 / 7 岩蓝。
     // 快照只存索引，颜色值只此一份（ADR-013）。
     static let baselineLane0 = color(light: "0E7C7C", dark: "4FC7C4")

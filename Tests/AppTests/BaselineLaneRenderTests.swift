@@ -1,9 +1,9 @@
 import Foundation
 import SwiftUI
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import ZenoCore
+import ZenoPresentation
+@testable import ZenoMacApp
 
 // v0.14 G7：甘特基线轨图层（离屏渲染验收，docs/features/10-multi-baseline-gantt.md §2）。
 //
@@ -56,7 +56,7 @@ struct BaselineLaneRenderTests {
     private let tolerance = 12
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.baseline-lane-render.\(UUID().uuidString)"
+        let suite = "zeno.baseline-lane-render.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, seedsDemoData: true)

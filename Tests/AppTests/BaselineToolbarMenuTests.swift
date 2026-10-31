@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import ZenoCore
+import ZenoPresentation
+@testable import ZenoMacApp
 
 /// v0.16：工具栏基线菜单与菜单栏「基线」菜单同源（docs/features/10-multi-baseline-gantt.md §5）。
 ///
@@ -16,14 +16,14 @@ import KairoPresentation
 @Suite("基线工具栏菜单与菜单栏同源（v0.16）")
 struct BaselineToolbarMenuTests {
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.v016.toolbar.\(UUID().uuidString)"
+        let suite = "zeno.v016.toolbar.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, seedsDemoData: true)
     }
 
-    private func makeCatalog(_ store: WorkspaceStore) -> [KairoCommand] {
-        KairoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {})
+    private func makeCatalog(_ store: WorkspaceStore) -> [ZenoCommand] {
+        ZenoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {})
     }
 
     @discardableResult

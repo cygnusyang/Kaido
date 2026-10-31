@@ -1,5 +1,5 @@
 import Foundation
-import KairoInterop
+import ZenoInterop
 import InteropMSPDI
 
 /// MSPDI 契约测试样本（手写最小 XML）。

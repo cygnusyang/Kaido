@@ -1,24 +1,24 @@
 import Foundation
 import Testing
-import KairoCommands
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import ZenoCommands
+import ZenoCore
+import ZenoPresentation
+@testable import ZenoMacApp
 
-/// 会话与 UI 对「打开的是旧版格式」的感知（FR-KAIRO-FMT-1/2/5/6，App 侧）。
+/// 会话与 UI 对「打开的是旧版格式」的感知（FR-ZENO-FMT-1/2/5/6，App 侧）。
 ///
 /// 当前格式为 v1，磁盘上不存在可迁移的更旧版本；旧版本场景用注入 loader
 /// 返回 `sourceFormatVersion = current - 1` 的 `DecodedProject` 模拟，
-/// KairoCore 端到端迁移由 KairoCoreTests 覆盖，待 v2 落地后改为真实旧文件。
+/// ZenoCore 端到端迁移由 ZenoCoreTests 覆盖，待 v2 落地后改为真实旧文件。
 @MainActor
 @Suite("格式版本升级（App）")
 struct FormatUpgradeTests {
     private func makeStore(
         projectLoader: @escaping @Sendable (URL) throws -> DecodedProject = {
-            try KairoFile.read(from: $0)
+            try ZenoFile.read(from: $0)
         }
     ) -> WorkspaceStore {
-        let suite = "kairo.apptests.\(UUID().uuidString)"
+        let suite = "zeno.apptests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, projectLoader: projectLoader)
@@ -26,7 +26,7 @@ struct FormatUpgradeTests {
 
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-format-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("zeno-format-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
@@ -42,10 +42,10 @@ struct FormatUpgradeTests {
     /// 模拟旧版来源：项目内容来自真实文件，但声明上一版本。
     private func oldVersionLoader() -> @Sendable (URL) throws -> DecodedProject {
         { url in
-            let decoded = try KairoFile.read(from: url)
+            let decoded = try ZenoFile.read(from: url)
             return DecodedProject(
                 project: decoded.project,
-                sourceFormatVersion: KairoFile.currentFormatVersion - 1
+                sourceFormatVersion: ZenoFile.currentFormatVersion - 1
             )
         }
     }
@@ -81,10 +81,10 @@ struct FormatUpgradeTests {
 
     // MARK: - FMT-1：当前版本不标记升级
 
-    @Test func fr_kairo_fmt_1_current_version_is_not_flagged() throws {
+    @Test func fr_zeno_fmt_1_current_version_is_not_flagged() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("current.kairo")
+        let url = directory.appendingPathComponent("current.zeno")
         try writeProject(at: url, title: "当前版本")
 
         let store = makeStore()
@@ -95,11 +95,11 @@ struct FormatUpgradeTests {
     }
 
     /// 打开失败按原因映射错误码：损坏/迁移失败为 file_unreadable，未来版本为 unsupported_format。
-    @Test func fr_kairo_fmt_2_open_project_maps_error_codes() throws {
+    @Test func fr_zeno_fmt_2_open_project_maps_error_codes() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        let malformed = directory.appendingPathComponent("missing-version.kairo")
+        let malformed = directory.appendingPathComponent("missing-version.zeno")
         try Data(#"{"project":{},"tasks":[]}"#.utf8).write(to: malformed)
         let malformedError = try #require(
             Self.openError(malformed)
@@ -107,7 +107,7 @@ struct FormatUpgradeTests {
         #expect(malformedError.code == .fileUnreadable)
         #expect(malformedError.message.contains("formatVersion"))
 
-        let future = directory.appendingPathComponent("future.kairo")
+        let future = directory.appendingPathComponent("future.zeno")
         try Data(#"{"formatVersion":999,"project":{},"tasks":[]}"#.utf8).write(to: future)
         let futureError = try #require(
             Self.openError(future)
@@ -115,8 +115,8 @@ struct FormatUpgradeTests {
         #expect(futureError.code == .unsupportedFormat)
         #expect(futureError.message.contains("999"))
 
-        let invalidJSON = directory.appendingPathComponent("not-json.kairo")
-        try Data("not a kairo document".utf8).write(to: invalidJSON)
+        let invalidJSON = directory.appendingPathComponent("not-json.zeno")
+        try Data("not a zeno document".utf8).write(to: invalidJSON)
         let invalidJSONError = try #require(
             Self.openError(invalidJSON)
         )
@@ -125,7 +125,7 @@ struct FormatUpgradeTests {
 
     private static func openError(_ url: URL) -> SessionError? {
         do {
-            _ = try KairoSession().openProject(at: url)
+            _ = try ZenoSession().openProject(at: url)
             return nil
         } catch let error as SessionError {
             return error
@@ -136,10 +136,10 @@ struct FormatUpgradeTests {
 
     // MARK: - FMT-2：旧版本打开被标记，且不静默改写磁盘
 
-    @Test func fr_kairo_fmt_2_old_version_is_flagged_on_open() async throws {
+    @Test func fr_zeno_fmt_2_old_version_is_flagged_on_open() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("old.kairo")
+        let url = directory.appendingPathComponent("old.zeno")
         try writeProject(at: url, title: "旧版项目")
         let bytesBeforeOpen = try Data(contentsOf: url)
 
@@ -154,10 +154,10 @@ struct FormatUpgradeTests {
 
     // MARK: - FMT-5：保存后提示升级一次
 
-    @Test func fr_kairo_fmt_5_save_after_upgrade_announces_once() async throws {
+    @Test func fr_zeno_fmt_5_save_after_upgrade_announces_once() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("old.kairo")
+        let url = directory.appendingPathComponent("old.zeno")
         try writeProject(at: url, title: "旧版项目")
 
         let store = try await openSimulatedOldVersion(url)
@@ -166,8 +166,8 @@ struct FormatUpgradeTests {
         store.save()
 
         #expect(!store.needsFormatUpgrade)
-        #expect(store.notice == I18n.t("alert.upgraded_to", "Upgraded to v%1$ld", KairoFile.currentFormatVersion))
-        #expect(try fileFormatVersion(url) == KairoFile.currentFormatVersion)
+        #expect(store.notice == I18n.t("alert.upgraded_to", "Upgraded to v%1$ld", ZenoFile.currentFormatVersion))
+        #expect(try fileFormatVersion(url) == ZenoFile.currentFormatVersion)
 
         // 后续保存不再重复提示。
         store.clearNotice()
@@ -179,11 +179,11 @@ struct FormatUpgradeTests {
 
     // MARK: - FMT-6：另存为后提示升级
 
-    @Test func fr_kairo_fmt_6_save_as_after_upgrade_announces() async throws {
+    @Test func fr_zeno_fmt_6_save_as_after_upgrade_announces() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("old.kairo")
-        let newURL = directory.appendingPathComponent("upgraded.kairo")
+        let originalURL = directory.appendingPathComponent("old.zeno")
+        let newURL = directory.appendingPathComponent("upgraded.zeno")
         try writeProject(at: originalURL, title: "旧版项目")
 
         let store = try await openSimulatedOldVersion(originalURL)
@@ -192,9 +192,9 @@ struct FormatUpgradeTests {
         store.beginExport()
         let project = Project()
         store.exportState.apply(to: project)
-        let exportedData = try KairoFile.encode(project: project)
-        // 断言生产导出编码（与 KairoDocument 同源）的版本，而非测试自写文件的回读。
-        #expect(try formatVersion(in: exportedData) == KairoFile.currentFormatVersion)
+        let exportedData = try ZenoFile.encode(project: project)
+        // 断言生产导出编码（与 ZenoDocument 同源）的版本，而非测试自写文件的回读。
+        #expect(try formatVersion(in: exportedData) == ZenoFile.currentFormatVersion)
         try exportedData.write(to: newURL)
         store.rememberSaveURL(newURL)
 
@@ -203,17 +203,17 @@ struct FormatUpgradeTests {
             store.notice == I18n.t(
                 "alert.saved_as_upgraded",
                 "Saved as a new file and upgraded to v%1$ld",
-                KairoFile.currentFormatVersion
+                ZenoFile.currentFormatVersion
             )
         )
         #expect(store.projectURL?.standardizedFileURL == newURL.standardizedFileURL)
     }
 
-    @Test func fr_kairo_fmt_6_save_as_fallback_write_announces_upgrade() async throws {
+    @Test func fr_zeno_fmt_6_save_as_fallback_write_announces_upgrade() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("old.kairo")
-        let newURL = directory.appendingPathComponent("upgraded.kairo")
+        let originalURL = directory.appendingPathComponent("old.zeno")
+        let newURL = directory.appendingPathComponent("upgraded.zeno")
         try writeProject(at: originalURL, title: "旧版项目")
 
         let store = try await openSimulatedOldVersion(originalURL)
@@ -229,19 +229,19 @@ struct FormatUpgradeTests {
             store.notice == I18n.t(
                 "alert.saved_as_upgraded",
                 "Saved as a new file and upgraded to v%1$ld",
-                KairoFile.currentFormatVersion
+                ZenoFile.currentFormatVersion
             )
         )
         #expect(store.projectURL?.standardizedFileURL == newURL.standardizedFileURL)
-        #expect(try fileFormatVersion(newURL) == KairoFile.currentFormatVersion)
+        #expect(try fileFormatVersion(newURL) == ZenoFile.currentFormatVersion)
     }
 
     // MARK: - 取消另存为 / 保存并打开
 
-    @Test func fr_kairo_fmt_5_cancel_save_as_keeps_upgrade_flag() async throws {
+    @Test func fr_zeno_fmt_5_cancel_save_as_keeps_upgrade_flag() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("old.kairo")
+        let url = directory.appendingPathComponent("old.zeno")
         try writeProject(at: url, title: "旧版项目")
 
         let store = try await openSimulatedOldVersion(url)
@@ -254,23 +254,23 @@ struct FormatUpgradeTests {
         #expect(store.notice?.contains("已升级") != true)
     }
 
-    @Test func fr_kairo_fmt_5_save_and_open_keeps_upgrade_notice() async throws {
+    @Test func fr_zeno_fmt_5_save_and_open_keeps_upgrade_notice() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("old.kairo")
-        let secondURL = directory.appendingPathComponent("second.kairo")
+        let originalURL = directory.appendingPathComponent("old.zeno")
+        let secondURL = directory.appendingPathComponent("second.zeno")
         try writeProject(at: originalURL, title: "旧版项目")
         try writeProject(at: secondURL, title: "第二个项目")
 
         // 仅第一个文件模拟旧版本；第二个文件按当前版本打开。
         let store = makeStore(projectLoader: { url in
-            let decoded = try KairoFile.read(from: url)
+            let decoded = try ZenoFile.read(from: url)
             guard url.standardizedFileURL == originalURL.standardizedFileURL else {
                 return decoded
             }
             return DecodedProject(
                 project: decoded.project,
-                sourceFormatVersion: KairoFile.currentFormatVersion - 1
+                sourceFormatVersion: ZenoFile.currentFormatVersion - 1
             )
         })
         store.openAsync(url: originalURL)
@@ -285,17 +285,17 @@ struct FormatUpgradeTests {
         try await waitUntilLoaded(store)
 
         // finishOpen 重置 notice 后，升级提示仍然可见。
-        #expect(store.notice == I18n.t("alert.upgraded_to", "Upgraded to v%1$ld", KairoFile.currentFormatVersion))
+        #expect(store.notice == I18n.t("alert.upgraded_to", "Upgraded to v%1$ld", ZenoFile.currentFormatVersion))
         #expect(store.projectURL?.standardizedFileURL == secondURL.standardizedFileURL)
         #expect(!store.needsFormatUpgrade)
     }
 
-    @Test func fr_kairo_fmt_5_save_and_open_load_failure_clears_pending_notice() async throws {
+    @Test func fr_zeno_fmt_5_save_and_open_load_failure_clears_pending_notice() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("old.kairo")
-        let failedURL = directory.appendingPathComponent("missing.kairo")
-        let thirdURL = directory.appendingPathComponent("third.kairo")
+        let originalURL = directory.appendingPathComponent("old.zeno")
+        let failedURL = directory.appendingPathComponent("missing.zeno")
+        let thirdURL = directory.appendingPathComponent("third.zeno")
         try writeProject(at: originalURL, title: "旧版项目")
         try writeProject(at: thirdURL, title: "第三个项目")
 
@@ -303,13 +303,13 @@ struct FormatUpgradeTests {
             if url.standardizedFileURL == failedURL.standardizedFileURL {
                 throw CocoaError(.fileReadNoSuchFile)
             }
-            let decoded = try KairoFile.read(from: url)
+            let decoded = try ZenoFile.read(from: url)
             guard url.standardizedFileURL == originalURL.standardizedFileURL else {
                 return decoded
             }
             return DecodedProject(
                 project: decoded.project,
-                sourceFormatVersion: KairoFile.currentFormatVersion - 1
+                sourceFormatVersion: ZenoFile.currentFormatVersion - 1
             )
         })
         store.openAsync(url: originalURL)
@@ -334,11 +334,11 @@ struct FormatUpgradeTests {
         #expect(store.exportProject.metadata.title == "第三个项目")
     }
 
-    @Test func fr_kairo_fmt_5_save_and_open_without_upgrade_has_no_upgrade_notice() async throws {
+    @Test func fr_zeno_fmt_5_save_and_open_without_upgrade_has_no_upgrade_notice() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let firstURL = directory.appendingPathComponent("first.kairo")
-        let secondURL = directory.appendingPathComponent("second.kairo")
+        let firstURL = directory.appendingPathComponent("first.zeno")
+        let secondURL = directory.appendingPathComponent("second.zeno")
         try writeProject(at: firstURL, title: "第一个项目")
         try writeProject(at: secondURL, title: "第二个项目")
 
@@ -356,11 +356,11 @@ struct FormatUpgradeTests {
         #expect(!store.needsFormatUpgrade)
     }
 
-    @Test func fr_kairo_fmt_5_save_and_open_merges_upgrade_notice_and_warning() async throws {
+    @Test func fr_zeno_fmt_5_save_and_open_merges_upgrade_notice_and_warning() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("old.kairo")
-        let warningURL = directory.appendingPathComponent("warning.kairo")
+        let originalURL = directory.appendingPathComponent("old.zeno")
+        let warningURL = directory.appendingPathComponent("warning.zeno")
         try writeProject(at: originalURL, title: "旧版项目")
 
         // 有子项但类型不是群组：载入时规范化并产生唯一一条 loadWarning。
@@ -369,16 +369,16 @@ struct FormatUpgradeTests {
         let parent = TaskItem(title: "父任务", kind: .task)
         let child = TaskItem(title: "子任务", kind: .task, parentID: parent.id)
         warningProject.tasks = [parent, child]
-        try KairoFile.save(warningProject, to: warningURL)
+        try ZenoFile.save(warningProject, to: warningURL)
 
         let store = makeStore(projectLoader: { url in
-            let decoded = try KairoFile.read(from: url)
+            let decoded = try ZenoFile.read(from: url)
             guard url.standardizedFileURL == originalURL.standardizedFileURL else {
                 return decoded
             }
             return DecodedProject(
                 project: decoded.project,
-                sourceFormatVersion: KairoFile.currentFormatVersion - 1
+                sourceFormatVersion: ZenoFile.currentFormatVersion - 1
             )
         })
         store.openAsync(url: originalURL)
@@ -390,7 +390,7 @@ struct FormatUpgradeTests {
         try await waitUntilLoaded(store)
 
         let notice = try #require(store.notice)
-        #expect(notice.contains("v\(KairoFile.currentFormatVersion)"), "合并后的提示必须保留升级说明")
+        #expect(notice.contains("v\(ZenoFile.currentFormatVersion)"), "合并后的提示必须保留升级说明")
         // 警告断言语义而非措辞（F-0705）：文案归 Catalog，裸跑 `swift test` 时按英文兜底渲染。
         let warning = try #require(store.loadWarnings.first)
         #expect(warning.code == .groupPromoted)

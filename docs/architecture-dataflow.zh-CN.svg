@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 320" width="880" height="320"
-     role="img" aria-labelledby="kairo-fig-title kairo-fig-desc">
-  <title id="kairo-fig-title">Kairo 核心闭环数据流</title>
-  <desc id="kairo-fig-desc">需求文档经 AI 读取得到 WBS 分解，MCP/CLI 建任务树后由 KairoCore 排期；状态回写经 MCP/CLI 回到 AI 逐功能开发，人随时在 macOS 应用审阅与干预。</desc>
+     role="img" aria-labelledby="zeno-fig-title zeno-fig-desc">
+  <title id="zeno-fig-title">Zeno 核心闭环数据流</title>
+  <desc id="zeno-fig-desc">需求文档经 AI 读取得到 WBS 分解，MCP/CLI 建任务树后由 ZenoCore 排期；状态回写经 MCP/CLI 回到 AI 逐功能开发，人随时在 macOS 应用审阅与干预。</desc>
   <style>
     .canvas { fill: #FFFFFF; }
     .panel { fill: #FFFFFF; stroke: #D8DAE0; stroke-width: 1; }
@@ -31,7 +31,7 @@
     }
   </style>
   <defs>
-    <marker id="kairo-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
+    <marker id="zeno-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
             orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0,0 L8,4 L0,8 Z" class="arrow-head"/>
     </marker>
@@ -42,18 +42,18 @@
   <rect class="panel" x="290" y="44" width="150" height="56" rx="8"/>
   <text class="t-title" x="365" y="77" text-anchor="middle">WBS 分解</text>
   <rect class="core" x="610" y="44" width="210" height="56" rx="8"/>
-  <text class="t-title" x="715" y="77" text-anchor="middle">KairoCore 排期</text>
-  <path class="line" d="M190,72 L290,72" marker-end="url(#kairo-arrow)"/>
+  <text class="t-title" x="715" y="77" text-anchor="middle">ZenoCore 排期</text>
+  <path class="line" d="M190,72 L290,72" marker-end="url(#zeno-arrow)"/>
   <text class="t-sub" x="240" y="62" text-anchor="middle">AI 读取</text>
-  <path class="line" d="M440,72 L610,72" marker-end="url(#kairo-arrow)"/>
+  <path class="line" d="M440,72 L610,72" marker-end="url(#zeno-arrow)"/>
   <text class="t-sub" x="525" y="62" text-anchor="middle">(MCP/CLI: 建任务树)</text>
   <rect class="accent" x="330" y="142" width="170" height="52" rx="8"/>
   <text class="t-title" x="415" y="174" text-anchor="middle">AI 逐功能开发</text>
-  <path class="line" d="M715,100 L715,168 L500,168" marker-end="url(#kairo-arrow)"/>
-  <path class="line" d="M330,168 L115,168 L115,100" marker-end="url(#kairo-arrow)"/>
+  <path class="line" d="M715,100 L715,168 L500,168" marker-end="url(#zeno-arrow)"/>
+  <path class="line" d="M330,168 L115,168 L115,100" marker-end="url(#zeno-arrow)"/>
   <text class="t-sub" x="222" y="158" text-anchor="middle">(MCP/CLI: 状态回写)</text>
   <rect class="soft" x="265" y="246" width="300" height="50" rx="8"/>
   <text class="t-title" x="415" y="276" text-anchor="middle">人随时在 macOS 应用审阅 / 干预</text>
-  <path class="line" d="M415,246 L415,194" marker-end="url(#kairo-arrow)"/>
+  <path class="line" d="M415,246 L415,194" marker-end="url(#zeno-arrow)"/>
   <text class="t-note" x="20" y="310">实线为自动链路；回流段由 MCP/CLI 承接状态回写，形成「需求 → 计划 → 开发 → 回写」闭环。</text>
 </svg>

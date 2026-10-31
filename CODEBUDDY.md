@@ -1,9 +1,9 @@
-# Kairo 工程规则
+# Zeno 工程规则
 
 ## 跑测试：一律用隔离 scratch path
 
 ```bash
-swift test --disable-sandbox --scratch-path /tmp/kairo-test-$(date +%H%M)
+swift test --disable-sandbox --scratch-path /tmp/zeno-test-$(date +%H%M)
 ```
 
 **不要**直接跑 `swift test` 共享 `.build`。

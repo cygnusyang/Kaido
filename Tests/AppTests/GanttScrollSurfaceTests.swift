@@ -1,9 +1,9 @@
 import AppKit
 import Foundation
-import KairoCore
-import KairoPresentation
+import ZenoCore
+import ZenoPresentation
 import Testing
-@testable import KairoMacApp
+@testable import ZenoMacApp
 
 /// 横向平移：判定/换算（controller）、视图级消费（NSView）、store 级连续推进。
 ///
@@ -14,13 +14,13 @@ import Testing
 struct GanttScrollSurfaceTests {
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.apptests.pan.\(UUID().uuidString)"
+        let suite = "zeno.apptests.pan.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(
             defaults: defaults,
             seedsDemoData: true,
-            projectLoader: { try KairoFile.read(from: $0) }
+            projectLoader: { try ZenoFile.read(from: $0) }
         )
     }
 
