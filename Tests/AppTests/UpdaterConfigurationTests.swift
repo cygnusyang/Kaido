@@ -14,7 +14,7 @@ struct UpdaterConfigurationTests {
     }
 
     @Test func appIdMatchesBundleAndFeed() {
-        #expect(UpdaterConfiguration.appId == "app.kaido.macos")
+        #expect(UpdaterConfiguration.appId == "top.cygnusyang.kaido")
         #expect(UpdaterConfiguration.manifestURL.scheme == "https")
         #expect(
             UpdaterConfiguration.manifestURL.absoluteString.hasSuffix(

@@ -9,7 +9,7 @@ import KaidoUpdater
 /// Kaido OTA 配置常量与生产装配。
 enum UpdaterConfiguration {
     /// 应用 bundle identifier（与 build.sh 的 CFBundleIdentifier 一致）。
-    static let appId = "app.kaido.macos"
+    static let appId = "top.cygnusyang.kaido"
     /// 更新验签公钥（Ed25519 raw 32 字节 base64；由 CI 私钥派生，勿手改）。
     static let updatePublicKeyBase64 = "ZOTsUKf4mYKjsqDbfeINxcOtsyZa7rQYu9QT85IP2AE="
     /// 更新清单 feed：GitHub Releases latest 永久链接（manifest 随每个 release

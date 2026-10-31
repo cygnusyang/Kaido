@@ -104,7 +104,7 @@ clean_pending_keys() {
   for key in kaido_ota_pending_result_path kaido_ota_pending_backup_path \
              kaido_ota_pending_backup_dir kaido_ota_pending_script_path \
              kaido_ota_pending_extraction_path; do
-    defaults delete app.kaido.macos "$key" >/dev/null 2>&1 || true
+    defaults delete top.cygnusyang.kaido "$key" >/dev/null 2>&1 || true
   done
 }
 

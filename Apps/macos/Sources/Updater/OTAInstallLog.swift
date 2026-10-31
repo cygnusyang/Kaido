@@ -5,7 +5,7 @@
 // 哪个 build。武装 / terminate / 裁决三个时刻此后各留一行。
 //
 // 双写：
-//   - os_log（subsystem app.kaido.macos / category ota）——与 KaidoUpdater 同通道
+//   - os_log（subsystem top.cygnusyang.kaido / category ota）——与 KaidoUpdater 同通道
 //   - ~/Library/Logs/Kaido/ota.log —— tools/ota-local-verify.sh 直接 grep 这个文件
 //
 // 纪律：日志是旁路，任何写入失败一律静默——不给安装路径引入新的失败点；
@@ -17,7 +17,7 @@ import os
 
 /// OTA 决策日志（os_log + 文件双写）。
 enum OTAInstallLog {
-    private static let logger = Logger(subsystem: "app.kaido.macos", category: "ota")
+    private static let logger = Logger(subsystem: "top.cygnusyang.kaido", category: "ota")
     private static let logURL = FileManager.default
         .homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Logs/Kaido/ota.log", isDirectory: false)

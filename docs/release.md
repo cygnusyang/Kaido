@@ -18,7 +18,7 @@
 ```console
 $ codesign -dv --verbose=4 dist/Kaido.app
 Executable=.../dist/Kaido.app/Contents/MacOS/Kaido
-Identifier=app.kaido.macos
+Identifier=top.cygnusyang.kaido
 CodeDirectory v=20400 size=16488 flags=0x2(adhoc) hashes=509+3 location=embedded
 ...
 CDHash=51d841c71f8ef587910cb18e4c995cb3a15ec3f4
