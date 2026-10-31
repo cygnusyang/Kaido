@@ -148,6 +148,8 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <string>14.0</string>
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.productivity</string>
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
   <key>CFBundleSupportedPlatforms</key>
   <array>
     <string>MacOSX</string>
