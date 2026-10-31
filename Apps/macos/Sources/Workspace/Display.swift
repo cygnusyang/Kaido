@@ -1,7 +1,7 @@
 import Foundation
-import KairoCommands
-import KairoCore
-import KairoPresentation
+import KaidoCommands
+import KaidoCore
+import KaidoPresentation
 
 /// 视图层文案与格式化：术语与核心层一致，同一事物全篇同一名称。
 enum Display {
@@ -69,7 +69,7 @@ enum Display {
 
     /// 检查器日期字段的行内格式 `2026-11-06`。
     ///
-    /// **判定为契约格式，不本地化**（F-0712）：`.kairo` 内容、命令行回执、MCP 参数与
+    /// **判定为契约格式，不本地化**（F-0712）：`.kaido` 内容、命令行回执、MCP 参数与
     /// 无障碍播报都用这个口径，换语言不得改变字节。故固定 `en_US_POSIX` + `yyyy-MM-dd`，
     /// 由 `Tests/AppTests` 锁死两语言输出一致。
     static let isoDateFormatter: DateFormatter = {

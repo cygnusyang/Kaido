@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import KairoInterop
+import KaidoInterop
 import InteropOmniPlan
 
 /// OmniPlan 适配器契约测试（14-interop-architecture §2 硬规则 4）。

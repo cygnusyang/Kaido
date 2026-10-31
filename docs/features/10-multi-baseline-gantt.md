@@ -10,7 +10,7 @@
 
 可验收的三条：① 创建入口在菜单里显眼（历史坑：只藏在工具栏溢出菜单 → 找不到，D-035）；② 多条基线同时画在同一任务行内，与计划条上下并列、颜色区分；③ 基线数量不设上限，同屏上限 3 条（保守 / 基准 / 激进），超出在菜单提示。
 
-与 OmniPlan 的**有意差异**：OmniPlan「双日程」是**一条**灰色全高条被实际条压住、「分割」是同行上下各半；Kairo 要在 28pt 内表达 **1–3 条**，故不用叠加遮挡，改用**行内分轨（lane stack）**：计划条占上轨，每条基线各占一条下轨，互不遮挡、颜色独立。
+与 OmniPlan 的**有意差异**：OmniPlan「双日程」是**一条**灰色全高条被实际条压住、「分割」是同行上下各半；Kaido 要在 28pt 内表达 **1–3 条**，故不用叠加遮挡，改用**行内分轨（lane stack）**：计划条占上轨，每条基线各占一条下轨，互不遮挡、颜色独立。
 
 ## 2. 视觉方案
 
@@ -34,7 +34,7 @@
 ## 3. 几何（纯函数，不靠目测）
 
 ```swift
-// Sources/KairoPresentation/BaselineLanes.swift（新）
+// Sources/KaidoPresentation/BaselineLanes.swift（新）
 public struct BaselinePlanLane: Hashable, Sendable { public var top: Double; public var height: Double }
 public struct BaselineLaneLayout: Hashable, Sendable {
     public var plan: BaselinePlanLane
@@ -61,7 +61,7 @@ public enum BaselineLanes {
 水平换算**不得写第二份**（D-024）：把 `GanttLayoutEngine.make` 里内联的 `(start − windowStart)/86400 × dayWidth` 抽成公开纯函数，计划条与基线共用。
 
 ```swift
-// Sources/KairoCore/Query/GanttLayout.swift（改）：x(for:windowStart:dayWidth:) 与 width(from:to:dayWidth:)
+// Sources/KaidoCore/Query/GanttLayout.swift（改）：x(for:windowStart:dayWidth:) 与 width(from:to:dayWidth:)
 ```
 
 ## 4. 颜色与图例
@@ -87,7 +87,7 @@ public enum BaselineLanes {
 
 三处入口，**创建永远第 1 项且带快捷键**，不再存在「只藏在工具栏溢出菜单」的路径。
 
-1. 菜单栏**顶级「基线」菜单**（新增 `KairoCommandGroup.baseline`，位于「视图」与「查找」之间）：
+1. 菜单栏**顶级「基线」菜单**（新增 `KaidoCommandGroup.baseline`，位于「视图」与「查找」之间）：
 
 ```
 新建基线…                        ⌘⌥B   ← 第 1 项，任何状态都可用
@@ -124,7 +124,7 @@ public struct WorkspaceViewState {
 ```
 
 - 二者**互相独立**：可只对比不显示（只看数字），也可只显示不对比（只看图形）。
-- 均为纯视图状态：不进撤销栈、不进 `.kairo`、不写基线快照；持久化到 UserDefaults。
+- 均为纯视图状态：不进撤销栈、不进 `.kaido`、不写基线快照；持久化到 UserDefaults。
 - 读取侧归一化 `normalizedVisibleBaselineIDs(in:)`：剔除悬挂 ID（撤销到创建之前）、按创建顺序排序、**截断到前 3 条**（防旧偏好存了 4+）。
 - 删除基线：删除成功后从两个集合剔除该 ID（展示卫生，不产生撤销点）。
 - 创建基线：`selectedBaselineID` 设为新基线（沿用 v0.13）；若 `visibleBaselineIDs` 未满 3 则自动加入显示，**已满 3 不替换、不插队**，仅提示「已显示 3 条，新基线未在甘特图中显示」（§12-2）。
@@ -132,22 +132,22 @@ public struct WorkspaceViewState {
 ## 7. 数据结构（加法，不升 formatVersion）
 
 ```swift
-// KairoCore/Model/Baseline.swift
+// KaidoCore/Model/Baseline.swift
 public struct Baseline { /* 既有字段不变 */ 
     /// 调色板索引 0…7（v0.14 可选字段）。nil = 旧文件，读时派生，写路径补齐。
     public var colorIndex: Int?
 }
-// KairoCore/Model/BaselinePalette.swift（新，纯函数，无颜色值）
+// KaidoCore/Model/BaselinePalette.swift（新，纯函数，无颜色值）
 public enum BaselinePalette {
     public static let count = 8
     public static func resolve(_ indices: [Int?]) -> [Int]      // nil / 越界 / 重复 → 最小未用
     public static func nextIndex(used: Set<Int>) -> Int
 }
-// KairoCommands/KairoSession.swift
+// KaidoCommands/KaidoSession.swift
 @discardableResult public func setBaselineColor(id: UUID, colorIndex: Int) throws -> Baseline   // 进撤销栈
 // 内部：创建 / 改名 / 改色 / 删除四条写路径入口处先 ensureBaselineColors()
 
-// KairoPresentation/Snapshots.swift
+// KaidoPresentation/Snapshots.swift
 public struct GanttBaselineBar: Identifiable, Hashable, Sendable {
     public var id: String { "\(baselineID)-\(taskID)" }
     public var baselineID: UUID; public var taskID: UUID; public var rowIndex: Int
@@ -201,7 +201,7 @@ public struct GanttSnapshot {
 8. **无条目不占位**：基线后新增任务行不产生基线条、行数不变，大纲与画布行索引逐一对应。
 9. **命中门禁**：基线轨内按下拖动**不**产生 `.body/.handle`（`GanttHitTesting` 传 plan lane 后落在基线轨 → `.none`）；N=0 时既有命中用例全绿。
 10. **1000 行 × 3 基线不掉帧**：构造与绘制阈值见 §9，实测记入 CHANGELOG。
-11. **零回流**：显示开关不改 `bars`、不改 `ScheduleResult`、不产生撤销点、不置脏、不写 `.kairo`。
+11. **零回流**：显示开关不改 `bars`、不改 `ScheduleResult`、不产生撤销点、不置脏、不写 `.kaido`。
 12. **菜单可达性**：「新建基线…」在菜单栏顶级菜单第 1 项、工具栏菜单第 1 项、⌘K 搜索三处均命中（注册表断言，不靠肉眼）。
 13. **改色可撤销**：`setBaselineColor` 一次编辑 = 一步撤销；撤销后 `colorIndex` 回退，其余基线颜色不变。
 
@@ -234,6 +234,6 @@ public struct GanttSnapshot {
 
 ## 12. 命令面（v0.14 补充）
 
-- CLI：`kairo baseline color <基线ID|唯一前缀> <0…7>`（文本回执「已改色：<名> 颜色索引：N」；非整数退出 2，越界退出 1 并给 `model_baseline_color_index_invalid`，未知/歧义 ID 退出 2）；`baseline list|create|variance` 的文本与 `--json` 均带 `colorIndex`（缺值按 `BaselinePalette.resolve` 派生，不写 0）。
+- CLI：`kaido baseline color <基线ID|唯一前缀> <0…7>`（文本回执「已改色：<名> 颜色索引：N」；非整数退出 2，越界退出 1 并给 `model_baseline_color_index_invalid`，未知/歧义 ID 退出 2）；`baseline list|create|variance` 的文本与 `--json` 均带 `colorIndex`（缺值按 `BaselinePalette.resolve` 派生，不写 0）。
 - MCP：`baseline_set_color(baselineID, colorIndex)` 新增；`baseline_create|list|delete|variance` 返回体补 `colorIndex`；越界透传同一细码，非整数报 `mcp_wrong_type`。工具总数 20 → 21，`InterfaceTests` 的逐字等值清单已同步。
 - 已知边界：绕过 `saveProject` 的自定义导出路径不补色，读取侧 `resolve` 兜底派生（不落盘）。

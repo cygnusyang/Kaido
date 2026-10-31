@@ -2,9 +2,9 @@
 # tools/package.sh —— 生成发布产物：DMG（人装）+ OTA 载体 zip（ditto 保留签名与元数据）。
 #
 # 用法:
-#   tools/package.sh v0.8.3              # 构建 App 并产出 dist/Kairo-v0.8.3.{dmg,zip}
+#   tools/package.sh v0.8.3              # 构建 App 并产出 dist/Kaido-v0.8.3.{dmg,zip}
 #   tools/package.sh 0.8.3               # 版本号可省略 v
-#   tools/package.sh v0.8.3 --skip-build # 复用已有 dist/Kairo.app
+#   tools/package.sh v0.8.3 --skip-build # 复用已有 dist/Kaido.app
 #   tools/package.sh v0.8.3 --out /tmp/x # 指定输出目录（默认 dist/）
 #
 # 输出（stdout 末两行，便于脚本取值）:
@@ -20,7 +20,7 @@ usage() {
 用法: $(basename "$0") <版本号，如 v0.8.3> [选项]
 
 选项:
-  --skip-build     跳过构建，直接打包已有 dist/Kairo.app
+  --skip-build     跳过构建，直接打包已有 dist/Kaido.app
   --out <dir>      产物输出目录（默认 dist/）
   -h, --help       显示帮助
 USAGE
@@ -49,7 +49,7 @@ if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 2
 fi
 
-APP="$ROOT/dist/Kairo.app"
+APP="$ROOT/dist/Kaido.app"
 mkdir -p "$OUT_DIR"
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
@@ -71,8 +71,8 @@ if [[ "$BUILT_VERSION" != "$VERSION" ]]; then
   exit 1
 fi
 
-ZIP="$OUT_DIR/Kairo-${TAG}.zip"
-DMG="$OUT_DIR/Kairo-${TAG}.dmg"
+ZIP="$OUT_DIR/Kaido-${TAG}.zip"
+DMG="$OUT_DIR/Kaido-${TAG}.dmg"
 
 echo "==> 打包 OTA 载体 zip → $ZIP"
 rm -f "$ZIP"
@@ -81,10 +81,10 @@ ditto -c -k --keepParent "$APP" "$ZIP"
 echo "==> 打包 DMG → $DMG"
 STAGING="$(mktemp -d)/dmg-staging"
 mkdir -p "$STAGING"
-cp -R "$APP" "$STAGING/Kairo.app"
+cp -R "$APP" "$STAGING/Kaido.app"
 ln -s /Applications "$STAGING/Applications"
 rm -f "$DMG"
-hdiutil create -volname "Kairo ${TAG}" -srcfolder "$STAGING" -ov -format UDZO "$DMG" >/dev/null
+hdiutil create -volname "Kaido ${TAG}" -srcfolder "$STAGING" -ov -format UDZO "$DMG" >/dev/null
 
 ZIP_SHA="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
 DMG_SHA="$(shasum -a 256 "$DMG" | awk '{print $1}')"

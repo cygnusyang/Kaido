@@ -1,5 +1,5 @@
 import Foundation
-import KairoInterop
+import KaidoInterop
 
 /// 导入预检报告（13-interop-mapping §5）：**先看再导**的唯一数据来源。
 ///
@@ -38,7 +38,7 @@ struct ImportPreflight: Equatable {
         let hoursPerDay: Double
         /// 该日历覆盖的任务数（含继承项目默认日历的任务）。
         let affectedTasks: Int
-        /// 例外日数（节假日 + 调休），原样带入 Kairo。
+        /// 例外日数（节假日 + 调休），原样带入 Kaido。
         let exceptionCount: Int
         /// 关键路径预计提前的日历天数；工作周已是 7 天或无可估的依赖链时为 nil。
         let estimatedAdvanceDays: Int?
@@ -169,7 +169,7 @@ struct ImportPreflight: Equatable {
 
     // MARK: - 日历换算
 
-    /// 默认日历与 Kairo 口径不同时给出换算说明；已经是「全周 7 天 + 无例外日」则不产生换算项。
+    /// 默认日历与 Kaido 口径不同时给出换算说明；已经是「全周 7 天 + 无例外日」则不产生换算项。
     private static func makeCalendarConversion(_ document: InteropDocument) -> CalendarConversion? {
         guard !document.calendars.isEmpty else { return nil }
         let defaultID = document.metadata.defaultCalendarID
@@ -181,11 +181,11 @@ struct ImportPreflight: Equatable {
         let affected = document.tasks.filter { $0.calendarID == nil || $0.calendarID == calendar.id }.count
         guard affected > 0 else { return nil }
 
-        let isKairoDefault = weekdays.count == 7 && calendar.exceptions.isEmpty
-        guard !isKairoDefault else { return nil }
+        let isKaidoDefault = weekdays.count == 7 && calendar.exceptions.isEmpty
+        guard !isKaidoDefault else { return nil }
 
         let hoursPerDay = calendar.hoursPerDay > 0 ? calendar.hoursPerDay : 8
-        // 工作日 → 日历天：来源每 5 个工作日占 7 个自然日，Kairo 只占 5 个，故整条链提前
+        // 工作日 → 日历天：来源每 5 个工作日占 7 个自然日，Kaido 只占 5 个，故整条链提前
         // `(7 / w - 1)` × 链长。7 天工作周没有偏差，留 nil 而不是写 0。
         let factor = weekdays.count < 7 ? 7.0 / Double(weekdays.count) - 1 : 0
         let advance: Int? = factor > 0
@@ -318,7 +318,7 @@ struct ImportPreflight: Equatable {
         )
         let base = I18n.t(
             "interop.calendar.summary",
-            "%1$@ (%2$@ h/day, %3$ld exceptions) drives %4$ld tasks; Kairo advances by calendar days rather than working days.",
+            "%1$@ (%2$@ h/day, %3$ld exceptions) drives %4$ld tasks; Kaido advances by calendar days rather than working days.",
             calendar.workingWeek,
             hours,
             calendar.exceptionCount,

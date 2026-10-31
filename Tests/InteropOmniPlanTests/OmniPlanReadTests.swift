@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import KairoInterop
+import KaidoInterop
 import InteropOmniPlan
 
 /// OmniPlan 读入细节：四型依赖与前导秒、日历例外、工时换算、基线登记。
@@ -81,7 +81,7 @@ struct OmniPlanReadTests {
         let calendar = try #require(document.calendars.first)
         #expect(calendar.hoursPerDay == 16)
 
-        // effort 秒 → IR 只做「秒 → 小时」，人日换算留给 KairoBridge。
+        // effort 秒 → IR 只做「秒 → 小时」，人日换算留给 KaidoBridge。
         let task = try #require(document.tasks.first { $0.id == "t1" })
         #expect(task.durationSeconds == 1_008_000)
         #expect(task.effortHours == 280)

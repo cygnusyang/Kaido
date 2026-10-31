@@ -1,6 +1,6 @@
-# Contributing to Kairo
+# Contributing to Kaido
 
-Thanks for taking a look. Kairo is a macOS workbench plus an MCP server and CLI for
+Thanks for taking a look. Kaido is a macOS workbench plus an MCP server and CLI for
 scheduling AI coding work. The fastest way to get oriented:
 
 - [README.md](README.md) — what it does, four entry points
@@ -19,9 +19,9 @@ scheduling AI coding work. The fastest way to get oriented:
 ```bash
 swift build                 # debug
 swift test                  # full suite
-bash tools/gate-core.sh     # KairoCore / KairoCommands / KairoPresentation must not import AppKit, SwiftUI, Cocoa or Combine
-bash tools/gate-ui.sh       # views must not reference Project / TaskItem / KairoSession directly
-bash tools/build.sh         # release build, packages dist/Kairo.app
+bash tools/gate-core.sh     # KaidoCore / KaidoCommands / KaidoPresentation must not import AppKit, SwiftUI, Cocoa or Combine
+bash tools/gate-ui.sh       # views must not reference Project / TaskItem / KaidoSession directly
+bash tools/build.sh         # release build, packages dist/Kaido.app
 ```
 
 CI runs `swift test` plus both gates on macOS **and** on Linux (`swift:6.0-jammy`).
@@ -31,14 +31,14 @@ A pull request that fails either job will not be merged.
 
 These are architecture decisions, not style preferences:
 
-1. **One write path.** Every mutation goes through `KairoSession` in `KairoCommands`.
-   Do not add a second way to write a `.kairo` file.
-2. **The core stays UI-free.** `KairoCore`, `KairoCommands` and `KairoPresentation`
+1. **One write path.** Every mutation goes through `KaidoSession` in `KaidoCommands`.
+   Do not add a second way to write a `.kaido` file.
+2. **The core stays UI-free.** `KaidoCore`, `KaidoCommands` and `KaidoPresentation`
    are Foundation-only. No AppKit, SwiftUI, Cocoa or Combine imports; the gate scripts
    enforce it.
 3. **Views read snapshots, not models.** Views in `Apps/macos/Sources/Workspace` talk to
    the presentation layer through snapshots and actions.
-4. **The file format is versioned.** Any change to `.kairo` needs a migration step in
+4. **The file format is versioned.** Any change to `.kaido` needs a migration step in
    `FormatDocument`; never rewrite a document without bumping `formatVersion`.
 
 If a change seems to need breaking one of these, open an issue first — that is a design
@@ -59,14 +59,14 @@ work item, put its ID in the subject.
 ## Reporting bugs
 
 Use the issue template. A useful bug report has: what you ran, what you expected, what
-happened, the version (`Kairo → About` or `git describe --tags`), your macOS version and
+happened, the version (`Kaido → About` or `git describe --tags`), your macOS version and
 the relevant log lines. If the app itself misbehaves, mention whether you installed it
 from the DMG, via Homebrew, or built it locally.
 
 ## Translations
 
 `README.zh-CN.md` is the Chinese README; the diagrams under `docs/` are generated in both
-languages by `tools/gen-arch-svg.py` (`KAIRO_SVG_LANG=en|zh`). If you change a diagram,
+languages by `tools/gen-arch-svg.py` (`KAIDO_SVG_LANG=en|zh`). If you change a diagram,
 change the generator, not the SVG.
 
 The AI collaboration guide is bilingual the same way: `Plugins/README.md` (English) and
@@ -83,9 +83,9 @@ Every Release ships:
 
 | Asset | For |
 |---|---|
-| `Kairo-vX.Y.Z.dmg` | installing the app by hand |
-| `Kairo-vX.Y.Z.zip` | the over-the-air updater payload |
-| `kairo-vX.Y.Z-macos-universal.tar.gz` | `kairo` and `kairo-mcp` binaries, arm64 + x86_64 in one file |
+| `Kaido-vX.Y.Z.dmg` | installing the app by hand |
+| `Kaido-vX.Y.Z.zip` | the over-the-air updater payload |
+| `kaido-vX.Y.Z-macos-universal.tar.gz` | `kaido` and `kaido-mcp` binaries, arm64 + x86_64 in one file |
 | `…tar.gz.sha256` | checksum for the CLI tarball |
 | `update-manifest.json` | signed OTA feed |
 | `SIGNING.txt` | what signing/notarization actually happened for this build (never inferred) |
@@ -119,7 +119,7 @@ base64 -i DeveloperID.p12 | pbcopy
 ```
 
 When the secrets are present the workflow imports the certificate into a temporary keychain,
-signs `Kairo.app` with the hardened runtime, notarizes and staples **the app itself**
+signs `Kaido.app` with the hardened runtime, notarizes and staples **the app itself**
 (the OTA zip cannot be stapled, so the ticket has to be inside the bundle before packaging),
 then signs, notarizes and staples the DMG, and finally signs the CLI/MCP binaries in the
 universal tarball. Unsigned builds keep working meanwhile — that is why this is a switch

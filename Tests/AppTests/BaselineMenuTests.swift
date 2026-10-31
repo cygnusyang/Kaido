@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// v0.14 G8：基线菜单与图例（docs/features/10-multi-baseline-gantt.md §4 / §5）。
 ///
@@ -14,7 +14,7 @@ import KairoPresentation
 @Suite("基线菜单与图例（v0.14）")
 struct BaselineMenuTests {
     private func makeDefaults() -> UserDefaults {
-        let suite = "kairo.v014.menu.\(UUID().uuidString)"
+        let suite = "kaido.v014.menu.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults
@@ -24,17 +24,17 @@ struct BaselineMenuTests {
         WorkspaceStore(defaults: makeDefaults(), seedsDemoData: true)
     }
 
-    private func makeCatalog(_ store: WorkspaceStore) -> [KairoCommand] {
-        KairoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {})
+    private func makeCatalog(_ store: WorkspaceStore) -> [KaidoCommand] {
+        KaidoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {})
     }
 
-    private func command(_ commands: [KairoCommand], _ id: String) throws -> KairoCommand {
+    private func command(_ commands: [KaidoCommand], _ id: String) throws -> KaidoCommand {
         try #require(commands.first { $0.id == id })
     }
 
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-v014-menu-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-v014-menu-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
@@ -54,7 +54,7 @@ struct BaselineMenuTests {
         BaselineMenuModel(baselines: store.baselines, viewState: store.viewState)
     }
 
-    private func visibleBaselineIDs(_ commands: [KairoCommand]) -> [KairoCommand] {
+    private func visibleBaselineIDs(_ commands: [KaidoCommand]) -> [KaidoCommand] {
         commands.filter { $0.group == .baseline && !$0.isPaletteHidden }
     }
 
@@ -67,7 +67,7 @@ struct BaselineMenuTests {
         #expect(commands.count == 50)
         #expect(Set(commands.map(\.id)).count == commands.count)
         // 新增分组必须至少有一条命令，否则分组集合与菜单对不上。
-        #expect(Set(commands.map(\.group)) == Set(KairoCommandGroup.allCases))
+        #expect(Set(commands.map(\.group)) == Set(KaidoCommandGroup.allCases))
         #expect(commands.contains { $0.group == .baseline })
     }
 
@@ -90,7 +90,7 @@ struct BaselineMenuTests {
         #expect(try command(commands, "baseline.manage").shortcut == nil)
 
         // 菜单栏分组标题与面板分组标签同源。
-        #expect(KairoCommandGroup.baseline.title == I18n.t("menu.group.baseline", "Baseline"))
+        #expect(KaidoCommandGroup.baseline.title == I18n.t("menu.group.baseline", "Baseline"))
     }
 
     /// 每条基线 12 条命令（显示 1 + 对比 1 + 8 色 + 改名 1 + 删除 1），id 不重复也不串基线。
@@ -137,7 +137,7 @@ struct BaselineMenuTests {
     @Test func visibilityCommandTogglesPureViewState() throws {
         let store = makeStore()
         let directory = try makeTemporaryDirectory()
-        let url = directory.appendingPathComponent("plan.kairo")
+        let url = directory.appendingPathComponent("plan.kaido")
         let ids = createBaselines(1, in: store)
         // 新建会自动加入显示（§6），先退回未显示再验证「勾上」。
         store.dispatch(.setBaselineVisible(ids[0], false))
@@ -193,7 +193,7 @@ struct BaselineMenuTests {
     @Test func colorCommandsMarkCurrentAndAreUndoable() throws {
         let store = makeStore()
         let directory = try makeTemporaryDirectory()
-        let url = directory.appendingPathComponent("plan.kairo")
+        let url = directory.appendingPathComponent("plan.kaido")
         let ids = createBaselines(1, in: store)
         store.save(to: url)
         let before = try #require(store.baselines.first?.colorIndex)
@@ -215,7 +215,7 @@ struct BaselineMenuTests {
         #expect(store.baselines.first?.colorIndex == before)
     }
 
-    private static func colorIDs(_ id: UUID, in commands: [KairoCommand]) -> [String] {
+    private static func colorIDs(_ id: UUID, in commands: [KaidoCommand]) -> [String] {
         commands
             .map(\.id)
             .filter { $0.hasPrefix("baseline.color.\(id.uuidString).") }

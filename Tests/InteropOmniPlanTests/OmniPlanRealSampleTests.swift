@@ -1,16 +1,16 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoInterop
+import KaidoCore
+import KaidoInterop
 import InteropOmniPlan
 
 /// 真实样本验收（docs/features/11-interop-omniplan.md §5 的 PoC 数字）。
 ///
 /// 样本是用户的真实计划，**不进仓库**：默认读 \`/tmp/omniplan-sample.oplx\`，
-/// 可用环境变量 \`KAIRO_OMNIPLAN_SAMPLE\` 指向别处；文件不存在时用例自动跳过。
+/// 可用环境变量 \`KAIDO_OMNIPLAN_SAMPLE\` 指向别处；文件不存在时用例自动跳过。
 @Suite("OmniPlan 真实样本（Cygnus 个人任务）")
 struct OmniPlanRealSampleTests {
-    private static let samplePath = ProcessInfo.processInfo.environment["KAIRO_OMNIPLAN_SAMPLE"]
+    private static let samplePath = ProcessInfo.processInfo.environment["KAIDO_OMNIPLAN_SAMPLE"]
         ?? "/tmp/omniplan-sample.oplx"
 
     private static var sampleAvailable: Bool {
@@ -59,11 +59,11 @@ struct OmniPlanRealSampleTests {
         let document = try loadDocument()
         // Project / Equipment / Group 三种资源类型 IR 表达不了。
         #expect(document.ledger.entry(field: "resource.kind")?.count == 3)
-        // 会议室与「设备和材料」各有自己的作息表，Kairo 没有资源日历。
+        // 会议室与「设备和材料」各有自己的作息表，Kaido 没有资源日历。
         #expect(document.ledger.entry(field: "resource.calendar")?.count == 2)
         #expect(document.ledger.entry(field: "resource.notes")?.count == 2)
         #expect(document.ledger.entry(field: "constraint.locked")?.count == 1)
-        // 会议室的 efficiency=0 在 Kairo 没有落点。
+        // 会议室的 efficiency=0 在 Kaido 没有落点。
         #expect(document.ledger.entry(field: "resource.efficiency")?.count == 1)
         // 不制造假的丢失项：没有基线 scenario、没有成本、没有孤儿任务。
         #expect(document.ledger.entry(field: "baseline") == nil)
@@ -71,9 +71,9 @@ struct OmniPlanRealSampleTests {
         #expect(document.ledger.entry(field: "task.orphan") == nil)
     }
 
-    @Test("桥接后：26 个 Kairo 任务、16h/日 工期、全周 7 天日历", .enabled(if: sampleAvailable))
+    @Test("桥接后：26 个 Kaido 任务、16h/日 工期、全周 7 天日历", .enabled(if: sampleAvailable))
     func bridgedProject() throws {
-        let result = KairoBridge().makeProject(from: try loadDocument())
+        let result = KaidoBridge().makeProject(from: try loadDocument())
         #expect(result.project.tasks.count == 26)
         #expect(result.project.tasks.filter { $0.kind == .group }.count == 10)
 

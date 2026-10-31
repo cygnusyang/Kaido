@@ -8,7 +8,7 @@
 
 import AppKit
 import Foundation
-import KairoUpdater
+import KaidoUpdater
 
 /// 「退出并安装」序列：装前收口 -> 武装替换脚本 -> 收面板 -> terminate。
 @MainActor

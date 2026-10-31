@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // v1.3 挣值展示（docs/features/17-evm-status-date.md §3 / §5）。
 //
@@ -201,7 +201,7 @@ struct EarnedValuePresentationTests {
     // MARK: - 应用层接线
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.apptests.evm.\(UUID().uuidString)"
+        let suite = "kaido.apptests.evm.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, seedsDemoData: true)

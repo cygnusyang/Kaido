@@ -1,6 +1,6 @@
 import Foundation
-import KairoCore
-import KairoPresentation
+import KaidoCore
+import KaidoPresentation
 
 /// 画布空白处拖拽平移状态机（F-14-18，引用语义、可单测）。
 ///

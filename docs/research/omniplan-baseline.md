@@ -9,7 +9,7 @@
 2. 基线**数量不限**、可命名（默认今日日期）、可删除，但**任一时刻只对比一份**（选中的那份）。
 3. 基线在 4.x **只读**：任务检查器基线区「不可直接编辑」；2.4.1 曾允许逐任务改基线日期，4.x 已收紧。
 4. 偏差口径极简：开始偏差 / 结束偏差 / 项目结束偏差，单位是时间；**没有工期偏差列**，挣值（SV/SPI）另属 Pro 的 EVA 列组。
-5. Kairo 不能照抄「两层」：Kairo 的 `scheduledStart` 是**预测**不是事实，需引入第三层，否则违例引擎与关键路径语义整体错位。
+5. Kaido 不能照抄「两层」：Kaido 的 `scheduledStart` 是**预测**不是事实，需引入第三层，否则违例引擎与关键路径语义整体错位。
 
 ## 1. 功能清单（OmniPlan 4）
 
@@ -54,21 +54,21 @@
 - **Baseline**：工作产物的**已批准版本**，只能通过正式变更控制程序修改，用作与实际结果比较的基准；**Schedule baseline** = 进度模型的已批准版本。[二次] PMBOK 6 术语表通行表述；PMI Lexicon PDF 本次 403，未能原文核验。
 - **Performance measurement baseline**：scope + schedule + cost 三条基线合成，供挣值分析使用；re-baseline 是受控、留档的决定，不得用于掩盖延期，且**应保留历史基线**。[二次]
 - 与 OmniPlan 的差异：PMI 强调「批准 / 变更控制 / 留档」，OmniPlan 只提供「快照 / 可删 / 可多份」——**没有审批状态、没有变更理由字段**。[对比推断]
-- 对 Kairo 的现实取舍：Kairo 是单人/小团队工具，**不必实现变更控制流程**，但应保留「谁在什么时候拍了哪份基线」这一最小留痕（可用 name + snapshotDate + 可选备注）。
+- 对 Kaido 的现实取舍：Kaido 是单人/小团队工具，**不必实现变更控制流程**，但应保留「谁在什么时候拍了哪份基线」这一最小留痕（可用 name + snapshotDate + 可选备注）。
 
-## 5. 对 Kairo 的约束与风险
+## 5. 对 Kaido 的约束与风险
 
 ### 5.1 硬约束
 
-- **C1｜三层时间轴，不是两层。** baseline（冻结）/ plan（当前预测，引擎 `scheduledStart/scheduledFinish`）/ actual（事实，新增 `actualStart/actualEnd`）。照抄 OmniPlan 会把 Kairo 的「计划」改名「实际」，导致违例、关键路径、宽延全部口径错位。
+- **C1｜三层时间轴，不是两层。** baseline（冻结）/ plan（当前预测，引擎 `scheduledStart/scheduledFinish`）/ actual（事实，新增 `actualStart/actualEnd`）。照抄 OmniPlan 会把 Kaido 的「计划」改名「实际」，导致违例、关键路径、宽延全部口径错位。
 - **C2｜基线必须是独立快照集合，不能回写任务单值。** 现行 F-14-16 方案写 `TaskItem.baselineStart/baselineEnd` 只能承载一份基线，与 F-12-17 / US-E2-06 的「多基线 + 切换对比」直接冲突。偏差应是「所选基线 × 任务」的**派生量**，不落盘。
-- **C3｜偏差口径必须显式声明基准。** OmniPlan 一律「actual vs baseline」；Kairo 未录实际时（大量任务）会出现空值，需定义回落规则（actual 缺失 → 以 plan 对比并标注为「预测偏差」），且报表要带 `baselineID`，否则跨版本报表不可比。
+- **C3｜偏差口径必须显式声明基准。** OmniPlan 一律「actual vs baseline」；Kaido 未录实际时（大量任务）会出现空值，需定义回落规则（actual 缺失 → 以 plan 对比并标注为「预测偏差」），且报表要带 `baselineID`，否则跨版本报表不可比。
 
 ### 5.2 风险与缓解
 
 | 风险 | 说明 | 缓解 |
 | --- | --- | --- |
-| 文件体积 | 500 任务 × 10 基线 × 全字段快照 ≈ 数 MB 级；`.kairo` 是人工可读、git 友好的 JSON | 快照只存 `(taskID, start, finish, progress, isMilestone)`；不复制 title/tags |
+| 文件体积 | 500 任务 × 10 基线 × 全字段快照 ≈ 数 MB 级；`.kaido` 是人工可读、git 友好的 JSON | 快照只存 `(taskID, start, finish, progress, isMilestone)`；不复制 title/tags |
 | 格式兼容 | `currentFormatVersion = 1`，读路径忽略未知字段 → **旧版打开新文件再保存会静默丢基线** | 升 `formatVersion = 2` 走既有 `FormatMigrationPlan` 加法迁移 |
 | 视图状态混入数据 | `selectedBaseline` 是 UI 偏好，不该进撤销栈、不该污染 diff | 与列宽偏好同处理（不进撤销栈） |
 | 写入入口分裂 | actual 可能被「状态回写」与「甘特拖拽 / 检查器」两路写 | 单一写入路径 + 一个派生出口（D-021 的教训正是字段有多个来源导致拖拽不生效） |

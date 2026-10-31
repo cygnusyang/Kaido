@@ -3,9 +3,9 @@ import CoreGraphics
 import Foundation
 import SwiftUI
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// F-14-10 日期字段与月历弹层的离屏渲染测试。
 ///

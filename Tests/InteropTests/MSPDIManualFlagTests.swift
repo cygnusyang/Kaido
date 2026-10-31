@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import KairoInterop
+import KaidoInterop
 import InteropMSPDI
 
 /// MS Project 用元素属性 Manual="1" 表达手动排期（v1.3.6）。

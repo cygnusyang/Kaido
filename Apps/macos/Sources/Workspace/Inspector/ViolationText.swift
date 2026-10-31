@@ -1,6 +1,6 @@
 import Foundation
-import KairoCore
-import KairoPresentation
+import KaidoCore
+import KaidoPresentation
 
 /// 违例与规则名的视图层渲染（F-0705）：快照只给码与语义参数，文案全部走 String Catalog。
 ///

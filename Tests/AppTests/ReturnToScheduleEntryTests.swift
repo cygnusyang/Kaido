@@ -2,9 +2,9 @@ import AppKit
 import Foundation
 import SwiftUI
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // D-054 视图层判据：窗口离开排期区间时，「回到排期」的入口必须在**视口里**、不随滚动移动、可点。
 //
@@ -79,7 +79,7 @@ struct ReturnToScheduleEntryTests {
     }
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.apptests.return-to-schedule.\(UUID().uuidString)"
+        let suite = "kaido.apptests.return-to-schedule.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, seedsDemoData: false)
@@ -91,9 +91,9 @@ struct ReturnToScheduleEntryTests {
     /// 否则测的是「滚不动」或「本来就该有条」。
     private func makeProject() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-return-to-schedule-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-return-to-schedule-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let url = directory.appendingPathComponent("schedule.kairo")
+        let url = directory.appendingPathComponent("schedule.kaido")
         let start = calendar.date(from: DateComponents(year: 2025, month: 1, day: 6))!
 
         let project = Project()
@@ -108,7 +108,7 @@ struct ReturnToScheduleEntryTests {
             )
             project.add(task)
         }
-        try KairoFile.save(project, to: url)
+        try KaidoFile.save(project, to: url)
         return url
     }
 
@@ -139,7 +139,7 @@ struct ReturnToScheduleEntryTests {
 
         let view = WorkspaceView(
             store: store,
-            commands: KairoCommandCatalog.make(
+            commands: KaidoCommandCatalog.make(
                 store: store,
                 requestOpen: {},
                 requestSave: {},

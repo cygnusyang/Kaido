@@ -1,9 +1,9 @@
 import AppKit
 import SwiftUI
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 大纲与画布纵向对齐回归：
 /// 左列每行严格 `DesignTokens.rowHeight`（28pt），行列表总高必须等于行数 × 行高，
@@ -14,7 +14,7 @@ import KairoPresentation
 struct OutlineAlignmentTests {
     /// 渲染 N 行后断言 Outline 行列表实测总高 == N × rowHeight == Timeline contentHeight。
     @Test func outlineRowsListHeightMatchesTimelinePitch() throws {
-        let suiteName = "kairo.apptests.\(UUID().uuidString)"
+        let suiteName = "kaido.apptests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName) ?? .standard
         defaults.removePersistentDomain(forName: suiteName)
         let store = WorkspaceStore(defaults: defaults, seedsDemoData: false)

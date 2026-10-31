@@ -1,12 +1,12 @@
 import Foundation
-import KairoInterop
+import KaidoInterop
 #if canImport(FoundationXML)
 import FoundationXML
 #endif
 
 /// MS Project XML（MSPDI）读取（docs/features/14-interop-architecture.md P0）。
 ///
-/// 只负责「XML → IR」：不认识 Kairo 的任何业务模型，也不做工作日换算。
+/// 只负责「XML → IR」：不认识 Kaido 的任何业务模型，也不做工作日换算。
 /// 读到未知 `SaveVersion` 一律拒绝（`unsupportedFormatVersion`），不做 best-effort。
 struct MSPDIReader {
     /// MSPDI 的唯一合法命名空间。
@@ -303,7 +303,7 @@ struct MSPDIReader {
                 field: "dependency",
                 kind: .dropped,
                 count: droppedDependencies,
-                detail: "跨项目相关性（CrossProject=1）或类型非法的相关性被丢弃：Kairo 没有跨项目依赖。",
+                detail: "跨项目相关性（CrossProject=1）或类型非法的相关性被丢弃：Kaido 没有跨项目依赖。",
                 sample: droppedDependencySample
             )
         }
@@ -312,7 +312,7 @@ struct MSPDIReader {
                 field: "constraint.type",
                 kind: .dropped,
                 count: hardPins,
-                detail: "Must Start On / Must Finish On（ConstraintType 2/3）在 Kairo 没有对应物：既不能钉死日期也不产生违例，只能丢弃。",
+                detail: "Must Start On / Must Finish On（ConstraintType 2/3）在 Kaido 没有对应物：既不能钉死日期也不产生违例，只能丢弃。",
                 samples: hardPinSamples
             )
         }
@@ -329,7 +329,7 @@ struct MSPDIReader {
                 field: "cost",
                 kind: .dropped,
                 count: costTasks,
-                detail: "Kairo 没有成本与挣值（固定成本 / 成本 / BCWS / BCWP）：这些数值全部丢弃。"
+                detail: "Kaido 没有成本与挣值（固定成本 / 成本 / BCWS / BCWP）：这些数值全部丢弃。"
             )
         }
         if deadlines > 0 {
@@ -337,7 +337,7 @@ struct MSPDIReader {
                 field: "deadline",
                 kind: .dropped,
                 count: deadlines,
-                detail: "Deadline 与 Kairo 的 dueDate 不等价（dueDate 不参与排期）：按 C 级策略丢弃，不塞进 dueDate。"
+                detail: "Deadline 与 Kaido 的 dueDate 不等价（dueDate 不参与排期）：按 C 级策略丢弃，不塞进 dueDate。"
             )
         }
         if recurring > 0 {
@@ -345,7 +345,7 @@ struct MSPDIReader {
                 field: "recurring",
                 kind: .dropped,
                 count: recurring,
-                detail: "循环任务在 Kairo 没有对应物，按单次任务导入（重复规则丢失）。"
+                detail: "循环任务在 Kaido 没有对应物，按单次任务导入（重复规则丢失）。"
             )
         }
         if subprojects > 0 {
@@ -412,7 +412,7 @@ struct MSPDIReader {
                 if droppedSample == nil { droppedSample = "CrossProject / 缺 PredecessorUID" }
                 continue
             }
-            // MSPDI 口径：0 = FF，1 = FS，2 = SF，3 = SS（与 Kairo 的枚举顺序不同）。
+            // MSPDI 口径：0 = FF，1 = FS，2 = SF，3 = SS（与 Kaido 的枚举顺序不同）。
             let type: InteropDependencyType
             switch link.child("Type")?.intValue ?? 1 {
             case 0: type = .finishToFinish
@@ -489,7 +489,7 @@ struct MSPDIReader {
                 field: "baseline.assignment",
                 kind: .dropped,
                 count: droppedBaselines,
-                detail: "分配级基线（每条分配的工作/成本/日期快照）在 Kairo 没有落点：只保留任务级基线。"
+                detail: "分配级基线（每条分配的工作/成本/日期快照）在 Kaido 没有落点：只保留任务级基线。"
             )
         }
         return result
@@ -542,7 +542,7 @@ struct MSPDIReader {
     }
 }
 
-/// 只在异常日展开里用到的整日算术（避免与 Kairo 的工作日口径混淆）。
+/// 只在异常日展开里用到的整日算术（避免与 Kaido 的工作日口径混淆）。
 private enum CalendarDayMathStart {
     private static var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)

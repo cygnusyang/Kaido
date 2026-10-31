@@ -1,10 +1,10 @@
 import AppKit
 import Foundation
 import Testing
-import KairoCommands
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCommands
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// v0.17 稳定性审计的回归断言：保存失败、外部更新与退出守卫。
 ///
@@ -15,10 +15,10 @@ import KairoPresentation
 struct SaveStateAuditTests {
     private func makeStore(
         projectLoader: @escaping @Sendable (URL) throws -> DecodedProject = {
-            try KairoFile.read(from: $0)
+            try KaidoFile.read(from: $0)
         }
     ) -> WorkspaceStore {
-        let suite = "kairo.apptests.audit.\(UUID().uuidString)"
+        let suite = "kaido.apptests.audit.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, projectLoader: projectLoader)
@@ -26,7 +26,7 @@ struct SaveStateAuditTests {
 
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-audit-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-audit-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
@@ -50,7 +50,7 @@ struct SaveStateAuditTests {
         store.dispatch(.setProjectTitle("未保存标题"))
         #expect(store.hasUnsavedChanges)
 
-        let unreachable = directory.appendingPathComponent("missing/deeper/broken.kairo")
+        let unreachable = directory.appendingPathComponent("missing/deeper/broken.kaido")
         store.save(to: unreachable)
 
         #expect(store.saveState == .failed)
@@ -67,13 +67,13 @@ struct SaveStateAuditTests {
     @Test func failedSaveKeepsPreviousFileAndPath() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("project.kairo")
+        let url = directory.appendingPathComponent("project.kaido")
         let store = makeStore()
         store.save(to: url)
         let original = try Data(contentsOf: url)
         store.dispatch(.setProjectTitle("第二次保存"))
 
-        store.save(to: directory.appendingPathComponent("missing/deeper/broken.kairo"))
+        store.save(to: directory.appendingPathComponent("missing/deeper/broken.kaido"))
 
         #expect(store.saveState == .failed)
         #expect(store.projectURL?.standardizedFileURL == url.standardizedFileURL)
@@ -91,7 +91,7 @@ struct SaveStateAuditTests {
     @Test func repeatedChecksDoNotRepeatExternalPrompt() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("external.kairo")
+        let url = directory.appendingPathComponent("external.kaido")
         let store = makeStore()
         store.save(to: url)
         store.dispatch(.setProjectTitle("本地修改"))
@@ -113,7 +113,7 @@ struct SaveStateAuditTests {
     @Test func keepLocalSilencesTheSameDiskVersion() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("external.kairo")
+        let url = directory.appendingPathComponent("external.kaido")
         let store = makeStore()
         store.save(to: url)
         store.dispatch(.setProjectTitle("本地修改"))
@@ -135,11 +135,11 @@ struct SaveStateAuditTests {
     @Test func failedExternalReloadKeepsProjectOpenAndRecent() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("external.kairo")
+        let url = directory.appendingPathComponent("external.kaido")
         let store = makeStore()
         store.save(to: url)
         store.dispatch(.setProjectTitle("本地修改"))
-        try Data("not a kairo file".utf8).write(to: url)
+        try Data("not a kaido file".utf8).write(to: url)
         store.checkExternalUpdate()
         #expect(store.externalUpdatePending)
 
@@ -159,7 +159,7 @@ struct SaveStateAuditTests {
     @Test func saveOverPendingExternalUpdateSaysLocalKept() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("external.kairo")
+        let url = directory.appendingPathComponent("external.kaido")
         let store = makeStore()
         store.save(to: url)
         store.dispatch(.setProjectTitle("本地修改"))
@@ -181,13 +181,13 @@ struct SaveStateAuditTests {
     @Test func externalCheckIsSkippedWhileAsyncOpenInFlight() async throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let currentURL = directory.appendingPathComponent("current.kairo")
-        let targetURL = directory.appendingPathComponent("target.kairo")
+        let currentURL = directory.appendingPathComponent("current.kaido")
+        let targetURL = directory.appendingPathComponent("target.kaido")
 
         let gate = DispatchSemaphore(value: 0)
         let store = makeStore(projectLoader: { url in
             gate.wait()
-            return try KairoFile.read(from: url)
+            return try KaidoFile.read(from: url)
         })
         store.save(to: currentURL)
         let writer = makeStore()
@@ -240,7 +240,7 @@ struct SaveStateAuditTests {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = makeStore()
-        store.save(to: directory.appendingPathComponent("clean.kairo"))
+        store.save(to: directory.appendingPathComponent("clean.kaido"))
 
         let delegate = AppDelegate()
         delegate.store = store
@@ -256,7 +256,7 @@ struct SaveStateAuditTests {
     @Test func quitGuardSavesThenQuits() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("saved.kairo")
+        let url = directory.appendingPathComponent("saved.kaido")
         let store = makeStore()
         store.save(to: url)
         store.dispatch(.setProjectTitle("退出前保存"))
@@ -273,7 +273,7 @@ struct SaveStateAuditTests {
     /// 保存失败时必须取消退出，并把失败原因交给提示层（不得退化成「已保存后退出」）。
     @Test func quitGuardCancelsWhenSaveFails() throws {
         let directory = try makeTemporaryDirectory()
-        let url = directory.appendingPathComponent("vanishing.kairo")
+        let url = directory.appendingPathComponent("vanishing.kaido")
         let store = makeStore()
         store.save(to: url)
         #expect(store.saveState == .saved)
@@ -297,7 +297,7 @@ struct SaveStateAuditTests {
     @Test func quitGuardUsesSavePanelWhenNoPath() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let targetURL = directory.appendingPathComponent("chosen.kairo")
+        let targetURL = directory.appendingPathComponent("chosen.kaido")
         let store = makeStore()
         store.dispatch(.setProjectTitle("另存后退出"))
 

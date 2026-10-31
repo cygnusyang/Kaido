@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Question or usage help
-    url: https://github.com/cygnusyang/Kairo/blob/main/QUICKSTART.md
+    url: https://github.com/cygnusyang/Kaido/blob/main/QUICKSTART.md
     about: Setup, first project, and connecting Claude Code / Codex / CodeBuddy
   - name: Architecture and design decisions
-    url: https://github.com/cygnusyang/Kairo/blob/main/ARCHITECTURE.md
-    about: Module boundaries, write path, and the .kairo file format
+    url: https://github.com/cygnusyang/Kaido/blob/main/ARCHITECTURE.md
+    about: Module boundaries, write path, and the .kaido file format

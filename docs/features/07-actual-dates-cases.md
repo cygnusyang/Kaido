@@ -2,12 +2,12 @@
 
 > 依据：[07-actual-dates.md](./07-actual-dates.md) §9（14 条判据）与 §3 / §4 / §7 / §10 的派生语义。
 > 本文件是**测试前置**产物：先于实现落盘，实现完成后逐条转绿。
-> 自动化文件：`Tests/KairoCoreTests/ActualDatesAcceptanceTests.swift`（core + commands，24 例）、`Tests/InterfaceTests/ActualDatesInterfaceTests.swift`（cli，3 例）；
-> 另由各层实现方补齐：`Tests/KairoPresentationTests/ActualDatesPresentationTests.swift`（pres，12 例）、`Tests/AppTests/ActualDatesWorkspaceTests.swift`（app，13 例）。
+> 自动化文件：`Tests/KaidoCoreTests/ActualDatesAcceptanceTests.swift`（core + commands，24 例）、`Tests/InterfaceTests/ActualDatesInterfaceTests.swift`（cli，3 例）；
+> 另由各层实现方补齐：`Tests/KaidoPresentationTests/ActualDatesPresentationTests.swift`（pres，12 例）、`Tests/AppTests/ActualDatesWorkspaceTests.swift`（app，13 例）。
 
 ## 0. 口径
 
-**L1 层级**：`core` = KairoCore（模型 / 存储）｜`commands` = KairoCommands.KairoSession（唯一写入口）｜`pres` = KairoPresentation（快照 / 列策略）｜`app` = Apps/macos（Store / 视图）｜`cli` = KairoCLI + KairoMCP。
+**L1 层级**：`core` = KaidoCore（模型 / 存储）｜`commands` = KaidoCommands.KaidoSession（唯一写入口）｜`pres` = KaidoPresentation（快照 / 列策略）｜`app` = Apps/macos（Store / 视图）｜`cli` = KaidoCLI + KaidoMCP。
 
 **L2 「实际结束」只有一个名字**：模型侧是 `TaskItem.completedAt`（07 §2 裁决），**不存在** `actualFinish` 字段。断言必须落在 `completedAt`；「实际结束」只作为 UI 标签与快照字段名出现。把两者写成两个字段的实现一律判红。
 
@@ -30,10 +30,10 @@
 | A-07 | 7. `setActualStart(nil)` 清空；pending 写非 nil → `.inProgress`；done 写 → status 不变 | `clearingActualStartKeepsStatus`、`manualActualStartPromotesPendingTask`、`manualActualStartDoesNotReopenDoneOrBlockedTask` | ① in_progress 后 `setActualStart(nil)`；② pending 后 `setActualStart(t0)`；③ done（completedAt=t1）与 blocked 后各写 t0 | ① `actualStart == nil` 且 `status` 仍 inProgress；② `status == .inProgress`、`actualStart == t0`；③ done 仍 done 且 `completedAt == t1`，blocked 仍 blocked | commands | ✅ 三例 |
 | A-08 | 8. `setActualFinish(nil)` 只清 `completedAt`、status 保持 done；非 nil → done + progress 1 | `clearingActualFinishOnlyClearsCompletedAt`、`manualActualFinishCompletesTask` | ① done@t1 后 `setActualFinish(nil)`；② in_progress@t0 后 `setActualFinish(t1)` | ① `completedAt == nil`、`status == .done`；② `status == .done`、`progress == 1`、`completedAt == t1`、`actualStart` 不变 | commands | ✅ 两例 |
 | A-09 | 9. `actualStart > actualFinish` → 抛 `model_actual_date_order_invalid`，任务不被修改、不产生撤销点 | `actualStartAfterActualFinishIsRejectedWithoutMutation`、`actualFinishBeforeExistingActualStartIsRejectedWithoutMutation`；撤销点见 C-07 | ① 先 `setActualFinish(t1)` 再 `setActualStart(t2)`；② 先 `setActualStart(t1)` 再 `setActualFinish(t0)` | 两方向均 `code == .invalidArgument` + `reason == .actualDateOrderInvalid`；抛错后 `getTask` 与抛错前逐字段相等 | commands（撤销点：app） | ✅ 两例（撤销点待补） |
-| A-10 | 10. 旧 .kairo（无 `actualStart` 键）打开 → 字段 `nil`、`formatVersion` 仍为 1；保存后可被旧版本读回 | `legacyFileWithoutActualStartDecodesNilAndKeepsFormatVersion`、`encodedTaskAddsOnlyActualStartKey` | ① 含 `actualStart` 的编码去掉该键后 `KairoFile.decode`；② 检查编码后任务对象的键集合 | ① `actualStart == nil`、标题等其余字段不变、`formatVersion == 1` 且 `KairoFile.currentFormatVersion == 1`；② 新增键**恰好** `{actualStart}`（不出现 `actualFinish` 等），`nil` 时不写该键 | core | ✅ 两例 |
+| A-10 | 10. 旧 .kaido（无 `actualStart` 键）打开 → 字段 `nil`、`formatVersion` 仍为 1；保存后可被旧版本读回 | `legacyFileWithoutActualStartDecodesNilAndKeepsFormatVersion`、`encodedTaskAddsOnlyActualStartKey` | ① 含 `actualStart` 的编码去掉该键后 `KaidoFile.decode`；② 检查编码后任务对象的键集合 | ① `actualStart == nil`、标题等其余字段不变、`formatVersion == 1` 且 `KaidoFile.currentFormatVersion == 1`；② 新增键**恰好** `{actualStart}`（不出现 `actualFinish` 等），`nil` 时不写该键 | core | ✅ 两例 |
 | A-11 | 11. 大纲两列默认不出现；开启后位置在 `.finish` 之后、只读、无值显示 `—`；列宽可拖、可再隐藏 | pres：`defaultVisibilityIsIndependentOfHiddenSet`、`enabledOptionalColumnsFollowFinishInCanonicalOrder`、`enablingSingleOptionalColumnDoesNotRevealTheOther`、`optionalColumnsAppendWhenFinishAbsent`、`explicitlyEnabledOptionalColumnsIgnoreWidthThreshold`、`optionalColumnWidthMatchesDateColumns`、`toggleableCoversConfigurableAndOptional`、`viewStateHasNoOptionalColumnsByDefault`；app：`optionalColumnsAreHiddenByDefault`、`togglingOptionalColumnShowsItAfterFinish`、`togglingOptionalColumnAgainHidesIt`、`missingActualDateRendersPlaceholder`、`optionalColumnPreferencePersists` | A-11a：`OutlineColumnPreferences.visibleColumns(outlineWidth:hidden:focused:shownOptional:)`，默认 `shownOptional: []`，再传 `[.actualStart, .actualFinish]`（`outlineWidth` 取 ≥510 与 <376 两组）；A-11b：无值行渲染 | A-11a：默认两列均不出现；启用后按 `[.actualStart, .actualFinish]` 紧随 `.finish`（基准不含 `.finish` 时追加到末尾）；`OutlineColumnPreferences.optional == [.actualStart, .actualFinish]`；宽度 `78 × scale`（13pt 时 78）、`isResizable == true`；A-11b：单元格文本 `—`、无编辑入口 | pres + app | ✅ 已自动化（见用例名列）；`missingActualDateRendersPlaceholder` 覆盖无值 `—`，只读由 `WorkspaceAction` 无内联编辑动作保证 |
 | A-12 | 12. 群组行：`PlanRow.actualStart/actualFinish` 与 `TaskInspector.actualStart` 均 `nil`，检查器无「实际」分区 | pres：`groupSnapshotsSuppressDirtyActualDates`；app：`groupRowNeverCarriesActualDates`（先对 groupID 写脏数据、再断言父行两字段 + 检查器 `actualStart`/`completedAt` 皆空、子任务保留） | 群组（`kind == .group`）行，且**故意**给群组任务写入 `actualStart`/`completedAt`（构造脏数据） | `PlanRow.actualStart == nil`、`PlanRow.actualFinish == nil`、`TaskInspector.actualStart == nil`、`TaskInspector.completedAt == nil`（抑制在快照层，与 `startDate: isGroup ? nil` 同口径）；「检查器无『实际』分区」由 `isAggregate` + 两字段 `nil` 表达。**视图条件行（`if !task.isAggregate`）不单独断言的裁决（2026-10-25，tester 定案）**：① 整屏像素差不可归因——群组行与叶子行本有十余处字段差异，diff 非零无法区分是不是分区渲染；② 给 `TaskInspector` 加 `showsActualSection = !isAggregate` 再接缝断言属同源比较（断言与被测表达式同一表达式），是 D-009 同类的恒真断言，且新增一个无独立语义的公共 API。故此处按「条件输入已被断言覆盖、渲染行不单独锁」处理；**若将来出现 `isAggregate` 之外的独立显隐规则（例如无实际时间时折叠），该分支才具备独立语义，届时再加接缝并写真断言** | pres + app | ✅ 已自动化：两条用例都先证明模型已脏（`group.actualStart != nil`），再断言快照抑制；变异验证见 B-03 |
-| A-13 | 13. `kairo task get` 输出两行实际时间；`task_get` 的 JSON 含 `actualStart` | A-13a `taskGetPrintsActualStartAndActualFinishLines`、`statusUpdateCompletionLineIsLabelledActualFinish`；A-13b `taskJsonCarriesActualStartAndKeepsCompletedAt` | 临时 .kairo，任务含 `actualStart` 与 `completedAt` | A-13a：stdout 含「实际开始」「实际结束」两行，日期为 ISO8601（与现有 `formatDate` 一致）；`kairo status update` 的完成行标签为「实际结束」；A-13b：MCP `task_get` 结果含 `actualStart` 键，实际结束仍为 `completedAt`（**不新增** `actualFinish` 键） | cli | ✅ 已自动化（`Tests/InterfaceTests/ActualDatesInterfaceTests.swift`，沿用 `captureStdout` + `KAIRO_LANG=zh-Hans`） |
+| A-13 | 13. `kaido task get` 输出两行实际时间；`task_get` 的 JSON 含 `actualStart` | A-13a `taskGetPrintsActualStartAndActualFinishLines`、`statusUpdateCompletionLineIsLabelledActualFinish`；A-13b `taskJsonCarriesActualStartAndKeepsCompletedAt` | 临时 .kaido，任务含 `actualStart` 与 `completedAt` | A-13a：stdout 含「实际开始」「实际结束」两行，日期为 ISO8601（与现有 `formatDate` 一致）；`kaido status update` 的完成行标签为「实际结束」；A-13b：MCP `task_get` 结果含 `actualStart` 键，实际结束仍为 `completedAt`（**不新增** `actualFinish` 键） | cli | ✅ 已自动化（`Tests/InterfaceTests/ActualDatesInterfaceTests.swift`，沿用 `captureStdout` + `KAIDO_LANG=zh-Hans`） |
 | A-14 | 14. 时间注入：`statusUpdate(…, now:)` 让断言不依赖墙钟 | 全部 commands 用例 | 固定 `t0/t1/t2`（`1970000000` 起算的整日偏移） | 断言全部与注入值比对；用例内无墙钟读取 | commands | ✅ 全部 commands 例 |
 
 ---
@@ -78,7 +78,7 @@
 
 ## 5. 先红后绿
 
-**红**（落盘时已实证）：`actualStart`、`setActualStart/setActualFinish`、`statusUpdate(…, now:)`、`KairoErrorCode.actualDateOrderInvalid` 均不存在时，本文件编译失败即「先红」——不得为了变绿去改生产代码。
+**红**（落盘时已实证）：`actualStart`、`setActualStart/setActualFinish`、`statusUpdate(…, now:)`、`KaidoErrorCode.actualDateOrderInvalid` 均不存在时，本文件编译失败即「先红」——不得为了变绿去改生产代码。
 
 **绿**（A/B/C/D/E 组落地后实测）：2026-10-25 全量 `swift test` **937 tests / 93 suites 全绿**（含本文件 24 例 + `ActualDatesInterfaceTests` 3 例）。
 
@@ -99,6 +99,6 @@ swift test --disable-sandbox
 
 ## 6. 与 A/B 组单测的分工
 
-- A 组 `Tests/KairoCoreTests/TaskItemActualDatesTests.swift`：模型层单测（初始化、Codable 往返、CodingKeys 逐个键）。
-- B 组 `Tests/KairoCoreTests/SessionActualDatesTests.swift`：`applyStatus` 的分支单测。
+- A 组 `Tests/KaidoCoreTests/TaskItemActualDatesTests.swift`：模型层单测（初始化、Codable 往返、CodingKeys 逐个键）。
+- B 组 `Tests/KaidoCoreTests/SessionActualDatesTests.swift`：`applyStatus` 的分支单测。
 - 本文件：**判据级验收**——每条用例对一条 `07 §9` 判据，只断言可观察的对外语义（状态 / 进度 / 两个时间戳 / 错误码 / 编码形状 / 排期不变），不拆内部函数、不锁参数实现。三份文件重叠是刻意的：验收红了要能指着 §9 某一条说话。

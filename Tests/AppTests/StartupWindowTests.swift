@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 启动窗口契约（7 天 / 锚定今天）的应用层验收用例。
 ///
@@ -37,7 +37,7 @@ struct StartupWindowTests {
     private static let legacyGoToTodayLookbackDays = 7
 
     private func makeDefaults(_ name: String) -> UserDefaults {
-        let suite = "kairo.apptests.startupwindow.\(name).\(UUID().uuidString)"
+        let suite = "kaido.apptests.startupwindow.\(name).\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults

@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
-import KairoCore
-import KairoPresentation
+import KaidoCore
+import KaidoPresentation
 
 /// 大纲行列表。
 ///
@@ -179,7 +179,7 @@ enum OutlineReorderMetrics {
 /// 表头拖拽重排的坐标空间（v0.16 / #12）：落点要换算成「相对大纲左缘的 x」，
 /// 只能是表头自身命名空间——手势挂在单元格上，用 .local 会得到单元格内的相对坐标。
 enum OutlineHeaderSpace {
-    static let name = "kairo.outline.header"
+    static let name = "kaido.outline.header"
 }
 
 /// 大纲表头：列标题 + 每列右缘的调宽手柄 + 右键列显隐菜单（F-14-20）。

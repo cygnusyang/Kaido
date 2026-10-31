@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import KairoCommands
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCommands
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 非工作日着色开关（F-14-14 / #10）：默认一周 7 天不标灰，打开后才画周末带，
 /// 且选择作为应用级视图偏好持久化（换项目 / 重启保留）。
@@ -12,13 +12,13 @@ import KairoPresentation
 struct NonWorkingDaysTests {
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.apptests.nonworking.\(UUID().uuidString)"
+        let suite = "kaido.apptests.nonworking.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(
             defaults: defaults,
             seedsDemoData: true,
-            projectLoader: { try KairoFile.read(from: $0) }
+            projectLoader: { try KaidoFile.read(from: $0) }
         )
     }
 
@@ -56,10 +56,10 @@ struct NonWorkingDaysTests {
     }
 
     @Test func choicePersistsAcrossStoreInstances() {
-        let suite = "kairo.apptests.nonworking.persist.\(UUID().uuidString)"
+        let suite = "kaido.apptests.nonworking.persist.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
-        let loader: @Sendable (URL) throws -> DecodedProject = { try KairoFile.read(from: $0) }
+        let loader: @Sendable (URL) throws -> DecodedProject = { try KaidoFile.read(from: $0) }
 
         let first = WorkspaceStore(defaults: defaults, seedsDemoData: true, projectLoader: loader)
         first.dispatch(.toggleNonWorkingDays)

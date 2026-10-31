@@ -9,11 +9,11 @@
 
 1. **字段映射**：「开始」= `TaskItem.startDate`（用户意图，可清除）；「结束」= 计划结束
    `scheduledFinish`（排他端点，**不可清除**，编辑后改写 `durationDays`）；`dueDate` 语义一字不改。
-2. **写回零引擎改动**：本 Sprint 只动表现层（`KairoPresentation`）与应用层（`WorkspaceStore` + 检查器视图），
-   `KairoCore` 零改动，`.kairo` 格式版本不变、无新增字段。
+2. **写回零引擎改动**：本 Sprint 只动表现层（`KaidoPresentation`）与应用层（`WorkspaceStore` + 检查器视图），
+   `KaidoCore` 零改动，`.kaido` 格式版本不变、无新增字段。
 3. **结束 → 持续时间的唯一换算**：`duration = dayOffset(scheduledStart → 选中日)`，日粒度整数天，下限 1 天；
    日历把 `start + 1 天` 之前的日子直接置灰（非法输入不可达），Store 再校验一次（负路径）。
-4. **两个 coder 的文件范围完全互斥**（§5）：core 独占 `Sources/KairoPresentation/**` + `WorkspaceStore.swift`，
+4. **两个 coder 的文件范围完全互斥**（§5）：core 独占 `Sources/KaidoPresentation/**` + `WorkspaceStore.swift`，
    ui 独占 `Workspace/Inspector/**` + `Display.swift`。唯一串行门禁是「接口壳先落地」（§5.2 Phase A）。
 5. **必须先看的风险**：`ScheduleEngine` 目前**不消费**每任务的 `startDate`（只用作无项目开始日期时的全局锚点），
    因此本 Sprint 上线后编辑「开始」**不会移动画布条体**。这是 v0.4.0 遗留缺陷（画布拖条同病），
@@ -43,7 +43,7 @@
 锚定意图起点（`startDate`）在依赖推后场景下会让用户选了 11-06 却看到 11-09，属不可接受。
 
 > **需 lead 裁定 E2**：若裁定「结束」改按含端（用户直觉：结束 11-02 = 覆盖 11-02 全天）显示，
-> 需同步大纲结束列、画布条尾标签、CLI `tasks` 输出三处口径，范围扩到 `KairoCore/Query` 与 `KairoCLI`。
+> 需同步大纲结束列、画布条尾标签、CLI `tasks` 输出三处口径，范围扩到 `KaidoCore/Query` 与 `KaidoCLI`。
 
 ### 1.3 finish 排他端点（沿用既有口径，明确写死）
 
@@ -94,7 +94,7 @@ durationDays = Double(dayOffset(from: startOfDay(start), to: startOfDay(finish))
 ### 2.1 WorkspaceAction 新增两个 case
 
 ```swift
-// Sources/KairoPresentation/WorkspaceAction.swift —— 任务编辑区
+// Sources/KaidoPresentation/WorkspaceAction.swift —— 任务编辑区
 
 /// 「开始」字段：写 `startDate`（用户意图锚点，与画布拖条同一字段）。`nil` = 清除。
 case setTaskStart(UUID, Date?)
@@ -135,9 +135,9 @@ case .setTaskFinish(let id, let finish, let start):
 - **裁定点若变成 E1 方案 C**（引擎消费 `startDate`）：只在 `setTaskStart` 分支内追加一行 `patch.constraint = ...`（或不做），
   视图与纯函数零改动。
 
-### 2.3 KairoPresentation 新增纯日期工具（新文件，仅依赖 Foundation）
+### 2.3 KaidoPresentation 新增纯日期工具（新文件，仅依赖 Foundation）
 
-`Sources/KairoPresentation/ScheduleDateMath.swift`：
+`Sources/KaidoPresentation/ScheduleDateMath.swift`：
 
 ```swift
 public enum ScheduleDateMath {
@@ -158,7 +158,7 @@ public enum ScheduleDateMath {
 }
 ```
 
-`Sources/KairoPresentation/CalendarGrid.swift`（6×7 网格模型，视图只渲染、不自算日历）：
+`Sources/KaidoPresentation/CalendarGrid.swift`（6×7 网格模型，视图只渲染、不自算日历）：
 
 ```swift
 public struct CalendarMonthGrid: Equatable, Sendable {
@@ -182,11 +182,11 @@ public enum CalendarGrid {
 }
 ```
 
-约束：这两个文件**不得 import SwiftUI / AppKit**（保持 KairoPresentation 的纯数据层性质，可进 `KairoPresentationTests`）。
+约束：这两个文件**不得 import SwiftUI / AppKit**（保持 KaidoPresentation 的纯数据层性质，可进 `KaidoPresentationTests`）。
 
 ### 2.4 TaskInspector 快照新增一个字段
 
-`Sources/KairoPresentation/InspectorSnapshots.swift`：`public var startDate: Date?`，`public init` 末尾追加带默认值
+`Sources/KaidoPresentation/InspectorSnapshots.swift`：`public var startDate: Date?`，`public init` 末尾追加带默认值
 `startDate: Date? = nil`（源码兼容，所有既有调用点无需改）。`Presenter.makeTaskInspector` 传 `task.startDate`（群组传 `nil`）。
 
 ### 2.5 视图组件对 store 的唯一依赖面
@@ -221,13 +221,13 @@ enum DateQuickAction: CaseIterable { case today, nextMonday, plusWeek }
 Apps/macos  (InspectorView → DateFieldRow → CalendarPopover)
    │  只读 TaskInspector 快照 + dispatch WorkspaceAction
    ▼
-KairoPresentation (WorkspaceAction · ScheduleDateMath · CalendarGrid · TaskInspector)
+KaidoPresentation (WorkspaceAction · ScheduleDateMath · CalendarGrid · TaskInspector)
    │
    ▼
-KairoCore (ScheduleEngine · TaskItem)   ← 本 Sprint 零改动
+KaidoCore (ScheduleEngine · TaskItem)   ← 本 Sprint 零改动
 ```
 
-无新增跨层引用；`KairoCore` 不感知 UI 概念。**分层违规自查：通过**。
+无新增跨层引用；`KaidoCore` 不感知 UI 概念。**分层违规自查：通过**。
 
 ## 3. 日历 Popover 组件规格
 
@@ -334,14 +334,14 @@ KairoCore (ScheduleEngine · TaskItem)   ← 本 Sprint 零改动
 
 | # | 文件 | 改动 |
 |---|---|---|
-| C1 | `Sources/KairoPresentation/WorkspaceAction.swift` | 新增 `setTaskStart`、`setTaskFinish`（§2.1 精确签名） |
-| C2 | `Sources/KairoPresentation/ScheduleDateMath.swift` | **新建**（§2.3） |
-| C3 | `Sources/KairoPresentation/CalendarGrid.swift` | **新建**（§2.3） |
-| C4 | `Sources/KairoPresentation/InspectorSnapshots.swift` | `TaskInspector.startDate`（默认 nil） |
-| C5 | `Sources/KairoPresentation/Presenter.swift` | `makeTaskInspector` 传 `task.startDate` |
+| C1 | `Sources/KaidoPresentation/WorkspaceAction.swift` | 新增 `setTaskStart`、`setTaskFinish`（§2.1 精确签名） |
+| C2 | `Sources/KaidoPresentation/ScheduleDateMath.swift` | **新建**（§2.3） |
+| C3 | `Sources/KaidoPresentation/CalendarGrid.swift` | **新建**（§2.3） |
+| C4 | `Sources/KaidoPresentation/InspectorSnapshots.swift` | `TaskInspector.startDate`（默认 nil） |
+| C5 | `Sources/KaidoPresentation/Presenter.swift` | `makeTaskInspector` 传 `task.startDate` |
 | C6 | `Apps/macos/Sources/WorkspaceStore.swift` | dispatch 两个分支（§2.2，含非法拒绝） |
-| C7 | `Tests/KairoPresentationTests/ScheduleDateMathTests.swift` | **新建** |
-| C8 | `Tests/KairoPresentationTests/CalendarGridTests.swift` | **新建** |
+| C7 | `Tests/KaidoPresentationTests/ScheduleDateMathTests.swift` | **新建** |
+| C8 | `Tests/KaidoPresentationTests/CalendarGridTests.swift` | **新建** |
 | C9 | `Tests/AppTests/Sprint8TaskDateActionTests.swift` | **新建**（store 路由 / 撤销 / 拒绝） |
 
 **dev-coder-ui**（`Apps/macos/Sources/Workspace/Inspector` + `Display`）
@@ -377,11 +377,11 @@ Phase C（联调，串行）
 
 | 层 | 用例 | 归宿 |
 |---|---|---|
-| 纯函数 | `durationDays`：1 天 / N 天 / finish<start→nil / finish==start→nil / 跨月跨年 / 带时分秒输入归一 | KairoPresentationTests（C7） |
+| 纯函数 | `durationDays`：1 天 / N 天 / finish<start→nil / finish==start→nil / 跨月跨年 / 带时分秒输入归一 | KaidoPresentationTests（C7） |
 | 纯函数 | `finish`：整数天 / 小数 2.5 天 / duration 0 / 负值回落 startOfDay | C7 |
 | 纯函数 | `dayOffset` 跨夏令时（同一时区前后调整两个月）仍为整日数 | C7 |
 | 纯函数 | `minimumFinish`：任务 +1 天、里程碑 = 起点 | C7 |
-| 网格 | 42 格、首格为当月 1 日所在周周首、`firstWeekday` = 周日/周一两种设置、2 月/31 天月、跨年翻月、`isInMonth`/`isWeekend` | KairoPresentationTests（C8） |
+| 网格 | 42 格、首格为当月 1 日所在周周首、`firstWeekday` = 周日/周一两种设置、2 月/31 天月、跨年翻月、`isInMonth`/`isWeekend` | KaidoPresentationTests（C8） |
 | Store | `setTaskStart`：写入 / 清除 / 群组不拦截（由 UI 禁用，Store 保持可写） | AppTests（C9） |
 | Store | `setTaskFinish`：改写 duration 且 startDate 不变；`finish ≤ start` → alert + 数据不变 + 无撤销点 | C9 |
 | Store | 撤销：一次提交 = 一步；同字段 500ms 内两笔合并为一步；与 `canvas-move-` 不互相合并 | C9 |
@@ -411,7 +411,7 @@ Phase C（联调，串行）
 |---|---|---|---|
 | A（本稿基线） | 只写 `startDate` | 零 | 功能观感无效（除「无项目开始日期的项目」外） |
 | B | 写 `startDate` + `constraint = .startNoEarlierThan(date)` | Store 一个函数，视图零改动 | 语义混用；清除开始需清 constraint（会丢用户原时限）；画布拖条仍不改 constraint → 拖拽被时限钉死；`ViolationEngine` 会为带依赖任务抛 `constraint_is_dependency` 噪声 |
-| C（推荐） | 引擎 `forwardPass` 把显式 `startDate` 作为开始下界 | `Sources/KairoCore/Schedule/ScheduleEngine.swift` 一处 + 全量基线重算 | **不可逆观感**：所有既有项目里被 0.4.0 拖拽写入却从未生效的 `startDate` 会突然生效，任务集体跳位；需发版说明 + 可能需一次「按排期结果回写意图」迁移工具 |
+| C（推荐） | 引擎 `forwardPass` 把显式 `startDate` 作为开始下界 | `Sources/KaidoCore/Schedule/ScheduleEngine.swift` 一处 + 全量基线重算 | **不可逆观感**：所有既有项目里被 0.4.0 拖拽写入却从未生效的 `startDate` 会突然生效，任务集体跳位；需发版说明 + 可能需一次「按排期结果回写意图」迁移工具 |
 
 **建议**：若 v0.5.0 目标包含「用户能真正改开始日期」，选 C 并单独排一个「迁移与告知」子任务；
 若本版只交付输入路径，选 A 并在界面副行明确「计划开始」与意图的差异，同时把 C 立为下版主线。
@@ -447,7 +447,7 @@ scope 写「支持清除」，本稿裁定：**开始可清除，结束不可清
 
 | 裁定项 | 结论 | 落地范围 |
 |---|---|---|
-| E1（startDate 是否驱动排期） | **选 C**：引擎把显式 `startDate` 作为「开始不早于」下界 | 新增 `Sources/KairoCore/Schedule/ScheduleEngine.swift` 改动（归 dev-coder-engine）；画布拖条同时修复；登记 D-021；发版说明登记「既有 startDate 生效导致条体位移」的观感变化 |
+| E1（startDate 是否驱动排期） | **选 C**：引擎把显式 `startDate` 作为「开始不早于」下界 | 新增 `Sources/KaidoCore/Schedule/ScheduleEngine.swift` 改动（归 dev-coder-engine）；画布拖条同时修复；登记 D-021；发版说明登记「既有 startDate 生效导致条体位移」的观感变化 |
 | E2（finish 排他显示） | **维持排他**（结束字段显示 finish；预览行 + helper 文案消歧），不扩范围到大纲/画布/CLI | 无额外改动 |
 | E3（清除范围） | **维持**：开始可清除、结束不可清除、截止日期仍可清除 | 无额外改动 |
 

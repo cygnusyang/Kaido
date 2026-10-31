@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import KairoCommands
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCommands
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 项目设置 / 工作日历的应用层行为（F-22-06）。
 ///
@@ -20,13 +20,13 @@ struct ProjectSettingsTests {
     }
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.apptests.calendar.\(UUID().uuidString)"
+        let suite = "kaido.apptests.calendar.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(
             defaults: defaults,
             seedsDemoData: true,
-            projectLoader: { try KairoFile.read(from: $0) }
+            projectLoader: { try KaidoFile.read(from: $0) }
         )
     }
 

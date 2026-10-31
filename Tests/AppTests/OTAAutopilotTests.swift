@@ -1,7 +1,7 @@
 import Foundation
 import Testing
-import KairoUpdater
-@testable import KairoMacApp
+import KaidoUpdater
+@testable import KaidoMacApp
 
 /// DEBUG 自动驾驶的决策表（触发由 tools/ota-loop-verify.sh 注入，判定在此断言）。
 ///
@@ -14,7 +14,7 @@ struct OTAAutopilotTests {
     private func makeUpdateInfo() throws -> UpdateInfo {
         let json: [String: Any] = [
             "schemaVersion": 1,
-            "appId": "app.kairo.test",
+            "appId": "app.kaido.test",
             "version": "1.1.0",
             "minimumVersion": "1.0.0",
             "buildTime": "2026-10-20T08:00:00Z",
@@ -24,14 +24,14 @@ struct OTAAutopilotTests {
             "signature": "unused-in-this-test",
         ]
         let data = try JSONSerialization.data(withJSONObject: json)
-        let manifest = try UpdateManifest.parse(data, expectedAppId: "app.kairo.test")
+        let manifest = try UpdateManifest.parse(data, expectedAppId: "app.kaido.test")
         return try UpdateInfo(manifest: manifest)
     }
 
     @Test func enabledOnlyWhenFlagIsOne() {
-        #expect(OTAAutopilot.isEnabled(environment: ["KAIRO_OTA_AUTOPILOT": "1"]))
-        #expect(!OTAAutopilot.isEnabled(environment: ["KAIRO_OTA_AUTOPILOT": "0"]))
-        #expect(!OTAAutopilot.isEnabled(environment: ["KAIRO_OTA_AUTOPILOT": "true"]))
+        #expect(OTAAutopilot.isEnabled(environment: ["KAIDO_OTA_AUTOPILOT": "1"]))
+        #expect(!OTAAutopilot.isEnabled(environment: ["KAIDO_OTA_AUTOPILOT": "0"]))
+        #expect(!OTAAutopilot.isEnabled(environment: ["KAIDO_OTA_AUTOPILOT": "true"]))
         #expect(!OTAAutopilot.isEnabled(environment: [:]))
     }
 

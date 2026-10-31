@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 「另存为」验收判据（FR-FILE-SAVEAS-1…6）：
 /// 文件名建议纯函数、命令注册表入口、跨路径导出与取消语义。
@@ -10,7 +10,7 @@ import KairoPresentation
 @Suite("另存为")
 struct SaveAsTests {
     private func makeStore(seedsDemoData: Bool = false) -> WorkspaceStore {
-        let suite = "kairo.apptests.\(UUID().uuidString)"
+        let suite = "kaido.apptests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, seedsDemoData: seedsDemoData)
@@ -19,8 +19,8 @@ struct SaveAsTests {
     private func makeCatalog(
         _ store: WorkspaceStore,
         requestSaveAs: @escaping @MainActor () -> Void = {}
-    ) -> [KairoCommand] {
-        KairoCommandCatalog.make(
+    ) -> [KaidoCommand] {
+        KaidoCommandCatalog.make(
             store: store,
             requestOpen: {},
             requestSave: {},
@@ -30,7 +30,7 @@ struct SaveAsTests {
 
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("kairo-saveas-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-saveas-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
@@ -53,7 +53,7 @@ struct SaveAsTests {
     private func writeExportedSnapshot(_ store: WorkspaceStore, to url: URL) throws {
         let project = Project()
         store.exportState.apply(to: project)
-        try KairoFile.encode(project: project).write(to: url)
+        try KaidoFile.encode(project: project).write(to: url)
     }
 
     // MARK: - FR-FILE-SAVEAS-1：命令来自注册表
@@ -84,38 +84,38 @@ struct SaveAsTests {
     // MARK: - FR-FILE-SAVEAS-2：文件名建议
 
     @Test func fr_file_saveas_2_uses_current_filename() {
-        let url = URL(fileURLWithPath: "/tmp/季度计划.kairo")
+        let url = URL(fileURLWithPath: "/tmp/季度计划.kaido")
         #expect(
             SaveFilenameSuggestion.suggest(currentURL: url, title: "别的标题")
-                == "季度计划.kairo"
+                == "季度计划.kaido"
         )
     }
 
     @Test func fr_file_saveas_2_derives_from_title() {
         #expect(
             SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度 计划")
-                == "季度 计划.kairo"
+                == "季度 计划.kaido"
         )
     }
 
     @Test func fr_file_saveas_2_replaces_illegal_characters() {
         #expect(
             SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度/计划:第一阶段\u{0007}")
-                == "季度-计划-第一阶段.kairo"
+                == "季度-计划-第一阶段.kaido"
         )
     }
 
     @Test func fr_file_saveas_2_trims_trailing_replacement_hyphen() {
-        #expect(SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度/") == "季度.kairo")
-        #expect(SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度 - ") == "季度.kairo")
+        #expect(SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度/") == "季度.kaido")
+        #expect(SaveFilenameSuggestion.suggest(currentURL: nil, title: "季度 - ") == "季度.kaido")
     }
 
     @Test func fr_file_saveas_2_hidden_current_filename_falls_back_to_title() {
-        for path in ["/tmp/.kairo", "/tmp/.hidden.kairo", "/tmp/.隐藏.kairo"] {
+        for path in ["/tmp/.kaido", "/tmp/.hidden.kaido", "/tmp/.隐藏.kaido"] {
             let url = URL(fileURLWithPath: path)
             #expect(
                 SaveFilenameSuggestion.suggest(currentURL: url, title: "项目甲")
-                    == "项目甲.kairo"
+                    == "项目甲.kaido"
             )
             #expect(
                 SaveFilenameSuggestion.suggest(currentURL: url, title: "")
@@ -125,33 +125,33 @@ struct SaveAsTests {
     }
 
     @Test func fr_file_saveas_2_caps_filename_at_200_utf8_bytes() {
-        // 中文 3 字节 + emoji 4 字节：截断必须落在字符边界，保留 .kairo 后缀。
+        // 中文 3 字节 + emoji 4 字节：截断必须落在字符边界，保留 .kaido 后缀。
         let longTitle = String(repeating: "计", count: 80)
             + String(repeating: "🚀", count: 20)
         let fromTitle = SaveFilenameSuggestion.suggest(currentURL: nil, title: longTitle)
         #expect(fromTitle.utf8.count <= 200)
-        #expect(fromTitle.hasSuffix(".kairo"))
-        #expect(fromTitle == String(repeating: "计", count: 64) + ".kairo")
+        #expect(fromTitle.hasSuffix(".kaido"))
+        #expect(fromTitle == String(repeating: "计", count: 64) + ".kaido")
         #expect(!fromTitle.contains("\u{FFFD}"))
 
-        let longURL = URL(fileURLWithPath: "/tmp/\(longTitle).kairo")
+        let longURL = URL(fileURLWithPath: "/tmp/\(longTitle).kaido")
         let fromURL = SaveFilenameSuggestion.suggest(currentURL: longURL, title: "")
         #expect(fromURL.utf8.count <= 200)
-        #expect(fromURL.hasSuffix(".kairo"))
-        #expect(fromURL == String(repeating: "计", count: 64) + ".kairo")
+        #expect(fromURL.hasSuffix(".kaido"))
+        #expect(fromURL == String(repeating: "计", count: 64) + ".kaido")
     }
 
     @Test func fr_file_saveas_2_trims_spaces_and_dots() {
         #expect(
             SaveFilenameSuggestion.suggest(currentURL: nil, title: "  .路线图.  ")
-                == "路线图.kairo"
+                == "路线图.kaido"
         )
     }
 
-    @Test func fr_file_saveas_2_keeps_single_kairo_suffix() {
+    @Test func fr_file_saveas_2_keeps_single_kaido_suffix() {
         #expect(
-            SaveFilenameSuggestion.suggest(currentURL: nil, title: "路线图.kairo")
-                == "路线图.kairo"
+            SaveFilenameSuggestion.suggest(currentURL: nil, title: "路线图.kaido")
+                == "路线图.kaido"
         )
     }
 
@@ -160,7 +160,7 @@ struct SaveAsTests {
             SaveFilenameSuggestion.suggest(currentURL: nil, title: "   ")
                 == SaveFilenameSuggestion.fallback
         )
-        #expect(SaveFilenameSuggestion.fallback == "project.kairo")
+        #expect(SaveFilenameSuggestion.fallback == "project.kaido")
     }
 
     @Test func fr_file_saveas_2_falls_back_when_title_all_illegal() {
@@ -175,22 +175,22 @@ struct SaveAsTests {
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let store = makeStore()
-        #expect(store.suggestedSaveFilename == I18n.t("alert.project.default_title", "Untitled Project") + ".kairo")
+        #expect(store.suggestedSaveFilename == I18n.t("alert.project.default_title", "Untitled Project") + ".kaido")
 
         store.dispatch(.setProjectTitle("路线 / 图"))
-        #expect(store.suggestedSaveFilename == "路线 - 图.kairo")
+        #expect(store.suggestedSaveFilename == "路线 - 图.kaido")
 
-        let url = directory.appendingPathComponent("已有.kairo")
+        let url = directory.appendingPathComponent("已有.kaido")
         store.save(to: url)
-        #expect(store.suggestedSaveFilename == "已有.kairo")
+        #expect(store.suggestedSaveFilename == "已有.kaido")
     }
 
-    /// 另存为写盘路径必须走 `KairoFile.encode`，新文件是当前最新格式版本。
+    /// 另存为写盘路径必须走 `KaidoFile.encode`，新文件是当前最新格式版本。
     @Test func fr_file_saveas_2_new_file_uses_current_format_version() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("原始计划.kairo")
-        let newURL = directory.appendingPathComponent("副本计划.kairo")
+        let originalURL = directory.appendingPathComponent("原始计划.kaido")
+        let newURL = directory.appendingPathComponent("副本计划.kaido")
 
         let store = makeStore()
         store.save(to: originalURL)
@@ -203,14 +203,14 @@ struct SaveAsTests {
         let json = try #require(
             try JSONSerialization.jsonObject(with: data) as? [String: Any]
         )
-        #expect(json["formatVersion"] as? Int == KairoFile.currentFormatVersion)
+        #expect(json["formatVersion"] as? Int == KaidoFile.currentFormatVersion)
 
         // 能被当前解码器重新打开。
-        let reopened = try KairoFile.decode(from: data)
+        let reopened = try KaidoFile.decode(from: data)
         #expect(reopened.metadata.title == "格式版本检查")
 
-        // 与其他写盘路径（KairoFile.save）字节一致：同一编码器、无另写序列化。
-        #expect(try KairoFile.encode(project: reopened) == data)
+        // 与其他写盘路径（KaidoFile.save）字节一致：同一编码器、无另写序列化。
+        #expect(try KaidoFile.encode(project: reopened) == data)
     }
 
     // MARK: - FR-FILE-SAVEAS-3：跨路径保存不改原文件
@@ -218,8 +218,8 @@ struct SaveAsTests {
     @Test func fr_file_saveas_3_saves_to_new_path() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("原始计划.kairo")
-        let newURL = directory.appendingPathComponent("副本计划.kairo")
+        let originalURL = directory.appendingPathComponent("原始计划.kaido")
+        let newURL = directory.appendingPathComponent("副本计划.kaido")
 
         let store = makeStore()
         store.save(to: originalURL)
@@ -234,7 +234,7 @@ struct SaveAsTests {
 
         store.rememberSaveURL(newURL)
 
-        let saved = try KairoFile.load(from: newURL)
+        let saved = try KaidoFile.load(from: newURL)
         #expect(saved.metadata.title == expectedTitle)
         #expect(saved.tasks.count == expectedTaskCount)
         #expect(try Data(contentsOf: originalURL) == originalBytes)
@@ -246,8 +246,8 @@ struct SaveAsTests {
     @Test func fr_file_saveas_4_points_project_url_and_clears_dirty() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("原始计划.kairo")
-        let newURL = directory.appendingPathComponent("副本计划.kairo")
+        let originalURL = directory.appendingPathComponent("原始计划.kaido")
+        let newURL = directory.appendingPathComponent("副本计划.kaido")
 
         let store = makeStore()
         store.save(to: originalURL)
@@ -268,7 +268,7 @@ struct SaveAsTests {
         store.save()
 
         #expect(try Data(contentsOf: newURL) != newBytesAfterSaveAs)
-        #expect(try KairoFile.load(from: newURL).metadata.title == "另存后再修改")
+        #expect(try KaidoFile.load(from: newURL).metadata.title == "另存后再修改")
         #expect(try Data(contentsOf: originalURL) == originalBytes)
         #expect(try modificationDate(of: originalURL) == originalMtime)
     }
@@ -276,8 +276,8 @@ struct SaveAsTests {
     @Test func fr_file_saveas_4_external_change_to_old_path_is_ignored() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("原始计划.kairo")
-        let newURL = directory.appendingPathComponent("副本计划.kairo")
+        let originalURL = directory.appendingPathComponent("原始计划.kaido")
+        let newURL = directory.appendingPathComponent("副本计划.kaido")
 
         let store = makeStore()
         store.save(to: originalURL)
@@ -295,7 +295,7 @@ struct SaveAsTests {
         #expect(store.notice?.hasPrefix("已载入外部更新") != true)
         #expect(store.projectURL?.standardizedFileURL == newURL.standardizedFileURL)
         #expect(store.exportProject.metadata.title == titleAfterSaveAs)
-        #expect(try KairoFile.load(from: originalURL).metadata.title == "旧文件被外部改写")
+        #expect(try KaidoFile.load(from: originalURL).metadata.title == "旧文件被外部改写")
     }
 
     // MARK: - FR-FILE-SAVEAS-5：面板期间的编辑进入新文件
@@ -303,8 +303,8 @@ struct SaveAsTests {
     @Test func fr_file_saveas_5_confirms_latest_edits() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("原始计划.kairo")
-        let newURL = directory.appendingPathComponent("副本计划.kairo")
+        let originalURL = directory.appendingPathComponent("原始计划.kaido")
+        let newURL = directory.appendingPathComponent("副本计划.kaido")
 
         let store = makeStore()
         store.save(to: originalURL)
@@ -316,7 +316,7 @@ struct SaveAsTests {
         store.rememberSaveURL(newURL)
 
         #expect(!store.hasUnsavedChanges)
-        #expect(try KairoFile.load(from: newURL).metadata.title == "面板打开期间的编辑")
+        #expect(try KaidoFile.load(from: newURL).metadata.title == "面板打开期间的编辑")
     }
 
     // MARK: - FR-FILE-SAVEAS-6：取消不改状态
@@ -324,7 +324,7 @@ struct SaveAsTests {
     @Test func fr_file_saveas_6_cancel_preserves_state() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("原始计划.kairo")
+        let originalURL = directory.appendingPathComponent("原始计划.kaido")
 
         let store = makeStore()
         store.save(to: originalURL)
@@ -360,10 +360,10 @@ struct SaveAsTests {
     @Test func fr_file_saveas_6_export_failure_keeps_url_and_reports() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("原始计划.kairo")
+        let originalURL = directory.appendingPathComponent("原始计划.kaido")
         let unwritableURL = directory
             .appendingPathComponent("不存在的目录", isDirectory: true)
-            .appendingPathComponent("副本计划.kairo")
+            .appendingPathComponent("副本计划.kaido")
 
         let store = makeStore()
         store.save(to: originalURL)
@@ -382,8 +382,8 @@ struct SaveAsTests {
     @Test func fr_file_saveas_6_cancel_forces_direct_write_branch() throws {
         let directory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
-        let originalURL = directory.appendingPathComponent("原始计划.kairo")
-        let newURL = directory.appendingPathComponent("副本计划.kairo")
+        let originalURL = directory.appendingPathComponent("原始计划.kaido")
+        let newURL = directory.appendingPathComponent("副本计划.kaido")
 
         let store = makeStore()
         store.save(to: originalURL)
@@ -397,6 +397,6 @@ struct SaveAsTests {
         #expect(FileManager.default.fileExists(atPath: newURL.path))
         #expect(store.projectURL?.standardizedFileURL == newURL.standardizedFileURL)
         #expect(!store.hasUnsavedChanges)
-        #expect(try KairoFile.load(from: newURL).metadata.title == "取消后直接保存")
+        #expect(try KaidoFile.load(from: newURL).metadata.title == "取消后直接保存")
     }
 }

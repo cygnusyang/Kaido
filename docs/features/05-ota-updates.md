@@ -1,11 +1,11 @@
-# US-E7-01 应用内 OTA 更新（KairoUpdater）
+# US-E7-01 应用内 OTA 更新（KaidoUpdater）
 
 > 状态：完成（v0.3.0 初版 / v0.3.1 自动检查）· 2026-10-20
 > 设计决策记录：[../archive/Sprint7-ota-updates/design.md](../archive/Sprint7-ota-updates/design.md)（移植自 COFFER OTA 的裁定与差异）
 
 ## 1. 目标
 
-用户无需手动下载安装包，应用内即可发现新版本、验证安全性并完成升级。升级通道的安全模型与 COFFER OTA 同构（Ed25519 签名清单 + 多级校验 + 白名单），实现为独立通用模块 `KairoUpdater`，可复用于其他 Apple 平台项目。
+用户无需手动下载安装包，应用内即可发现新版本、验证安全性并完成升级。升级通道的安全模型与 COFFER OTA 同构（Ed25519 签名清单 + 多级校验 + 白名单），实现为独立通用模块 `KaidoUpdater`，可复用于其他 Apple 平台项目。
 
 ## 2. 规格
 
@@ -14,7 +14,7 @@
 - 入口：应用菜单「检查更新…」（手动，同步打开更新面板）。
 - 自动检查：启动后 5 秒静默检查一次；此后每 4 小时一次（`UpdaterConfiguration.autoCheck*`）。
 - 静默语义：自动检查的网络失败**不弹面板**（状态留在 `UpdaterManager`，手动检查可见）；仅「发现新版本且未被跳过」时自动展示更新面板，同版本一次运行只弹一次。
-- Feed：`https://github.com/cygnusyang/Kairo/releases/latest/download/update-manifest.json`（GitHub latest 永久链接，清单随每个 Release 重传即完成 feed 更新）。
+- Feed：`https://github.com/cygnusyang/Kaido/releases/latest/download/update-manifest.json`（GitHub latest 永久链接，清单随每个 Release 重传即完成 feed 更新）。
 - **面板形态**（v0.8.4，沿 `docs/design/ui-redesign.md` 表面/字号 token）：固定宽 400pt，三段式 —— 头部（语义图标徽章 + 标题 + 一句说明）/ 详情（按状态给进度条与百分比、版本与更新说明、错误文案）/ 尾部（动作按钮右对齐，主按钮 `borderedProminent`）。不出现「一行文字 + 好」的裸对话框形态；`upToDate` / `downloaded` 不占详情区，避免空档。
 - 8 态文案与动作单一来源（`headline` / `subheadline` / `statusSymbol` / `statusTint` 与 `footer` 同处一文件），新增状态必须同时补这四处，编译期 switch 穷尽性即门禁。
 
@@ -46,7 +46,7 @@
 
 ### F-36-06 产物分发
 
-- GitHub Release 附件三件：`Kairo-vX.Y.Z.dmg`（人装）、`Kairo-vX.Y.Z.zip`（OTA 载体）、`update-manifest.json`（feed）。
+- GitHub Release 附件三件：`Kaido-vX.Y.Z.dmg`（人装）、`Kaido-vX.Y.Z.zip`（OTA 载体）、`update-manifest.json`（feed）。
 - 仓库归档：`artifacts` 分支按 tag 子目录 + `latest/` 镜像保存全部产物（CI 自动提交）。
 
 ## 3. 已知限制

@@ -8,7 +8,7 @@
 | 版本 | 主题 | 用户可见价值 | 依赖 | 主要风险 |
 | --- | --- | --- | --- | --- |
 | v0.12.0 | 实际开始 / 实际结束（落实 07） | 任务能看到「真的什么时候开工、什么时候完的」，并自动记录 | 无 | TaskItem 扩字段引发既有相等断言批量红 |
-| v0.13.0 | 基线快照 + 偏差数值（含 `.kairo` 格式升 v2） | 拍一次基线，大纲/检查器直接看到「比承诺晚几天」 | v0.12 | 格式升版不可逆：旧版本从此打不开新文件 |
+| v0.13.0 | 基线快照 + 偏差数值（含 `.kaido` 格式升 v2） | 拍一次基线，大纲/检查器直接看到「比承诺晚几天」 | v0.12 | 格式升版不可逆：旧版本从此打不开新文件 |
 | v0.14.0 | **多基线叠加**（重写，取代「单基线灰条」） | 1–3 条基线同屏画在同一行、按颜色区分，创建入口一眼可见 | v0.13 | 碰 A7 黄金布局；28pt 内 3 条的可读性 |
 | v0.15.0 | 基线与偏差报表化 + 项目摘要 | 基线面板管理、孤儿可查、项目级偏差一屏、导出 CSV | v0.14 | 报表口径与对等性 |
 
@@ -21,7 +21,7 @@
 
 **范围**
 
-- Core：`TaskItem.actualStart`（`completedAt` 复用为实际结束）、`KairoErrorCode.actualDateOrderInvalid`。
+- Core：`TaskItem.actualStart`（`completedAt` 复用为实际结束）、`KaidoErrorCode.actualDateOrderInvalid`。
 - Commands：`applyStatus` 自动记录（首次进 in_progress / progress > 0，仅 `nil` 时写，回退不清）、`setActualStart` / `setActualFinish`、`statusUpdate(now:)`。
 - Presentation：`PlanRow.actualStart/actualFinish`、`TaskInspector.actualStart`、大纲可选列 2 个、`OutlineColumnPreferences.optional` + `shownOptional`、ViewState `visibleOptionalColumns`、2 个新动作。
 - App：检查器「实际」分区（2 个 `DateFieldRow`）、大纲只读日期列、列显隐菜单。
@@ -31,8 +31,8 @@
 
 **并行分组**
 
-- 波次 1：A（TaskItem + KairoErrorCode + core 用例）
-- 波次 2：B（KairoSession）∥ C（Presentation）∥ D（CLI）——文件两两不重叠
+- 波次 1：A（TaskItem + KaidoErrorCode + core 用例）
+- 波次 2：B（KaidoSession）∥ C（Presentation）∥ D（CLI）——文件两两不重叠
 - 波次 3：E（Apps：Store / WorkspaceView / OutlineTable / Display / InspectorView / xcstrings）
 
 **判据要点**：07 §9 全 14 条；重点四条——回退不清 `actualStart`、pending → done 直跳不补、一次编辑一步撤销、群组两字段为 `nil`。
@@ -48,7 +48,7 @@
 **范围**
 
 - Core：`Baseline` / `BaselineEntry`、`BaselineEngine`（纯函数偏差）、`CalendarDayMath`（日算术上移，`ScheduleDateMath` 转发）。
-- Storage：`KairoFile.currentFormatVersion = 2` + `BaselineFormatV2Migration`（纯加法的迁移步骤）+ `baselines` 键（有基线才写）；v1 文件内存迁移、打开不落盘、首次保存才升版（08 §7）。同版更新 `02-architecture` 格式契约、错误文案与发版说明。
+- Storage：`KaidoFile.currentFormatVersion = 2` + `BaselineFormatV2Migration`（纯加法的迁移步骤）+ `baselines` 键（有基线才写）；v1 文件内存迁移、打开不落盘、首次保存才升版（08 §7）。同版更新 `02-architecture` 格式契约、错误文案与发版说明。
 - Commands：`createBaseline / renameBaseline / deleteBaseline / baselines / baselineVariance`（偏差报告带 `baselineID/name/createdAt`）。
 - Presentation：大纲 4 列（baselineStart / baselineFinish / startVariance / finishVariance，列头标「计划偏差」）、`BaselineSection`、检查器基线段（含实际偏差与逾期天数）、`setBaseline` 动作、ViewState `selectedBaselineID`（视图状态，不进撤销栈）。
 - CLI：`baseline list|create|delete|variance` + `task get` 基线段。
@@ -85,15 +85,15 @@
 
 | 组 | 文件范围（互斥） | 归属 | 前置 |
 | --- | --- | --- | --- |
-| G1 core-model | `Sources/KairoCore/Model/Baseline.swift`、`Sources/KairoCore/Model/BaselinePalette.swift`（新）、`Tests/KairoCoreTests/BaselinePaletteTests.swift`（新） | core | — |
-| G2 core-geom | `Sources/KairoCore/Query/GanttLayout.swift`、`Tests/KairoCoreTests/GanttDateToXTests.swift`（新） | core | — |
-| G3 pres-lane | `Sources/KairoPresentation/BaselineLanes.swift`（新）、`Sources/KairoPresentation/GanttHitTesting.swift`、`Tests/KairoPresentationTests/BaselineLaneGeometryTests.swift`（新）、`Tests/KairoPresentationTests/GanttHitTestingTests.swift` | pres | G2 |
-| G4 cmds | `Sources/KairoCommands/KairoSession.swift`、`Tests/KairoCoreTests/SessionBaselineTests.swift` | core | G1 |
-| G5 pres-snapshot | `Sources/KairoPresentation/Snapshots.swift`、`Presenter.swift`、`ViewState.swift`、`WorkspaceAction.swift`、`Tests/KairoPresentationTests/BaselineMultiGanttTests.swift`（新） | pres | G3 + G4 |
+| G1 core-model | `Sources/KaidoCore/Model/Baseline.swift`、`Sources/KaidoCore/Model/BaselinePalette.swift`（新）、`Tests/KaidoCoreTests/BaselinePaletteTests.swift`（新） | core | — |
+| G2 core-geom | `Sources/KaidoCore/Query/GanttLayout.swift`、`Tests/KaidoCoreTests/GanttDateToXTests.swift`（新） | core | — |
+| G3 pres-lane | `Sources/KaidoPresentation/BaselineLanes.swift`（新）、`Sources/KaidoPresentation/GanttHitTesting.swift`、`Tests/KaidoPresentationTests/BaselineLaneGeometryTests.swift`（新）、`Tests/KaidoPresentationTests/GanttHitTestingTests.swift` | pres | G2 |
+| G4 cmds | `Sources/KaidoCommands/KaidoSession.swift`、`Tests/KaidoCoreTests/SessionBaselineTests.swift` | core | G1 |
+| G5 pres-snapshot | `Sources/KaidoPresentation/Snapshots.swift`、`Presenter.swift`、`ViewState.swift`、`WorkspaceAction.swift`、`Tests/KaidoPresentationTests/BaselineMultiGanttTests.swift`（新） | pres | G3 + G4 |
 | G6 tokens | `Apps/macos/Sources/Theme/DesignTokens.swift`（只加 8 色 + 图例 token） | app | — |
 | G7 canvas | `Apps/macos/Sources/Workspace/Timeline/TimelineView.swift` | app | G5 + G6 |
 | G8 menus | `Apps/macos/Sources/CommandRegistry.swift`、`Apps/macos/Sources/Workspace/Baseline/`（新目录：`BaselineMenu.swift`、`BaselineDot.swift`）、`Workspace/WorkspaceView.swift`、`WorkspaceStore.swift`、`Resources/Localizable.xcstrings` | app | G5 + G6 |
-| G9 interfaces | `Sources/KairoCLI/CLIRouter.swift`、`Sources/KairoCLI/CLIStrings.swift`、`Sources/KairoMCP/Tools.swift`、`Tests/InterfaceTests/BaselineInterfaceTests.swift` | cli | G4 |
+| G9 interfaces | `Sources/KaidoCLI/CLIRouter.swift`、`Sources/KaidoCLI/CLIStrings.swift`、`Sources/KaidoMCP/Tools.swift`、`Tests/InterfaceTests/BaselineInterfaceTests.swift` | cli | G4 |
 
 **并行分组（只有文件范围两两不重叠才并行）**
 
@@ -138,7 +138,7 @@ v0.12（事实层） → v0.13（数字层） → v0.14（视觉层） → v0.15
 
 - 严格串行依赖：后一版需要前一版的字段与口径；每版独立分支（`feature/<主题>`）→ 全绿 → 合回 main → 发版。
 - 每版固定三件事：版本号 PATCH/MINOR、CHANGELOG 条目（含判据证据）、缺陷登记表回填。
-- v0.13 起 `.kairo` 为格式 v2：发版说明必须写明「旧版本 Kairo 无法打开由新版保存的文件」；这是本规划唯一的不可逆动作（已裁定，非待确认）。
+- v0.13 起 `.kaido` 为格式 v2：发版说明必须写明「旧版本 Kaido 无法打开由新版保存的文件」；这是本规划唯一的不可逆动作（已裁定，非待确认）。
 
 ## 6. 决策闸门（开工前必须已裁定）
 

@@ -1,4 +1,4 @@
-# Kairo 性能 NFR 复测（v0.17 / 1.0 前置）
+# Kaido 性能 NFR 复测（v0.17 / 1.0 前置）
 
 > 复测日期 2026-10-25 · 口径：[08-baselines](features/08-baselines.md) §6、[09-baseline-version-plan](features/09-baseline-version-plan.md) §2、[10-multi-baseline-gantt](features/10-multi-baseline-gantt.md) §9
 > 仓库：main @ `285f172`（v0.16.0）+ 未提交工作区（多人共享 checkout，测量时含 v0.17 并行改动）

@@ -1,10 +1,10 @@
 import Foundation
 import SwiftUI
 import Testing
-import KairoCommands
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCommands
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 项目设置面板的离屏渲染（F-22-06）：确认面板真的画出内容，
 /// 且「自定义工作周」与「加一条例外日」这两个状态会改变画面——
@@ -16,13 +16,13 @@ struct ProjectSettingsRenderTests {
     private let height: CGFloat = 560
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.apptests.settingsrender.\(UUID().uuidString)"
+        let suite = "kaido.apptests.settingsrender.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(
             defaults: defaults,
             seedsDemoData: true,
-            projectLoader: { try KairoFile.read(from: $0) }
+            projectLoader: { try KaidoFile.read(from: $0) }
         )
     }
 

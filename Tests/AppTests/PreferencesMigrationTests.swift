@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 偏好迁移的应用层用例（D-045）：**按版本**迁移，不再用「版本相等」当门。
 ///
@@ -12,13 +12,13 @@ import KairoPresentation
 /// 的分界，并用真实 store 走一遍「写偏好 JSON → 启动」的完整路径。
 ///
 /// 本文件只能 CI 跑（AppTests 依赖 App target）；纯函数层的同一口径在
-/// `Tests/KairoPresentationTests/PreferencesMigrationPlanTests.swift` 本地可验证。
+/// `Tests/KaidoPresentationTests/PreferencesMigrationPlanTests.swift` 本地可验证。
 @MainActor
 @Suite("偏好迁移（D-045）")
 struct PreferencesMigrationTests {
     /// 独立 UserDefaults suite：不依赖别人文件里的 private helper，用完即丢。
     private func makeDefaults(_ tag: String) -> UserDefaults {
-        let suite = "kairo.apptests.migration.\(tag).\(UUID().uuidString)"
+        let suite = "kaido.apptests.migration.\(tag).\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults

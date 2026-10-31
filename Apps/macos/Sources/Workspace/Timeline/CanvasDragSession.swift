@@ -1,5 +1,5 @@
 import Foundation
-import KairoPresentation
+import KaidoPresentation
 
 /// 甘特画布拖拽提交节流状态机（F-14-09；模板 = `DayWidthThrottle`）。
 ///

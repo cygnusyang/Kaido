@@ -27,7 +27,7 @@
 
 ### 自动化证据
 
-`Tests/KairoCoreTests/GanttLayoutTests.swift` 的 16 项测试覆盖：
+`Tests/KaidoCoreTests/GanttLayoutTests.swift` 的 16 项测试覆盖：
 
 - 内容范围取项目边界与任务排期边界并集；
 - 任务条横坐标与宽度由计划日期换算；
@@ -68,7 +68,7 @@
 
 ### 自动化证据
 
-`Tests/KairoCoreTests/OutlineEditingTests.swift` 的 10 项测试覆盖：
+`Tests/KaidoCoreTests/OutlineEditingTests.swift` 的 10 项测试覆盖：
 
 - 缩进取上一同级任务；首个同级任务与跨父组时不可缩进；
 - 出缩进时子树整体搬移，顺序为「父任务子树之后」；
@@ -135,13 +135,13 @@ D-002（演示数据未设项目时间线导致排期落在 1970 纪元）由这
 
 ## 5. Claude Code 插件回写（US-E5-03）
 
-`/kairo plan` 与 `/kairo done` 的命令提示词位于 `Plugins/claude-code/commands/`，底层调用
-MCP 工具。下面的会话直接驱动 `KairoMCP` stdio（与插件内 `bin/kairo-mcp` 启动的是同一二进制），
+`/kaido plan` 与 `/kaido done` 的命令提示词位于 `Plugins/claude-code/commands/`，底层调用
+MCP 工具。下面的会话直接驱动 `KaidoMCP` stdio（与插件内 `bin/kaido-mcp` 启动的是同一二进制），
 为 2026-10-18 实际运行输出：
 
 ```
-1) initialize -> {'version': '0.1.0', 'name': 'kairo'}
-2) project_create -> Kairo Sprint 3 演示
+1) initialize -> {'version': '0.1.0', 'name': 'kaido'}
+2) project_create -> Kaido Sprint 3 演示
 3) wbs_import -> {'rootIDs': ['E93AD9CA-663F-4470-8A33-CD689ACA3794'], 'total': 3, 'warnings': []}
 4) task_list -> 接口设计 83382990 / 界面开发 E04ED868
 5) task_update(界面开发 依赖 接口设计) -> [('83382990', 'fs')]
@@ -161,36 +161,36 @@ MCP 工具。下面的会话直接驱动 `KairoMCP` stdio（与插件内 `bin/ka
 
 ### 完成信号 hook（US-E5-03 验收 3）
 
-`hooks/hooks.json` 注册 `TaskCompleted`，按事件中的 `task_subject` 与 Kairo 任务标题
-精确匹配，唯一命中时经 CLI 回写 `done`。2026-10-18 用真实 `.kairo` 文件驱动脚本：
+`hooks/hooks.json` 注册 `TaskCompleted`，按事件中的 `task_subject` 与 Kaido 任务标题
+精确匹配，唯一命中时经 CLI 回写 `done`。2026-10-18 用真实 `.kaido` 文件驱动脚本：
 
 ```
-$ echo '{"hook_event_name":"TaskCompleted","task_subject":"接口设计"}' | KAIRO_PROJECT=... kairo-task-hook
-kairo-hook: 已回写「接口设计」为 done
+$ echo '{"hook_event_name":"TaskCompleted","task_subject":"接口设计"}' | KAIDO_PROJECT=... kaido-task-hook
+kaido-hook: 已回写「接口设计」为 done
 hook_exit=0
-$ kairo task list --json ... | jq -r '.[] | "\(.title) \(.status)"'
+$ kaido task list --json ... | jq -r '.[] | "\(.title) \(.status)"'
 接口设计 done
 界面开发 pending
 
 $ ... task_subject=重名任务（两个同名任务）
-kairo-hook: 「重名任务」匹配 2 个 Kairo 任务，跳过回写
+kaido-hook: 「重名任务」匹配 2 个 Kaido 任务，跳过回写
 ambiguous_exit=0
 
 $ ... task_subject=不存在的任务
-kairo-hook: 「不存在的任务」匹配 0 个 Kairo 任务，跳过回写
+kaido-hook: 「不存在的任务」匹配 0 个 Kaido 任务，跳过回写
 nomatch_exit=0
 
-$ ... 未设置 KAIRO_PROJECT / 非 TaskCompleted 事件
+$ ... 未设置 KAIDO_PROJECT / 非 TaskCompleted 事件
 noenv_exit=0 / otherevent_exit=0
 ```
 
 所有负路径均以 0 退出且不改数据。
 
 真实会话验证：以 `claude --plugin-dir Plugins/claude-code -p` 启动会话，让会话用
-`TaskCreate` 创建「接线测试」并用 `TaskUpdate` 标记完成。会话结束后读取同一 `.kairo`：
+`TaskCreate` 创建「接线测试」并用 `TaskUpdate` 标记完成。会话结束后读取同一 `.kaido`：
 
 ```
-$ kairo task list --json --file live.kairo | jq -r '.[] | "\(.title) \(.status)"'
+$ kaido task list --json --file live.kaido | jq -r '.[] | "\(.title) \(.status)"'
 接线测试 done
 ```
 
@@ -200,25 +200,25 @@ $ kairo task list --json --file live.kairo | jq -r '.[] | "\(.title) \(.status)"
 `done`（hook 对项目路径加排他锁，避免原子替换写导致丢更新）。
 
 自动化证据：`Tests/InterfaceTests/TaskHookTests.swift` 用假 CLI 驱动 hook，覆盖唯一命中、
-重名跳过、0 命中、已完成不重写、无关事件、缺 `KAIRO_PROJECT`、非法事件与非法任务列表，
+重名跳过、0 命中、已完成不重写、无关事件、缺 `KAIDO_PROJECT`、非法事件与非法任务列表，
 并断言所有路径退出码为 0。
 
-## 6. 深链 kairo://（US-E5-04）
+## 6. 深链 kaido://（US-E5-04）
 
-- 支持 `kairo://task/<完整 UUID 或 ≥4 位前缀>`、`kairo://task?title=<标题>`、`kairo://project/<id>`。
+- 支持 `kaido://task/<完整 UUID 或 ≥4 位前缀>`、`kaido://task?title=<标题>`、`kaido://project/<id>`。
 - 应用实现 `onOpenURL`：任务链接选中并滚动；标题重名时定位第一个并提示数量；指向其他项目时提示当前项目名。
-- 自动化证据：`Tests/KairoCoreTests/DeepLinkTests.swift` 的 10 项测试覆盖解析、前缀唯一性、标题大小写回退、项目匹配与非法输入。
+- 自动化证据：`Tests/KaidoCoreTests/DeepLinkTests.swift` 的 10 项测试覆盖解析、前缀唯一性、标题大小写回退、项目匹配与非法输入。
 
 ## 7. 门禁与测试结果（2026-10-18）
 
 ```
-gate-core: KairoCore 无 AppKit/SwiftUI/Cocoa import，通过（19 个 Swift 文件）
+gate-core: KaidoCore 无 AppKit/SwiftUI/Cocoa import，通过（19 个 Swift 文件）
 gate=0
 build=0
 Test run with 199 tests in 30 suites passed
 ```
 
-测试分布：KairoCore 124、Interface 51、AppTests 24。
+测试分布：KaidoCore 124、Interface 51、AppTests 24。
 
 ## 8. 遗留项
 
@@ -230,5 +230,5 @@ Test run with 199 tests in 30 suites passed
 | `.app` 打包与 URL scheme 注册 | 未完成 | 发布工程；当前仅能通过 `swift run` 运行并接收系统转发的 URL |
 | 非工作时段按项目/资源日历着色 | 未完成 | 工作日历模型（F-22-06），Sprint 5 |
 | 甘特横向滚动条 | 未实现 | 当前用拖动标头平移；需要时再评估滚动与时间窗的交互 |
-| hook 与应用并发写同一 `.kairo` | 未解决 | hook 侧已加锁；应用保存不检测 mtime，后保存者覆盖。US-E6-02（自动保存/冲突检测）Sprint 5 |
+| hook 与应用并发写同一 `.kaido` | 未解决 | hook 侧已加锁；应用保存不检测 mtime，后保存者覆盖。US-E6-02（自动保存/冲突检测）Sprint 5 |
 | 显式任务 ID 映射（`cc:<task_id>` 标签） | 未实现 | 当前以标题为连接键；需要跨系统强关联时再引入标签映射 |

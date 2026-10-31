@@ -12,7 +12,7 @@
 
 ## Boundaries
 
-- [ ] No new write path outside `KairoSession`
-- [ ] No platform-bound imports in `KairoCore` / `KairoCommands` / `KairoPresentation`
-- [ ] `.kairo` format change includes a migration step and a version bump
+- [ ] No new write path outside `KaidoSession`
+- [ ] No platform-bound imports in `KaidoCore` / `KaidoCommands` / `KaidoPresentation`
+- [ ] `.kaido` format change includes a migration step and a version bump
 - [ ] Docs updated if behaviour or commands changed

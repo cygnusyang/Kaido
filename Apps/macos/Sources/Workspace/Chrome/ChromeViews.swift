@@ -1,6 +1,6 @@
 import SwiftUI
-import KairoCore
-import KairoPresentation
+import KaidoCore
+import KaidoPresentation
 
 /// 筛选栏（32pt）：自然语言筛选 + 令牌 + 查找入口。
 struct FilterBar: View {

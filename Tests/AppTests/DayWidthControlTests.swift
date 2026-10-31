@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import KairoCommands
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCommands
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 应用适配层日宽交互测试（Sprint 6 / T3）：动作路由、互斥、持久化与命令注册表。
 ///
@@ -16,19 +16,19 @@ struct DayWidthControlTests {
         seedsDemoData: Bool = true,
         defaults: UserDefaults? = nil
     ) -> WorkspaceStore {
-        let suite = "kairo.apptests.daywidth.\(UUID().uuidString)"
+        let suite = "kaido.apptests.daywidth.\(UUID().uuidString)"
         let store = defaults ?? (UserDefaults(suiteName: suite) ?? .standard)
         store.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: store, seedsDemoData: seedsDemoData)
     }
 
-    private func makeCatalog(_ store: WorkspaceStore) -> [KairoCommand] {
-        KairoCommandCatalog.make(
+    private func makeCatalog(_ store: WorkspaceStore) -> [KaidoCommand] {
+        KaidoCommandCatalog.make(
             store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {}
         )
     }
 
-    private func command(_ commands: [KairoCommand], _ id: String) throws -> KairoCommand {
+    private func command(_ commands: [KaidoCommand], _ id: String) throws -> KaidoCommand {
         try #require(commands.first { $0.id == id })
     }
 
@@ -163,7 +163,7 @@ struct DayWidthControlTests {
     // MARK: - 持久化
 
     @Test func customDayWidthPersistsAcrossStores() {
-        let suite = "kairo.apptests.daywidth.persist.\(UUID().uuidString)"
+        let suite = "kaido.apptests.daywidth.persist.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -182,7 +182,7 @@ struct DayWidthControlTests {
     }
 
     @Test func legacyPreferencesWithoutCustomDayWidthStillLoad() throws {
-        let suite = "kairo.apptests.daywidth.legacy.\(UUID().uuidString)"
+        let suite = "kaido.apptests.daywidth.legacy.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -214,7 +214,7 @@ struct DayWidthControlTests {
     }
 
     @Test func persistedOutOfRangeCustomDayWidthIsClampedOnLoad() {
-        let suite = "kairo.apptests.daywidth.range.\(UUID().uuidString)"
+        let suite = "kaido.apptests.daywidth.range.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }

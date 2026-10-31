@@ -1,13 +1,13 @@
 # Architecture
 
-How Kairo is put together, in the order you would want to learn it: layers, the single
+How Kaido is put together, in the order you would want to learn it: layers, the single
 write path, the data model, the derived schedule, and the interface contract. The canonical
 and more detailed document is [docs/02-architecture.md](docs/02-architecture.md) (Chinese);
 this page is its English counterpart and follows the same decisions.
 
 ## 1. Layers
 
-![Kairo layered architecture](docs/architecture-layers.svg)
+![Kaido layered architecture](docs/architecture-layers.svg)
 
 Four interfaces sit at the top and are deliberately **equal in capability**: the macOS
 SwiftUI app, the MCP server, the CLI, and the Claude Code plugin (which is a thin wrapper
@@ -17,17 +17,17 @@ Below them, two Foundation-only modules:
 
 | Layer | Responsibility | Must not |
 |---|---|---|
-| `KairoPresentation` | Turns view state into a platform-neutral snapshot plus actions | import SwiftUI, AppKit, Combine |
-| `KairoCommands` | `KairoSession` — the single write path shared by UI, MCP and CLI | import any UI framework |
-| `KairoCore` | Model, scheduler, violations, queries, layout geometry | import anything platform-bound |
+| `KaidoPresentation` | Turns view state into a platform-neutral snapshot plus actions | import SwiftUI, AppKit, Combine |
+| `KaidoCommands` | `KaidoSession` — the single write path shared by UI, MCP and CLI | import any UI framework |
+| `KaidoCore` | Model, scheduler, violations, queries, layout geometry | import anything platform-bound |
 
 Dependencies point one way only: app → presentation → commands → core. The MCP server and
-the CLI depend on `KairoCommands` directly. Two scripts enforce this in CI:
+the CLI depend on `KaidoCommands` directly. Two scripts enforce this in CI:
 `tools/gate-core.sh` (no platform imports in the three Foundation-only modules) and
-`tools/gate-ui.sh` (views must not touch `Project`, `TaskItem` or `KairoSession`).
+`tools/gate-ui.sh` (views must not touch `Project`, `TaskItem` or `KaidoSession`).
 
-The macOS app is the only UI shell for now. `KairoCore`, `KairoCommands` and
-`KairoPresentation` build and test on Linux, which is what the Linux CI job verifies.
+The macOS app is the only UI shell for now. `KaidoCore`, `KaidoCommands` and
+`KaidoPresentation` build and test on Linux, which is what the Linux CI job verifies.
 
 ### Where user-facing text lives
 
@@ -35,7 +35,7 @@ Text is not a layer concern; it follows one rule: **only the view layer translat
 
 | Layer | Holds natural language? | Notes |
 |---|---|---|
-| `KairoCore` / `KairoCommands` / `KairoPresentation` | No | errors and violations are codes plus typed parameters; snapshots carry semantic values (`ZoomIndicator`, `ViolationReason`), never sentences |
+| `KaidoCore` / `KaidoCommands` / `KaidoPresentation` | No | errors and violations are codes plus typed parameters; snapshots carry semantic values (`ZoomIndicator`, `ViolationReason`), never sentences |
 | macOS views (`Apps/macos`) | Yes — the single translation point | resolves keys from the String Catalog with an English fallback (`I18n.t`) |
 | CLI / MCP | Own renderers | no shared string table with the views; MCP reports a stable `code` plus a fine-grained `reason` |
 
@@ -43,7 +43,7 @@ Two consequences worth knowing:
 
 - a snapshot is a public contract consumed by the app, the CLI and MCP; if it carried Chinese
   sentences, the CLI and MCP language policy would be pinned to whatever the UI happens to say;
-- `KairoCore`, `KairoCommands` and `KairoPresentation` must not contain `Bundle.module` — there is
+- `KaidoCore`, `KaidoCommands` and `KaidoPresentation` must not contain `Bundle.module` — there is
   no localisation resource for them to load, and `tools/i18n-lint.sh` (check b) fails the build if
   one appears.
 
@@ -53,10 +53,10 @@ gates: [docs/features/06-localization.md](docs/features/06-localization.md).
 ## 2. The write path
 
 Every mutation — from a click, a slash command, or an MCP tool call — goes through
-`KairoSession`:
+`KaidoSession`:
 
 ```
-open .kairo → KairoSession → (read) snapshot / (write) mutate + save → back to caller
+open .kaido → KaidoSession → (read) snapshot / (write) mutate + save → back to caller
 ```
 
 Consequences that shape the rest of the code:
@@ -72,16 +72,16 @@ Consequences that shape the rest of the code:
 
 ## 3. The core loop
 
-![Kairo core loop](docs/architecture-dataflow.svg)
+![Kaido core loop](docs/architecture-dataflow.svg)
 
 The AI reads requirements into a WBS, writes it through MCP/CLI, the core schedules it and
 reports violations, the human reviews the Gantt, and the AI writes status back as tasks
-land. Kairo never executes work; it keeps the ledger that makes "what is left and when"
+land. Kaido never executes work; it keeps the ledger that makes "what is left and when"
 answerable.
 
 ## 4. Data model
 
-![Kairo project entity relations](docs/architecture-entities.svg)
+![Kaido project entity relations](docs/architecture-entities.svg)
 
 `Project` aggregates settings, tasks, dependencies, resources, assignments, the work
 calendar, baselines, change history and metadata. The parts that carry the semantics:
@@ -113,7 +113,7 @@ scheduling behaviour is testable without a file or a UI.
 
 ## 6. File format and migration
 
-`.kairo` is a single JSON document with a `formatVersion` field (ADR-003, ADR-011):
+`.kaido` is a single JSON document with a `formatVersion` field (ADR-003, ADR-011):
 
 - Reading **ignores unknown fields** (forward compatible) and rejects a version higher than
   the binary understands.
@@ -137,14 +137,14 @@ The MCP tool list is the single source of truth; the CLI and the plugin derive f
 
 ## 8. Repository layout
 
-![Kairo repository layout](docs/architecture-repo-layout.svg)
+![Kaido repository layout](docs/architecture-repo-layout.svg)
 
 ```
-Sources/KairoCore/          model, scheduler, violations, queries, layout geometry
-Sources/KairoCommands/      KairoSession — the only write path
-Sources/KairoPresentation/  snapshots, view state, actions
-Sources/KairoMCP/           stdio JSON-RPC server
-Sources/KairoCLI/           command line
+Sources/KaidoCore/          model, scheduler, violations, queries, layout geometry
+Sources/KaidoCommands/      KaidoSession — the only write path
+Sources/KaidoPresentation/  snapshots, view state, actions
+Sources/KaidoMCP/           stdio JSON-RPC server
+Sources/KaidoCLI/           command line
 Apps/macos/Sources/         SwiftUI workbench
 Plugins/claude-code/        slash commands + TaskCompleted hook
 Tests/                      core, presentation, interface parity, app
@@ -157,7 +157,7 @@ tools/                      build, package, gates, release, diagram generator
 |---|---|---|
 | ADR-001 | Cross-platform core plus equal interface layers | accepted |
 | ADR-002 | Swift for the MVP, Rust evaluated later | accepted |
-| ADR-003 | Single-file `.kairo` JSON, local-first, no account, no server | accepted |
+| ADR-003 | Single-file `.kaido` JSON, local-first, no account, no server | accepted |
 | ADR-004 | Core has zero UI dependencies (Foundation subset only) | accepted |
 | ADR-005 | MCP tool list is the single source of truth for all interfaces | accepted |
 | ADR-006 | Collaboration through file sync plus AI merge, no realtime server | accepted |
@@ -167,7 +167,7 @@ tools/                      build, package, gates, release, diagram generator
 | ADR-010 | Minimal stdio JSON-RPC implemented in-house, no third-party SDK | accepted |
 | ADR-011 | `formatVersion`, forward-compatible read, ordered migration, current on save | accepted |
 | ADR-012 | Nested optionals use hand-written `init(from:)`, never synthesised required semantics | accepted |
-| ADR-013 | Foundation-only presentation layer; `KairoSession` is the only write path | accepted |
+| ADR-013 | Foundation-only presentation layer; `KaidoSession` is the only write path | accepted |
 
 ## 10. Non-goals for now
 

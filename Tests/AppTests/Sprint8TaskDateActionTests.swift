@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoCommands
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoCommands
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // F-14-10 Store 路由：setTaskStart 写意图起点 / setTaskFinish 折算持续时间、
 // 非法结束日期拒绝（无撤销点、无数据变更）、一次编辑一步撤销、与画布拖拽互不合并。
@@ -12,7 +12,7 @@ import KairoPresentation
 @Suite("F-14-10 任务起止日期动作")
 struct Sprint8TaskDateActionTests {
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.f1410.\(UUID().uuidString)"
+        let suite = "kaido.f1410.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, seedsDemoData: true)

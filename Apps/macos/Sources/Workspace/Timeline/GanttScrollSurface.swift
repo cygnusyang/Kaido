@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import KairoPresentation
+import KaidoPresentation
 import os
 
 /// 甘特画布的横向滚动承接层（F-14-18 / D-028）。
@@ -42,7 +42,7 @@ struct GanttScrollSurface: NSViewRepresentable {
 
     /// 承接滚动的 NSView：不吃鼠标事件（`hitTest` 返回 nil），画布手势照旧。
     final class ScrollSurfaceView: NSView {
-        private static let logger = Logger(subsystem: "ai.kairo.app", category: "gantt-pan")
+        private static let logger = Logger(subsystem: "ai.kaido.app", category: "gantt-pan")
 
         private var controller: GanttScrollController?
         private var monitor: Any?
@@ -164,7 +164,7 @@ struct GanttScrollSurface: NSViewRepresentable {
 /// 横向平移的判定与位移换算（纯逻辑 + 闭包出口，单测直接调用）。
 @MainActor
 final class GanttScrollController {
-    private static let logger = Logger(subsystem: "ai.kairo.app", category: "gantt-pan")
+    private static let logger = Logger(subsystem: "ai.kaido.app", category: "gantt-pan")
     /// 传统滚轮一「行」折算的点数（AppKit 的非精确 delta 以行为单位）。
     static let lineScrollPoints: Double = 10
     private var dayWidth: Double

@@ -42,7 +42,7 @@ enum AppLanguage: String, CaseIterable, Sendable {
     case simplifiedChinese = "zh-Hans"
 
     /// 偏好键。
-    static let defaultsKey = "KairoLanguage"
+    static let defaultsKey = "KaidoLanguage"
 
     /// 持久化的用户选择；缺失或取值非法（含被手工改成 `fr`）一律按 `.system` 处理。
     static func stored(in defaults: UserDefaults = .standard) -> AppLanguage {

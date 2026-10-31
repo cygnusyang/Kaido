@@ -29,7 +29,7 @@
 
 ## 3. 架构
 
-### 3.1 纯函数：`HorizontalPanAccumulator`（KairoPresentation，可测）
+### 3.1 纯函数：`HorizontalPanAccumulator`（KaidoPresentation，可测）
 
 ```swift
 public struct HorizontalPanAccumulator {
@@ -73,7 +73,7 @@ public struct HorizontalPanAccumulator {
 
 | 层 | 用例 | 归宿 |
 |---|---|---|
-| 纯函数 | 亚日余量累积（0.5+0.5 才出 1 天）、负向、跨多天、`dayWidth=0` 兜底、`reset` | KairoPresentationTests（GanttPanningTests） |
+| 纯函数 | 亚日余量累积（0.5+0.5 才出 1 天）、负向、跨多天、`dayWidth=0` 兜底、`reset` | KaidoPresentationTests（GanttPanningTests） |
 | 状态机 | 拖拽方向与取整、同天数抑制、`end/cancel` 后失活、锚定期间外部快照变化不影响结果 | AppTests（PanDragSessionTests） |
 | Store | 平移退出 fit、保留 customDayWidth、连续平移累积正确 | AppTests |
 | 回归 | A7 黄金基线不变（无平移时布局逐位一致）；全量绿 | 既有套件 |

@@ -1,21 +1,21 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoCommands
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoCommands
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // F-0719 应用层接线：实际开始 / 实际结束（docs/features/07-actual-dates.md §4、§5）。
 //
 // 覆盖四条用户可见路径：① 大纲两个实际列默认隐藏、打开后紧随结束列；
 // ② 检查器写入 → 快照刷新 → 大纲同步（含清空回 nil）；③ 群组行不表达实际；
-// ④ 顺序校验失败不写库、不产生撤销点。列策略本身在 KairoPresentationTests 里锁定。
+// ④ 顺序校验失败不写库、不产生撤销点。列策略本身在 KaidoPresentationTests 里锁定。
 
 @MainActor
 @Suite("F-0719 实际时间动作与展示")
 struct ActualDatesWorkspaceTests {
     private func makeDefaults() -> UserDefaults {
-        let suite = "kairo.f0719.\(UUID().uuidString)"
+        let suite = "kaido.f0719.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults
@@ -255,7 +255,7 @@ struct ActualDatesWorkspaceTests {
     /// 命令面板与表头菜单同源：两个实际列各有显隐命令。
     @Test func commandCatalogIncludesActualColumnToggles() throws {
         let store = makeStore()
-        let catalog = KairoCommandCatalog.make(
+        let catalog = KaidoCommandCatalog.make(
             store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {}
         )
         #expect(catalog.contains { $0.id == "view.outlineColumn.actualStart" })

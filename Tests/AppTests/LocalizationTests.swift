@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import KairoMacApp
+@testable import KaidoMacApp
 
 /// 多语言基础契约（v0.9.0 · F-0705 / F-0706 / F-0712）。
 ///
@@ -27,7 +27,7 @@ struct LocalizationTests {
     // MARK: - 语言选择（F-0706）
 
     private func makeDefaults() -> UserDefaults {
-        UserDefaults(suiteName: "kairo.apptests.i18n.\(UUID().uuidString)") ?? .standard
+        UserDefaults(suiteName: "kaido.apptests.i18n.\(UUID().uuidString)") ?? .standard
     }
 
     /// 缺失值 → 跟随系统。
@@ -182,7 +182,7 @@ struct LocalizationTests {
     /// 应用内语言必须同步到进程级 AppleLanguages：AppKit 的标准菜单
     /// （文件/编辑/显示/窗口/帮助）只认它，不认我们的 .lproj 选择。
     @Test func processLocalizationFollowsAppLanguage() {
-        let suite = "kairo.tests.appleLanguages.\(UUID().uuidString)"
+        let suite = "kaido.tests.appleLanguages.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
 
@@ -198,10 +198,10 @@ struct LocalizationTests {
         #expect(defaults.persistentDomain(forName: suite)?["AppleLanguages"] == nil)
     }
 
-    /// store 是唯一写入口：切换语言即同时落 KairoLanguage 与 AppleLanguages，
+    /// store 是唯一写入口：切换语言即同时落 KaidoLanguage 与 AppleLanguages，
     /// 避免出现「应用内语言变了、系统菜单没变」的半更新状态。
     @Test func storingLanguageAlsoWritesProcessLocalization() {
-        let suite = "kairo.tests.appleLanguages.store.\(UUID().uuidString)"
+        let suite = "kaido.tests.appleLanguages.store.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
 

@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 597" width="920" height="597"
-     role="img" aria-labelledby="kairo-fig-title kairo-fig-desc">
-  <title id="kairo-fig-title">Kairo project entity relations</title>
-  <desc id="kairo-fig-desc">Project aggregates settings, tasks, dependencies, resources, assignments, work calendar, baselines, change history and metadata; Task, TaskDependency, Resource and TaskAssignment are expanded field by field.</desc>
+     role="img" aria-labelledby="kaido-fig-title kaido-fig-desc">
+  <title id="kaido-fig-title">Kaido project entity relations</title>
+  <desc id="kaido-fig-desc">Project aggregates settings, tasks, dependencies, resources, assignments, work calendar, baselines, change history and metadata; Task, TaskDependency, Resource and TaskAssignment are expanded field by field.</desc>
   <style>
     .canvas { fill: #FFFFFF; }
     .panel { fill: #FFFFFF; stroke: #D8DAE0; stroke-width: 1; }
@@ -31,7 +31,7 @@
     }
   </style>
   <defs>
-    <marker id="kairo-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
+    <marker id="kaido-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
             orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0,0 L8,4 L0,8 Z" class="arrow-head"/>
     </marker>

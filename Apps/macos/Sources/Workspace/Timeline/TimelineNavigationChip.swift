@@ -1,5 +1,5 @@
 import SwiftUI
-import KairoPresentation
+import KaidoPresentation
 
 /// 画布右上角的「离开当前位置」入口（D-054）。
 ///

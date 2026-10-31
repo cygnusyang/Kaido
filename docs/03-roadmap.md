@@ -1,4 +1,4 @@
-# Kairo 敏捷路线图（Roadmap）
+# Kaido 敏捷路线图（Roadmap）
 
 > 版本 0.1 · 2026-10-17 · 状态：已接受（Sprint 0 产出，待评审）
 > 上游依据：[00-vision.md](00-vision.md)（G3 门槛）、[01-prd.md](01-prd.md)（US 编号与状态表）、[02-architecture.md](02-architecture.md)（选型与架构）
@@ -8,24 +8,24 @@
 
 ### Sprint 0 — 文档与选型定稿（2026-10-19 ~ 2026-10-30）
 
-- **Goal**：需求文档三件套定稿、技术选型定稿、KairoCore 重构骨架落地、现有测试迁移通过。
+- **Goal**：需求文档三件套定稿、技术选型定稿、KaidoCore 重构骨架落地、现有测试迁移通过。
 - **包含 US**：[US-E1-02](01-prd.md)、[US-E4-01](01-prd.md)、[US-E4-02](01-prd.md)（已完成项的验证收口）；[US-E5-05](01-prd.md)（接口契约草案评审）；ADR-002/004（选型与核心边界）落地。
 - **交付物**：
   - `docs/01-prd.md`、`docs/02-architecture.md`、`docs/03-roadmap.md` 定稿；
-  - `Sources/Kairo/` 重构为 `Sources/KairoCore/`（核心 target 与 macOS 应用 target 分离，见 [02-architecture.md §5](02-architecture.md)）；
-  - 现有 17 项测试迁入 `Tests/KairoCoreTests/` 并通过；新增编译门禁：KairoCore 不得 import AppKit/SwiftUI。
-- **验收 Demo**：评审通过；`swift test` 在重构后 17 项全绿；对 KairoCore 编译门禁脚本运行一次，证明无 UI 依赖。
+  - `Sources/Kaido/` 重构为 `Sources/KaidoCore/`（核心 target 与 macOS 应用 target 分离，见 [02-architecture.md §5](02-architecture.md)）；
+  - 现有 17 项测试迁入 `Tests/KaidoCoreTests/` 并通过；新增编译门禁：KaidoCore 不得 import AppKit/SwiftUI。
+- **验收 Demo**：评审通过；`swift test` 在重构后 17 项全绿；对 KaidoCore 编译门禁脚本运行一次，证明无 UI 依赖。
 
 ### Sprint 1 — 核心模型 + 持久化 + 接口骨架（2026-11-02 ~ 2026-11-13）
 
-- **Goal**：跑通程序化路径「建项目 → 批量建 WBS 任务树 → 保存为 .kairo」，MCP 与 CLI 提供对等的任务 CRUD 与 WBS 导入。
+- **Goal**：跑通程序化路径「建项目 → 批量建 WBS 任务树 → 保存为 .kaido」，MCP 与 CLI 提供对等的任务 CRUD 与 WBS 导入。
 - **包含 US**：[US-E1-01](01-prd.md)、[US-E1-03](01-prd.md)、[US-E1-04](01-prd.md)、[US-E6-01](01-prd.md)、[US-E5-01](01-prd.md)（子集：project/task/wbs/save 工具）、[US-E5-02](01-prd.md)（对等子集）、[US-E5-05](01-prd.md)（契约定稿与首个对等测试）。
 - **交付物**：
   - 核心模型重构：`TaskDependency`（类型 + 前导时间）、`kind`（任务/群组/里程碑）、`parentID` 树、投入/持续时间字段；
-  - `.kairo` 单文件读写（JSON，本地优先）；
+  - `.kaido` 单文件读写（JSON，本地优先）；
   - MCP 服务骨架 + CLI 对等命令（task add/list/get/update/delete、wbs import、project open/create/save）；
-  - macOS 应用升级为可打开/保存 `.kairo`，层级树展示。
-- **验收 Demo**：Claude Code 通过 MCP 一次导入 20 任务的 WBS 树并存为 `.kairo`；同一序列用 CLI 复现；macOS 打开该文件看到完整任务树。
+  - macOS 应用升级为可打开/保存 `.kaido`，层级树展示。
+- **验收 Demo**：Claude Code 通过 MCP 一次导入 20 任务的 WBS 树并存为 `.kaido`；同一序列用 CLI 复现；macOS 打开该文件看到完整任务树。
 
 ### Sprint 2 — 调度引擎 + 状态回写闭环（2026-11-16 ~ 2026-11-27）
 
@@ -44,8 +44,8 @@
 - **包含 US**：[US-E4-03](01-prd.md)、[US-E4-04](01-prd.md)、[US-E4-05](01-prd.md)、[US-E4-07](01-prd.md)、[US-E5-03](01-prd.md)、[US-E5-04](01-prd.md)（US-E2-03 已于 Sprint 2 提前完成）。
 - **交付物**：
   - 甘特视图基础（任务条/日期标头/缩放/非工作时段着色）、层次树大纲交互（缩进/群组/展开收合/键盘导航）、命令面板（⌘K）、检查器与违例面板；
-  - Claude Code 插件（斜杠命令 + hooks + `.mcp.json`）、`kairo://` 深链。
-- **验收 Demo**：人在 macOS 中看到甘特与违例面板，修正一条时限后重新排期；Claude Code 内用 `/kairo plan` 与 `/kairo done` 完成一次回写；`kairo://task/<id>` 直达任务。
+  - Claude Code 插件（斜杠命令 + hooks + `.mcp.json`）、`kaido://` 深链。
+- **验收 Demo**：人在 macOS 中看到甘特与违例面板，修正一条时限后重新排期；Claude Code 内用 `/kaido plan` 与 `/kaido done` 完成一次回写；`kaido://task/<id>` 直达任务。
 
 ### Sprint 4 — 完整化与稳健化（2026-12-14 ~ 2026-12-25）
 
@@ -55,7 +55,7 @@
   - 可保存的结构化过滤器（自然语言筛选升级，保存/复用）；
   - CSV 导入导出 + 保真报告（含 AI 栏名映射建议）；
   - 字段级版本历史（回看/撤销）、重新安排未完成任务、项目摘要面板；
-  - `.kairo` 对应 JSON Schema 导出；
+  - `.kaido` 对应 JSON Schema 导出；
   - 性能验收：1,000 任务列表交互 ≤ 100 ms、排期计算 ≤ 1 s、5,000 任务文件读写 ≤ 1 s。
 - **验收 Demo**：导入一份 500 行 CSV 并查看保真报告；保存过滤器后重启复用；撤销一次误改；千级任务性能基准跑通（指标落盘）。
 
@@ -65,21 +65,21 @@
 - **包含 US**：[US-E2-04](01-prd.md)（工作时数日历）、[US-E2-06](01-prd.md)（基线）、[US-E6-02](01-prd.md)（自动保存）、[US-E3-05](01-prd.md)（冲突差异说明）、[US-E6-04](01-prd.md)/[US-E6-05](01-prd.md)/[US-E6-06](01-prd.md)（收尾，可选）、[US-E5-05](01-prd.md)（接口对等验收）。
 - **交付物**：
   - 工作时数日历（项目级/资源级）与基线快照/差异；
-  - Linux CI：KairoCore 在 Linux 编译 + 全量单测通过；
+  - Linux CI：KaidoCore 在 Linux 编译 + 全量单测通过；
   - G3 四判据验收记录（vision §7）：MCP 全闭环、CLI 对等、macOS 完整查看编辑、Linux 编译；
-  - 打包与发布准备（.app 打包、`kairo` / `kairo-mcp` 分发）。
+  - 打包与发布准备（.app 打包、`kaido` / `kaido-mcp` 分发）。
 - **验收 Demo**：G3 验收表逐条勾选并留存证据；在 Linux 容器执行 `swift test` 全绿；macOS 应用完成一次端到端闭环演示。
 
 ## 2. 风险登记簿
 
 | 编号 | 风险 | 影响 | 概率 | 缓解措施 |
 |---|---|---|---|---|
-| R1 | Swift 跨平台风险：Linux 编译或 Foundation 差异导致 G3 判据 4 不达标 | 高（阻塞 G3） | 中 | KairoCore 只依赖 Foundation 子集（ADR-004）；Sprint 2 起在 CI 加 Linux 构建门禁，尽早暴露；核心逻辑保持纯函数 |
+| R1 | Swift 跨平台风险：Linux 编译或 Foundation 差异导致 G3 判据 4 不达标 | 高（阻塞 G3） | 中 | KaidoCore 只依赖 Foundation 子集（ADR-004）；Sprint 2 起在 CI 加 Linux 构建门禁，尽早暴露；核心逻辑保持纯函数 |
 | R2 | MCP 接口频繁演进：契约未定稿前工具名/参数反复变化 | 中 | 高 | 接口单一事实源（ADR-005）；Sprint 1 工具清单定稿后冻结；对等性测试作门禁（US-E5-05） |
 | R3 | 范围蔓延：175 条功能规格的诱惑导致 Sprint 失焦 | 高 | 高 | MVP 边界裁定（[01-prd.md §5](01-prd.md)）；Sprint 只做 Goal 内 US；P3 一律不入 Sprint；计划会做范围冻结 |
 | R4 | Swift MCP SDK 不成熟：SDK 缺功能或维护停滞 | 中 | 中 | Sprint 1 复核官方/社区 SDK；工具面 ≤ 20 个，必要时自实现最小 JSON-RPC 传输 |
 | R5 | 调度引擎复杂度：环检测/违例/资源逻辑正确性风险 | 中 | 中 | 调度为纯函数 + TDD（ADR-007）；分步落地：先相关性传播，后违例，资源分级本期不做 |
-| R6 | 模型重构风险：`Sources/Kairo` → `KairoCore`、`dependencies` 迁移破坏现状 | 中 | 中 | 现有 17 项测试作回归门禁；旧相关性按 FS/无前导时间迁移（US-E2-01）；独立提交可回滚 |
+| R6 | 模型重构风险：`Sources/Kaido` → `KaidoCore`、`dependencies` 迁移破坏现状 | 中 | 中 | 现有 17 项测试作回归门禁；旧相关性按 FS/无前导时间迁移（US-E2-01）；独立提交可回滚 |
 | R7 | 性能不达标：千级任务交互/排期计算超阈值 | 中 | 低 | Sprint 4 性能验收前置；排期重算增量设计；NFR 阈值在 Sprint 4 复核 |
 
 ## 3. 度量
@@ -91,7 +91,7 @@
 | 完成 Story 数 | 本 Sprint 由「已接受」推进到「完成」的 US 数（见 [01-prd.md §6](01-prd.md) 状态表） | 5–8 / Sprint |
 | 累积流图（CFD） | 各状态（提议/已接受/进行中/完成）Story 数随 Sprint 变化曲线 | 无积压膨胀：进行中 ≤ 3 |
 | 闭环耗时 | 从「AI 发起建 WBS」到「首个任务开发完成并回写状态」的端到端时长（Sprint 2 起跟踪） | ≤ 10 分钟 |
-| 回归测试数 | `KairoCoreTests` 通过用例数（含 Linux CI） | 17 → 200+（Sprint 5） |
+| 回归测试数 | `KaidoCoreTests` 通过用例数（含 Linux CI） | 17 → 200+（Sprint 5） |
 | 接口对等性 | MCP/CLI 对等性契约测试通过率 | 恒为 100%（门禁） |
 | 缺陷逃逸率 | 验收 Demo 中发现的问题 / 本 Sprint 总缺陷 | ≤ 20% |
 
@@ -109,8 +109,8 @@
 | 版本 | 日期 | 内容 |
 |---|---|---|
 | v0.1.0 | 2026-10-18 | 计划工作台重设计、甘特布局 v2、核心模型/持久化、MCP/CLI 对等、撤销/重做（覆盖原 Sprint 1–3 与 Sprint 4–5 大部分范围，MVP 出口达成） |
-| v0.2.0 | 2026-10-20 | `.kairo` 格式版本契约、另存为、任务负责人、大纲编号前置、甘特日宽自定义（Sprint 6，dev-team 全流程；缺陷 D-001…D-011/D-018 闭环，IEEE 829 登记） |
-| v0.3.0 / v0.3.1 | 2026-10-20 | OTA 应用内更新（通用模块 KairoUpdater，移植 COFFER OTA；Ed25519 签名清单 + 四级校验 + 白名单；自动检查 4h；见 docs/features/05-ota-updates.md） |
+| v0.2.0 | 2026-10-20 | `.kaido` 格式版本契约、另存为、任务负责人、大纲编号前置、甘特日宽自定义（Sprint 6，dev-team 全流程；缺陷 D-001…D-011/D-018 闭环，IEEE 829 登记） |
+| v0.3.0 / v0.3.1 | 2026-10-20 | OTA 应用内更新（通用模块 KaidoUpdater，移植 COFFER OTA；Ed25519 签名清单 + 四级校验 + 白名单；自动检查 4h；见 docs/features/05-ota-updates.md） |
 | v0.4.0 | 2026-10-21 | 甘特图直接编辑（F-14-09：拖条改期、拖端点改持续、拖拽建依赖/删线；见 docs/archive/Sprint7-gantt-direct-edit/design.md） |
 | v0.5.0 | 2026-10-21 | 任务起止日期可自定义（F-14-10：检查器「开始/结束」+ 月历弹层）+ **D-021 修复**（排期引擎消费 `startDate`，画布拖条改期真正生效）+ 日历日算术（DST 结束落点修复）；见 docs/archive/Sprint8-task-dates/design.md |
 | v0.6.0 | 2026-10-22 | 甘特图横向平移（F-14-18：触摸板/滚轮横向滚动 + 画布空白拖拽；亚日余量累积、整天归一；见 docs/archive/Sprint9-gantt-horizontal-pan/design.md） |
@@ -176,7 +176,7 @@
 ### 为什么是这四版
 
 用户要对齐 OmniPlan 的「基线」能力。业界口径的基线 = **不可变的时间承诺快照**，衡量它必须有三层时间轴：
-`baseline`（冻结）/ `plan`（引擎排期结果，预测）/ `actual`（实际发生）。Kairo 现状只有 plan；
+`baseline`（冻结）/ `plan`（引擎排期结果，预测）/ `actual`（实际发生）。Kaido 现状只有 plan；
 因此顺序不能倒：**先有事实层（实际时间），再谈基线偏差**，否则算出来的只是「计划 vs 计划」的自我比较。
 
 ### 版本序列
@@ -184,7 +184,7 @@
 | 版本 | 主题 | 用户可见价值 | 关键判据 | 状态 |
 | --- | --- | --- | --- | --- |
 | v0.12.0 | 实际开始 / 实际结束 | 任务能看到真实开工与完工时刻，状态变化自动记录、可人工修正 | 07 §9（14 条） | 待开工 |
-| v0.13.0 | 基线快照与偏差数值（`.kairo` 升格式 v2） | 「设置基线」后，大纲与检查器直接显示比承诺晚/早几天 | 08 §9（12 条，含迁移 6 条）+ 体积实测 | 待 v0.12 |
+| v0.13.0 | 基线快照与偏差数值（`.kaido` 升格式 v2） | 「设置基线」后，大纲与检查器直接显示比承诺晚/早几天 | 08 §9（12 条，含迁移 6 条）+ 体积实测 | 待 v0.12 |
 | v0.14.0 | 基线可视化与项目摘要 | 甘特上灰条（基线）与计划条对照；项目级偏差一屏可见 | 灰条几何纯函数断言 + A7 黄金基线不破 | 待 v0.13 |
 | v0.15.0 | 基线与偏差报表化 | 多基线管理、孤儿可查、偏差导出 CSV | CSV 口径与 `BaselineVariance` 一致 | 待 v0.14 |
 
@@ -192,7 +192,7 @@
 
 - 每版可独立发版、独立回滚：后一版只新增字段与图层，不改前一版已发布的语义。
 - 三层结构是硬约束：基线不参与排期与违例；实际时间不参与 CPM 与关键路径；两者都只读输出。
-- **不可逆决策已落定**：`.kairo` 格式由 v1 升 **v2**（基线以 `baselines` 数组内嵌，迁移为纯加法，见 08 §7）。
-  后果：**旧版本 Kairo 将拒绝打开新版保存的文件**（读路径对更高版本直接报 `unsupported_format`，不会静默丢数据）；
+- **不可逆决策已落定**：`.kaido` 格式由 v1 升 **v2**（基线以 `baselines` 数组内嵌，迁移为纯加法，见 08 §7）。
+  后果：**旧版本 Kaido 将拒绝打开新版保存的文件**（读路径对更高版本直接报 `unsupported_format`，不会静默丢数据）；
   发版说明、CHANGELOG 与错误文案必须写明这一条。仍待用户确认的只有「基线存储形态 A/B/C」与「是否写 `.v1.bak` 备份」两小项。
 - 每版收口三件事：CHANGELOG（含判据证据）、版本号、缺陷登记表回填；`feature/*` 分支合回 main 才发版。

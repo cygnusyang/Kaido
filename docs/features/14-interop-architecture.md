@@ -20,12 +20,12 @@
         UI / CLI / MCP
               │  （只认 capability，不认格式实现）
         ┌─────▼──────────────────────────────┐
-        │ KairoInterop                       │
+        │ KaidoInterop                       │
         │  InteropDocument        供应商无关 IR │
         │  FidelityLedger         有损登记     │
         │  FormatAdapter (protocol)           │
         │  AdapterRegistry                    │
-        │  KairoBridge   IR ↔ Kairo 模型       │
+        │  KaidoBridge   IR ↔ Kaido 模型       │
         └───┬──────────────────┬─────────────┘
             │                  │
    ┌────────▼───────┐  ┌───────▼──────────┐
@@ -37,8 +37,8 @@
 四条硬规则（违反即评审不通过）：
 
 1. **适配器之间零依赖**：`InteropMSPDI` 与 `InteropOmniPlan` 互不 import，删掉任意一个，另一个仍能编译并全绿。厂商格式变更只会落在它自己的 target 里。
-2. **适配器不 import KairoCore 的业务模型**：只对 `InteropDocument` 说话。所有「工作日 ↔ 日历天」「Summary ↔ 阶段门」这类语义换算，**只在 `KairoBridge` 一处**实现 —— 否则每加一个格式就要重写一遍换算，且会出现三份不一致的口径。
-3. **版本前置，不猜**：适配器声明 `supportedVersions`；读到未知版本必须抛 `unsupportedFormatVersion` 明确拒绝（与 `.kairo` 同一条原则），禁止 best-effort 部分解析后「看起来成功」。
+2. **适配器不 import KaidoCore 的业务模型**：只对 `InteropDocument` 说话。所有「工作日 ↔ 日历天」「Summary ↔ 阶段门」这类语义换算，**只在 `KaidoBridge` 一处**实现 —— 否则每加一个格式就要重写一遍换算，且会出现三份不一致的口径。
+3. **版本前置，不猜**：适配器声明 `supportedVersions`；读到未知版本必须抛 `unsupportedFormatVersion` 明确拒绝（与 `.kaido` 同一条原则），禁止 best-effort 部分解析后「看起来成功」。
 4. **同一套契约测试跑所有适配器**：`AdapterConformanceSuite`（往返、空计划、单任务、四类依赖、lag、里程碑、群组、多日历、基线、超长标题、中文/emoji、畸形输入）对每个 target 各跑一遍。新增通道不改测试集——这正是「独立」的可验证形式。
 
 ## 3. `InteropDocument`（IR）应有的最小面
@@ -48,7 +48,7 @@
 - 依赖：`predID / type(FS|SS|FF|SF) / lag（以**秒**存，避免各格式单位来回截断）`
 - 约束：`start-no-earlier / start-no-later / end-no-earlier / end-no-later / asap / alap`
 - 资源与分配：`resource(id,name,type,units,calendar) / assignment(taskID,resourceID,units)`
-- 日历：`workingDays[] + exceptions[]`（缺失即「全周 7 天」，与 Kairo 现状一致）
+- 日历：`workingDays[] + exceptions[]`（缺失即「全周 7 天」，与 Kaido 现状一致）
 - 基线：`baseline(id,name,createdAt,entries[taskID,start,finish])`
 - **`FidelityLedger`**：每条「丢了什么 / 换算过什么 / 降级成什么」都带字段名、任务计数、原值样例 —— 预检报告与导出旁注都从它渲染，不各写一套
 
@@ -56,7 +56,7 @@
 
 | 阶段 | 内容 | 工作量 |
 | --- | --- | --- |
-| **P0** | `KairoInterop` 骨架（IR / 适配器协议 / 契约测试 / 版本闸门）+ **MSPDI 读** | 10–12 |
+| **P0** | `KaidoInterop` 骨架（IR / 适配器协议 / 契约测试 / 版本闸门）+ **MSPDI 读** | 10–12 |
 | **P1** | **MSPDI 写** + 往返对拍 + 导出旁注文件 | 7–9 |
 | **P2** | **OmniPlan `.oplx` 读**（真实样本 + 4 类依赖 + 工时换算） | 3–4 |
 | **P3** | **OmniPlan `.oplx` 写**（最小容器已验通，补基线 scenario / 日历 / 分配） | 5–7 |
@@ -67,19 +67,19 @@
 
 ## 5. 语义鸿沟（导入必读，逐条会进预检报告）
 
-1. **工作日 ↔ 日历天**（最严重）：对方按 5 天/周排，Kairo 按 7 天/周。5 天任务导入后连周末排，FS 链每周右移约 2 天，偏差随链长线性放大；导出则相反。
-2. **Summary ↔ 阶段门**：Kairo 群组依赖下推到子树全部叶子；对方 Summary 依赖只落汇总行。只还原单边会复现 issue #16「下游只顺延一部分」。
-3. **软约束 ↔ 硬约束**：Kairo 的 `noLater` 只出违例不改期；对方会改期或报冲突。
-4. **`dueDate` ≠ Deadline**：Kairo 的 `dueDate` 不参与排期（只做逾期展示），映射成对方 Deadline 会「看起来成功、含义已换」。
+1. **工作日 ↔ 日历天**（最严重）：对方按 5 天/周排，Kaido 按 7 天/周。5 天任务导入后连周末排，FS 链每周右移约 2 天，偏差随链长线性放大；导出则相反。
+2. **Summary ↔ 阶段门**：Kaido 群组依赖下推到子树全部叶子；对方 Summary 依赖只落汇总行。只还原单边会复现 issue #16「下游只顺延一部分」。
+3. **软约束 ↔ 硬约束**：Kaido 的 `noLater` 只出违例不改期；对方会改期或报冲突。
+4. **`dueDate` ≠ Deadline**：Kaido 的 `dueDate` 不参与排期（只做逾期展示），映射成对方 Deadline 会「看起来成功、含义已换」。
 5. **工时基准**：OmniPlan 一律存 effort 秒，换算看 `duration-format` 的 `hours-per-day`——用户样本是 **16**，不是默认 8。写死 8 会差一倍。
-6. **资源与成本**：Kairo 无费率/成本/资源日历/资源平衡；对方有。导入时降级为纯分配，成本信息进 `FidelityLedger`。
-7. **基线**：Kairo 无硬上限但同屏 3 条、8 色；对方最多 10 条且带 work/cost 基线。超出部分丢弃并登记。
+6. **资源与成本**：Kaido 无费率/成本/资源日历/资源平衡；对方有。导入时降级为纯分配，成本信息进 `FidelityLedger`。
+7. **基线**：Kaido 无硬上限但同屏 3 条、8 色；对方最多 10 条且带 work/cost 基线。超出部分丢弃并登记。
 
 ## 6. 明确不做
 
 - `.mpp` 二进制读写（理由见 `12` §7）；用户侧路径：请对方「另存为 XML」。
 - MPX（读/写）。
-- 对方文件里的**视图/呈现数据**（列宽、筛选、绘图，占 `.mpp` 体积 44.7%）——Kairo 有自己的列模型与甘特。
+- 对方文件里的**视图/呈现数据**（列宽、筛选、绘图，占 `.mpp` 体积 44.7%）——Kaido 有自己的列模型与甘特。
 - 「导入后再导出能原样还原对方文件」这种承诺：只承诺 **语义等价**，不承诺字节级往返。
 
 ## 7. 待决事项（需产品决策，不是技术决策）

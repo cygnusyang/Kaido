@@ -42,7 +42,7 @@ fail() {
 new_tree() {
     T="$WORK/$1"
     mkdir -p "$T/tools" "$T/Apps/macos/Sources/Workspace" \
-        "$T/Sources/KairoCore" "$T/Sources/KairoCommands" "$T/Sources/KairoPresentation" \
+        "$T/Sources/KaidoCore" "$T/Sources/KaidoCommands" "$T/Sources/KaidoPresentation" \
         "$T/lproj/en.lproj" "$T/lproj/zh-Hans.lproj"
     cp "$LINT" "$T/tools/i18n-lint.sh"
     cp "$COMPILE" "$T/tools/i18n-compile.sh"
@@ -180,7 +180,7 @@ fi
 
 new_tree layer-bundle-module
 run bash tools/i18n-lint.sh --write-whitelist
-printf 'import Foundation\nlet b = Bundle.module\n' > "$T/Sources/KairoCore/Bad.swift"
+printf 'import Foundation\nlet b = Bundle.module\n' > "$T/Sources/KaidoCore/Bad.swift"
 run bash tools/i18n-lint.sh --lproj-dir lproj
 expect "分层 Bundle.module → 1" 1 "分层不得引入本地化资源"
 

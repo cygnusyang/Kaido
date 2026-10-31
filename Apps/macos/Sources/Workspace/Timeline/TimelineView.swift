@@ -1,10 +1,10 @@
 import SwiftUI
-import KairoCore
-import KairoPresentation
+import KaidoCore
+import KaidoPresentation
 
 /// 共用的纵向滚动坐标空间名：大纲与画布在同一滚动容器内。
 enum WorkspaceScrollSpace {
-    static let name = "kairo-workspace-scroll"
+    static let name = "kaido-workspace-scroll"
 }
 
 /// 两级时间表头（44pt）：上层月/年，下层日/周；拖动平移时间窗。

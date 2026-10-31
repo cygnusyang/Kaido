@@ -1,9 +1,9 @@
 import CoreGraphics
 import Foundation
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // D-033 验收用例（GitHub issue #13 / docs/defects.md）。
 //
@@ -29,7 +29,7 @@ struct OutlineSelectionAcceptanceTests {
     // MARK: - 夹具
 
     private func freshDefaults() -> UserDefaults {
-        let suite = "kairo.apptests.d033.\(UUID().uuidString)"
+        let suite = "kaido.apptests.d033.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults
@@ -42,7 +42,7 @@ struct OutlineSelectionAcceptanceTests {
         WorkspaceStore(
             defaults: defaults ?? freshDefaults(),
             seedsDemoData: seedsDemoData,
-            projectLoader: { try KairoFile.read(from: $0) }
+            projectLoader: { try KaidoFile.read(from: $0) }
         )
     }
 

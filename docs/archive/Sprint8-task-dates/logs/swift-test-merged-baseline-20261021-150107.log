@@ -2,21 +2,21 @@
 Building for debugging...
 [0/12] Write sources
 [3/12] Write swift-version--58304C5D6DBC2206.txt
-[5/34] Compiling KairoPresentationTests TestSupport.swift
+[5/34] Compiling KaidoPresentationTests TestSupport.swift
 [6/34] Emitting module InterfaceTests
-[7/34] Compiling KairoCoreTests ViolationEngineTests.swift
-[8/34] Compiling KairoCoreTests ScheduleStartDateBoundTests.swift
-[9/38] Compiling KairoCoreTests ResourceStatusTests.swift
+[7/34] Compiling KaidoCoreTests ViolationEngineTests.swift
+[8/34] Compiling KaidoCoreTests ScheduleStartDateBoundTests.swift
+[9/38] Compiling KaidoCoreTests ResourceStatusTests.swift
 [10/39] Emitting module AppTests
-[11/40] Compiling KairoCoreTests ScheduleAnchorEngineTests.swift
-[12/40] Compiling KairoCoreTests ScheduleEngineTests.swift
-[13/41] Compiling KairoPresentationTests GanttHitTestingTests.swift
-[14/41] Compiling KairoPresentationTests ScheduleDateMathTests.swift
+[11/40] Compiling KaidoCoreTests ScheduleAnchorEngineTests.swift
+[12/40] Compiling KaidoCoreTests ScheduleEngineTests.swift
+[13/41] Compiling KaidoPresentationTests GanttHitTestingTests.swift
+[14/41] Compiling KaidoPresentationTests ScheduleDateMathTests.swift
 [15/41] Compiling AppTests Sprint7DebtTests.swift
 [16/41] Compiling AppTests Sprint8TaskDateActionTests.swift
-[17/41] Compiling KairoCoreTests ScheduleAnchorTests.swift
-[18/41] Emitting module KairoCoreTests
-[19/41] Compiling KairoCoreTests SessionCacheTests.swift
+[17/41] Compiling KaidoCoreTests ScheduleAnchorTests.swift
+[18/41] Emitting module KaidoCoreTests
+[19/41] Compiling KaidoCoreTests SessionCacheTests.swift
 [20/41] Compiling AppTests AppPerformanceTests.swift
 [21/41] Compiling AppTests CanvasDragSessionTests.swift
 [22/41] Compiling AppTests DayWidthControlTests.swift
@@ -27,18 +27,18 @@ Building for debugging...
 [27/41] Compiling AppTests SaveAsTests.swift
 [28/41] Compiling AppTests DayWidthUxAcceptanceTests.swift
 [29/41] Compiling AppTests FormatUpgradeTests.swift
-[30/41] Compiling KairoCoreTests TaskPatchTests.swift
-[31/41] Compiling KairoPresentationTests PresenterTests.swift
-[32/41] Compiling KairoPresentationTests DayWidthTests.swift
-[33/41] Compiling KairoCoreTests OutlineTreeTests.swift
-[34/41] Compiling KairoCoreTests ProjectSummaryTests.swift
-[35/41] Compiling KairoCoreTests GanttLayoutTests.swift
-[36/41] Emitting module KairoPresentationTests
-[37/41] Compiling KairoPresentationTests CalendarGridTests.swift
-[38/41] Compiling KairoPresentationTests DayWidthAcceptanceTests.swift
+[30/41] Compiling KaidoCoreTests TaskPatchTests.swift
+[31/41] Compiling KaidoPresentationTests PresenterTests.swift
+[32/41] Compiling KaidoPresentationTests DayWidthTests.swift
+[33/41] Compiling KaidoCoreTests OutlineTreeTests.swift
+[34/41] Compiling KaidoCoreTests ProjectSummaryTests.swift
+[35/41] Compiling KaidoCoreTests GanttLayoutTests.swift
+[36/41] Emitting module KaidoPresentationTests
+[37/41] Compiling KaidoPresentationTests CalendarGridTests.swift
+[38/41] Compiling KaidoPresentationTests DayWidthAcceptanceTests.swift
 [39/41] Compiling AppTests WorkspaceStoreTests.swift
 [39/41] Write Objects.LinkFileList
-[40/41] Linking KairoPackageTests
+[40/41] Linking KaidoPackageTests
 Build complete! (12.98s)
 Test Suite 'All tests' started at 2026-10-21 15:01:22.273.
 Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
@@ -115,7 +115,7 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test snapshotIsDeterministicForSameInput() started.
 ◇ Test cycleTasksAreUnscheduledWithReason() started.
 ◇ Test statusBarZoomLabelReflectsPreference() started.
-◇ Test fr_kairo_fmt_6_mcpSaveReportsUpgradedFromWithoutTouchingOriginal() started.
+◇ Test fr_kaido_fmt_6_mcpSaveReportsUpgradedFromWithoutTouchingOriginal() started.
 ◇ Test deadlineRiskUsesDueDateAndPlannedFinish() started.
 ◇ Test taskAssignmentDrivesDurationFromEffort() started.
 ◇ Test outlineColumnsDegradeWithWidth() started.
@@ -127,7 +127,7 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test thousandTaskSnapshotStaysWithinBudget() started.
 ◇ Test emptyReasonsCoverNoTasksNoMatchesNoSchedule() started.
 ◇ Test rowsAndBarsShareIndexAndOrder() started.
-◇ Test fr_kairo_fmt_6_mcpOpenReportsDiskVersionAndUpgradeNeed() started.
+◇ Test fr_kaido_fmt_6_mcpOpenReportsDiskVersionAndUpgradeNeed() started.
 ◇ Test inspectorFallsBackWhenSelectionMissing() started.
 ◇ Test violationInspectorGroupsAndListsRuleCatalog() started.
 ◇ Test scheduleComputeReportsConstraintConflictThenViolationsList() started.
@@ -144,61 +144,61 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test todayInsideWindowProducesX() started.
 ◇ Test collapsedGroupHidesChildrenAndKeepsSummaryBar() started.
 ◇ Test usE102A2_cliTaskUpdateAssigneePersistsAndClears() started.
-◇ Test fr_kairo_fmt_6_mcpProjectToolsReportFormatVersion() started.
+◇ Test fr_kaido_fmt_6_mcpProjectToolsReportFormatVersion() started.
 ◇ Test statusBarMirrorsProjectSummary() started.
 ◇ Test toolsListReturnsSprint2ToolSetWithSchema() started.
 ◇ Test unknownMethodReturnsJSONRPCError() started.
 ◇ Test groupAggregatesWeightedProgressStatusAndRange() started.
 ◇ Test taskAddThenTaskListRoundTrip() started.
-◇ Test fr_kairo_fmt_2_rejects_missing_step() started.
+◇ Test fr_kaido_fmt_2_rejects_missing_step() started.
 ◇ Test encodeProducesSingleJSONWithVersionAndRootKeys() started.
-◇ Test fr_kairo_fmt_4_failed_migration_writes_nothing() started.
+◇ Test fr_kaido_fmt_4_failed_migration_writes_nothing() started.
 ◇ Test translateTodayYieldsDueTodayClause() started.
 ◇ Test explanationSummarizesClauses() started.
-◇ Test fr_kairo_fmt_2_rejects_document_version_mismatch() started.
+◇ Test fr_kaido_fmt_2_rejects_document_version_mismatch() started.
 ◇ Test taskDependencyCodableRoundTrip() started.
 ◇ Test searchTermHasTagMatchesAndRejects() started.
 ◇ Test searchTermEqualsMatchesAndRejects() started.
-◇ Test fr_kairo_fmt_2_migrates_steps_in_ascending_order() started.
+◇ Test fr_kaido_fmt_2_migrates_steps_in_ascending_order() started.
 ◇ Test legacyUUIDDependenciesMigrateToFS() started.
 ◇ Test findControllerReportsInvalidRegex() started.
-◇ Test fr_kairo_fmt_1_read_current_file_reports_current_source_version() started.
+◇ Test fr_kaido_fmt_1_read_current_file_reports_current_source_version() started.
 ◇ Test translateCombinesOverdueAndDone() started.
 ◇ Test dependencyTypeRawValues() started.
 ◇ Test regexPatternFindsFirstMatch() started.
-◇ Test fr_kairo_fmt_3_rejects_future_version() started.
+◇ Test fr_kaido_fmt_3_rejects_future_version() started.
 ◇ Test saveToURLAndLoadFromURL() started.
 ◇ Test unsupportedFormatVersionThrows() started.
 ◇ Test applyAndCombinesClauses() started.
-◇ Test fr_kairo_fmt_malformed_non_integer_version_is_rejected(json:) started.
+◇ Test fr_kaido_fmt_malformed_non_integer_version_is_rejected(json:) started.
 ◇ Test findControllerCountsAndWraps() started.
-◇ Test fr_kairo_fmt_2_rejects_backwards_range() started.
+◇ Test fr_kaido_fmt_2_rejects_backwards_range() started.
 ◇ Test translateUnknownTokenFallsBackToTitleContains() started.
 ◇ Test literalPatternIsCaseSensitiveWhenRequested() started.
 ◇ Test translateUrgentAndTag() started.
-◇ Test fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
-◇ Test fr_kairo_fmt_1_current_version_skips_migration() started.
-◇ Test fr_kairo_fmt_malformed_non_positive_version_is_rejected(json:) started.
-◇ Test fr_kairo_fmt_decode_error_without_migration_is_preserved() started.
-◇ Test fr_kairo_fmt_2_step_must_land_on_its_to_version() started.
+◇ Test fr_kaido_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test fr_kaido_fmt_1_current_version_skips_migration() started.
+◇ Test fr_kaido_fmt_malformed_non_positive_version_is_rejected(json:) started.
+◇ Test fr_kaido_fmt_decode_error_without_migration_is_preserved() started.
+◇ Test fr_kaido_fmt_2_step_must_land_on_its_to_version() started.
 ◇ Test searchTermContainsMatchesAndRejects() started.
-◇ Test fr_kairo_fmt_4_throwing_step_is_wrapped_with_from_to() started.
+◇ Test fr_kaido_fmt_4_throwing_step_is_wrapped_with_from_to() started.
 ◇ Test invalidRegexPatternFailsInit() started.
 ◇ Test legacyTaskMissingNewFieldsDefaults() started.
-◇ Test fr_kairo_fmt_malformed_missing_version_is_rejected_without_migration() started.
+◇ Test fr_kaido_fmt_malformed_missing_version_is_rejected_without_migration() started.
 ◇ Test taskItemWithKindParentAndEffortRoundTrips() started.
-◇ Test fr_kairo_fmt_4_decode_failure_after_migration_is_wrapped() started.
+◇ Test fr_kaido_fmt_4_decode_failure_after_migration_is_wrapped() started.
 ◇ Test parentChildrenTreeStructure() started.
 ◇ Test milestoneKindRoundTrips() started.
 ◇ Test literalPatternMatchesCaseInsensitively() started.
-◇ Test fr_kairo_fmt_5_encode_always_writes_current_version() started.
+◇ Test fr_kaido_fmt_5_encode_always_writes_current_version() started.
 ◇ Test applyFiltersFixtureTasks() started.
 ◇ Test dependencyAndMilestoneSurviveRoundTrip() started.
 ◇ Test saveLoadRoundTripPreservesTasksAndMetadata() started.
 ◇ Test decodeIgnoresUnknownFields() started.
-◇ Test fr_kairo_fmt_2_read_migrates_end_to_end() started.
+◇ Test fr_kaido_fmt_2_read_migrates_end_to_end() started.
 ◇ Test searchTermIsValueMatchesPriority() started.
-◇ Test fr_kairo_fmt_5_legacy_file_resaves_as_current_version_and_reopens() started.
+◇ Test fr_kaido_fmt_5_legacy_file_resaves_as_current_version_and_reopens() started.
 ◇ Test canvasDependencyCommitAndRemove() started.
 ◇ Test milestoneMoveViaAction() started.
 ◇ Test resizeStartKeepsFinishDate() started.
@@ -232,7 +232,7 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test setCustomDayWidthClampsOutOfRangeValues() started.
 ◇ Test outlineRowsListHeightMatchesTimelinePitch() started.
 ◇ Test presetZoomClearsCustomDayWidth() started.
-◇ Test fr_kairo_fmt_2_rejects_version_skip() started.
+◇ Test fr_kaido_fmt_2_rejects_version_skip() started.
 ◇ Test sliderDayWidthStaysInsideLegalRange() started.
 ◇ Test sliderPositionMapsDayWidthBothWays() started.
 ◇ Test panningKeepsCustomDayWidth() started.
@@ -355,7 +355,7 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test fr_file_saveas_2_falls_back_when_title_empty() started.
 ◇ Test openAsyncLoadsProjectAndClearsLoadingState() started.
 ◇ Test shortcutLabelsMatchMenuBindings() started.
-◇ Test fr_file_saveas_2_keeps_single_kairo_suffix() started.
+◇ Test fr_file_saveas_2_keeps_single_kaido_suffix() started.
 ◇ Test fr_file_saveas_4_points_project_url_and_clears_dirty() started.
 ◇ Test predecessorColumnReplacesWholeSet() started.
 ◇ Test inspectorLockKeepsFrozenTaskWhileSelectionMoves() started.
@@ -375,7 +375,7 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test predecessorColumnClearsWhenEmpty() started.
 ◇ Test dropHoverAutoExpandsCollapsedGroup() started.
 ◇ Test fieldEditorUndoIsInertWithoutKeyWindow() started.
-◇ Test fr_kairo_fmt_5_save_and_open_load_failure_clears_pending_notice() started.
+◇ Test fr_kaido_fmt_5_save_and_open_load_failure_clears_pending_notice() started.
 ◇ Test adoptingExportedFileDoesNotRewriteDiskFile() started.
 ◇ Test fr_file_saveas_2_derives_from_title() started.
 ◇ Test unrulyExternalFileIsNotRetriedRepeatedly() started.
@@ -385,7 +385,7 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test dirtyOpenWaitsForUserChoice() started.
 ◇ Test saveThenOpenRoundTripsProject() started.
 ◇ Test addingChildPromotesParentAndDeleteCascades() started.
-◇ Test fr_kairo_fmt_5_save_and_open_keeps_upgrade_notice() started.
+◇ Test fr_kaido_fmt_5_save_and_open_keeps_upgrade_notice() started.
 ◇ Test thousandTaskActionsMeetBudget() started.
 ◇ Test scheduleRecomputeMeetsBudget() started.
 ◇ Test unknownCommandThrowsUsageError() started.
@@ -396,27 +396,27 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test updateRejectsMalformedDependencySpec() started.
 ◇ Test flagDetection() started.
 ◇ Test taskListJSONEncodesStableFields() started.
-◇ Test fr_kairo_fmt_5_save_and_open_without_upgrade_has_no_upgrade_notice() started.
+◇ Test fr_kaido_fmt_5_save_and_open_without_upgrade_has_no_upgrade_notice() started.
 ◇ Test taskListJSONUsesISODates() started.
 ◇ Test taskListRejectsUnknownOptions() started.
-◇ Test fr_kairo_fmt_5_cancel_save_as_keeps_upgrade_flag() started.
-◇ Test fr_kairo_fmt_2_open_project_maps_error_codes() started.
-◇ Test fr_kairo_fmt_5_save_after_upgrade_announces_once() started.
-◇ Test fr_kairo_fmt_6_save_as_after_upgrade_announces() started.
+◇ Test fr_kaido_fmt_5_cancel_save_as_keeps_upgrade_flag() started.
+◇ Test fr_kaido_fmt_2_open_project_maps_error_codes() started.
+◇ Test fr_kaido_fmt_5_save_after_upgrade_announces_once() started.
+◇ Test fr_kaido_fmt_6_save_as_after_upgrade_announces() started.
 ◇ Test sundayFirstGridStartsOnSunday() started.
 ◇ Test isSameDayIgnoresTimeOfDay() started.
 ◇ Test gridFirstDayIsFirstOfMonthAtMidnight() started.
-◇ Test fr_kairo_fmt_5_save_and_open_merges_upgrade_notice_and_warning() started.
+◇ Test fr_kaido_fmt_5_save_and_open_merges_upgrade_notice_and_warning() started.
 ◇ Test isWeekendFollowsFirstWeekdaySetting() started.
-◇ Test fr_kairo_fmt_2_old_version_is_flagged_on_open() started.
+◇ Test fr_kaido_fmt_2_old_version_is_flagged_on_open() started.
 ◇ Test gridFirstCellIsTheWeekStartContainingTheFirstOfMonth() started.
-◇ Test fr_kairo_fmt_6_save_as_fallback_write_announces_upgrade() started.
+◇ Test fr_kaido_fmt_6_save_as_fallback_write_announces_upgrade() started.
 ◇ Test firstWeekdaySettingShiftsGridButKeepsTheSameMonth() started.
 ◇ Test taskListSupportsParentFilter() started.
 ◇ Test gridHasSixRowsAndSevenColumns() started.
 ◇ Test taskAddAcceptsParentIDPrefix() started.
 ◇ Test mondayFirstGridStartsOnMonday() started.
-◇ Test fr_kairo_fmt_1_current_version_is_not_flagged() started.
+◇ Test fr_kaido_fmt_1_current_version_is_not_flagged() started.
 ◇ Test projectCreateThenWBSImportPersistsTree() started.
 ◇ Test taskUpdateProgressAndStatus() started.
 ◇ Test monthWithThirtyOneDaysFillsAllCellsInMonth() started.
@@ -440,15 +440,15 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test dismissalWithoutDraftKeepsCommittedValue() started.
 ◇ Test slidesInsideThrottleWindowCommitTrailingValueOnly() started.
 已创建项目：0F64DCE1「负责人 CLI 添加」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-interface-D4864BE7-F1DD-41C3-A27E-DED983450A92/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-interface-D4864BE7-F1DD-41C3-A27E-DED983450A92/demo.kaido
 格式版本：v1
-◇ Test fr_kairo_fmt_6_cliProjectCommandsPrintFormatVersion() started.
+◇ Test fr_kaido_fmt_6_cliProjectCommandsPrintFormatVersion() started.
 ◇ Test firstSlideCommitsImmediately() started.
 ◇ Test resourceAddAndListPersist() started.
 ◇ Test narrowBarHandlesResolveToNearestEnd() started.
 ◇ Test canvasOffsetShiftsRowHit() started.
 已创建项目：65F05319「负责人 CLI 更新」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-interface-C5D4B79E-B837-43F8-9D7D-E1F91048B755/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-interface-C5D4B79E-B837-43F8-9D7D-E1F91048B755/demo.kaido
 格式版本：v1
 ◇ Test scheduleComputeThenStatusUpdatePersistsCompletedAt() started.
 ◇ Test startAndEndHandles() started.
@@ -458,14 +458,14 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test taskAddAndUpdateWithAssignmentByPrefix() started.
 ◇ Test groupBarIsNotDraggableButLinks() started.
 ◇ Test statusBatchWithUnknownTaskExitsWithRuntimeCode() started.
-◇ Test fr_kairo_fmt_6_cliFormatVersionLineRendersUpgradeSource() started.
+◇ Test fr_kaido_fmt_6_cliFormatVersionLineRendersUpgradeSource() started.
 ◇ Test statusBatchUpdatesMultipleTasksAndReportsSummary() started.
 ◇ Test taskAddWithUnknownResourceFailsAndWritesNothing() started.
 ◇ Test dismissalInsideThrottleWindowCommitsLastValue() started.
 ◇ Test dependencyLineHitAndTolerance() started.
 ◇ Test externalDayWidthChangeDiscardsStaleDraft() started.
 ◇ Test emptySpaceAndOtherRows() started.
-◇ Test fr_kairo_fmt_6_cliSourceVersionLineRendersUpgradeHint() started.
+◇ Test fr_kaido_fmt_6_cliSourceVersionLineRendersUpgradeHint() started.
 ◇ Test pasteboardMenuGroupRemainsAfterNotReplacing() started.
 ◇ Test daysFromTranslation() started.
 ◇ Test milestoneDegradesHandlesToBody() started.
@@ -522,7 +522,7 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test taskAssignmentCodableRoundTrip() started.
 ◇ Test weekGranularityKeepsAdjacentTicksSevenDayWidthsApart() started.
 ◇ Test dayGranularityKeepsAdjacentTickSpacingEqualToDayWidth() started.
-◇ Test resourcesPersistThroughKairoFileRoundTrip() started.
+◇ Test resourcesPersistThroughKaidoFileRoundTrip() started.
 ◇ Test resourceCodableRoundTrip() started.
 ◇ Test fitZoomKeepsFitWidthWithoutClamping() started.
 ◇ Test dayWidthActionsExposeInspectablePayloads() started.
@@ -615,16 +615,16 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test movingUnderPlainTaskPromotesParentToGroup() started.
 ◇ Test asapTaskSelectionKeepsStartDateBound() started.
 ◇ Test directionPersistsThroughFileRoundTrip() started.
-◇ Test case passing 1 argument json → "{"formatVersion":1.5,"project":{},"tasks":[]}" to fr_kairo_fmt_malformed_non_integer_version_is_rejected(json:) started.
+◇ Test case passing 1 argument json → "{"formatVersion":1.5,"project":{},"tasks":[]}" to fr_kaido_fmt_malformed_non_integer_version_is_rejected(json:) started.
 ◇ Test milestoneStartDateActsAsBound() started.
 ◇ Test addTaskAssigneeTrimsWhitespaceToNil() started.
 ◇ Test startDateAndConstraintPickLater() started.
-◇ Test case passing 1 argument json → "{"formatVersion":true,"project":{},"tasks":[]}" to fr_kairo_fmt_malformed_non_integer_version_is_rejected(json:) started.
+◇ Test case passing 1 argument json → "{"formatVersion":true,"project":{},"tasks":[]}" to fr_kaido_fmt_malformed_non_integer_version_is_rejected(json:) started.
 ◇ Test cycleTaskStartDateDoesNotCrash() started.
 ◇ Test alapTaskNeverStartsBeforeStartDate() started.
 ◇ Test clearRemovesOptionalValues() started.
 ◇ Test patchValidatesParentExists() started.
-◇ Test case passing 1 argument json → "{"formatVersion":"1","project":{},"tasks":[]}" to fr_kairo_fmt_malformed_non_integer_version_is_rejected(json:) started.
+◇ Test case passing 1 argument json → "{"formatVersion":"1","project":{},"tasks":[]}" to fr_kaido_fmt_malformed_non_integer_version_is_rejected(json:) started.
 ◇ Test legacyUpdateTaskAssigneeTrimsWhitespace() started.
 ◇ Test patchAssigneeTrimsWhitespaceAndClearsWhenBlank() started.
 ◇ Test fullProgressMarksDone() started.
@@ -644,14 +644,14 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ◇ Test patchRejectsSelfParent() started.
 ◇ Test totalAndFreeSlackOnTightChain() started.
 ◇ Test startDateWithTimeIsNormalizedToStartOfDay() started.
-◇ Test case passing 1 argument payload → ""scalar"" to fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
-◇ Test case passing 1 argument payload → "42" to fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
-◇ Test case passing 1 argument payload → "[]" to fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test case passing 1 argument payload → ""scalar"" to fr_kaido_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test case passing 1 argument payload → "42" to fr_kaido_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test case passing 1 argument payload → "[]" to fr_kaido_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
 ◇ Test rejectsMalformedLinks() started.
-◇ Test case passing 1 argument payload → "null" to fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
-◇ Test case passing 1 argument payload → "{ not json" to fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
-◇ Test case passing 1 argument json → "{"formatVersion":-1,"project":{},"tasks":[]}" to fr_kairo_fmt_malformed_non_positive_version_is_rejected(json:) started.
-◇ Test case passing 1 argument json → "{"formatVersion":0,"project":{},"tasks":[]}" to fr_kairo_fmt_malformed_non_positive_version_is_rejected(json:) started.
+◇ Test case passing 1 argument payload → "null" to fr_kaido_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test case passing 1 argument payload → "{ not json" to fr_kaido_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) started.
+◇ Test case passing 1 argument json → "{"formatVersion":-1,"project":{},"tasks":[]}" to fr_kaido_fmt_malformed_non_positive_version_is_rejected(json:) started.
+◇ Test case passing 1 argument json → "{"formatVersion":0,"project":{},"tasks":[]}" to fr_kaido_fmt_malformed_non_positive_version_is_rejected(json:) started.
 ◇ Test emptyStateAppliesAsEmptyProject() started.
 ◇ Test stateRoundTripsThroughCodable() started.
 ◇ Test applyRestoresFullProject() started.
@@ -765,8 +765,8 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ✔ Test statusBarZoomLabelReflectsPreference() passed after 0.034 seconds.
 ✔ Test todayOutsideWindowIsMarked() passed after 0.034 seconds.
 ✔ Test snapshotIsDeterministicForSameInput() passed after 0.034 seconds.
-错误：无法读取项目文件：demo.kairo
-错误：无法读取项目文件：demo.kairo
+错误：无法读取项目文件：demo.kaido
+错误：无法读取项目文件：demo.kaido
 用法错误：未知命令：nope x
 ✔ Test unparsedFilterTextDoesNotFilter() passed after 0.034 seconds.
 用法错误：无效相关性类型：zz（可选 fs/ff/ss/sf）
@@ -775,28 +775,28 @@ Test Suite 'All tests' passed at 2026-10-21 15:01:22.275.
 ✔ Test violationInspectorGroupsAndListsRuleCatalog() passed after 0.035 seconds.
 ✔ Test rowsAndBarsShareIndexAndOrder() passed after 0.035 seconds.
 ✔ Test outlineColumnsDegradeWithWidth() passed after 0.034 seconds.
-✔ Test fr_kairo_fmt_6_mcpOpenReportsDiskVersionAndUpgradeNeed() passed after 0.035 seconds.
+✔ Test fr_kaido_fmt_6_mcpOpenReportsDiskVersionAndUpgradeNeed() passed after 0.035 seconds.
 ✔ Test resourceAddThenListRoundTrip() passed after 0.035 seconds.
 ✔ Test groupViolationSeverityAggregatesSubtree() passed after 0.035 seconds.
-✔ Test fr_kairo_fmt_6_mcpSaveReportsUpgradedFromWithoutTouchingOriginal() passed after 0.035 seconds.
+✔ Test fr_kaido_fmt_6_mcpSaveReportsUpgradedFromWithoutTouchingOriginal() passed after 0.035 seconds.
 ✔ Test initializeHandshakeReturnsProtocolAndServerInfo() passed after 0.035 seconds.
 ✔ Test statusUpdateDoneReturnsCompletedAtAndGroupAggregate() passed after 0.035 seconds.
 ✔ Test toolErrorReturnsIsErrorWithStructuredCode() passed after 0.035 seconds.
 ✔ Test taskAssignmentDrivesDurationFromEffort() passed after 0.035 seconds.
 已创建项目：62246211「演示项目」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-E2A9788A-D6BC-42B9-871E-63A8478AE73D/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-cli-E2A9788A-D6BC-42B9-871E-63A8478AE73D/demo.kaido
 格式版本：v1
 已创建项目：94AFFBED「列表演示」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-169EC230-3635-4139-A241-7070A17508C1/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-cli-169EC230-3635-4139-A241-7070A17508C1/demo.kaido
 格式版本：v1
 已创建项目：87E6F3BD「依赖演示」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-E24710A9-6E0A-4F7D-A13C-7276D9C9BC30/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-cli-E24710A9-6E0A-4F7D-A13C-7276D9C9BC30/demo.kaido
 格式版本：v1
 已创建项目：E5B72CFC「前缀演示」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-17BDC76B-69F2-4024-AFBB-05961767F5F6/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-cli-17BDC76B-69F2-4024-AFBB-05961767F5F6/demo.kaido
 格式版本：v1
 已创建项目：469F826E「更新演示」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-981363AB-18FF-4419-921E-4366F93746B4/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-cli-981363AB-18FF-4419-921E-4366F93746B4/demo.kaido
 格式版本：v1
 已创建任务：F1174736 进行中的任务
 已导入 5 个任务
@@ -817,7 +817,7 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 状态：待办
 进度：0%
 已创建项目：79794FB4「时限演示」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli-40CC15EA-C690-48F8-93E2-029320FDEF03/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-cli-40CC15EA-C690-48F8-93E2-029320FDEF03/demo.kaido
 格式版本：v1
 已创建任务：3991753B 子任务
 已创建任务：53A8BFF1 受时限任务
@@ -832,10 +832,10 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 ✔ Test scheduleComputeReportsConstraintConflictThenViolationsList() passed after 0.043 seconds.
 ✔ Test usE102A3_mcpTaskAddWithAssigneePersists() passed after 0.044 seconds.
 已创建项目：9199BF4D「分配演示」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli2-3EF80297-92BC-46DB-8A34-3592B604286B/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-cli2-3EF80297-92BC-46DB-8A34-3592B604286B/demo.kaido
 格式版本：v1
 已创建项目：67ADEBC6「闭环演示」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli2-1986A6A0-73F4-4B7B-B141-0685F26AB04D/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-cli2-1986A6A0-73F4-4B7B-B141-0685F26AB04D/demo.kaido
 格式版本：v1
 已添加资源：85ED838B 李工（人员，单位 1，效率 0.9）
 已创建任务：8588BFF6 任务 A
@@ -844,7 +844,7 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 已创建任务：C9894F74 群组 G
 已创建任务：CD12258F 受分配任务
 已创建项目：9E4216B2「批量失败演示」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli2-3715A643-FC1E-41D8-8011-9B091614EF91/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-cli2-3715A643-FC1E-41D8-8011-9B091614EF91/demo.kaido
 格式版本：v1
 已更新任务：CD12258F 受分配任务
 失败：B94CE8BA 任务不存在
@@ -854,11 +854,11 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 ✔ Test usE102A1_cliTaskAddWithAssigneePersists() passed after 0.051 seconds.
 ✔ Test taskAddWithDependenciesCreatesFSChain() passed after 0.051 seconds.
 已创建项目：9E18B069「批量演示」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli2-5B839525-586A-497C-AC6D-462D1BC0E974/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-cli2-5B839525-586A-497C-AC6D-462D1BC0E974/demo.kaido
 格式版本：v1
 已计算排期：2 个任务
 已创建项目：E6963AEC「悬空分配演示」
-已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kairo-cli2-653B129F-93C8-4184-8576-5909BF7C224E/demo.kairo
+已保存：/var/folders/ck/t9bmshg92_j7njgf_ld7gm2c0000gp/T/kaido-cli2-653B129F-93C8-4184-8576-5909BF7C224E/demo.kaido
 格式版本：v1
   8588BFF6 任务 A  2026-11-01T16:00:00Z → 2026-11-04T16:00:00Z（3 天，ASAP）
   C9894F74 群组 G  2026-11-01T16:00:00Z → 2026-11-02T16:00:00Z（1 天，ASAP）
@@ -866,10 +866,10 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
   8588BFF6 任务 A *  总宽延 0 天 / 自由宽延 0 天
   C9894F74 群组 G  总宽延 2 天 / 自由宽延 2 天
 无违例
-✔ Test fr_kairo_fmt_6_mcpProjectToolsReportFormatVersion() passed after 0.051 seconds.
+✔ Test fr_kaido_fmt_6_mcpProjectToolsReportFormatVersion() passed after 0.051 seconds.
 ✔ Test usE102A2_cliTaskUpdateAssigneePersistsAndClears() passed after 0.051 seconds.
 ✔ Test statusBarMirrorsProjectSummary() passed after 0.051 seconds.
-✔ Test fr_kairo_fmt_2_rejects_missing_step() passed after 0.052 seconds.
+✔ Test fr_kaido_fmt_2_rejects_missing_step() passed after 0.052 seconds.
 ✔ Test taskAddThenTaskListRoundTrip() passed after 0.052 seconds.
 ◇ Test case passing 1 argument tasksJSON → "null" to malformedTaskListsExitZero(_:) started.
 ◇ Test case passing 1 argument tasksJSON → "{"tasks":[]}" to malformedTaskListsExitZero(_:) started.
@@ -893,49 +893,49 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 ✔ Test translateTodayYieldsDueTodayClause() passed after 0.437 seconds.
 ✔ Test encodeProducesSingleJSONWithVersionAndRootKeys() passed after 0.554 seconds.
 ✔ Test taskDependencyCodableRoundTrip() passed after 0.573 seconds.
-✔ Test fr_kairo_fmt_2_rejects_document_version_mismatch() passed after 0.691 seconds.
-✔ Test fr_kairo_fmt_2_migrates_steps_in_ascending_order() passed after 0.692 seconds.
+✔ Test fr_kaido_fmt_2_rejects_document_version_mismatch() passed after 0.691 seconds.
+✔ Test fr_kaido_fmt_2_migrates_steps_in_ascending_order() passed after 0.692 seconds.
 ✔ Test searchTermEqualsMatchesAndRejects() passed after 0.693 seconds.
 ✔ Test searchTermHasTagMatchesAndRejects() passed after 0.696 seconds.
 ✔ Test legacyUUIDDependenciesMigrateToFS() passed after 0.714 seconds.
-✔ Test fr_kairo_fmt_1_read_current_file_reports_current_source_version() passed after 0.721 seconds.
-✔ Test fr_kairo_fmt_4_failed_migration_writes_nothing() passed after 0.721 seconds.
+✔ Test fr_kaido_fmt_1_read_current_file_reports_current_source_version() passed after 0.721 seconds.
+✔ Test fr_kaido_fmt_4_failed_migration_writes_nothing() passed after 0.721 seconds.
 ✔ Test translateCombinesOverdueAndDone() passed after 0.721 seconds.
 ✔ Test dependencyTypeRawValues() passed after 0.725 seconds.
 ✔ Test regexPatternFindsFirstMatch() passed after 0.726 seconds.
 ✔ Test applyAndCombinesClauses() passed after 0.727 seconds.
 ✔ Test unsupportedFormatVersionThrows() passed after 0.727 seconds.
 ✔ Test toolsListReturnsSprint2ToolSetWithSchema() passed after 0.727 seconds.
-✔ Test fr_kairo_fmt_malformed_non_integer_version_is_rejected(json:) with 3 test cases passed after 0.727 seconds.
+✔ Test fr_kaido_fmt_malformed_non_integer_version_is_rejected(json:) with 3 test cases passed after 0.727 seconds.
 ✔ Test saveToURLAndLoadFromURL() passed after 0.728 seconds.
-✔ Test fr_kairo_fmt_3_rejects_future_version() passed after 0.729 seconds.
+✔ Test fr_kaido_fmt_3_rejects_future_version() passed after 0.729 seconds.
 ✔ Test literalPatternIsCaseSensitiveWhenRequested() passed after 0.729 seconds.
 ✔ Test translateUnknownTokenFallsBackToTitleContains() passed after 0.729 seconds.
-✔ Test fr_kairo_fmt_2_rejects_backwards_range() passed after 0.729 seconds.
-✔ Test fr_kairo_fmt_1_current_version_skips_migration() passed after 0.730 seconds.
-✔ Test fr_kairo_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) with 5 test cases passed after 0.730 seconds.
+✔ Test fr_kaido_fmt_2_rejects_backwards_range() passed after 0.729 seconds.
+✔ Test fr_kaido_fmt_1_current_version_skips_migration() passed after 0.730 seconds.
+✔ Test fr_kaido_fmt_malformed_invalid_json_or_non_object_root_is_rejected(payload:) with 5 test cases passed after 0.730 seconds.
 ✔ Test translateUrgentAndTag() passed after 0.730 seconds.
-✔ Test fr_kairo_fmt_malformed_non_positive_version_is_rejected(json:) with 2 test cases passed after 0.730 seconds.
+✔ Test fr_kaido_fmt_malformed_non_positive_version_is_rejected(json:) with 2 test cases passed after 0.730 seconds.
 ✔ Test searchTermContainsMatchesAndRejects() passed after 0.730 seconds.
-✔ Test fr_kairo_fmt_2_step_must_land_on_its_to_version() passed after 0.730 seconds.
-✔ Test fr_kairo_fmt_4_throwing_step_is_wrapped_with_from_to() passed after 0.730 seconds.
-✔ Test fr_kairo_fmt_decode_error_without_migration_is_preserved() passed after 0.730 seconds.
+✔ Test fr_kaido_fmt_2_step_must_land_on_its_to_version() passed after 0.730 seconds.
+✔ Test fr_kaido_fmt_4_throwing_step_is_wrapped_with_from_to() passed after 0.730 seconds.
+✔ Test fr_kaido_fmt_decode_error_without_migration_is_preserved() passed after 0.730 seconds.
 ✔ Test legacyTaskMissingNewFieldsDefaults() passed after 0.730 seconds.
 ✔ Test invalidRegexPatternFailsInit() passed after 0.730 seconds.
-✔ Test fr_kairo_fmt_malformed_missing_version_is_rejected_without_migration() passed after 0.730 seconds.
+✔ Test fr_kaido_fmt_malformed_missing_version_is_rejected_without_migration() passed after 0.730 seconds.
 ✔ Test parentChildrenTreeStructure() passed after 0.730 seconds.
 ✔ Test taskItemWithKindParentAndEffortRoundTrips() passed after 0.730 seconds.
 ✔ Test milestoneKindRoundTrips() passed after 0.730 seconds.
 ✔ Test literalPatternMatchesCaseInsensitively() passed after 0.730 seconds.
-✔ Test fr_kairo_fmt_4_decode_failure_after_migration_is_wrapped() passed after 0.731 seconds.
-✔ Test fr_kairo_fmt_5_encode_always_writes_current_version() passed after 0.731 seconds.
+✔ Test fr_kaido_fmt_4_decode_failure_after_migration_is_wrapped() passed after 0.731 seconds.
+✔ Test fr_kaido_fmt_5_encode_always_writes_current_version() passed after 0.731 seconds.
 ✔ Test applyFiltersFixtureTasks() passed after 0.731 seconds.
 ✔ Test decodeIgnoresUnknownFields() passed after 0.731 seconds.
 ✔ Test dependencyAndMilestoneSurviveRoundTrip() passed after 0.731 seconds.
 ✔ Test saveLoadRoundTripPreservesTasksAndMetadata() passed after 0.732 seconds.
 ✔ Test searchTermIsValueMatchesPriority() passed after 0.732 seconds.
-✔ Test fr_kairo_fmt_2_read_migrates_end_to_end() passed after 0.732 seconds.
-✔ Test fr_kairo_fmt_5_legacy_file_resaves_as_current_version_and_reopens() passed after 0.732 seconds.
+✔ Test fr_kaido_fmt_2_read_migrates_end_to_end() passed after 0.732 seconds.
+✔ Test fr_kaido_fmt_5_legacy_file_resaves_as_current_version_and_reopens() passed after 0.732 seconds.
 ✔ Test missingFieldRejected() passed after 0.732 seconds.
 ✔ Test shapeGuardsFailClosed() passed after 0.732 seconds.
 ✔ Test unsupportedSchemaRejected() passed after 0.733 seconds.
@@ -951,7 +951,7 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 ✔ Test wrongKeyRejected() passed after 0.733 seconds.
 ✔ Test unreadableFileFailsClosed() passed after 0.733 seconds.
 ✔ Test publicKeyIsWellFormedEd25519() passed after 0.733 seconds.
-✔ Test fr_kairo_fmt_2_rejects_version_skip() passed after 0.733 seconds.
+✔ Test fr_kaido_fmt_2_rejects_version_skip() passed after 0.733 seconds.
 ✔ Test signAndVerifyRoundtrip() passed after 0.733 seconds.
 ✔ Test missingSignatureRejected() passed after 0.733 seconds.
 ✔ Test launchPathMismatchFailsFast() passed after 0.733 seconds.
@@ -1025,7 +1025,7 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 ✔ Test taskAddAndUpdateWithAssignmentByPrefix() passed after 0.720 seconds.
 ✔ Test statusBatchWithUnknownTaskExitsWithRuntimeCode() passed after 0.720 seconds.
 ✔ Test emptySpaceAndOtherRows() passed after 0.720 seconds.
-✔ Test fr_kairo_fmt_6_cliSourceVersionLineRendersUpgradeHint() passed after 0.719 seconds.
+✔ Test fr_kaido_fmt_6_cliSourceVersionLineRendersUpgradeHint() passed after 0.719 seconds.
 ✔ Test dependencyLineHitAndTolerance() passed after 0.720 seconds.
 ✔ Test taskAddWithUnknownResourceFailsAndWritesNothing() passed after 0.720 seconds.
 ✔ Test linkZones() passed after 0.719 seconds.
@@ -1041,8 +1041,8 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 ✔ Test operandsAndFlagValues() passed after 0.719 seconds.
 ✔ Test enumsRejectInvalidValues() passed after 0.719 seconds.
 ✔ Test dependencySpecDefaultsToFSNoLag() passed after 0.719 seconds.
-✔ Test fr_kairo_fmt_6_cliFormatVersionLineRendersUpgradeSource() passed after 0.720 seconds.
-✔ Test fr_kairo_fmt_6_cliProjectCommandsPrintFormatVersion() passed after 0.721 seconds.
+✔ Test fr_kaido_fmt_6_cliFormatVersionLineRendersUpgradeSource() passed after 0.720 seconds.
+✔ Test fr_kaido_fmt_6_cliProjectCommandsPrintFormatVersion() passed after 0.721 seconds.
 ✔ Test statusBatchUpdatesMultipleTasksAndReportsSummary() passed after 0.720 seconds.
 ✔ Test repeatedDependencyValues() passed after 0.718 seconds.
 ✔ Test scheduleComputeThenStatusUpdatePersistsCompletedAt() passed after 0.720 seconds.
@@ -1067,7 +1067,7 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 ✔ Test taskAssignmentCodableRoundTrip() passed after 0.718 seconds.
 ✔ Test weekGranularityKeepsAdjacentTicksSevenDayWidthsApart() passed after 0.718 seconds.
 ✔ Test dayGranularityKeepsAdjacentTickSpacingEqualToDayWidth() passed after 0.718 seconds.
-✔ Test resourcesPersistThroughKairoFileRoundTrip() passed after 0.718 seconds.
+✔ Test resourcesPersistThroughKaidoFileRoundTrip() passed after 0.718 seconds.
 ✔ Test resourceCodableRoundTrip() passed after 0.718 seconds.
 ✔ Test fitZoomKeepsFitWidthWithoutClamping() passed after 0.718 seconds.
 ✔ Test dayWidthActionsExposeInspectablePayloads() passed after 0.718 seconds.
@@ -1364,13 +1364,13 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 ✔ Test openWhileLoadingIsReportedInsteadOfSilentlyDropped() passed after 6.323 seconds.
 ✔ Test openAsyncLoadsProjectAndClearsLoadingState() passed after 6.325 seconds.
 ✔ Test editsDuringAsyncOpenArePreserved() passed after 6.327 seconds.
-✔ Test fr_kairo_fmt_5_save_and_open_without_upgrade_has_no_upgrade_notice() passed after 6.326 seconds.
+✔ Test fr_kaido_fmt_5_save_and_open_without_upgrade_has_no_upgrade_notice() passed after 6.326 seconds.
 ✔ Test dirtyOpenWaitsForUserChoice() passed after 6.329 seconds.
-✔ Test fr_kairo_fmt_5_cancel_save_as_keeps_upgrade_flag() passed after 6.328 seconds.
-✔ Test fr_kairo_fmt_5_save_after_upgrade_announces_once() passed after 6.330 seconds.
-✔ Test fr_kairo_fmt_6_save_as_after_upgrade_announces() passed after 6.331 seconds.
-✔ Test fr_kairo_fmt_2_old_version_is_flagged_on_open() passed after 6.329 seconds.
-✔ Test fr_kairo_fmt_6_save_as_fallback_write_announces_upgrade() passed after 6.333 seconds.
+✔ Test fr_kaido_fmt_5_cancel_save_as_keeps_upgrade_flag() passed after 6.328 seconds.
+✔ Test fr_kaido_fmt_5_save_after_upgrade_announces_once() passed after 6.330 seconds.
+✔ Test fr_kaido_fmt_6_save_as_after_upgrade_announces() passed after 6.331 seconds.
+✔ Test fr_kaido_fmt_2_old_version_is_flagged_on_open() passed after 6.329 seconds.
+✔ Test fr_kaido_fmt_6_save_as_fallback_write_announces_upgrade() passed after 6.333 seconds.
 ✔ Test milestoneMoveViaAction() passed after 6.353 seconds.
 ✔ Test canvasDependencyCommitAndRemove() passed after 6.353 seconds.
 ✔ Test resizeStartKeepsFinishDate() passed after 6.353 seconds.
@@ -1482,7 +1482,7 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 ✔ Test selectingElsewhereRestoresTemporarilySuspendedFilter() passed after 6.368 seconds.
 ✔ Test fr_file_saveas_2_caps_filename_at_200_utf8_bytes() passed after 6.368 seconds.
 ✔ Test shortcutLabelsMatchMenuBindings() passed after 6.368 seconds.
-✔ Test fr_file_saveas_2_keeps_single_kairo_suffix() passed after 6.368 seconds.
+✔ Test fr_file_saveas_2_keeps_single_kaido_suffix() passed after 6.368 seconds.
 ✔ Test predecessorColumnReplacesWholeSet() passed after 6.368 seconds.
 ✔ Test inspectorLockKeepsFrozenTaskWhileSelectionMoves() passed after 6.368 seconds.
 ✔ Test fr_file_saveas_4_points_project_url_and_clears_dirty() passed after 6.368 seconds.
@@ -1511,8 +1511,8 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 ✔ Test scheduleRecomputeMeetsBudget() passed after 6.366 seconds.
 ✔ Test thousandTaskActionsMeetBudget() passed after 6.366 seconds.
 ✔ Test storeSeedsNoTasksByDefault() passed after 6.367 seconds.
-✔ Test fr_kairo_fmt_2_open_project_maps_error_codes() passed after 6.365 seconds.
-✔ Test fr_kairo_fmt_1_current_version_is_not_flagged() passed after 6.361 seconds.
+✔ Test fr_kaido_fmt_2_open_project_maps_error_codes() passed after 6.365 seconds.
+✔ Test fr_kaido_fmt_1_current_version_is_not_flagged() passed after 6.361 seconds.
 ✔ Test panelRendersAtBoundaryDayWidths() passed after 6.357 seconds.
 ✔ Test dismissalWithoutDraftKeepsCommittedValue() passed after 6.357 seconds.
 ✔ Test zoomDetailHandlesNonFiniteValuesWithoutCrashing() passed after 6.357 seconds.
@@ -1543,8 +1543,8 @@ ID：1827AF0A-9440-4CCA-9A24-72B05529449A
 ✔ Suite "WorkspaceStore 交互" passed after 6.375 seconds.
 ✔ Test checkFindsUpdateAndDownloadsToConfirmedState() passed after 6.371 seconds.
 ✔ Suite "OTA 状态机" passed after 6.375 seconds.
-✔ Test fr_kairo_fmt_5_save_and_open_keeps_upgrade_notice() passed after 6.378 seconds.
-✔ Test fr_kairo_fmt_5_save_and_open_merges_upgrade_notice_and_warning() passed after 6.374 seconds.
-✔ Test fr_kairo_fmt_5_save_and_open_load_failure_clears_pending_notice() passed after 6.392 seconds.
+✔ Test fr_kaido_fmt_5_save_and_open_keeps_upgrade_notice() passed after 6.378 seconds.
+✔ Test fr_kaido_fmt_5_save_and_open_merges_upgrade_notice_and_warning() passed after 6.374 seconds.
+✔ Test fr_kaido_fmt_5_save_and_open_load_failure_clears_pending_notice() passed after 6.392 seconds.
 ✔ Suite "格式版本升级（App）" passed after 6.398 seconds.
 ✔ Test run with 627 tests in 66 suites passed after 6.399 seconds.

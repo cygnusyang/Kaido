@@ -1,11 +1,11 @@
 import Foundation
-import KairoInterop
+import KaidoInterop
 
 /// 写出结果：MSPDI 字节 + 导出侧有损登记。
 ///
-/// 「FormatAdapter.write」只能返回 Data，但「取消原因 / 基线颜色 / blocked」这些 Kairo 独有
+/// 「FormatAdapter.write」只能返回 Data，但「取消原因 / 基线颜色 / blocked」这些 Kaido 独有
 /// 信息按 13-mapping §5 必须落**导出旁注文件**、不得写进对方的 Notes。因此写出端另外暴露
-/// 这份登记：上层拿到后自行渲染「<项目名>.kairo-export-notes.md」。
+/// 这份登记：上层拿到后自行渲染「<项目名>.kaido-export-notes.md」。
 public struct MSPDIExport: Sendable, Equatable {
     /// 写出的 MSPDI 文档（UTF-8）。
     public let data: Data
@@ -21,25 +21,25 @@ public struct MSPDIExport: Sendable, Equatable {
 /// MS Project XML（MSPDI）写出（docs/features/14-interop-architecture.md P1）。
 ///
 /// 边界与读入同一套硬规则：
-/// - 只 import KairoInterop，不认识 Kairo 的业务模型；
-/// - **不做「工作日 ↔ 日历天」换算**，日期按 IR 原样写出（换算只在 KairoBridge）；
+/// - 只 import KaidoInterop，不认识 Kaido 的业务模型；
+/// - **不做「工作日 ↔ 日历天」换算**，日期按 IR 原样写出（换算只在 KaidoBridge）；
 /// - 输出只由输入决定：同一份 IR 写两次字节完全相同（不生成随机 GUID、不读当前时间）。
 ///
 /// ## 日期口径：为什么默认写 7 天工作周
 ///
-/// Kairo 按**日历天**排期（一周 7 天都算工作日），MSPDI 按**工作日**推进。同一个日期在两种
-/// 口径下每天差一天，FS 链会随链长线性漂移。所以 Kairo 侧导出的文档**写 7 天全工作周日历**，
+/// Kaido 按**日历天**排期（一周 7 天都算工作日），MSPDI 按**工作日**推进。同一个日期在两种
+/// 口径下每天差一天，FS 链会随链长线性漂移。所以 Kaido 侧导出的文档**写 7 天全工作周日历**，
 /// 让 IR 的一天恰好等于 MSPDI 的一个工作日——日期可以无损往返，对方的「工期 5 天」也正好
 /// 覆盖 5 个自然日。
 ///
 /// 唯一的例外：IR 里的日历本身就是 5/6 天工作周（多来自用户导入的对方文件）。那份日期是
 /// 按来源工作日算出来的，**如实写出原日历**才保真；代价是「导出后按工作日推进，日期可能与
-/// Kairo 里的原计划不同」，必须登记到 FidelityLedger 让用户看见，不能静默处理。
+/// Kaido 里的原计划不同」，必须登记到 FidelityLedger 让用户看见，不能静默处理。
 ///
-/// ## Kairo 独有信息
+/// ## Kaido 独有信息
 ///
 /// 取消原因、blocked 状态、基线颜色等 **绝不写进 Task/Notes**（会污染对方的备注原文）。
-/// 任务级信息在 IR 里用 InteropTask.attributes 的「kairo.」保留前缀承载，写出时被剥离并
+/// 任务级信息在 IR 里用 InteropTask.attributes 的「kaido.」保留前缀承载，写出时被剥离并
 /// 登记；文档级信息由上层预置在 InteropDocument.ledger，写出时合并后一并返回。
 public struct MSPDIWriter: Sendable {
     public init() {}
@@ -167,12 +167,12 @@ private struct MSPDIEncoder {
 
     private func projectDefaults(ledger: inout FidelityLedger) -> ProjectDefaults {
         if document.calendars.isEmpty {
-            // Kairo 没有日历（等价于 7 天全工作周）：显式写出这份日历，日期才能无损对应。
+            // Kaido 没有日历（等价于 7 天全工作周）：显式写出这份日历，日期才能无损对应。
             ledger.record(
                 field: "calendar.weekdays",
                 kind: .converted,
                 count: 1,
-                detail: "Kairo 按日历天排期（一周 7 天）：导出写成 7 天全工作周日历，使一个自然日恰好等于"
+                detail: "Kaido 按日历天排期（一周 7 天）：导出写成 7 天全工作周日历，使一个自然日恰好等于"
                     + "一个工作日，日期往返不变。",
                 sample: "周一至周日"
             )
@@ -317,7 +317,7 @@ private struct MSPDIEncoder {
                 kind: .converted,
                 count: restricted,
                 detail: "来源日历不是 7 天工作周：导出如实写出原日历，MSPDI 按工作日推进，"
-                    + "同一批日期可能与 Kairo 里的原计划前后移动（周末与例外日不计入）。",
+                    + "同一批日期可能与 Kaido 里的原计划前后移动（周末与例外日不计入）。",
                 samples: restrictedSamples
             )
         }
@@ -460,7 +460,7 @@ private struct MSPDIEncoder {
             field: "baseline.color",
             kind: .dropped,
             count: written,
-            detail: "Kairo 的基线颜色索引（8 色）在 MSPDI 没有字段：对方按自己的基线配色显示，"
+            detail: "Kaido 的基线颜色索引（8 色）在 MSPDI 没有字段：对方按自己的基线配色显示，"
                 + "回导后颜色按新建顺序重新分配。",
             samples: document.baselines.prefix(FidelityLedger.maxSamples).map { $0.name ?? "基线 \($0.id)" }
         )
@@ -505,8 +505,8 @@ private struct MSPDIEncoder {
         ledger: inout FidelityLedger
     ) -> [String] {
         var lines = [indent(1) + "<Tasks>"]
-        var kairoOnlyCounts: [String: Int] = [:]
-        var kairoOnlySamples: [String: [String]] = [:]
+        var kaidoOnlyCounts: [String: Int] = [:]
+        var kaidoOnlySamples: [String: [String]] = [:]
         var missingDependencies = 0
         var missingDependencySample: String?
         var missingCalendars = 0
@@ -567,7 +567,7 @@ private struct MSPDIEncoder {
                 lines.append(element("CalendarUID", "-1", 3))
             }
             if !task.notes.isEmpty {
-                // Notes 只放来源原文：Kairo 独有信息一律走 ledger，不在这里追加。
+                // Notes 只放来源原文：Kaido 独有信息一律走 ledger，不在这里追加。
                 lines.append(element("Notes", task.notes, 3))
             }
             if let effort = task.effortHours, effort > 0 {
@@ -606,13 +606,13 @@ private struct MSPDIEncoder {
             }
             for key in task.attributes.keys.sorted() {
                 let value = task.attributes[key] ?? ""
-                if key.hasPrefix(KairoOnlyKey.prefix) {
-                    kairoOnlyCounts[key, default: 0] += 1
-                    var samples = kairoOnlySamples[key] ?? []
+                if key.hasPrefix(KaidoOnlyKey.prefix) {
+                    kaidoOnlyCounts[key, default: 0] += 1
+                    var samples = kaidoOnlySamples[key] ?? []
                     if samples.count < FidelityLedger.maxSamples, !samples.contains(value) {
                         samples.append(value)
                     }
-                    kairoOnlySamples[key] = samples
+                    kaidoOnlySamples[key] = samples
                     continue
                 }
                 guard let fieldID = fields[key] else {
@@ -630,14 +630,14 @@ private struct MSPDIEncoder {
             lines.append(indent(2) + "</Task>")
         }
 
-        for key in kairoOnlyCounts.keys.sorted() {
-            let name = String(key.dropFirst(KairoOnlyKey.prefix.count))
+        for key in kaidoOnlyCounts.keys.sorted() {
+            let name = String(key.dropFirst(KaidoOnlyKey.prefix.count))
             ledger.record(
                 field: name,
                 kind: .dropped,
-                count: kairoOnlyCounts[key] ?? 0,
-                detail: kairoOnlyDetail(name),
-                samples: kairoOnlySamples[key] ?? []
+                count: kaidoOnlyCounts[key] ?? 0,
+                detail: kaidoOnlyDetail(name),
+                samples: kaidoOnlySamples[key] ?? []
             )
         }
         ledger.record(
@@ -670,7 +670,7 @@ private struct MSPDIEncoder {
             field: "constraint",
             kind: .degraded,
             count: degradedConstraints,
-            detail: "Kairo 的时限是软约束（冲突只出违例、照常排期），MSPDI 的 SNET/SNLT/FNET/FNLT 是硬约束："
+            detail: "Kaido 的时限是软约束（冲突只出违例、照常排期），MSPDI 的 SNET/SNLT/FNET/FNLT 是硬约束："
                 + "对方打开后会据此改期或报冲突，回导也无法恢复「只报违例」的语义。",
             samples: constraintSamples
         )
@@ -728,20 +728,20 @@ private struct MSPDIEncoder {
         }
     }
 
-    /// - Parameter name: **已去掉 `kairo.` 前缀**的字段名（`status` / `cancelReason`）。
+    /// - Parameter name: **已去掉 `kaido.` 前缀**的字段名（`status` / `cancelReason`）。
     ///
-    /// 比较时必须还原成原始键：直接拿 `status` 去比 `KairoOnlyKey.status`（`kairo.status`）
+    /// 比较时必须还原成原始键：直接拿 `status` 去比 `KaidoOnlyKey.status`（`kaido.status`）
     /// 永远不命中，两个专属说明就成了死分支，旁注只能看到兜底文案。
-    private func kairoOnlyDetail(_ name: String) -> String {
-        switch "\(KairoOnlyKey.prefix)\(name)" {
-        case KairoOnlyKey.status:
-            return "Kairo 的五态（pending / in_progress / done / blocked / cancelled）在 MSPDI 没有对应字段："
+    private func kaidoOnlyDetail(_ name: String) -> String {
+        switch "\(KaidoOnlyKey.prefix)\(name)" {
+        case KaidoOnlyKey.status:
+            return "Kaido 的五态（pending / in_progress / done / blocked / cancelled）在 MSPDI 没有对应字段："
                 + "只保留完成度，状态本身丢弃；blocked / cancelled 的语义回导后不可恢复。"
-        case KairoOnlyKey.cancelReason:
-            return "取消原因是 Kairo 独有的审计信息，MSPDI 无字段；按约定不写入 Notes（避免污染对方备注），"
+        case KaidoOnlyKey.cancelReason:
+            return "取消原因是 Kaido 独有的审计信息，MSPDI 无字段；按约定不写入 Notes（避免污染对方备注），"
                 + "只登记到导出旁注。"
         default:
-            return "Kairo 独有字段在 MSPDI 没有落点：已从任务属性中剥离并登记，回导后不会恢复。"
+            return "Kaido 独有字段在 MSPDI 没有落点：已从任务属性中剥离并登记，回导后不会恢复。"
         }
     }
 
@@ -922,13 +922,13 @@ private struct MSPDIEncoder {
     }()
 }
 
-/// Kairo 独有信息在 IR 里的承载约定：InteropTask.attributes 的保留前缀。
+/// Kaido 独有信息在 IR 里的承载约定：InteropTask.attributes 的保留前缀。
 ///
-/// IR 是供应商无关模型，不表达「五态状态 / 取消原因 / 基线颜色」这些 Kairo 概念；导出方向
-/// （KairoBridge）把它们放进带「kairo.」前缀的任务属性里，写出端**剥离**后登记到
+/// IR 是供应商无关模型，不表达「五态状态 / 取消原因 / 基线颜色」这些 Kaido 概念；导出方向
+/// （KaidoBridge）把它们放进带「kaido.」前缀的任务属性里，写出端**剥离**后登记到
 /// FidelityLedger，绝不写进对方的 Notes。
-enum KairoOnlyKey {
-    static let prefix = "kairo."
-    static let status = "kairo.status"
-    static let cancelReason = "kairo.cancelReason"
+enum KaidoOnlyKey {
+    static let prefix = "kaido."
+    static let status = "kaido.status"
+    static let cancelReason = "kaido.cancelReason"
 }

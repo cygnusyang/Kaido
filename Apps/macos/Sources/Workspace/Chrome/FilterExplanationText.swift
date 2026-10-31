@@ -1,6 +1,6 @@
 import Foundation
-import KairoCore
-import KairoPresentation
+import KaidoCore
+import KaidoPresentation
 
 /// 筛选摘要的视图层渲染（F-0705 / F-0718）。
 ///

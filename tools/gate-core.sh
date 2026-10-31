@@ -1,13 +1,13 @@
 #!/bin/bash
 # 编译门禁：核心与呈现层不得依赖任何平台绑定框架（ADR-004 / ADR-013）。
-# 扫描 KairoCore、KairoCommands、KairoPresentation；违规（AppKit/SwiftUI/Cocoa/Combine）时非零退出。
+# 扫描 KaidoCore、KaidoCommands、KaidoPresentation；违规（AppKit/SwiftUI/Cocoa/Combine）时非零退出。
 set -u
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DIRS=(
-    "$ROOT_DIR/Sources/KairoCore"
-    "$ROOT_DIR/Sources/KairoCommands"
-    "$ROOT_DIR/Sources/KairoPresentation"
+    "$ROOT_DIR/Sources/KaidoCore"
+    "$ROOT_DIR/Sources/KaidoCommands"
+    "$ROOT_DIR/Sources/KaidoPresentation"
 )
 
 FAILED=0
@@ -37,5 +37,5 @@ COUNT=0
 for DIR in "${DIRS[@]}"; do
     COUNT=$((COUNT + $(find "$DIR" -name '*.swift' | wc -l | tr -d ' ')))
 done
-echo "gate-core: KairoCore/KairoCommands/KairoPresentation 无 AppKit/SwiftUI/Cocoa/Combine import，通过（$COUNT 个 Swift 文件）"
+echo "gate-core: KaidoCore/KaidoCommands/KaidoPresentation 无 AppKit/SwiftUI/Cocoa/Combine import，通过（$COUNT 个 Swift 文件）"
 exit 0

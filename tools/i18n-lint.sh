@@ -3,14 +3,14 @@
 #
 # 三项检查：
 #   (a) Apps/macos/Sources 出现白名单外中文字符串字面量（注释内的中文不算）
-#   (b) KairoCore / KairoCommands / KairoPresentation 出现 Bundle.module（ADR-004 / ADR-013）
+#   (b) KaidoCore / KaidoCommands / KaidoPresentation 出现 Bundle.module（ADR-004 / ADR-013）
 #   (c) en 与 zh-Hans 两份 .lproj 的键集合与占位符一致
 #
 # 没有「跳过」模式：缺输入就失败。CI 用 --require-catalog，连 Catalog 源文件是否存在
 # 一并要求，避免「Catalog 没交付 → 键检查静默失效」的假绿。
 #
 # 用法: tools/i18n-lint.sh [--lproj-dir <dir>] [--require-catalog] [--catalog <路径>] [--write-whitelist]
-#   --lproj-dir <dir>    检查 (c) 的 .lproj 目录，缺省 dist/Kairo.app/Contents/Resources
+#   --lproj-dir <dir>    检查 (c) 的 .lproj 目录，缺省 dist/Kaido.app/Contents/Resources
 #   --require-catalog    同时要求 Catalog 源文件存在（CI 用），缺失即失败
 #   --catalog <路径>     Catalog 源文件路径，缺省 Apps/macos/Resources/Localizable.xcstrings
 #   --write-whitelist    按当前代码重写 tools/i18n-whitelist.txt 后退出
@@ -23,15 +23,15 @@ set -u
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SOURCE_DIR="$ROOT_DIR/Apps/macos/Sources"
 WHITELIST="$ROOT_DIR/tools/i18n-whitelist.txt"
-LPROJ_DIR="$ROOT_DIR/dist/Kairo.app/Contents/Resources"
+LPROJ_DIR="$ROOT_DIR/dist/Kaido.app/Contents/Resources"
 CATALOG="$ROOT_DIR/Apps/macos/Resources/Localizable.xcstrings"
 REQUIRE_CATALOG=0
 WRITE_WHITELIST=0
 FAIL_ON_NONEMPTY=0
 LAYER_DIRS=(
-    "$ROOT_DIR/Sources/KairoCore"
-    "$ROOT_DIR/Sources/KairoCommands"
-    "$ROOT_DIR/Sources/KairoPresentation"
+    "$ROOT_DIR/Sources/KaidoCore"
+    "$ROOT_DIR/Sources/KaidoCommands"
+    "$ROOT_DIR/Sources/KaidoPresentation"
 )
 
 usage() {
@@ -39,7 +39,7 @@ usage() {
 用法: $(basename "$0") [选项]
 
 选项:
-  --lproj-dir <dir>    检查 (c) 的 .lproj 目录（缺省 dist/Kairo.app/Contents/Resources）
+  --lproj-dir <dir>    检查 (c) 的 .lproj 目录（缺省 dist/Kaido.app/Contents/Resources）
   --require-catalog    要求 Catalog 源文件存在（缺省 Apps/macos/Resources/Localizable.xcstrings）
   --catalog <路径>     Catalog 源文件路径
   --write-whitelist    按当前代码重写 tools/i18n-whitelist.txt 后退出
@@ -455,7 +455,7 @@ else:
 before_layer_check = len(violations)
 check_bundle_module()
 if len(violations) == before_layer_check:
-    print('i18n-lint: (b) KairoCore/KairoCommands/KairoPresentation 无 Bundle.module')
+    print('i18n-lint: (b) KaidoCore/KaidoCommands/KaidoPresentation 无 Bundle.module')
 
 check_catalog()
 

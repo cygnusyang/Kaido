@@ -1,8 +1,8 @@
 import Foundation
 import Testing
 import CryptoKit
-import KairoUpdater
-@testable import KairoMacApp
+import KaidoUpdater
+@testable import KaidoMacApp
 
 /// OTA 配置完整性（公钥/feed/白名单/appId 自洽）。
 @Suite("OTA 配置")
@@ -14,7 +14,7 @@ struct UpdaterConfigurationTests {
     }
 
     @Test func appIdMatchesBundleAndFeed() {
-        #expect(UpdaterConfiguration.appId == "app.kairo.macos")
+        #expect(UpdaterConfiguration.appId == "app.kaido.macos")
         #expect(UpdaterConfiguration.manifestURL.scheme == "https")
         #expect(
             UpdaterConfiguration.manifestURL.absoluteString.hasSuffix(
@@ -25,7 +25,7 @@ struct UpdaterConfigurationTests {
         let policy = UpdateEndpointPolicy(allowedHosts: UpdaterConfiguration.allowedHosts)
         try policy.validate(UpdaterConfiguration.manifestURL)
         // OTA 产物下载 URL（GitHub release asset）也必须在白名单内（同源 host 集）
-        let sample = URL(string: "https://github.com/cygnusyang/Kairo/releases/download/v0.3.0/Kairo-v0.3.0.zip")!
+        let sample = URL(string: "https://github.com/cygnusyang/Kaido/releases/download/v0.3.0/Kaido-v0.3.0.zip")!
         try policy.validate(sample)
     }
 }

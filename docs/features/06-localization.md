@@ -8,7 +8,7 @@
 
 ## 1. 背景与范围
 
-Kairo 的界面文案当前是硬编码中文。仓库的对外形象已英文化（README、架构图、发布说明），但产品本身仍是单语，英文用户装完之后面对中文界面。
+Kaido 的界面文案当前是硬编码中文。仓库的对外形象已英文化（README、架构图、发布说明），但产品本身仍是单语，英文用户装完之后面对中文界面。
 
 **盘点口径**：两个口径同时给出，避免混用。
 
@@ -22,12 +22,12 @@ grep -rho '"[^"]*[一-龥][^"]*"' <目录> --include=*.swift | sort -u | wc -l  
 | 位置 | 行 | 去重 | 说明 |
 |---|---|---|---|
 | `Apps/macos/Sources` | 461 | 344 | 25 个文件含中文字符，其中 **17 个**含中文字符串字面量，另 8 个仅注释含中文 |
-| `Sources/KairoCLI` | 111 | 99 | 用法说明、回执 |
-| `Sources/KairoMCP` | 42 | 37 | 工具描述、JSON-RPC 错误 |
-| `Sources/KairoCommands` | 30 | 18 | `KairoSession` 的会话错误与提示 |
-| `Sources/KairoPresentation` | 19 | 17 | 快照派生文案（违例原因、缩放标签、每天点数） |
-| `Sources/KairoCore` | 88 | 82 | `ViolationEngine` 20（规则名 + 消息模板）、`SeedData` 31（示例项目模板）、其余为日期与校验错误 |
-| `Sources/KairoUpdater` | 49 | 49 | 全部是面向用户的 `errorDescription`，会原样出现在更新面板 |
+| `Sources/KaidoCLI` | 111 | 99 | 用法说明、回执 |
+| `Sources/KaidoMCP` | 42 | 37 | 工具描述、JSON-RPC 错误 |
+| `Sources/KaidoCommands` | 30 | 18 | `KaidoSession` 的会话错误与提示 |
+| `Sources/KaidoPresentation` | 19 | 17 | 快照派生文案（违例原因、缩放标签、每天点数） |
+| `Sources/KaidoCore` | 88 | 82 | `ViolationEngine` 20（规则名 + 消息模板）、`SeedData` 31（示例项目模板）、其余为日期与校验错误 |
+| `Sources/KaidoUpdater` | 49 | 49 | 全部是面向用户的 `errorDescription`，会原样出现在更新面板 |
 | `Tests` | 1028 | 625 | 其中 `#expect` 含中文的断言 327 条（App 187 / Presentation 81 / Core 38 / Interface 18 / Updater 3） |
 
 本方案的源语言为**英文**：String Catalog 的 `sourceLanguage` 为 `en`，键用语义命名，中文作为 `zh-Hans` 译文。代码评审看到英文键，不出现中文键名。
@@ -38,7 +38,7 @@ grep -rho '"[^"]*[一-龥][^"]*"' <目录> --include=*.swift | sort -u | wc -l  
 
 1. 系统语言为英文时，应用主窗口、检查器、命令面板、菜单、状态栏、更新面板无中文残留。
 2. 系统语言为简体中文时，文案语义与 v0.8.5 一致；差异逐条落在变更说明中。
-3. CLI 支持 `--lang` 与 `KAIRO_LANG`，`--json` 输出与语言设置无关。
+3. CLI 支持 `--lang` 与 `KAIDO_LANG`，`--json` 输出与语言设置无关。
 4. MCP 分两步收敛：阶段一（v0.9.0）错误携带稳定 `code` 且 `message` 保持中文；阶段二（v0.10.0）工具描述与错误消息切英文，`code` 不变。
 5. 全量测试在中文与英文两种 Locale 下均通过；CI 阻止新增未登记的硬编码中文。
 
@@ -46,7 +46,7 @@ grep -rho '"[^"]*[一-龥][^"]*"' <目录> --include=*.swift | sort -u | wc -l  
 
 - 除中英之外的语言（架构留位，不做交付）。
 - 运行中即时切换语言（列为可选，见 §5）。
-- 用户数据不翻译：`.kairo` 内的任务标题、备注、标签一旦写入即视为用户数据。
+- 用户数据不翻译：`.kaido` 内的任务标题、备注、标签一旦写入即视为用户数据。
 - 报告输出（Markdown 叙述）的语言由调用方决定，本期不约束。
 
 **示例项目模板（`SeedData`）的决策**：模板属于产品生成内容，不属于用户数据。交付口径为「**按创建时的界面语言生成**」：界面为英文时载入英文示例任务，界面为中文时载入中文示例任务；写入之后即按用户数据处理，不再随语言变化重写。这样既避免英文用户首次新建就看到中文任务名，也不引入「同一文件两种语言」的歧义。
@@ -55,25 +55,25 @@ grep -rho '"[^"]*[一-龥][^"]*"' <目录> --include=*.swift | sort -u | wc -l  
 
 | 层 | 持有文案 | 现状 | 规则 |
 |---|---|---|---|
-| `KairoCore` | 否 | `ViolationEngine` 产出 12 条中文消息模板；日期按中文拼接 | 改为「规则码 + 参数」；日期格式化接受注入的 `Locale` |
-| `KairoCommands` | 否 | 会话错误是中文整句 | 改为「错误码 + 参数」，不拼接自然语言 |
-| `KairoPresentation` | 否 | 快照已携带中文：缩放标签、每天点数、违例原因 | 快照只带语义枚举与参数，例如 `reason.overdue(days: 3)` |
-| `KairoUpdater` | 否（禁入 Catalog） | 49 行 `errorDescription` 全为中文 | 改为错误码，由更新面板视图翻译；不进 Catalog，避免与视图层文案双源 |
+| `KaidoCore` | 否 | `ViolationEngine` 产出 12 条中文消息模板；日期按中文拼接 | 改为「规则码 + 参数」；日期格式化接受注入的 `Locale` |
+| `KaidoCommands` | 否 | 会话错误是中文整句 | 改为「错误码 + 参数」，不拼接自然语言 |
+| `KaidoPresentation` | 否 | 快照已携带中文：缩放标签、每天点数、违例原因 | 快照只带语义枚举与参数，例如 `reason.overdue(days: 3)` |
+| `KaidoUpdater` | 否（禁入 Catalog） | 49 行 `errorDescription` 全为中文 | 改为错误码，由更新面板视图翻译；不进 Catalog，避免与视图层文案双源 |
 | 视图层（`Apps/macos`） | 是 | 344 行硬编码中文 | 唯一翻译点；装饰性文案可就地翻译 |
 | CLI / MCP | 是（受 §6 约束） | 各自为中文 | 各自渲染，不与视图层共享文案表 |
 
-**硬约束**：`KairoCore`、`KairoCommands`、`KairoPresentation` 必须不引入本地化资源（不得出现 `Bundle.module`），且必须在 Linux 编译。此约束由 CI 强制（F-0711）。
+**硬约束**：`KaidoCore`、`KaidoCommands`、`KaidoPresentation` 必须不引入本地化资源（不得出现 `Bundle.module`），且必须在 Linux 编译。此约束由 CI 强制（F-0711）。
 
 **错误码规模（以代码为准）**：方案早期版本按设计稿估算过码数，与落地后的实际集合不一致。权威值只能用命令复算，不要引用文档里的估算数字：
 
 ```bash
-grep -oE '=\s*"[a-z0-9_]+"' Sources/KairoCore/Diagnostics/KairoErrorCode.swift | sort -u | wc -l    # 47
-grep -oE '=\s*"[a-z0-9_]+"' Sources/KairoUpdater/UpdaterErrorCode.swift | sort -u | wc -l          # 34
+grep -oE '=\s*"[a-z0-9_]+"' Sources/KaidoCore/Diagnostics/KaidoErrorCode.swift | sort -u | wc -l    # 47
+grep -oE '=\s*"[a-z0-9_]+"' Sources/KaidoUpdater/UpdaterErrorCode.swift | sort -u | wc -l          # 34
 ```
 
 | 集合 | 实测 | 说明 |
 |---|---|---|
-| `KairoErrorCode` | **47** | 含 `schedule_start_after_project_window`（F-0715）；v0.9.0 起冻结，只增不改 |
+| `KaidoErrorCode` | **47** | 含 `schedule_start_after_project_window`（F-0715）；v0.9.0 起冻结，只增不改 |
 | `UpdaterErrorCode` | **34** | `updater_` 前缀；等价于 v0.8.5 的 49 行 `errorDescription` 去重后逐条落码，含 F-0719 的三个安装失败码 |
 | MCP 响应的 `code` | **6** | `project_not_open` / `task_not_found` / `invalid_argument` / `file_unreadable` / `unsupported_format` / `internal_error`，取值不变；细粒度信息在 `reason` |
 > 两套码不要混算：`UpdaterErrorCode`（34 个，`updater_*` 前缀）是错误码；`InstallResult.FailureReason`（4 个，无前缀）是替换脚本写进 result JSON 的稳定标记，由 `UpdaterManager` 映射到上述错误码（`app_not_quitting` → `install_app_still_running`、`backup_failed` → `install_backup_failed`、`replace_failed` → `install_replace_failed`）。`relaunch_failed` 由替换脚本以 `success=true`（退出码 1）写出，消费端走成功分支、不读该取值，界面呈现「已是最新」；仅当结果文件被写成 `success=false` 且取值为 `relaunch_failed` 时（本仓脚本不会这样写），才与旧版中文取值、无法识别的取值一样回落 `updater_install_failed`。历史提交正文里出现过 32 / 35，均按本表的 34 为准。
@@ -124,7 +124,7 @@ palette.result.count = "%1$ld task"
 | 检查 | 拦截对象 | 退出码 |
 |---|---|---|
 | (a) 硬编码中文 | `Apps/macos/Sources` 出现白名单（`tools/i18n-whitelist.txt`）外的中文字符串字面量（注释内中文不计） | 1 |
-| (b) 分层资源 | `KairoCore` / `KairoCommands` / `KairoPresentation` 出现 `Bundle.module` | 1 |
+| (b) 分层资源 | `KaidoCore` / `KaidoCommands` / `KaidoPresentation` 出现 `Bundle.module` | 1 |
 | (c) 键完整性 | `en` 与 `zh-Hans` 两份 `.lproj` 的键集合不同，或同一键的占位符位置/类型不同 | 1 |
 | (d) 发布闸门 | 白名单仍有条目（仅 `--fail-if-whitelist-nonempty`，由 `tools/release.sh` 调用，不接 CI 常跑） | 1 |
 
@@ -140,7 +140,7 @@ palette.result.count = "%1$ld task"
 
 | 面 | 策略 | 判据 |
 |---|---|---|
-| CLI 人类输出 | 默认跟随系统语言；`--lang <bcp47>` 与 `KAIRO_LANG` 可钉死；优先级：命令行 > 环境变量 > 系统。**系统语言不可判定时回退 `zh-Hans`**——阶段一不得破坏既有中文脚本，英文用户显式传 `--lang en` 或设 `KAIRO_LANG=en`；`--lang` 值非法按用法错误退出 2 | 中英两种语言下回执与用法说明正确，退出码语义不变（0 成功 / 1 运行时 / 2 用法） |
+| CLI 人类输出 | 默认跟随系统语言；`--lang <bcp47>` 与 `KAIDO_LANG` 可钉死；优先级：命令行 > 环境变量 > 系统。**系统语言不可判定时回退 `zh-Hans`**——阶段一不得破坏既有中文脚本，英文用户显式传 `--lang en` 或设 `KAIDO_LANG=en`；`--lang` 值非法按用法错误退出 2 | 中英两种语言下回执与用法说明正确，退出码语义不变（0 成功 / 1 运行时 / 2 用法） |
 | CLI `--json` | 键与值均与语言无关 | 任意语言设置下输出字节一致 |
 | MCP 错误 | **两阶段**：阶段一补稳定 `code`、`message` 保持中文原样；阶段二把 `message` 切英文 | 阶段一：错误响应同时含 `code` 与原中文 `message`，既有文本匹配不被破坏；阶段二：`message` 为英文且 `code` 不变 |
 | MCP 工具描述 | 阶段二一次性切英文（当前 16 条全中文） | 任意宿主语言下描述字节一致 |
@@ -175,7 +175,7 @@ palette.result.count = "%1$ld task"
 Apps/macos/Resources/Localizable.xcstrings        # 唯一源文件
   → tools/i18n-compile.sh <输出目录>              # xcrun xcstringstool compile
   → <输出目录>/{en,zh-Hans}.lproj/{Localizable.strings, Localizable.stringsdict}
-  → tools/build.sh：codesign 之前拷进 Kairo.app/Contents/Resources/
+  → tools/build.sh：codesign 之前拷进 Kaido.app/Contents/Resources/
   → 运行期 Bundle.main 取词（§4），未命中时回退调用点写的英文
 ```
 
@@ -193,23 +193,23 @@ Apps/macos/Resources/Localizable.xcstrings        # 唯一源文件
 ```bash
 bash tools/i18n-compile.sh /tmp/lproj                 # 产出 en / zh-Hans 两个 .lproj
 bash tools/build.sh                                   # 打包（内部会重新编译并拷入 .app）
-plutil -p dist/Kairo.app/Contents/Info.plist | grep -A3 CFBundleLocalizations
-ls dist/Kairo.app/Contents/Resources | grep lproj     # 应有 en.lproj 与 zh-Hans.lproj
+plutil -p dist/Kaido.app/Contents/Info.plist | grep -A3 CFBundleLocalizations
+ls dist/Kaido.app/Contents/Resources | grep lproj     # 应有 en.lproj 与 zh-Hans.lproj
 bash tools/i18n-lint.sh                               # (a)(b)(c) 全过
 ```
 
 语言协商（两条各启动一次，界面文案随之切换；系统「语言与地区」不改也能判定）：
 
 ```bash
-dist/Kairo.app/Contents/MacOS/Kairo -AppleLanguages '(en)'
-dist/Kairo.app/Contents/MacOS/Kairo -AppleLanguages '(zh-Hans)'
+dist/Kaido.app/Contents/MacOS/Kaido -AppleLanguages '(en)'
+dist/Kaido.app/Contents/MacOS/Kaido -AppleLanguages '(zh-Hans)'
 ```
 
 ### 7.4 副作用与不做的事
 
 - `swift run` / `swift test` 下没有 `.lproj`（E1/E2），所以文案一律走 §4 的英文兜底取词函数，否则裸跑会显示裸键；
 - 不把编译后的 `.lproj` 提交进仓库：同一文案两个源，必然漂移；
-- CLI 不用 Catalog：`dist/KairoCLI` 是裸可执行文件、无 `Info.plist`，没有 `.lproj` 宿主（与 E2 同类结论），语言由 `--lang` / `KAIRO_LANG` / 系统语言决定（§6）。
+- CLI 不用 Catalog：`dist/KaidoCLI` 是裸可执行文件、无 `Info.plist`，没有 `.lproj` 宿主（与 E2 同类结论），语言由 `--lang` / `KAIDO_LANG` / 系统语言决定（§6）。
 
 ## 8. 测试策略
 
@@ -244,7 +244,7 @@ F-0700 资源实验 → F-0701 键规范 → F-0713 断言分类（与后续并�
 
 | 版本 | 内容 | 闸门 |
 |---|---|---|
-| v0.9.0（阶段一） | 视图层与 CLI 双语、更新面板、`KairoUpdater` 错误码化、MCP 错误补 `code`（`message` 保持中文）、示例模板按语言生成 | 视图层中文清零、测试双 Locale 通过、MCP 错误同时含 `code` 与中文 `message`、更新面板无中文 |
+| v0.9.0（阶段一） | 视图层与 CLI 双语、更新面板、`KaidoUpdater` 错误码化、MCP 错误补 `code`（`message` 保持中文）、示例模板按语言生成 | 视图层中文清零、测试双 Locale 通过、MCP 错误同时含 `code` 与中文 `message`、更新面板无中文 |
 | v0.10.0（阶段二） | MCP 工具描述与错误 `message` 切英文 | 阶段一已发布且经过一个版本窗口；`code` 无变化；CHANGELOG 显著标注文案变更 |
 
 ## 10. 任务拆分
@@ -257,11 +257,11 @@ F-0700 资源实验 → F-0701 键规范 → F-0713 断言分类（与后续并�
 | F-0701 | 字符串清单与键命名规范 | F-0700 | 清单按 §1 五类位置分册；键规范抽样 20 条评审无歧义；产出 v0.8.5 的键-文案对照表（作为 §11 判据 2 的基线）。规约已落 §4：域清单（14 个）、`<域>.<对象>.<语义>`、位置参数占位符、唯一取词入口 `I18n.t(key, en)` 及其英文兜底理由；机器校验见 §4 的三道门禁 | M |
 | F-0702 | 核心层日期与数字格式化收敛 | F-0701 | 注入 `en_US` 时无「年月日」；`zh_CN` 下语义等价；Linux 编译通过 | M |
 | F-0712 | 视图层日期与单位格式化收敛 | F-0701（与 F-0702 可并行） | 改造清单：`Display` 的 `dateFormatter` 与 `shortDateFormatter` 改为按注入 `Locale` 走 `setLocalizedDateFormatFromTemplate`；`monthTitle` / `weekdaySymbols` / `dayLabel` / `duration` 四个拼接函数改用本地化 API；`TimelineView` 预览日期、`CommandRegistry` 两处时间戳、`WorkspaceStore` 的 `clockFormatter` 各自判定「展示格式（本地化）」还是「契约格式（保持）」。排除项：`isoDateFormatter`（`en_US_POSIX` + `yyyy-MM-dd`）保持不动并新增用例锁死输出 | M |
-| F-0703 | 核心、会话与更新模块错误语义化 | F-0701 | `ViolationEngine` 的 12 条消息模板、`KairoSession` 的 30 行、`KairoUpdater` 的 49 行 errorDescription 全部改为「码 + 参数」；无自然语言拼接；Linux 编译通过 | M |
+| F-0703 | 核心、会话与更新模块错误语义化 | F-0701 | `ViolationEngine` 的 12 条消息模板、`KaidoSession` 的 30 行、`KaidoUpdater` 的 49 行 errorDescription 全部改为「码 + 参数」；无自然语言拼接；Linux 编译通过 | M |
 | F-0704 | 呈现层快照语义化 | F-0703 | 快照类型不含自然语言字段（缩放标签、每天点数、违例原因）；三端渲染一致 | M |
 | F-0705 | 视图层接入 String Catalog | F-0700、F-0704 | 英文环境主窗口/检查器/面板/菜单/状态栏/更新面板/两个确认弹窗无中文残留；键无遗漏；英文界面下「载入示例项目」生成的示例任务无中文 | L |
 | F-0706 | 语言切换与持久化 | F-0705、F-0709 | 三档可持久化、重启生效；非法值回退跟随系统 | M |
-| F-0707 | CLI 语言策略 | F-0703 | `--lang`/`KAIRO_LANG` 生效；`--json` 字节一致；退出码不变 | M |
+| F-0707 | CLI 语言策略 | F-0703 | `--lang`/`KAIDO_LANG` 生效；`--json` 字节一致；退出码不变 | M |
 | F-0708 | MCP 错误补稳定 `code`（阶段一） | F-0703 | 22 处中文错误全部带 `code`；`message` 与原中文逐字一致；协议结构不变；任意宿主语言下输出字节一致 | M |
 | F-0714 | MCP 工具描述与错误切英文（阶段二） | F-0708 | 16 条工具描述与 22 处错误 `message` 为英文；`code` 集合与阶段一完全一致（逐条比对）；CHANGELOG 标注破坏点 | M |
 | F-0709 | 打包与 Info.plist | F-0700 | 清单含两种本地化；资源进 `Contents/Resources` 且被签名覆盖；OTA 升级后仍命中 | M |

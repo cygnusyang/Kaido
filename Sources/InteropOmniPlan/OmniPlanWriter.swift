@@ -1,9 +1,9 @@
 import Foundation
-import KairoInterop
+import KaidoInterop
 
 /// 写出结果：\`.oplx\` 字节 + 导出侧有损登记。
 ///
-/// \`FormatAdapter.write\` 只能返回 Data，但「哪些 Kairo 独有信息带不走」必须能渲染成
+/// \`FormatAdapter.write\` 只能返回 Data，但「哪些 Kaido 独有信息带不走」必须能渲染成
 /// 导出旁注（13-mapping §5），所以写出端另外暴露这份登记，与 \`MSPDIExport\` 同形。
 public struct OmniPlanExport: Sendable, Equatable {
     /// 写出的 \`.oplx\` 容器（zip，含 \`__TOC.xml\` 与 \`Actual.xml\`）。
@@ -26,18 +26,18 @@ public struct OmniPlanExport: Sendable, Equatable {
 /// 不写 \`__changelog.xml\` / \`Preview.png\` / 原型任务 / 过滤器——那是样式与编辑流水，业务语义不需要。
 ///
 /// 两条格式硬约束在这里被**显式**满足，代价写进 \`FidelityLedger\`：
-/// - \`top-task\` 只能有一个：Kairo 的多个顶层任务（或空计划）会被包进一个空标题根群组，
+/// - \`top-task\` 只能有一个：Kaido 的多个顶层任务（或空计划）会被包进一个空标题根群组，
 ///   回导时多出一个群组（登记 \`task.root\`）；
 /// - 项目日历挂在项目资源（\`top-resource\`）的 \`schedule\` 上：文档没有资源时补一条
 ///   「项目」资源承载日历（登记 \`resource.project\`）。
 public struct OmniPlanWriter {
     /// 场景 id：任意 token 即可（§7 实测），固定值保证产物可复现。
-    public static let scenarioID = "kairo-actual"
+    public static let scenarioID = "kaido-actual"
 
     /// 没有日历时的人日折算基准。
     ///
     /// 11 §4：\`duration-format\` 的 \`hours-per-day\` 样本间 8 与 16 混存，用户样本是 16。
-    /// 写出时必须落一个具体值（否则 OmniPlan 按自己的模板回填 8），而 Kairo 侧的工期按
+    /// 写出时必须落一个具体值（否则 OmniPlan 按自己的模板回填 8），而 Kaido 侧的工期按
     /// 项目日历折算；写 8 会让同一份工时读回后整体差一倍。
     public static let defaultHoursPerDay: Double = 16
 
@@ -635,9 +635,9 @@ public struct OmniPlanWriter {
         }
         if task.calendarID != nil { drops.taskCalendar += 1 }
         for key in task.attributes.keys {
-            if key.hasPrefix(OmniPlanWriter.kairoOnlyPrefix) {
-                drops.kairoOnly += 1
-                drops.kairoOnlySamples.append(key)
+            if key.hasPrefix(OmniPlanWriter.kaidoOnlyPrefix) {
+                drops.kaidoOnly += 1
+                drops.kaidoOnlySamples.append(key)
             } else {
                 drops.attribute += 1
                 drops.attributeSamples.append(key)
@@ -648,8 +648,8 @@ public struct OmniPlanWriter {
         return lines
     }
 
-    /// Kairo 独有信息在 IR 里的前缀（与 MSPDI 写出端同一约定）。
-    static let kairoOnlyPrefix = "kairo."
+    /// Kaido 独有信息在 IR 里的前缀（与 MSPDI 写出端同一约定）。
+    static let kaidoOnlyPrefix = "kaido."
 
     private static func constraintLines(_ constraint: InteropConstraint?, level: Int) -> [String] {
         switch constraint {
@@ -682,8 +682,8 @@ public struct OmniPlanWriter {
         var actual = 0
         var actualSamples: [String] = []
         var planned = 0
-        var kairoOnly = 0
-        var kairoOnlySamples: [String] = []
+        var kaidoOnly = 0
+        var kaidoOnlySamples: [String] = []
         var attribute = 0
         var attributeSamples: [String] = []
         var taskCalendar = 0
@@ -728,12 +728,12 @@ public struct OmniPlanWriter {
                 detail: "OmniPlan 按 effort + 相关性重新排期，不接受外部计划日期：计划起止丢弃（约束日期照写）。"
             )
             ledger.record(
-                field: "task.kairoOnly",
+                field: "task.kaidoOnly",
                 kind: .dropped,
-                count: kairoOnly,
-                detail: "Kairo 独有状态（blocked / cancelled 与取消原因）不写进对方字段，避免污染对方的备注与自定义域："
+                count: kaidoOnly,
+                detail: "Kaido 独有状态（blocked / cancelled 与取消原因）不写进对方字段，避免污染对方的备注与自定义域："
                     + "它们只出现在导出旁注里。",
-                samples: kairoOnlySamples
+                samples: kaidoOnlySamples
             )
             ledger.record(
                 field: "task.attribute",

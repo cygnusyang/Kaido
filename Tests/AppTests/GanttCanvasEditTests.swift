@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoCommands
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoCommands
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // F-14-09 Store 路由测试：canvasEditSchedule 三语义（move/resize 右端/resize 左端）、
 // 撤销合并（长拖拽多笔节流提交并成一步）、依赖建/删复用与环拒绝。
@@ -12,7 +12,7 @@ import KairoPresentation
 @Suite("F-14-09 画布直接编辑")
 struct GanttCanvasEditTests {
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.f1409.\(UUID().uuidString)"
+        let suite = "kaido.f1409.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, seedsDemoData: true)

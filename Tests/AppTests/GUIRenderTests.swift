@@ -1,9 +1,9 @@
 import Foundation
 import SwiftUI
 import Testing
-import KairoCore
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// GUI 离屏渲染测试：`ImageRenderer` 无窗口渲染视图，按像素差异判断画面变化。
 /// 视觉美观与真人操作手感仍需人工验收；本套件保证视图确实绘制内容，
@@ -24,7 +24,7 @@ struct GUIRenderTests {
     private let defaultHeight: CGFloat = 700
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.apptests.\(UUID().uuidString)"
+        let suite = "kaido.apptests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         // 渲染用例基于示例数据画面（任务行/甘特差异）；默认空启动由 WorkspaceStoreTests 覆盖。
@@ -34,7 +34,7 @@ struct GUIRenderTests {
     private func makeWorkspace(_ store: WorkspaceStore) -> WorkspaceView {
         WorkspaceView(
             store: store,
-            commands: KairoCommandCatalog.make(
+            commands: KaidoCommandCatalog.make(
                 store: store,
                 requestOpen: {},
                 requestSave: {},
@@ -135,7 +135,7 @@ struct GUIRenderTests {
 
     @Test func commandPaletteRowsDependOnCommandList() throws {
         let store = makeStore()
-        let commands = KairoCommandCatalog.make(
+        let commands = KaidoCommandCatalog.make(
             store: store,
             requestOpen: {},
             requestSave: {},

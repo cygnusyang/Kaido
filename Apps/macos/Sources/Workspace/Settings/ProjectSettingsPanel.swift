@@ -1,6 +1,6 @@
 import SwiftUI
-import KairoCore
-import KairoPresentation
+import KaidoCore
+import KaidoPresentation
 
 /// 项目设置面板（F-22-06 / docs/features/16-work-calendar.md）。
 ///

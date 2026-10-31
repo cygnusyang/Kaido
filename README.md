@@ -1,47 +1,47 @@
-# Kairo
+# Kaido
 
 **English** · [简体中文](README.zh-CN.md)
 
 > **Pronunciation** · /ˈkaɪ.roʊ/ (US) · /ˈkaɪ.rəʊ/ (UK) — “KY-roh”, the same as the city *Cairo*. Not “keh-ROH” and not “KAY-ee-roh”.
 
-[![Release](https://img.shields.io/github/v/release/cygnusyang/Kairo?color=blue)](https://github.com/cygnusyang/Kairo/releases/latest)
+[![Release](https://img.shields.io/github/v/release/cygnusyang/Kaido?color=blue)](https://github.com/cygnusyang/Kaido/releases/latest)
 [![License](https://img.shields.io/badge/license-PolyForm--Noncommercial--1.0.0-blue.svg)](LICENSE)
-[![CI](https://github.com/cygnusyang/Kairo/actions/workflows/ci.yml/badge.svg)](https://github.com/cygnusyang/Kairo/actions/workflows/ci.yml)
-[![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)](https://github.com/cygnusyang/Kairo/releases/latest)
+[![CI](https://github.com/cygnusyang/Kaido/actions/workflows/ci.yml/badge.svg)](https://github.com/cygnusyang/Kaido/actions/workflows/ci.yml)
+[![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)](https://github.com/cygnusyang/Kaido/releases/latest)
 [![Swift](https://img.shields.io/badge/swift-5.9%2B-orange)](Package.swift)
 
-Project management for AI coding agents. Claude Code and Codex do the work; Kairo keeps the ledger — WBS breakdown, dependencies, scheduling and progress tracking. So "what has the AI finished, what is left, when will it land" has an answer you can check.
+Project management for AI coding agents. Claude Code and Codex do the work; Kaido keeps the ledger — WBS breakdown, dependencies, scheduling and progress tracking. So "what has the AI finished, what is left, when will it land" has an answer you can check.
 
-![Schematic of the Kairo plan workbench: outline on the left, timeline bars aligned row by row, task inspector on the right](docs/images/workbench-overview.svg)
+![Schematic of the Kaido plan workbench: outline on the left, timeline bars aligned row by row, task inspector on the right](docs/images/workbench-overview.svg)
 
-**[Download the macOS app](https://github.com/cygnusyang/Kairo/releases/latest)** · **[5-minute quickstart](QUICKSTART.md)** · **[Architecture](ARCHITECTURE.md)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)**
+**[Download the macOS app](https://github.com/cygnusyang/Kaido/releases/latest)** · **[5-minute quickstart](QUICKSTART.md)** · **[Architecture](ARCHITECTURE.md)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)**
 
 ```bash
-brew install --cask cygnusyang/kairo/kairo
+brew install --cask cygnusyang/kaido/kaido
 ```
 
 
-**Status: in development.** Sprint 0–3 and the ADR-013 plan-workbench redesign are complete (core model, `.kairo` persistence, scheduling engine with violation checks, status write-back, outline + timeline workbench, Claude Code plugin and deep links); 669 tests passing. Updated 2026-10-18.
+**Status: in development.** Sprint 0–3 and the ADR-013 plan-workbench redesign are complete (core model, `.kaido` persistence, scheduling engine with violation checks, status write-back, outline + timeline workbench, Claude Code plugin and deep links); 669 tests passing. Updated 2026-10-18.
 
 ## The problem
 
-AI coding agents are good at executing a single task, but they have nothing to schedule against: the WBS, the dependencies, the dates and the status of a complex project currently live in conversation context and ad-hoc Markdown. Kairo pulls that out into its own tool and closes the loop between AI and human:
+AI coding agents are good at executing a single task, but they have nothing to schedule against: the WBS, the dependencies, the dates and the status of a complex project currently live in conversation context and ad-hoc Markdown. Kaido pulls that out into its own tool and closes the loop between AI and human:
 
-![Kairo division of labour](docs/kairo-loop.svg)
+![Kaido division of labour](docs/kaido-loop.svg)
 
 - The AI reads and writes tasks and schedules through **MCP** or the **CLI** (programmatic access is a first-class citizen);
 - The human reviews the Gantt chart, violations and overall progress in the **macOS app**, and intervenes.
 
 ## Four entry points
 
-Same capability, four equal doors. All of them read and write the same `.kairo` file (a single JSON document).
+Same capability, four equal doors. All of them read and write the same `.kaido` file (a single JSON document).
 
 | Entry point | For | Form |
 |---|---|---|
 | macOS app | Humans | SwiftUI plan workbench: outline and timeline aligned row by row, inspector (task / project / violations), ⌘K command palette |
 | MCP server | AI agents | stdio JSON-RPC, 16 tools |
 | CLI | AI agents / scripts / terminal | Command line with parity to the MCP surface |
-| Claude Code plugin | Claude Code | Slash commands `/kairo plan` / `done` / `status`, plus a `TaskCompleted` write-back hook |
+| Claude Code plugin | Claude Code | Slash commands `/kaido plan` / `done` / `status`, plus a `TaskCompleted` write-back hook |
 
 > Codex and CodeBuddy do not need a plugin: use MCP plus a short convention written into `AGENTS.md` / `CODEBUDDY.md`. How to wire up all three hosts, how to break down a WBS, and every command ready to copy — see **[Plugins/README.md](Plugins/README.md)**.
 
@@ -49,20 +49,20 @@ Same capability, four equal doors. All of them read and write the same `.kairo` 
 
 The macOS app ships in English and Simplified Chinese and follows the system language. It is resolved at launch from the bundle's `CFBundleLocalizations` (`en`, `zh-Hans`) — switch the language in System Settings › General › Language & Region, then relaunch. Chinese text showing up on an English system is a bug: please report it with the screen name.
 
-The CLI does not read the app bundle. It picks its language from `--lang <bcp47>`, then `KAIRO_LANG`, then the system locale; when the system language cannot be determined it falls back to Simplified Chinese, so existing Chinese scripts keep working. `--json` output is language-independent — identical bytes either way.
+The CLI does not read the app bundle. It picks its language from `--lang <bcp47>`, then `KAIDO_LANG`, then the system locale; when the system language cannot be determined it falls back to Simplified Chinese, so existing Chinese scripts keep working. `--json` output is language-independent — identical bytes either way.
 
 How it is built — String Catalog compiled to `.lproj` at packaging time, key grammar, CI gates — see [docs/features/06-localization.md](docs/features/06-localization.md). 中文版说明见 [README.zh-CN.md](README.zh-CN.md)。
 
 ## Running a project with an AI: how the WBS flows
 
-The division of labour is fixed: **the human sets the boundaries, the AI breaks down and executes, Kairo keeps the books.**
+The division of labour is fixed: **the human sets the boundaries, the AI breaks down and executes, Kaido keeps the books.**
 
 ```
 Human: set start/end dates and acceptance criteria
  ↓
 AI: task_list for the current state → break down the WBS (milestone → group → leaf) → wbs_import
  ↓
-Kairo: schedule_compute → violations_list reports violations → schedule_critical_path for the critical path
+Kaido: schedule_compute → violations_list reports violations → schedule_critical_path for the critical path
  ↓
 Human: review the Gantt and violations in the macOS app, approve or adjust dates/dependencies
  ↓
@@ -81,10 +81,10 @@ Every leaf needs `effortHours` (8 hours per person-day); groups and milestones c
 Minimal runnable example (copy and paste, swap the path for your own):
 
 ```bash
-export KAIRO="$HOME/path/to/Kairo"
-BIN="$KAIRO/.build/release/KairoCLI"
+export KAIDO="$HOME/path/to/Kaido"
+BIN="$KAIDO/.build/release/KaidoCLI"
 
-"$BIN" project create "Example project" --start 2026-11-02 --end 2026-11-20 --file demo.kairo
+"$BIN" project create "Example project" --start 2026-11-02 --end 2026-11-20 --file demo.kaido
 cat > wbs.json <<'EOF'
 [
   {"title": "Payments", "kind": "group", "children": [
@@ -95,19 +95,19 @@ cat > wbs.json <<'EOF'
   ]}
 ]
 EOF
-"$BIN" wbs import wbs.json --file demo.kairo
-"$BIN" task list --file demo.kairo                 # list tasks (add --json for scripts)
+"$BIN" wbs import wbs.json --file demo.kaido
+"$BIN" task list --file demo.kaido                 # list tasks (add --json for scripts)
 
 # Resolve the 4-character ID prefix by title instead of copying IDs by hand
-id() { "$BIN" task list --file demo.kairo --json | python3 -c "import json,sys;print([t['id'][:4] for t in json.load(sys.stdin) if t['title']=='$1'][0])"; }
+id() { "$BIN" task list --file demo.kaido --json | python3 -c "import json,sys;print([t['id'][:4] for t in json.load(sys.stdin) if t['title']=='$1'][0])"; }
 
-"$BIN" task update "$(id 'Server implementation')" --dep "$(id 'API design'):fs" --file demo.kairo
-"$BIN" task update "$(id 'Client integration')" --dep "$(id 'Server implementation'):fs" --file demo.kairo
-"$BIN" task update "$(id 'Joint acceptance')" --dep "$(id 'Client integration'):fs" --file demo.kairo
-"$BIN" schedule compute --file demo.kairo          # schedule
-"$BIN" schedule path --file demo.kairo             # critical path and slack
-"$BIN" violations --file demo.kairo                # cycles / out of range / deadline conflicts
-"$BIN" status update "$(id 'API design')" --status done --file demo.kairo  # write back each finished task
+"$BIN" task update "$(id 'Server implementation')" --dep "$(id 'API design'):fs" --file demo.kaido
+"$BIN" task update "$(id 'Client integration')" --dep "$(id 'Server implementation'):fs" --file demo.kaido
+"$BIN" task update "$(id 'Joint acceptance')" --dep "$(id 'Client integration'):fs" --file demo.kaido
+"$BIN" schedule compute --file demo.kaido          # schedule
+"$BIN" schedule path --file demo.kaido             # critical path and slack
+"$BIN" violations --file demo.kaido                # cycles / out of range / deadline conflicts
+"$BIN" status update "$(id 'API design')" --status done --file demo.kaido  # write back each finished task
 ```
 
 ## Quick start
@@ -123,19 +123,19 @@ id() { "$BIN" task list --file demo.kairo --json | python3 -c "import json,sys;p
 swift build                 # debug build
 swift build -c release      # release build
 swift test                  # full test suite
-bash tools/gate-core.sh     # core gate: KairoCore/KairoCommands/KairoPresentation must not import AppKit/SwiftUI/Cocoa/Combine
-bash tools/gate-ui.sh       # view gate: views must not reference Project/TaskItem/KairoSession directly
-bash tools/build.sh         # release build, packages dist/Kairo.app (also KairoCLI / KairoMCP)
-bash tools/install.sh       # install Kairo.app into /Applications (builds first when artifacts are missing)
+bash tools/gate-core.sh     # core gate: KaidoCore/KaidoCommands/KaidoPresentation must not import AppKit/SwiftUI/Cocoa/Combine
+bash tools/gate-ui.sh       # view gate: views must not reference Project/TaskItem/KaidoSession directly
+bash tools/build.sh         # release build, packages dist/Kaido.app (also KaidoCLI / KaidoMCP)
+bash tools/install.sh       # install Kaido.app into /Applications (builds first when artifacts are missing)
 ```
 
 ### 1. macOS app
 
 ```bash
-swift run KairoMacApp
+swift run KaidoMacApp
 ```
 
-It starts with an empty project (no sample data). To see it populated, choose **文件 → 载入示例项目** (File → Load Sample Project); ⌘O opens an existing `.kairo` file, ⌘S saves. Common keys:
+It starts with an empty project (no sample data). To see it populated, choose **文件 → 载入示例项目** (File → Load Sample Project); ⌘O opens an existing `.kaido` file, ⌘S saves. Common keys:
 
 | Action | Shortcut |
 |---|---|
@@ -149,19 +149,19 @@ It starts with an empty project (no sample data). To see it populated, choose **
 ### 2. CLI
 
 ```bash
-swift run KairoCLI <command>       # abbreviated as kairo below
+swift run KaidoCLI <command>       # abbreviated as kaido below
 ```
 
-Every invocation is standalone: open the project given by `--file`, execute, save. Without `--file` it defaults to `./project.kairo`.
+Every invocation is standalone: open the project given by `--file`, execute, save. Without `--file` it defaults to `./project.kaido`.
 
 ```bash
-kairo project create "Kairo Sprint 3 demo" --file demo.kairo
-kairo task add "API design" --file demo.kairo --effort 3
-kairo task add "UI implementation" --file demo.kairo --effort 5 --dep <api-design-ID>:fs
-kairo task list --file demo.kairo --json
-kairo schedule compute --file demo.kairo
-kairo violations --file demo.kairo
-kairo status update <task-ID> --status done --file demo.kairo
+kaido project create "Kaido Sprint 3 demo" --file demo.kaido
+kaido task add "API design" --file demo.kaido --effort 3
+kaido task add "UI implementation" --file demo.kaido --effort 5 --dep <api-design-ID>:fs
+kaido task list --file demo.kaido --json
+kaido schedule compute --file demo.kaido
+kaido violations --file demo.kaido
+kaido status update <task-ID> --status done --file demo.kaido
 ```
 
 Command surface:
@@ -185,10 +185,10 @@ Notes:
 ### 3. MCP server
 
 ```bash
-.build/release/KairoMCP        # or .build/debug/KairoMCP
+.build/release/KaidoMCP        # or .build/debug/KaidoMCP
 ```
 
-stdio JSON-RPC, one request per line. Use the `KAIRO_MCP_BIN` environment variable to point at the executable.
+stdio JSON-RPC, one request per line. Use the `KAIDO_MCP_BIN` environment variable to point at the executable.
 
 Tools: `project_create` `project_open` `project_save` `task_add` `task_list` `task_get` `task_update` `task_delete` `wbs_import` `schedule_compute` `schedule_critical_path` `violations_list` `status_update` `status_batch_update` `resource_add` `resource_list`.
 
@@ -196,17 +196,17 @@ Tools: `project_create` `project_open` `project_save` `task_add` `task_list` `ta
 
 ```bash
 swift build -c release
-export KAIRO_PROJECT=/path/to/demo.kairo
-claude --plugin-dir /path/to/Kairo/Plugins/claude-code
+export KAIDO_PROJECT=/path/to/demo.kaido
+claude --plugin-dir /path/to/Kaido/Plugins/claude-code
 ```
 
 | Command | Effect |
 |---|---|
-| `/kairo plan <requirement>` | Read the requirement, build the WBS, schedule, list violations |
-| `/kairo done <task-ID>` | Mark a task done and report group completion |
-| `/kairo status` | Task table, critical path and violation summary |
+| `/kaido plan <requirement>` | Read the requirement, build the WBS, schedule, list violations |
+| `/kaido done <task-ID>` | Mark a task done and report group completion |
+| `/kaido status` | Task table, critical path and violation summary |
 
-The plugin registers a `TaskCompleted` hook: when a Claude Code task completes it matches Kairo tasks by exact title and, on a unique hit, writes back `done` through the CLI. Negative paths (duplicate titles, zero matches, missing `KAIRO_PROJECT`) only write to stderr, never write back, and always exit 0. Environment variables: `KAIRO_PROJECT`, `KAIRO_MCP_BIN`, `KAIRO_CLI_BIN`.
+The plugin registers a `TaskCompleted` hook: when a Claude Code task completes it matches Kaido tasks by exact title and, on a unique hit, writes back `done` through the CLI. Negative paths (duplicate titles, zero matches, missing `KAIDO_PROJECT`) only write to stderr, never write back, and always exit 0. Environment variables: `KAIDO_PROJECT`, `KAIDO_MCP_BIN`, `KAIDO_CLI_BIN`.
 
 See [Plugins/claude-code/README.md](Plugins/claude-code/README.md) for details.
 
@@ -217,17 +217,17 @@ Both need only an MCP config plus a short convention; the tool surface is identi
 **Shared by Claude Code / CodeBuddy** (project-root `.mcp.json`, both hosts read it):
 
 ```bash
-KAIRO="$HOME/path/to/Kairo"          # <- change to your checkout
+KAIDO="$HOME/path/to/Kaido"          # <- change to your checkout
 cat > .mcp.json <<EOF
-{ "mcpServers": { "kairo": { "command": "$KAIRO/.build/release/KairoMCP" } } }
+{ "mcpServers": { "kaido": { "command": "$KAIDO/.build/release/KaidoMCP" } } }
 EOF
 ```
 
 **Codex** (in `~/.codex/config.toml`):
 
 ```toml
-[mcp_servers.kairo]
-command = "/absolute/path/to/Kairo/.build/release/KairoMCP"
+[mcp_servers.kaido]
+command = "/absolute/path/to/Kaido/.build/release/KaidoMCP"
 args = []
 ```
 
@@ -235,7 +235,7 @@ Then drop an `AGENTS.md` at the project root (`CODEBUDDY.md` for CodeBuddy, `CLA
 
 ### Deep links
 
-The app accepts `kairo://task/<full UUID or 4+ character prefix>`, `kairo://task?title=<title>` and `kairo://project/<id>`, so MCP/CLI output can hand a jump link back to a human reviewer.
+The app accepts `kaido://task/<full UUID or 4+ character prefix>`, `kaido://task?title=<title>` and `kaido://project/<id>`, so MCP/CLI output can hand a jump link back to a human reviewer.
 
 ### Releasing
 
@@ -260,19 +260,19 @@ After a tag is pushed, GitHub Actions re-runs the tests, repackages, signs the u
 
 ```
 Package.swift               SwiftPM manifest (6 targets)
-Sources/KairoCore/          Cross-platform core: model, scheduling engine, violations, queries and layout geometry (no UI dependencies)
-Sources/KairoCommands/      The single write path KairoSession (shared by MCP/CLI/UI)
-Sources/KairoPresentation/  Platform-neutral presentation layer: snapshots, view state and actions (no UI dependencies)
-Sources/KairoMCP/           MCP server (stdio JSON-RPC)
-Sources/KairoCLI/           CLI
+Sources/KaidoCore/          Cross-platform core: model, scheduling engine, violations, queries and layout geometry (no UI dependencies)
+Sources/KaidoCommands/      The single write path KaidoSession (shared by MCP/CLI/UI)
+Sources/KaidoPresentation/  Platform-neutral presentation layer: snapshots, view state and actions (no UI dependencies)
+Sources/KaidoMCP/           MCP server (stdio JSON-RPC)
+Sources/KaidoCLI/           CLI
 Apps/macos/Sources/         macOS SwiftUI workbench (WorkspaceStore adapter + views)
 Plugins/README.md           AI collaboration guide: Claude Code / CodeBuddy / Codex wiring and WBS conventions
 Plugins/claude-code/        Claude Code plugin (slash commands + hooks)
-Tests/                      KairoCoreTests / KairoPresentationTests / InterfaceTests / AppTests
+Tests/                      KaidoCoreTests / KaidoPresentationTests / InterfaceTests / AppTests
 tools/gate-core.sh          Core and presentation layer gate
 tools/gate-ui.sh            View snapshot boundary gate
-tools/build.sh              Release build, packages Kairo.app
-tools/install.sh            Installs Kairo.app into /Applications
+tools/build.sh              Release build, packages Kaido.app
+tools/install.sh            Installs Kaido.app into /Applications
 design/                     Visual design: app icon, status bar icon, brand colours
 docs/                       Requirements, architecture, design system, roadmap and sprint acceptance records
 ```
@@ -296,10 +296,10 @@ docs/                       Requirements, architecture, design system, roadmap a
 
 ## Known limitations
 
-- Concurrent writes to the same `.kairo` from a hook and the app are not merged automatically: when the app detects an on-disk change it asks "reload / keep local", and closing the app (or reopening after write-back) is still recommended during hook write-backs.
+- Concurrent writes to the same `.kaido` from a hook and the app are not merged automatically: when the app detects an on-disk change it asks "reload / keep local", and closing the app (or reopening after write-back) is still recommended during hook write-backs.
 - Drag-to-reschedule, drag-to-create-dependency, multi-select, baselines and a resource view are out of scope for now; dependencies are created from the inspector.
 - Non-working time is currently only shaded for Saturday/Sunday; project and resource calendars come in a later version.
-- The macOS app UI is currently Chinese only; the CLI, MCP tools and `.kairo` format are language-neutral.
+- The macOS app UI is currently Chinese only; the CLI, MCP tools and `.kaido` format are language-neutral.
 
 ## License
 
@@ -307,7 +307,7 @@ docs/                       Requirements, architecture, design system, roadmap a
 
 - **Free for noncommercial use**: personal study, hobby and private projects, research, experiment, and testing without any anticipated commercial application.
 - **Free for noncommercial organizations**: charities, educational institutions, public research bodies, public safety/health organizations, environmental organizations, and government institutions — regardless of funding source.
-- **Commercial use requires a commercial license**: any use with an anticipated commercial application — including using Kairo inside a for-profit company to plan your own projects — is not granted by these terms. Contact <ruohuyang@gmail.com> for terms and pricing.
-- If you redistribute Kairo or a modified version, you must pass along these terms (or their URL) and any `Required Notice:` lines.
+- **Commercial use requires a commercial license**: any use with an anticipated commercial application — including using Kaido inside a for-profit company to plan your own projects — is not granted by these terms. Contact <ruohuyang@gmail.com> for terms and pricing.
+- If you redistribute Kaido or a modified version, you must pass along these terms (or their URL) and any `Required Notice:` lines.
 - There is no automatic conversion to an open source license. Releases up to **v1.3.2** were published under MIT and remain MIT.
 - PolyForm Noncommercial is a source-available license, not an OSI-approved open source license.

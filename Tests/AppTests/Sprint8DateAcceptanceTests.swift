@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import KairoCore
-import KairoCommands
-import KairoPresentation
-@testable import KairoMacApp
+import KaidoCore
+import KaidoCommands
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// Sprint 8 / F-14-10 起止日期验收用例。
 ///
@@ -51,7 +51,7 @@ struct Sprint8DateAcceptanceTests {
     // MARK: - Store 夹具
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "kairo.s8.acceptance.\(UUID().uuidString)"
+        let suite = "kaido.s8.acceptance.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults)
