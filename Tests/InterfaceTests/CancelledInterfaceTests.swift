@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import KaidoCore
 import KaidoCommands
-@testable import KaidoMCP
+@testable import KaidoMCPCore
 @testable import KaidoCLI
 
 // v0.16 B2：CLI / MCP 的「已取消」词汇与取消原因（\`cancelled\` + \`cancelReason\`）。

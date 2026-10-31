@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import KaidoCore
 import KaidoCommands
-@testable import KaidoMCP
+@testable import KaidoMCPCore
 @testable import KaidoCLI
 
 // 判据 6 / 12（docs/features/08-baselines.md §9-6 / §9-12）：

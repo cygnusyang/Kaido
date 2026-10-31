@@ -5,7 +5,7 @@ import KaidoCommands
 /// MCP 服务核心：逐行 JSON-RPC 2.0 传输（ADR-010 零第三方依赖）。
 /// 方法面：initialize / tools/list / tools/call / ping + 通知（不响应）。
 /// 与工具层（Tools.swift）分离，可单测。
-final class MCPServer {
+public final class MCPServer {
     static let protocolVersion = "2024-11-05"
     static let serverInfo: [String: String] = ["name": "kaido", "version": "2.0.0"]
 
@@ -13,13 +13,20 @@ final class MCPServer {
     private let session: KaidoSession
     private var negotiatedProtocolVersion: String?
 
-    init(registry: ToolRegistry = ToolRegistry(), session: KaidoSession = KaidoSession()) {
-        self.registry = registry
+    /// 默认装配：内置工具表 + 独立会话。stdio 壳与 app 内托管都用它。
+    public init() {
+        self.registry = ToolRegistry()
+        self.session = KaidoSession()
+    }
+
+    /// 测试注入缝：复用调用方准备好的会话（如已 adopt 旧格式的会话）。
+    init(session: KaidoSession) {
+        self.registry = ToolRegistry()
         self.session = session
     }
 
     /// 处理一行请求 JSON，返回一行响应 JSON；通知返回 nil。
-    func handle(requestJSON: String) -> String? {
+    public func handle(requestJSON: String) -> String? {
         guard let request = try? JSONDecoder().decode(JSONRPCRequest.self, from: Data(requestJSON.utf8)) else {
             return encode(.failure(
                 JSONRPCErrorObject(

@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 import KaidoCore
-@testable import KaidoMCP
+@testable import KaidoMCPCore
 
 // F-0708 MCP 错误码（阶段一）的验收用例。
 // 用例编号对应 docs/features/06-localization-cases.md 的 E 组。

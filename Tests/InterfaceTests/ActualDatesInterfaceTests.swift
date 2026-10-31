@@ -2,7 +2,7 @@ import Foundation
 import Testing
 import KaidoCore
 import KaidoCommands
-@testable import KaidoMCP
+@testable import KaidoMCPCore
 @testable import KaidoCLI
 
 // 判据 13（docs/features/07-actual-dates.md §9-13 / §8）：实际时间的接口层输出。

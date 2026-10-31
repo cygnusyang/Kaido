@@ -7,7 +7,7 @@ import Glibc
 import Testing
 import KaidoCore
 import KaidoCommands
-@testable import KaidoMCP
+@testable import KaidoMCPCore
 @testable import KaidoCLI
 
 // 接口对等性契约测试（US-E5-05）：MCP 侧 JSON-RPC 编解码与工具往返。

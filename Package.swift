@@ -110,10 +110,18 @@ let package = Package(
             dependencies: ["KaidoInterop"],
             path: "Sources/InteropMSPDI"
         ),
-        // MCP 服务（stdio JSON-RPC，复用 KaidoCore + KaidoCommands）
+        // MCP 服务核心（JSON-RPC 2.0 + 工具表 + 会话）。
+        // 独立成库而不是塞在可执行 target 里：App Store 版要在 app 进程内托管 MCP 服务，
+        // 传输层（stdio / loopback HTTP）只做薄壳，工具面与协议解析两边共用一份。
+        .target(
+            name: "KaidoMCPCore",
+            dependencies: ["KaidoCore", "KaidoCommands"],
+            path: "Sources/KaidoMCPCore"
+        ),
+        // MCP 服务（stdio JSON-RPC，官网版与本地脚本用）
         .executableTarget(
             name: "KaidoMCP",
-            dependencies: ["KaidoCore", "KaidoCommands"],
+            dependencies: ["KaidoMCPCore"],
             path: "Sources/KaidoMCP"
         ),
         // CLI（复用 KaidoCore + KaidoCommands；从 MCP 契约派生命令）
@@ -143,7 +151,7 @@ let package = Package(
         // MCP/CLI 对等性契约测试（US-E5-05）
         .testTarget(
             name: "InterfaceTests",
-            dependencies: ["KaidoCore", "KaidoCommands", "KaidoMCP", "KaidoCLI"],
+            dependencies: ["KaidoCore", "KaidoCommands", "KaidoMCPCore", "KaidoCLI"],
             path: "Tests/InterfaceTests"
         )
     ] + macOSAppTargets + omniPlanTargets
