@@ -1,15 +1,15 @@
-Kairo v1.5.1 签名状态
+Kaido v2.0.0 签名状态
 =========================
 状态: Developer ID 签名 + 公证 + 已装订（stapler）
 公证: App 与 DMG 均经 notarytool 公证并装订票据；CLI/MCP 二进制已签名，tar.gz 无法装订票据（Gatekeeper 走在线校验）
-生成时间(UTC): 2026-10-31T00:48:19Z
+生成时间(UTC): 2026-10-31T08:57:04Z
 
-应用签名摘要（codesign -dv --verbose=4 dist/Kairo.app）：
-Identifier=app.kairo.macos
+应用签名摘要（codesign -dv --verbose=4 dist/Kaido.app）：
+Identifier=app.kaido.macos
 Authority=Developer ID Application: ruohu yang (A6DS985SJJ)
 Authority=Developer ID Certification Authority
 Authority=Apple Root CA
-Timestamp=Oct 31, 2026 at 12:11:01 AM
+Timestamp=Oct 31, 2026 at 8:55:51 AM
 TeamIdentifier=A6DS985SJJ
 
 验证方法见 docs/release.md。
