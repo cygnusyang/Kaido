@@ -15,7 +15,7 @@
        商店禁止让外部进程 spawn 子进程读用户文件，MCP 只能这样托管。 -->
   <key>com.apple.security.network.server</key>
   <true/>
-  <!-- CLI 瘦客户端（同一二进制 --cli 模式）与 OTA 走出的连接都要它。 -->
+  <!-- 命令行瘦客户端（同一二进制的 CLI 模式）也要它：它要连回本机服务。 -->
   <key>com.apple.security.network.client</key>
   <true/>
 </dict>

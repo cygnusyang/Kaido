@@ -64,5 +64,16 @@ if [[ "$BUNDLE_ID" != "top.cygnusyang.kaido" ]]; then
   exit 1
 fi
 
+# entitlements 必须是 AMFI 能解析的 XML：注释里出现 `--` 会被 codesign 拒
+# （实测报错 "AMFIUnserializeXML: syntax error"），plutil -lint 不拦这一条。
+ENTS="$ROOT/Apps/macos/Resources/Kaido.entitlements"
+if [[ -f "$ENTS" ]] && command -v xmllint >/dev/null 2>&1; then
+  if ! xmllint --noout "$ENTS" 2>/dev/null; then
+    echo "ERROR: ${ENTS} 不是合法 XML（常见原因：注释里写了双连字符）" >&2
+    xmllint --noout "$ENTS" >&2 || true
+    exit 1
+  fi
+fi
+
 echo "==> 商店变体就绪: $APP"
 echo "    下一步：tools/sign-mas.sh（Apple Distribution + profile → .pkg）"
