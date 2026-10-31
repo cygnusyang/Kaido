@@ -257,10 +257,10 @@ Kaido 构建产物（Mac App Store 变体）
 ====================================
 - ${APP_NAME}.app     macOS 应用；自更新已在编译期禁用
 
-下一步（签名与出包，凭据见 ~/kairo-signing）:
+下一步（签名与出包，凭据见 ~/kaido-signing）:
   tools/sign-mas.sh --app "$APP_BUNDLE" \
     --entitlements Apps/macos/Resources/Kaido.entitlements \
-    --provisionprofile ~/kairo-signing/KaidoPlanMAS.provisionprofile \
+    --provisionprofile ~/kaido-signing/KaidoPlanMAS.provisionprofile \
     --pkg-out "$DIST_DIR/Kaido.pkg"
 NOTE
 else

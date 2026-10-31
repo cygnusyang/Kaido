@@ -13,7 +13,7 @@
 # 产出：dist-mas/Kaido.app（未签名）。签名与出包：
 #   tools/sign-mas.sh --app dist-mas/Kaido.app \
 #     --entitlements Apps/macos/Resources/Kaido.entitlements \
-#     --provisionprofile ~/kairo-signing/KaidoPlanMAS.provisionprofile \
+#     --provisionprofile ~/kaido-signing/KaidoPlanMAS.provisionprofile \
 #     --pkg-out dist-mas/Kaido.pkg
 set -euo pipefail
 
