@@ -41,6 +41,25 @@ if [ -n "$PROFILE" ]; then
   echo "==> 已嵌入 profile"
 fi
 
+# 从浏览器 / developer.apple.com 下载的 profile 带 com.apple.quarantine，
+# cp 会把扩展属性一起带进包；App Store 校验以 ITMS-91109 直接拒收
+# （"The package contains one or more files with the com.apple.quarantine
+# extended file attribute"）。签名前把整个包的扩展属性清一遍。
+xattr -cr "$APP"
+QUARANTINED="$(
+  find "$APP" -type f -print0 | while IFS= read -r -d '' FILE; do
+    if xattr "$FILE" 2>/dev/null | grep -q quarantine; then
+      echo "$FILE"
+    fi
+  done
+)"
+if [ -n "$QUARANTINED" ]; then
+  echo "ERROR: 包内仍有 quarantine 扩展属性（ITMS-91109 会拒）：" >&2
+  echo "$QUARANTINED" >&2
+  exit 1
+fi
+echo "==> 已清除扩展属性（quarantine）"
+
 # 2) 签名 app（entitlements + 时间戳由 Apple 侧校验，MAS 不要求 hardened runtime）
 codesign --force --options runtime --timestamp --sign "$KAIDO_SIGN_IDENTITY" "${KEYCHAIN_ARGS[@]+"${KEYCHAIN_ARGS[@]}"}" \
   --entitlements "$ENTS" --deep "$APP"
