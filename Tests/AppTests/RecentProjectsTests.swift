@@ -88,7 +88,7 @@ struct RecentProjectsTests {
         store.note(gone)
 
         let exists: (String) -> Bool = { $0 == RecentProjects.path(of: existing) }
-        #expect(store.mostRecentExisting(fileExists: exists)?.path == RecentProjects.path(of: existing))
+        #expect(store.mostRecentAccessible(fileExists: exists)?.url.path == RecentProjects.path(of: existing))
         // 失效条目已被剔除，列表只剩存在的那条。
         #expect(store.urls.map { RecentProjects.path(of: $0) } == [RecentProjects.path(of: existing)])
     }

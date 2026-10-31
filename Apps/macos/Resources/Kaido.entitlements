@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- App Store 强制沙盒（P1）。站外 Developer ID 版不传这份文件，行为不变。 -->
+  <key>com.apple.security.app-sandbox</key>
+  <true/>
+  <!-- 打开/保存 .kaido、导出 CSV/XML/OmniPlan 都走用户选择面板。 -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+  <!-- 最近项目 / 启动时重开上次项目要用 security-scoped bookmark 才能跨重启访问。 -->
+  <key>com.apple.security.files.bookmarks.app-scope</key>
+  <true/>
+</dict>
+</plist>

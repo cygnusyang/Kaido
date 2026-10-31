@@ -72,6 +72,9 @@ final class WorkspaceStore: ObservableObject {
     @Published private(set) var recentProjects: [URL] = []
 
     private let session: KaidoSession
+    /// 当前项目的安全作用域授权（沙盒版必需）。换项目即换授权，释放即归还访问权。
+    /// 非沙盒构建里它是空壳，行为与直接使用路径一致。
+    private var projectScope: ProjectScope?
     private let calendar: Calendar
     private let defaults: UserDefaults
     private let recentStore: RecentProjects
@@ -1963,8 +1966,10 @@ final class WorkspaceStore: ObservableObject {
     ///   那份项目此刻仍在编辑中，摘掉最近记录只会让用户下次找不到它。
     @discardableResult
     func open(url: URL, forgetOnFailure: Bool = true) -> Bool {
+        let scope = recentStore.beginScope(for: url)
         do {
-            _ = try session.openProject(at: url)
+            _ = try session.openProject(at: scope.url)
+            projectScope = scope
             finishOpen()
             return true
         } catch {
@@ -1998,12 +2003,15 @@ final class WorkspaceStore: ObservableObject {
         guard !didAttemptLaunchOpen else { return false }
         didAttemptLaunchOpen = true
         guard !didReceiveExplicitOpen, session.projectURL == nil, !isLoading else { return false }
-        guard let url = recentStore.mostRecentExisting() else {
+        // 沙盒版跨启动没有隐式授权：必须先用书签换回访问权，再判文件是否存在
+        // （未授权的容器外路径一律「不存在」，先判会把整张最近列表清空）。
+        guard let candidate = recentStore.mostRecentAccessible() else {
             // 顺手剔除失效条目：菜单里不留打不开的死链。
             recentProjects = recentStore.urls
             return false
         }
-        openAsync(url: url)
+        projectScope = candidate.scope
+        openAsync(url: candidate.url)
         return true
     }
 
@@ -2081,28 +2089,31 @@ final class WorkspaceStore: ObservableObject {
             showsLoadingSkeleton = true
         }
 
-        let accessing = url.startAccessingSecurityScopedResource()
+        // 沙盒版：书签解析出的 URL 才读得到。授权对象随任务捕获、成功后才挂到
+        // projectScope——打开失败时旧项目的授权不受影响。
+        let scope = recentStore.beginScope(for: url)
+        let scopedURL = scope.url
         let loader = projectLoader
         Task { [weak self] in
             let loaded: Result<DecodedProject, Error> = await Task.detached(priority: .userInitiated) {
-                Result { try loader(url) }
+                Result { try loader(scopedURL) }
             }.value
-            if accessing { url.stopAccessingSecurityScopedResource() }
             guard let self, self.loadingToken == token else { return }
             switch loaded {
             case .success(let decoded) where self.session.revision == revisionAtStart:
                 self.session.adoptProject(
-                    decoded.project, from: url, formatVersion: decoded.sourceFormatVersion
+                    decoded.project, from: scopedURL, formatVersion: decoded.sourceFormatVersion
                 )
+                self.projectScope = scope
                 self.finishOpen()
             case .success:
                 // 载入期间有新编辑：保留当前内容，重新进入保存/丢弃/取消确认。
                 self.pendingUpgradeNoticeAfterOpen = nil
-                self.pendingOpenURL = url
+                self.pendingOpenURL = scopedURL
                 self.notice = I18n.t("alert.changed_while_loading", "The project changed while loading; local content was kept. Confirm opening again.")
             case .failure(let error):
                 self.pendingUpgradeNoticeAfterOpen = nil
-                self.forgetRecentProject(url)
+                self.forgetRecentProject(scopedURL)
                 self.report(error)
             }
             self.isLoading = false
