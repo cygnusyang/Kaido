@@ -3,6 +3,13 @@
 <plist version="1.0">
 <dict>
   <!-- App Store 强制沙盒（P1）。站外 Developer ID 版不传这份文件，行为不变。 -->
+  <!-- 手动签名时 Xcode 不会再替你注入这两项，但 provisioning profile 里有：
+       缺了它 upload 会警告「signature is missing an application identifier」
+       （TestFlight 直接被判不可用），补上与 profile 逐字一致的值。 -->
+  <key>com.apple.application-identifier</key>
+  <string>A6DS985SJJ.top.cygnusyang.kaido</string>
+  <key>com.apple.developer.team-identifier</key>
+  <string>A6DS985SJJ</string>
   <key>com.apple.security.app-sandbox</key>
   <true/>
   <!-- 打开/保存 .kaido、导出 CSV/XML/OmniPlan 都走用户选择面板。 -->
