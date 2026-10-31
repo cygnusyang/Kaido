@@ -132,7 +132,11 @@ App Store 对 Mac 截图接受 16:10 的这几档：1280×800、1440×900、2560
 4. 不包含第三方 SDK、广告或崩溃上报
 5. 联系方式
 
-> URL 需要 **待定**：仓库里没有可公开托管的页面。可选项：GitHub Pages（`cygnusyang.github.io/Kaido/privacy`）、或直接在 GitHub Release 里放一份 `PRIVACY.md` 并用其 raw 链接（Apple 接受任意可访问 HTTPS 页面，但用 Pages 更稳妥）。
+**隐私政策 URL（已可用）**：<https://cygnusyang.github.io/Kairo/privacy.html>
+
+- 源文件：`site/privacy.html`（正文与 `docs/privacy.md` 同源），发布在 `gh-pages` 分支
+- 站点根：<https://cygnusyang.github.io/Kairo/>
+- 实测 200（2026-11-01）；改政策时同步改这两处，Pages 会随推送自动重建
 
 ## 六、App 审核备注（App Review Information → Notes）
 
