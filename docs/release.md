@@ -16,32 +16,32 @@
 本机实测（v0.16.0 开发机，未签名状态）：
 
 ```console
-$ codesign -dv --verbose=4 dist/Zeno.app
-Executable=.../dist/Zeno.app/Contents/MacOS/Zeno
-Identifier=app.zeno.macos
+$ codesign -dv --verbose=4 dist/Kaido.app
+Executable=.../dist/Kaido.app/Contents/MacOS/Kaido
+Identifier=app.kaido.macos
 CodeDirectory v=20400 size=16488 flags=0x2(adhoc) hashes=509+3 location=embedded
 ...
 CDHash=51d841c71f8ef587910cb18e4c995cb3a15ec3f4
 Signature=adhoc
 
-$ codesign --verify --strict --verbose=2 dist/Zeno.app
-dist/Zeno.app: valid on disk
-dist/Zeno.app: satisfies its Designated Requirement
+$ codesign --verify --strict --verbose=2 dist/Kaido.app
+dist/Kaido.app: valid on disk
+dist/Kaido.app: satisfies its Designated Requirement
 # 退出码 0 —— ad-hoc 签名对 codesign 而言「结构完整」，但这不代表能过 Gatekeeper
 
-$ spctl -a -vvv -t exec dist/Zeno.app
-dist/Zeno.app: rejected
+$ spctl -a -vvv -t exec dist/Kaido.app
+dist/Kaido.app: rejected
 # 退出码 3 —— 这才是用户机器上的真实结果
 
-$ codesign -dv dist/Zeno-v0.9.0.dmg
-dist/Zeno-v0.9.0.dmg: code object is not signed at all
+$ codesign -dv dist/Kaido-v0.9.0.dmg
+dist/Kaido-v0.9.0.dmg: code object is not signed at all
 
-$ spctl -a -t open --context context:primary-signature -v dist/Zeno-v0.9.0.dmg
-dist/Zeno-v0.9.0.dmg: rejected
+$ spctl -a -t open --context context:primary-signature -v dist/Kaido-v0.9.0.dmg
+dist/Kaido-v0.9.0.dmg: rejected
 source=no usable signature
 
-$ xcrun stapler validate dist/Zeno-v0.9.0.dmg
-Zeno-v0.9.0.dmg does not have a ticket stapled to it.
+$ xcrun stapler validate dist/Kaido-v0.9.0.dmg
+Kaido-v0.9.0.dmg does not have a ticket stapled to it.
 # 退出码 65
 ```
 
@@ -106,7 +106,7 @@ tools/release.sh 0.17.0             # 完整发版：提交 + 打 tag + 推送�
 判定本地产物（在仓库根目录）：
 
 ```bash
-codesign -dv --verbose=4 dist/Zeno.app 2>&1 | grep -E 'flags=|Signature='
+codesign -dv --verbose=4 dist/Kaido.app 2>&1 | grep -E 'flags=|Signature='
 # ad-hoc 时：flags=0x2(adhoc) 与 Signature=adhoc
 ```
 
@@ -120,7 +120,7 @@ $ tools/release.sh 1.3.3
 ERROR: 找不到 xcstringstool，多语言门禁与打包无法在本机执行（xcode-select -p → /Library/Developer/CommandLineTools）。二选一：
   1) 装 Xcode 后执行：sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
   2) 跳过本机发版，直接推 tag 让 CI 跑同一条门禁：
-       git tag -a v1.3.3 -m "Zeno v1.3.3" && git push origin refs/tags/v1.3.3
+       git tag -a v1.3.3 -m "Kaido v1.3.3" && git push origin refs/tags/v1.3.3
 ```
 
 确认可用：
@@ -165,16 +165,16 @@ read -rs NOTARY_PASSWORD && export NOTARY_PASSWORD   # 粘贴 app 专用密码�
 ```bash
 # 记住原默认钥匙串，结束时恢复
 ORIG_DEFAULT="$(security default-keychain | sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//')"
-KEYCHAIN=zeno-sign.keychain
+KEYCHAIN=kaido-sign.keychain
 
-security create-keychain -p zeno "$KEYCHAIN"
+security create-keychain -p kaido "$KEYCHAIN"
 security set-keychain-settings -lut 3600 "$KEYCHAIN"
-security unlock-keychain -p zeno "$KEYCHAIN"
+security unlock-keychain -p kaido "$KEYCHAIN"
 security default-keychain -s "$KEYCHAIN"
 
 # 只把私钥使用权限授予 codesign，不授予任意进程
 security import DeveloperID.p12 -k "$KEYCHAIN" -P '<p12 密码>' -T /usr/bin/codesign
-security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k zeno "$KEYCHAIN"
+security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k kaido "$KEYCHAIN"
 
 # -v 只列「有效」身份：证书过期/被吊销时这里为空
 security find-identity -v -p codesigning "$KEYCHAIN"
@@ -196,16 +196,16 @@ echo "$SIGN_IDENTITY"
 
 ```bash
 bash tools/build.sh        # 先出 ad-hoc 包，随后被 Developer ID 覆盖；与 CI 顺序一致
-codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" dist/Zeno.app
-codesign --verify --strict --verbose=2 dist/Zeno.app
+codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" dist/Kaido.app
+codesign --verify --strict --verbose=2 dist/Kaido.app
 ```
 
-期望：`dist/Zeno.app: valid on disk` + `dist/Zeno.app: satisfies its Designated Requirement`。
+期望：`dist/Kaido.app: valid on disk` + `dist/Kaido.app: satisfies its Designated Requirement`。
 
 ### 4.4 断言 Hardened Runtime 与证书（CI 同款硬门禁）
 
 ```bash
-codesign -dv --verbose=4 dist/Zeno.app 2>&1 | grep -E 'flags=|^(Authority|TeamIdentifier|Timestamp)='
+codesign -dv --verbose=4 dist/Kaido.app 2>&1 | grep -E 'flags=|^(Authority|TeamIdentifier|Timestamp)='
 ```
 
 期望（形状，关键字段）：
@@ -226,15 +226,15 @@ Timestamp=<签名时间>
 顺序不能省：OTA 的 `.zip` 无法 staple，票据必须先进 App 再打包，否则更新包在离线首次启动时仍会被 Gatekeeper 拦。
 
 ```bash
-ditto -c -k --keepParent dist/Zeno.app /tmp/Zeno-notarize.zip
+ditto -c -k --keepParent dist/Kaido.app /tmp/Kaido-notarize.zip
 
-xcrun notarytool submit /tmp/Zeno-notarize.zip \
+xcrun notarytool submit /tmp/Kaido-notarize.zip \
   --apple-id "$NOTARY_APPLE_ID" --password "$NOTARY_PASSWORD" --team-id "$NOTARY_TEAM_ID" \
   --wait
 
-xcrun stapler staple dist/Zeno.app
-xcrun stapler validate dist/Zeno.app     # 期望：The validate action worked!（退出码 0）
-spctl -a -vvv -t exec dist/Zeno.app      # 期望：accepted / source=Notarized Developer ID
+xcrun stapler staple dist/Kaido.app
+xcrun stapler validate dist/Kaido.app     # 期望：The validate action worked!（退出码 0）
+spctl -a -vvv -t exec dist/Kaido.app      # 期望：accepted / source=Notarized Developer ID
 ```
 
 `notarytool submit` 期望结尾：`status: Accepted` 与 `id: <uuid>`。若 `status: Invalid`，拿 `id` 下载日志再修（见 §9）。
@@ -245,16 +245,16 @@ spctl -a -vvv -t exec dist/Zeno.app      # 期望：accepted / source=Notarized 
 TAG=v0.17.0
 bash tools/package.sh "$TAG" --skip-build --out .
 
-codesign --force --timestamp --sign "$SIGN_IDENTITY" "Zeno-$TAG.dmg"
-codesign --verify --strict --verbose=2 "Zeno-$TAG.dmg"
+codesign --force --timestamp --sign "$SIGN_IDENTITY" "Kaido-$TAG.dmg"
+codesign --verify --strict --verbose=2 "Kaido-$TAG.dmg"
 
-xcrun notarytool submit "Zeno-$TAG.dmg" \
+xcrun notarytool submit "Kaido-$TAG.dmg" \
   --apple-id "$NOTARY_APPLE_ID" --password "$NOTARY_PASSWORD" --team-id "$NOTARY_TEAM_ID" \
   --wait
 
-xcrun stapler staple "Zeno-$TAG.dmg"
-xcrun stapler validate "Zeno-$TAG.dmg"    # 期望：worked!（退出码 0）
-spctl -a -t open --context context:primary-signature -v "Zeno-$TAG.dmg"
+xcrun stapler staple "Kaido-$TAG.dmg"
+xcrun stapler validate "Kaido-$TAG.dmg"    # 期望：worked!（退出码 0）
+spctl -a -t open --context context:primary-signature -v "Kaido-$TAG.dmg"
 # 期望：accepted / source=Notarized Developer ID
 ```
 
@@ -262,16 +262,16 @@ spctl -a -t open --context context:primary-signature -v "Zeno-$TAG.dmg"
 
 ```bash
 rm -rf /tmp/ota-check && mkdir -p /tmp/ota-check
-ditto -x -k "Zeno-$TAG.zip" /tmp/ota-check
-xcrun stapler validate /tmp/ota-check/Zeno.app   # 期望：worked!（退出码 0）
-codesign -dv --verbose=4 /tmp/ota-check/Zeno.app 2>&1 | grep -E 'flags=|Authority=Developer ID'
+ditto -x -k "Kaido-$TAG.zip" /tmp/ota-check
+xcrun stapler validate /tmp/ota-check/Kaido.app   # 期望：worked!（退出码 0）
+codesign -dv --verbose=4 /tmp/ota-check/Kaido.app 2>&1 | grep -E 'flags=|Authority=Developer ID'
 ```
 
 ### 4.8 清单 CDHash 与新签名一致
 
 ```bash
 tools/extract_cdhash.sh                              # 实测：直接打印 40 位 hex，无前缀
-codesign -dv --verbose=4 dist/Zeno.app 2>&1 | grep '^CDHash='
+codesign -dv --verbose=4 dist/Kaido.app 2>&1 | grep '^CDHash='
 ```
 
 期望：两条 hex 完全相同（staple 不改签名，但 CDHash 必须在所有签名动作之后提取——CI 已把取 CDHash 放在最后）。
@@ -280,8 +280,8 @@ codesign -dv --verbose=4 dist/Zeno.app 2>&1 | grep '^CDHash='
 
 ```bash
 security default-keychain -s "$ORIG_DEFAULT"
-security delete-keychain zeno-sign.keychain
-rm -f /tmp/Zeno-notarize.zip
+security delete-keychain kaido-sign.keychain
+rm -f /tmp/Kaido-notarize.zip
 ```
 
 ## 5. 下载侧验证（任何一台 Mac，不需要证书）
@@ -289,10 +289,10 @@ rm -f /tmp/Zeno-notarize.zip
 用户/维护者拿到 Release 附件后的四步，全部只看输出：
 
 ```bash
-shasum -a 256 Zeno-v0.17.0.dmg          # 与 SIGNING.txt / 发布说明里的值比
-spctl -a -t open --context context:primary-signature -v Zeno-v0.17.0.dmg
-xcrun stapler validate Zeno-v0.17.0.dmg
-ditto -x -k Zeno-v0.17.0.zip /tmp/ota && xcrun stapler validate /tmp/ota/Zeno.app
+shasum -a 256 Kaido-v0.17.0.dmg          # 与 SIGNING.txt / 发布说明里的值比
+spctl -a -t open --context context:primary-signature -v Kaido-v0.17.0.dmg
+xcrun stapler validate Kaido-v0.17.0.dmg
+ditto -x -k Kaido-v0.17.0.zip /tmp/ota && xcrun stapler validate /tmp/ota/Kaido.app
 ```
 
 判定表：
@@ -308,8 +308,8 @@ ditto -x -k Zeno-v0.17.0.zip /tmp/ota && xcrun stapler validate /tmp/ota/Zeno.ap
 CLI / MCP 二进制（tar.gz 无法装订票据，只验签名）：
 
 ```bash
-tar -xzf zeno-v0.17.0-macos-universal.tar.gz -C /tmp
-codesign -dv --verbose=4 /tmp/zeno-v0.17.0-macos-universal/bin/zeno 2>&1 | grep -E 'flags=|Authority=Developer ID'
+tar -xzf kaido-v0.17.0-macos-universal.tar.gz -C /tmp
+codesign -dv --verbose=4 /tmp/kaido-v0.17.0-macos-universal/bin/kaido 2>&1 | grep -E 'flags=|Authority=Developer ID'
 ```
 
 ## 6. 1.0 发版前置清单
@@ -319,7 +319,7 @@ codesign -dv --verbose=4 /tmp/zeno-v0.17.0-macos-universal/bin/zeno 2>&1 | grep 
 - [ ] 版本号三处同步（`tools/release.sh` 自动改 `tools/build.sh` / `MCPServer.swift` / `CommandRegistry.swift`），产物内版本 = tag（`tools/package.sh` 门禁）
 - [ ] `CHANGELOG.md` 有 `## vX.Y.Z` 章节（缺了 `release.sh` 直接拒发）
 - [ ] 门禁通过：`gate-core` / `gate-ui` / `check-shell-fullwidth` / `gate-i18n` / `i18n-lint-selftest`
-- [ ] 两端测试通过：macOS（含 AppTests、ZenoUpdaterTests）+ Linux（核心与接口层）；两侧 `swift build -Xswiftc -warnings-as-errors` 均为 0 warning
+- [ ] 两端测试通过：macOS（含 AppTests、KaidoUpdaterTests）+ Linux（核心与接口层）；两侧 `swift build -Xswiftc -warnings-as-errors` 均为 0 warning
 - [ ] `UPDATE_SIGNING_KEY_BASE64` 存在，公钥复验步骤通过（CI 从源码常量取公钥复验签名）
 - [ ] 签名决策明确：要么 5 个 secret 齐全走完整链，要么在 Release 说明里写明 1.0 不签名并给出安装指引（**不允许含糊**）
 - [ ] 若签名：`notarytool` 两次提交都是 `Accepted`；App 与 DMG 均 `stapler validate` worked
@@ -339,7 +339,7 @@ codesign -dv --verbose=4 /tmp/zeno-v0.17.0-macos-universal/bin/zeno 2>&1 | grep 
 | 项 | `ci.yml` macOS | `ci.yml` Linux | `release.yml`（macos-14） |
 |---|---|---|---|
 | 工具链 | setup-xcode latest-stable | 容器 `swift:6.0-jammy` | setup-xcode latest-stable |
-| 测试 target | ZenoCoreTests、ZenoPresentationTests、InterfaceTests、AppTests、ZenoUpdaterTests | 前三个 | 同 macOS（全量） |
+| 测试 target | KaidoCoreTests、KaidoPresentationTests、InterfaceTests、AppTests、KaidoUpdaterTests | 前三个 | 同 macOS（全量） |
 | warnings-as-errors | **是**（`swift build -Xswiftc -warnings-as-errors`，产出目标） | **是**（同左） | **是**（`build.sh` + 通用二进制） |
 | `swift test` | 全量（含 AppTests / Updater） | 核心与接口层 | 全量 |
 | `gate-core` | 是 | 是 | **是**（新增，与 CI 同源） |
@@ -348,7 +348,7 @@ codesign -dv --verbose=4 /tmp/zeno-v0.17.0-macos-universal/bin/zeno 2>&1 | grep 
 
 差异的原因与边界：
 
-- **AppTests / ZenoUpdaterTests 天然只在 macOS**：`Package.swift` 用 `#if os(macOS)` 声明这些 target（`ZenoUpdater` 依赖 Security/CryptoKit）。Linux 上不存在「漏跑」问题，但也意味着 **GUI 与 OTA 逻辑不能只靠 Linux 绿**。
+- **AppTests / KaidoUpdaterTests 天然只在 macOS**：`Package.swift` 用 `#if os(macOS)` 声明这些 target（`KaidoUpdater` 依赖 Security/CryptoKit）。Linux 上不存在「漏跑」问题，但也意味着 **GUI 与 OTA 逻辑不能只靠 Linux 绿**。
 - **Linux 容器是 Swift 6.0，本地是 6.3.1**：方言差异（新警告、并发检查）只在 CI 才暴露；本轮已在 `swift:6.0-jammy` 里实跑 `swift build --build-tests -Xswiftc -warnings-as-errors`，结果 0 warning、构建通过。
 - **warnings-as-errors 只管产出目标，不管 test target**：这是本轮的选择。原因很具体——把该 flag 加到 `swift test` 上，干净检出的 CI 会立刻红在 `Tests/AppTests/OutlineSelectionAcceptanceTests.swift:74`（`try #require(rows.first)` 的返回值未使用，`[#no-usage]`）。修复它属于测试代码改动，不在发布链路任务范围内，已作为待办记录；在那之前不要让发布门禁依赖它。
 - **本地 `release.sh` 用 `swift test --disable-sandbox`，CI 不用**：本地沙箱限制导致 SwiftPM 沙箱失败，CI 无此问题。除此之外两端命令一致。
@@ -363,7 +363,7 @@ codesign -dv --verbose=4 /tmp/zeno-v0.17.0-macos-universal/bin/zeno 2>&1 | grep 
 | `find-identity` 为空但有证书 | 证书过期/被吊销，或证书在别的钥匙串（`security find-identity -v -p codesigning` 查全部） |
 | `spctl` 拒绝已签名包 | 看 `source=`：`Unnotarized Developer ID` → 缺公证；`no usable signature` → 签名被后续操作破坏（改包后重新打包/改 zip 内容） |
 | `stapler validate` 退出 65 | 无票据：漏了 staple，或 staple 后又改了包内容 |
-| 用户仍报「无法验证开发者」 | 让用户跑 `xattr -dr com.apple.quarantine /Applications/Zeno.app`；若是 OTA 包被拦，回头查 §4.7 |
+| 用户仍报「无法验证开发者」 | 让用户跑 `xattr -dr com.apple.quarantine /Applications/Kaido.app`；若是 OTA 包被拦，回头查 §4.7 |
 
 ## 10. 已知限制
 

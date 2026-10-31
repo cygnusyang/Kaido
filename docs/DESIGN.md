@@ -1,9 +1,9 @@
-# Zeno 设计系统（DESIGN）
+# Kaido 设计系统（DESIGN）
 
 - 版本：1.0
 - 日期：2026-10-18
 - 状态：已冻结（DM-4 / DM-5 裁定，Sprint 4 UI 重设计）
-- 适用：Zeno 全部界面。macOS 为当前唯一壳层；`ZenoPresentation` 的快照类型为跨平台复用边界。
+- 适用：Kaido 全部界面。macOS 为当前唯一壳层；`KaidoPresentation` 的快照类型为跨平台复用边界。
 - 上位依据：[设计重设计规格](design/ui-redesign.md)、[架构决策 ADR-013](02-architecture.md#adr-013-呈现层与唯一写路径)。
 - 术语：沿用 [04-glossary.md](features/04-glossary.md)。「重要路径」为定名，「关键路径」只作同义说明。
 
@@ -277,4 +277,4 @@
 - SwiftUI 实现位于 `Apps/macos/Sources/Theme/DesignTokens.swift`。
 - Token 以 `Color` 与 `CGFloat` 常量暴露，按 `ColorScheme` 与 `colorSchemeContrast` 解析。
 - 视图只引用语义 token，不直接写十六进制色值。新增色值必须同时更新本文档与对比度矩阵。
-- `ZenoPresentation` 不包含颜色、字号或任何视觉 token；快照只携带语义枚举与几何数值。
+- `KaidoPresentation` 不包含颜色、字号或任何视觉 token；快照只携带语义枚举与几何数值。

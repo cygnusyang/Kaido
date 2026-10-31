@@ -1,17 +1,17 @@
 import Foundation
-import ZenoInterop
+import KaidoInterop
 
 /// 导出旁注文件（13-interop-mapping §5 / 14 §P1）。
 ///
 /// 为什么不写进对方的 Notes：那会污染对方原文，回导时又混进任务备注，两头都不干净。
 /// 旁注是**与主文件同目录的第二个文件**，只为人读：回导前用它比对「哪些信息不会回来」。
 enum InteropExportNotes {
-    /// 旁注文件名：与主文件同名，扩展名换成 `zeno-export-notes.md`。
+    /// 旁注文件名：与主文件同名，扩展名换成 `kaido-export-notes.md`。
     ///
-    /// `Plan.xml` → `Plan.zeno-export-notes.md`：同一份导出的两个文件在 Finder 里相邻，
+    /// `Plan.xml` → `Plan.kaido-export-notes.md`：同一份导出的两个文件在 Finder 里相邻，
     /// 复制走一个不会漏掉另一个。
     static func fileName(for exportedURL: URL) -> String {
-        exportedURL.deletingPathExtension().lastPathComponent + ".zeno-export-notes.md"
+        exportedURL.deletingPathExtension().lastPathComponent + ".kaido-export-notes.md"
     }
 
     /// 渲染旁注正文。
@@ -22,7 +22,7 @@ enum InteropExportNotes {
     ///   - attachedFileName: 随附的主文件名。
     ///   - ledger: 导出侧有损登记（写出端合并后的那一份）。
     ///   - exportedAt: 导出时刻。
-    ///   - appVersion: Zeno 版本号（写出端与界面版本同源）。
+    ///   - appVersion: Kaido 版本号（写出端与界面版本同源）。
     static func markdown(
         projectTitle: String,
         formatID: String,
@@ -32,7 +32,7 @@ enum InteropExportNotes {
         appVersion: String
     ) -> String {
         var lines: [String] = []
-        lines.append("# " + I18n.t("interop.notes.title", "Zeno export notes"))
+        lines.append("# " + I18n.t("interop.notes.title", "Kaido export notes"))
         lines.append("")
         lines.append(header(projectTitle: projectTitle, formatID: formatID, attachedFileName: attachedFileName, exportedAt: exportedAt, appVersion: appVersion))
         lines.append("")
@@ -74,7 +74,7 @@ enum InteropExportNotes {
         ))
         lines.append("- " + I18n.t(
             "interop.notes.check.soft_constraint",
-            "Time limits exported as hard constraints will move tasks in the other tool; in Zeno they only raise violations."
+            "Time limits exported as hard constraints will move tasks in the other tool; in Kaido they only raise violations."
         ))
         lines.append("")
         return lines.joined(separator: "\n")
@@ -90,7 +90,7 @@ enum InteropExportNotes {
         let rows = [
             I18n.t("interop.notes.header.project", "Project") + ": " + projectTitle,
             I18n.t("interop.notes.header.exported_at", "Exported at") + ": " + Display.isoDate(exportedAt) + " " + Display.time(exportedAt),
-            I18n.t("interop.notes.header.zeno_version", "Zeno version") + ": " + appVersion,
+            I18n.t("interop.notes.header.kaido_version", "Kaido version") + ": " + appVersion,
             I18n.t("interop.notes.header.format", "Format") + ": " + InteropFormats.displayName(for: formatID)
                 + " (" + InteropFormats.formatVersionText(formatID: formatID) + ")",
             I18n.t("interop.notes.header.attached", "Attached file") + ": " + attachedFileName,

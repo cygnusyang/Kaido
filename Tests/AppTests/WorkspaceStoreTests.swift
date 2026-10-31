@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import ZenoCommands
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCommands
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 应用适配层交互测试：动作经会话生效、快照刷新、撤销、文件与命令注册表。
 /// 视图画面由 `GUIRenderTests` 离屏渲染覆盖。
@@ -13,30 +13,30 @@ struct WorkspaceStoreTests {
     /// 每个测试使用独立偏好域，避免写入开发者真实配置。
     /// 既有用例沿用种子数据（seedsDemoData: true）；空启动相关用例显式传 false。
     private func makeStore() -> WorkspaceStore {
-        makeStore(projectLoader: { try ZenoFile.read(from: $0) })
+        makeStore(projectLoader: { try KaidoFile.read(from: $0) })
     }
 
     private func makeStore(seedsDemoData: Bool) -> WorkspaceStore {
-        makeStore(projectLoader: { try ZenoFile.read(from: $0) }, seedsDemoData: seedsDemoData)
+        makeStore(projectLoader: { try KaidoFile.read(from: $0) }, seedsDemoData: seedsDemoData)
     }
 
     private func makeStore(
         projectLoader: @escaping @Sendable (URL) throws -> DecodedProject,
         seedsDemoData: Bool = true
     ) -> WorkspaceStore {
-        let suite = "zeno.apptests.\(UUID().uuidString)"
+        let suite = "kaido.apptests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, seedsDemoData: seedsDemoData, projectLoader: projectLoader)
     }
 
-    private func makeCatalog(_ store: WorkspaceStore) -> [ZenoCommand] {
-        ZenoCommandCatalog.make(
+    private func makeCatalog(_ store: WorkspaceStore) -> [KaidoCommand] {
+        KaidoCommandCatalog.make(
             store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {}
         )
     }
 
-    private func command(_ commands: [ZenoCommand], _ id: String) throws -> ZenoCommand {
+    private func command(_ commands: [KaidoCommand], _ id: String) throws -> KaidoCommand {
         try #require(commands.first { $0.id == id })
     }
 
@@ -135,7 +135,7 @@ struct WorkspaceStoreTests {
         // v1.2 互操作增加 3 条：「导入…」「导出为 MS Project XML…」「导出为 OmniPlan…」（置灰）。
         #expect(commands.count == 50)
         #expect(Set(commands.map(\.id)).count == commands.count)
-        #expect(Set(commands.map(\.group)) == Set(ZenoCommandGroup.allCases))
+        #expect(Set(commands.map(\.group)) == Set(KaidoCommandGroup.allCases))
         #expect(commands.allSatisfy { !$0.title.isEmpty })
         #expect(commands.contains { $0.id == "palette.show" })
     }
@@ -562,10 +562,10 @@ struct WorkspaceStoreTests {
     @Test func saveThenOpenRoundTripsProject() throws {
         let store = makeStore()
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-store-tests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-store-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("roundtrip.zeno")
+        let url = directory.appendingPathComponent("roundtrip.kaido")
 
         store.save(to: url)
         #expect(store.alertMessage == nil)
@@ -581,11 +581,11 @@ struct WorkspaceStoreTests {
     @Test func dirtyOpenWaitsForUserChoice() async throws {
         let store = makeStore()
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-dirty-open-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-dirty-open-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let first = directory.appendingPathComponent("first.zeno")
-        let second = directory.appendingPathComponent("second.zeno")
+        let first = directory.appendingPathComponent("first.kaido")
+        let second = directory.appendingPathComponent("second.kaido")
 
         store.save(to: first)
         store.dispatch(.setProjectTitle("未保存标题"))
@@ -617,10 +617,10 @@ struct WorkspaceStoreTests {
 
     @Test func editsDuringAsyncOpenArePreserved() async throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-open-race-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-open-race-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("remote.zeno")
+        let url = directory.appendingPathComponent("remote.kaido")
 
         let writer = makeStore()
         writer.dispatch(.setProjectTitle("磁盘项目"))
@@ -630,7 +630,7 @@ struct WorkspaceStoreTests {
         let gate = DispatchSemaphore(value: 0)
         let store = makeStore(projectLoader: { url in
             gate.wait()
-            return try ZenoFile.read(from: url)
+            return try KaidoFile.read(from: url)
         })
         store.openAsync(url: url)
         store.dispatch(.setProjectTitle("载入期间编辑"))
@@ -648,11 +648,11 @@ struct WorkspaceStoreTests {
 
     @Test func openWhileLoadingIsReportedInsteadOfSilentlyDropped() async throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-open-busy-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-open-busy-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let first = directory.appendingPathComponent("first.zeno")
-        let second = directory.appendingPathComponent("second.zeno")
+        let first = directory.appendingPathComponent("first.kaido")
+        let second = directory.appendingPathComponent("second.kaido")
 
         let writer = makeStore()
         writer.dispatch(.setProjectTitle("第一个项目"))
@@ -663,7 +663,7 @@ struct WorkspaceStoreTests {
         let gate = DispatchSemaphore(value: 0)
         let store = makeStore(projectLoader: { url in
             gate.wait()
-            return try ZenoFile.read(from: url)
+            return try KaidoFile.read(from: url)
         })
         store.openAsync(url: first)
         #expect(store.isLoading)
@@ -683,10 +683,10 @@ struct WorkspaceStoreTests {
 
     @Test func adoptingExportedFileDoesNotRewriteDiskFile() throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-export-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-export-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("exported.zeno")
+        let url = directory.appendingPathComponent("exported.kaido")
 
         let store = makeStore()
         store.save(to: url)
@@ -705,10 +705,10 @@ struct WorkspaceStoreTests {
 
     @Test func exportDuringEditFallsBackToDirectSave() throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-export-stale-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-export-stale-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("exported.zeno")
+        let url = directory.appendingPathComponent("exported.kaido")
 
         let store = makeStore()
         store.save(to: url)
@@ -735,13 +735,13 @@ struct WorkspaceStoreTests {
     @Test func unrulyExternalFileIsNotRetriedRepeatedly() throws {
         let store = makeStore()
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-broken-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-broken-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("broken.zeno")
+        let url = directory.appendingPathComponent("broken.kaido")
 
         store.save(to: url)
-        try Data("not a zeno file".utf8).write(to: url)
+        try Data("not a kaido file".utf8).write(to: url)
 
         store.checkExternalUpdate()
         #expect(store.alertMessage != nil)
@@ -770,10 +770,10 @@ struct WorkspaceStoreTests {
     @Test func openAsyncLoadsProjectAndClearsLoadingState() async throws {
         let store = makeStore()
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-async-open-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-async-open-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("async.zeno")
+        let url = directory.appendingPathComponent("async.kaido")
 
         store.save(to: url)
         #expect(store.alertMessage == nil)
@@ -794,7 +794,7 @@ struct WorkspaceStoreTests {
     }
 
     @Test func viewPreferencesPersistAcrossStoresButModeDoesNot() {
-        let suite = "zeno.apptests.preferences.\(UUID().uuidString)"
+        let suite = "kaido.apptests.preferences.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -1038,10 +1038,10 @@ struct WorkspaceStoreTests {
     @Test func externalChangeWithUnsavedEditsShowsBanner() throws {
         let store = makeStore()
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-external-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-external-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("external.zeno")
+        let url = directory.appendingPathComponent("external.kaido")
 
         store.save(to: url)
         store.dispatch(.createTask(parentID: nil, kind: .task))
@@ -1061,10 +1061,10 @@ struct WorkspaceStoreTests {
     @Test func externalChangeWithoutLocalEditsReloadsAutomatically() throws {
         let store = makeStore()
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-external-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-external-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("external.zeno")
+        let url = directory.appendingPathComponent("external.kaido")
 
         store.save(to: url)
         #expect(!store.hasUnsavedChanges)
@@ -1097,7 +1097,7 @@ struct WorkspaceStoreTests {
 
     /// 独立偏好域（同域可跨 store 复用，用于偏好往返与容错解码）。
     private func makePreferencesDefaults() -> UserDefaults {
-        let suite = "zeno.apptests.outlinecolumns.\(UUID().uuidString)"
+        let suite = "kaido.apptests.outlinecolumns.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults

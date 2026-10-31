@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import ZenoCore
-import ZenoCommands
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoCommands
+@testable import KaidoMacApp
 
 /// 日宽提交性能预算（Sprint 6 / T5 / D-014 取证）。
 ///
@@ -31,9 +31,9 @@ struct DayWidthPerformanceTests {
     /// 1000 任务（100 群组 × 9 子任务）的项目，结构与 `AppPerformanceTests` 一致。
     private func makeFixture() throws -> Fixture {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-daywidth-perf-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-daywidth-perf-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let url = directory.appendingPathComponent("perf.zeno")
+        let url = directory.appendingPathComponent("perf.kaido")
 
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: Date())
@@ -61,9 +61,9 @@ struct DayWidthPerformanceTests {
             }
         }
 
-        try ZenoFile.save(project, to: url)
+        try KaidoFile.save(project, to: url)
 
-        let suite = "zeno.apptests.daywidthperf.\(UUID().uuidString)"
+        let suite = "kaido.apptests.daywidthperf.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
 
@@ -141,7 +141,7 @@ struct DayWidthPerformanceTests {
         defer { fixture.cleanUp() }
 
         // 用独立会话打开同一份 1000 任务项目，单独量测排期重算。
-        let session = ZenoSession()
+        let session = KaidoSession()
         try session.openProject(at: fixture.projectURL)
 
         var samples: [Double] = []

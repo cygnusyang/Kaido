@@ -1,12 +1,12 @@
-# Zeno 1.0 发布检查单与回滚预案
+# Kaido 1.0 发布检查单与回滚预案
 
 > 配套：`docs/release-1.0-scope.md`（范围与准入判据）、`docs/release.md`（签名/公证与产物格式）。
 > 用法：逐条勾选；任一条无法勾选即**停止发布**，不允许「先发再补」。
 
 ## 0. 冻结
 
-- [ ] 代码冻结：main 上除发版提交外无其他改动；`git status` 干净（`.codebuddy/` 与本地 `.zeno` 除外）。
-- [ ] 版本号三处一致：`tools/build.sh`、`Sources/ZenoMCP/MCPServer.swift`、`Apps/macos/Sources/CommandRegistry.swift`。
+- [ ] 代码冻结：main 上除发版提交外无其他改动；`git status` 干净（`.codebuddy/` 与本地 `.kaido` 除外）。
+- [ ] 版本号三处一致：`tools/build.sh`、`Sources/KaidoMCP/MCPServer.swift`、`Apps/macos/Sources/CommandRegistry.swift`。
 - [ ] CHANGELOG 有 `## v1.0.0` 段，且「不兼容变更」「已知限制」两节非空。
 
 ## 1. 门禁（缺一不可）
@@ -20,8 +20,8 @@
 
 ## 2. 产物
 
-- [ ] `bash tools/build.sh` 成功，`dist/Zeno.app` 版本号正确、`codesign -v` 通过（ad-hoc 或 Developer ID）。
-- [ ] `dist/ZenoCLI --version`、`dist/ZenoMCP` 可执行且版本一致。
+- [ ] `bash tools/build.sh` 成功，`dist/Kaido.app` 版本号正确、`codesign -v` 通过（ad-hoc 或 Developer ID）。
+- [ ] `dist/KaidoCLI --version`、`dist/KaidoMCP` 可执行且版本一致。
 - [ ] 按 `docs/release.md` 生成 DMG/ZIP/tar.gz 与 `update-manifest.json`；校验 sha256 与本地一致。
 - [ ] `SIGNING.txt` 存在且内容如实（本版：**未签名、未公证**）。
 
@@ -45,10 +45,10 @@
 
 | 项 | 结果 | 证据 |
 | --- | --- | --- |
-| 从 DMG 安装、首启可打开 | ✅ | 挂载 `Zeno-v1.0.1.dmg` → 版本 1.0.1、双架构；`tools/install.sh` 安装后 `pgrep Zeno` 有进程，窗口正常渲染大纲 / 甘特 / 检查器 |
+| 从 DMG 安装、首启可打开 | ✅ | 挂载 `Kaido-v1.0.1.dmg` → 版本 1.0.1、双架构；`tools/install.sh` 安装后 `pgrep Kaido` 有进程，窗口正常渲染大纲 / 甘特 / 检查器 |
 | 基线分轨与偏差读数 | ✅ | 菜单「基线 → 初始基线 → 设为主对比」后，甘特每行出现两条轨道（灰 = 当前计划渐变、青 = 基线）；检查器出现「与基线对比」块。用**副本**把 5.2 时长 2→12 天，读数由 0 变为 **项目结束偏差 +10**，同名任务在导出 CSV 里也是 `planStartVariance/planFinishVariance = 10`（正=晚） |
-| 偏差 CSV 在表格软件打开 | ✅（WPS 表格实测；另用 Numbers / LibreOffice / python csv 交叉验证） | App 菜单「基线 → 导出偏差 CSV…」→ 保存面板默认名 `zeno-variance.csv` → 写盘 5560 B：`EF BB BF` 开头、3 行基线身份、11 列固定表头、36 行数据每行列数均 11。**WPS 表格**双击即开（无导入向导、无需手选编码）：A–K 共 11 列，第 2 行 `初始基线（v0.14.5 收口）` 中文完整无乱码，表头逐字正确；**Numbers** 11 列 / 40 行、中文原样；**LibreOffice** 转 xlsx 同样 40 行、中文保留；python `csv` 解析一致 |
-| 语言切英文重启后菜单栏全英文 | ✅（已切回简中） | 切 English → 弹「已切换语言：English / 退出并重新打开…」→ 重启后菜单栏 `Apple, Zeno, File, Edit, View, Task, Workspace, Baseline, Find, Window, Help`，界面 Plan/Outline、Filter tasks、Inspector、状态栏全英文；应用自弹提示也是英文（`Language saved: Chinese (Simplified)`）。最后已切回简体中文并确认菜单栏恢复中文 |
+| 偏差 CSV 在表格软件打开 | ✅（WPS 表格实测；另用 Numbers / LibreOffice / python csv 交叉验证） | App 菜单「基线 → 导出偏差 CSV…」→ 保存面板默认名 `kaido-variance.csv` → 写盘 5560 B：`EF BB BF` 开头、3 行基线身份、11 列固定表头、36 行数据每行列数均 11。**WPS 表格**双击即开（无导入向导、无需手选编码）：A–K 共 11 列，第 2 行 `初始基线（v0.14.5 收口）` 中文完整无乱码，表头逐字正确；**Numbers** 11 列 / 40 行、中文原样；**LibreOffice** 转 xlsx 同样 40 行、中文保留；python `csv` 解析一致 |
+| 语言切英文重启后菜单栏全英文 | ✅（已切回简中） | 切 English → 弹「已切换语言：English / 退出并重新打开…」→ 重启后菜单栏 `Apple, Kaido, File, Edit, View, Task, Workspace, Baseline, Find, Window, Help`，界面 Plan/Outline、Filter tasks、Inspector、状态栏全英文；应用自弹提示也是英文（`Language saved: Chinese (Simplified)`）。最后已切回简体中文并确认菜单栏恢复中文 |
 | 应用内「检查更新」不误报 | ✅ | 点「检查更新…」→「当前版本 1.0.1 (Build 20261026.2252)，无需更新。」与服务器 manifest 的 1.0.1 一致 |
 
 未做：Excel 本体（本机未安装）。Excel 同源（同为 BOM 识别 UTF-8），但**未直接实测**，只以 WPS 表格 / Numbers / LibreOffice / python csv 四个解析器替代；BOM 另有字节断言。
@@ -74,15 +74,15 @@
 发布后校验（实测命令与结果）：
 
 ```bash
-gh release download v1.0.1 --repo cygnusyang/Zeno --clobber
+gh release download v1.0.1 --repo cygnusyang/Kaido --clobber
 shasum -a 256 -c SHA256SUMS            # 三行全 OK
-hdiutil attach -nobrowse -readonly Zeno-v1.0.1.dmg
-/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' '/Volumes/Zeno v1.0.1/Zeno.app/Contents/Info.plist'   # 1.0.1
-file '/Volumes/Zeno v1.0.1/Zeno.app/Contents/MacOS/Zeno'   # universal: x86_64 + arm64
+hdiutil attach -nobrowse -readonly Kaido-v1.0.1.dmg
+/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' '/Volumes/Kaido v1.0.1/Kaido.app/Contents/Info.plist'   # 1.0.1
+file '/Volumes/Kaido v1.0.1/Kaido.app/Contents/MacOS/Kaido'   # universal: x86_64 + arm64
 python3 - <<'PY'
 import json, hashlib
 m = json.load(open('update-manifest.json'))
-print(m['sha256'] == hashlib.sha256(open('Zeno-v1.0.1.zip','rb').read()).hexdigest())   # True
+print(m['sha256'] == hashlib.sha256(open('Kaido-v1.0.1.zip','rb').read()).hexdigest())   # True
 PY
 ```
 

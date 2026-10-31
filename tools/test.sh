@@ -6,16 +6,16 @@
 #   tools/test.sh --self-check           看门狗自检：假命令静默挂住，确认能抓栈并非零退出
 #
 # 环境变量：
-#   ZENO_TEST_NO_SANDBOX=0       关闭本机默认 --disable-sandbox（CI 口径 = 0）
-#   ZENO_TEST_STALL_TIMEOUT=120  连续多少秒日志无新增字节即判挂死（0 关闭看门狗）
-#   ZENO_TEST_STALL_POLL=5       采样间隔（秒）
-#   ZENO_TEST_LOG=<path>         指定日志文件（默认 /tmp/zeno-test-<时间戳>.log）
-#   ZENO_TEST_EVENT_STREAM=<path> 指定 Swift Testing 事件流文件（默认 /tmp/zeno-test-events-<时间戳>.jsonl）
+#   KAIDO_TEST_NO_SANDBOX=0       关闭本机默认 --disable-sandbox（CI 口径 = 0）
+#   KAIDO_TEST_STALL_TIMEOUT=120  连续多少秒日志无新增字节即判挂死（0 关闭看门狗）
+#   KAIDO_TEST_STALL_POLL=5       采样间隔（秒）
+#   KAIDO_TEST_LOG=<path>         指定日志文件（默认 /tmp/kaido-test-<时间戳>.log）
+#   KAIDO_TEST_EVENT_STREAM=<path> 指定 Swift Testing 事件流文件（默认 /tmp/kaido-test-events-<时间戳>.jsonl）
 #
 # 为什么有看门狗：v1.3.0 / v1.3.1 的 CI「test · macOS」卡在测试步骤十余分钟且零输出，
 # 日志要等作业结束才取得到，而作业结束恰恰是因为它挂死——挂死现场什么都没留下。
 # 现在改成输出落盘 + 后台运行 + 连续无增长即 sample 抓栈，把现场留在
-# /tmp/zeno-ci-hang-<时间戳>.txt，本轮作业自己失败并带出证据。
+# /tmp/kaido-ci-hang-<时间戳>.txt，本轮作业自己失败并带出证据。
 #
 # 失败用例即时上屏；套件与汇总正常打印。
 set -uo pipefail
@@ -65,10 +65,10 @@ else
   DEFAULT_STALL_TIMEOUT=120
   DEFAULT_STALL_POLL=5
 fi
-STALL_TIMEOUT="${ZENO_TEST_STALL_TIMEOUT:-${DEFAULT_STALL_TIMEOUT}}"
-STALL_POLL="${ZENO_TEST_STALL_POLL:-${DEFAULT_STALL_POLL}}"
+STALL_TIMEOUT="${KAIDO_TEST_STALL_TIMEOUT:-${DEFAULT_STALL_TIMEOUT}}"
+STALL_POLL="${KAIDO_TEST_STALL_POLL:-${DEFAULT_STALL_POLL}}"
 if ! is_uint "${STALL_TIMEOUT}" || ! is_uint "${STALL_POLL}" || [ "${STALL_POLL}" -lt 1 ]; then
-  echo "tools/test.sh: ZENO_TEST_STALL_TIMEOUT / ZENO_TEST_STALL_POLL 必须是非负整数（收到 ${STALL_TIMEOUT} / ${STALL_POLL}）" >&2
+  echo "tools/test.sh: KAIDO_TEST_STALL_TIMEOUT / KAIDO_TEST_STALL_POLL 必须是非负整数（收到 ${STALL_TIMEOUT} / ${STALL_POLL}）" >&2
   exit 2
 fi
 
@@ -81,9 +81,9 @@ SAMPLE_TOP_SECS=5
 SAMPLE_MAX_PIDS=4
 
 if [ "${SELF_CHECK}" = 1 ]; then
-  LOG="${ZENO_TEST_LOG:-/tmp/zeno-test-selfcheck-$(date +%Y%m%d-%H%M%S)-$$.log}"
+  LOG="${KAIDO_TEST_LOG:-/tmp/kaido-test-selfcheck-$(date +%Y%m%d-%H%M%S)-$$.log}"
 else
-  LOG="${ZENO_TEST_LOG:-/tmp/zeno-test-$(date +%Y%m%d-%H%M%S)-$$.log}"
+  LOG="${KAIDO_TEST_LOG:-/tmp/kaido-test-$(date +%Y%m%d-%H%M%S)-$$.log}"
 fi
 : > "${LOG}"
 
@@ -92,7 +92,7 @@ fi
 # 版本 1 = 当前 Swift Testing 输出格式；只在非自检时启用（自检跑的是假命令）。
 EVENT_LOG=""
 if [ "${SELF_CHECK}" = 0 ] && [ "${HAS_EVENT_STREAM}" = 0 ]; then
-  EVENT_LOG="${ZENO_TEST_EVENT_STREAM:-/tmp/zeno-test-events-$(date +%Y%m%d-%H%M%S)-$$.jsonl}"
+  EVENT_LOG="${KAIDO_TEST_EVENT_STREAM:-/tmp/kaido-test-events-$(date +%Y%m%d-%H%M%S)-$$.jsonl}"
   if : > "${EVENT_LOG}" 2>/dev/null; then
     EVENT_ARGS+=(--event-stream-output-path "${EVENT_LOG}" --event-stream-version 1)
   else
@@ -262,7 +262,7 @@ PY
 capture_stacks() {
   local root="$1" stamp report sample_file pid
   stamp="$(date +%Y%m%d-%H%M%S)"
-  report="/tmp/zeno-ci-hang-${stamp}-$$.txt"
+  report="/tmp/kaido-ci-hang-${stamp}-$$.txt"
   REPORT="${report}"
 
   {
@@ -321,7 +321,7 @@ start_suite() {
   if [ "${SELF_CHECK}" = 1 ]; then
     # 演示：先写一行再彻底静默，模拟「跑着跑着不出声」。
     bash -c 'echo "自检假命令：已输出一行，随后 sleep 200"; sleep 200' > "${LOG}" 2>&1 &
-  elif [ "${ZENO_TEST_NO_SANDBOX:-1}" = "1" ]; then
+  elif [ "${KAIDO_TEST_NO_SANDBOX:-1}" = "1" ]; then
     swift test --disable-sandbox "${EVENT_ARGS[@]}" "${ARGS[@]}" > "${LOG}" 2>&1 &
   else
     swift test "${EVENT_ARGS[@]}" "${ARGS[@]}" > "${LOG}" 2>&1 &

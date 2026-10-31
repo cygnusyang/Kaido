@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import ZenoInterop
+import KaidoInterop
 @testable import InteropOmniPlan
 
 /// OmniPlan 写出（.oplx）验收：容器、字段、往返与有损登记。
@@ -11,7 +11,7 @@ import ZenoInterop
 struct OmniPlanWriteTests {
     private let adapter = OmniPlanAdapter()
 
-    private static let samplePath = ProcessInfo.processInfo.environment["ZENO_OMNIPLAN_SAMPLE"]
+    private static let samplePath = ProcessInfo.processInfo.environment["KAIDO_OMNIPLAN_SAMPLE"]
         ?? "/tmp/omniplan-sample.oplx"
 
     private static var sampleAvailable: Bool {
@@ -69,7 +69,7 @@ struct OmniPlanWriteTests {
         let export = try adapter.export(document)
         let reread = try adapter.read(export.data)
 
-        // Zeno 导出的是 1 起层级、多条顶层任务：写进一个空标题根群组。
+        // Kaido 导出的是 1 起层级、多条顶层任务：写进一个空标题根群组。
         let root = try #require(reread.tasks.first)
         #expect(root.kind == .group)
         #expect(root.title.isEmpty)
@@ -180,7 +180,7 @@ struct OmniPlanWriteTests {
 
     // MARK: - 有损登记
 
-    @Test("写不回去的登记为 dropped：基线 / 自定义域 / Zeno 独有状态 / 费率换算不了的投入")
+    @Test("写不回去的登记为 dropped：基线 / 自定义域 / Kaido 独有状态 / 费率换算不了的投入")
     func recordsDroppedInformation() throws {
         var document = InteropDocument(
             metadata: InteropMetadata(
@@ -204,7 +204,7 @@ struct OmniPlanWriteTests {
                 effortHours: 8,
                 actualStart: Self.date(2026, 3, 2),
                 calendarID: "cal-b",
-                attributes: ["zeno.status": "cancelled", "zeno.cancelReason": "预算取消", "Text1": "差异"]
+                attributes: ["kaido.status": "cancelled", "kaido.cancelReason": "预算取消", "Text1": "差异"]
             )
         ]
         document.resources = [
@@ -224,7 +224,7 @@ struct OmniPlanWriteTests {
 
         #expect(ledger.entry(field: "baseline")?.kind == .dropped)
         #expect(ledger.entry(field: "customField")?.kind == .dropped)
-        #expect(ledger.entry(field: "task.zenoOnly")?.count == 2)
+        #expect(ledger.entry(field: "task.kaidoOnly")?.count == 2)
         #expect(ledger.entry(field: "task.attribute")?.count == 1)
         #expect(ledger.entry(field: "task.actual")?.count == 1)
         #expect(ledger.entry(field: "task.calendar")?.count == 1)
@@ -232,14 +232,14 @@ struct OmniPlanWriteTests {
         #expect(ledger.entry(field: "calendar.multi")?.count == 1)
         #expect(ledger.entry(field: "project.title")?.kind == .dropped)
 
-        // Zeno 独有信息不进对方字段：Actual.xml 里没有它们。
+        // Kaido 独有信息不进对方字段：Actual.xml 里没有它们。
         let archive = try ZipArchive(data: export.data)
         let xml = try #require(
             String(data: try archive.requiredData(named: "Actual.xml"), encoding: .utf8)
         )
         #expect(!xml.contains("cancelled"))
         #expect(!xml.contains("预算取消"))
-        #expect(!xml.contains("zeno."))
+        #expect(!xml.contains("kaido."))
     }
 
     // MARK: - 容器
@@ -351,7 +351,7 @@ struct OmniPlanWriteTests {
         return InteropDocument(
             metadata: InteropMetadata(
                 plannedStart: Self.date(2026, 3, 2),
-                defaultCalendarID: "zeno-calendar"
+                defaultCalendarID: "kaido-calendar"
             ),
             tasks: tasks,
             resources: [
@@ -360,7 +360,7 @@ struct OmniPlanWriteTests {
             ],
             calendars: [
                 InteropCalendar(
-                    id: "zeno-calendar",
+                    id: "kaido-calendar",
                     workingWeekdays: Set(2...6),
                     hoursPerDay: 16,
                     exceptions: [

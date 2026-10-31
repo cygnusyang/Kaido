@@ -2,7 +2,7 @@ import Foundation
 
 /// 最近打开的项目文件（最多 5 条，最新在前）。
 ///
-/// 只存绝对路径，不存安全作用域书签：Zeno 的项目文件通常就在工作目录里，
+/// 只存绝对路径，不存安全作用域书签：Kaido 的项目文件通常就在工作目录里，
 /// 移动/删除后路径失效直接剔除，比维护书签与沙盒授权简单。
 /// 存储位置是 `UserDefaults`，与视图偏好同一域（`WorkspaceStore.defaults`），
 /// 测试注入独立 suite 即可隔离。
@@ -10,7 +10,7 @@ struct RecentProjects {
     /// 上限（产品要求：最多存 5 个）。
     static let limit = 5
     /// `UserDefaults` 键。改结构时递增版本后缀。
-    static let defaultsKey = "zeno.recent.projects.v1"
+    static let defaultsKey = "kaido.recent.projects.v1"
 
     private let defaults: UserDefaults
 

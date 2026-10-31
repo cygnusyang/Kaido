@@ -1,6 +1,6 @@
 import SwiftUI
-import ZenoCore
-import ZenoPresentation
+import KaidoCore
+import KaidoPresentation
 
 /// 日宽拖动提交节流状态机（引用语义）。
 ///

@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // v1.4.0 跨组验收用例（组 B：偏好迁移 / D-045）。
 //
@@ -18,7 +18,7 @@ import ZenoPresentation
 struct V140PreferenceMigrationAcceptanceTests {
     /// 每个用例独立偏好域，避免污染开发者真实配置、避免用例间互相影响。
     private func makeDefaults(_ tag: String) -> UserDefaults {
-        let suite = "zeno.v140.\(tag).\(UUID().uuidString)"
+        let suite = "kaido.v140.\(tag).\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults

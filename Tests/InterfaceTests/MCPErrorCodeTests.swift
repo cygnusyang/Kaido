@@ -1,7 +1,7 @@
 import Foundation
 import Testing
-import ZenoCore
-@testable import ZenoMCP
+import KaidoCore
+@testable import KaidoMCP
 
 // F-0708 MCP 错误码（阶段一）的验收用例。
 // 用例编号对应 docs/features/06-localization-cases.md 的 E 组。
@@ -126,13 +126,13 @@ struct MCPErrorReasonTests {
         }
     }
 
-    /// E-01：\`reason\` 全部是 \`ZenoErrorCode\` 的合法取值，\`code\` 不越出冻结集合。
+    /// E-01：\`reason\` 全部是 \`KaidoErrorCode\` 的合法取值，\`code\` 不越出冻结集合。
     @Test func reasonsAndCodesStayInFrozenSets() throws {
         let baseline = try loadMCPErrorBaseline()
         for entry in baseline {
             #expect(
-                ZenoErrorCode(rawValue: entry.reason) != nil,
-                "\(entry.id)：reason 不在 ZenoErrorCode 内：\(entry.reason)"
+                KaidoErrorCode(rawValue: entry.reason) != nil,
+                "\(entry.id)：reason 不在 KaidoErrorCode 内：\(entry.reason)"
             )
             #expect(
                 entry.reason.range(of: "^[a-z]+(_[a-z]+)+$", options: .regularExpression) != nil,
@@ -207,7 +207,7 @@ struct MCPErrorReasonTests {
         for violation in violations {
             let code = violation.objectValue?["code"]?.stringValue
             #expect(code != nil)
-            #expect(ZenoErrorCode(rawValue: code ?? "") != nil)
+            #expect(KaidoErrorCode(rawValue: code ?? "") != nil)
             // reason 仍在（阶段一保留语义枚举，供后续渲染与迁移）。
             #expect(violation.objectValue?["reason"] != nil)
         }

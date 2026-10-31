@@ -1,7 +1,7 @@
 {
   "mcpServers": {
-    "zeno": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/zeno-mcp",
+    "kaido": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/kaido-mcp",
       "args": []
     }
   }

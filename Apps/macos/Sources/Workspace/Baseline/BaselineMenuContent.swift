@@ -1,6 +1,6 @@
 import SwiftUI
-import ZenoCore
-import ZenoPresentation
+import KaidoCore
+import KaidoPresentation
 
 /// 「基线」菜单内容（v0.14 / docs/features/10-multi-baseline-gantt.md §5）。
 ///
@@ -19,8 +19,8 @@ import ZenoPresentation
 /// 放顶部会把唯一且必要的入口挤下去。
 struct BaselineMenuContent: View {
     @ObservedObject var store: WorkspaceStore
-    let commands: [ZenoCommand]
-    /// 是否在菜单项上挂快捷键。只有菜单栏（`ZenoMenuCommands`）该挂：
+    let commands: [KaidoCommand]
+    /// 是否在菜单项上挂快捷键。只有菜单栏（`KaidoMenuCommands`）该挂：
     /// 工具栏菜单与菜单栏同时注册同一个组合键，会变成两条同键命令。
     var showsShortcuts: Bool = true
 
@@ -119,7 +119,7 @@ struct BaselineMenuContent: View {
     }
 }
 
-/// 基线命令 id（v0.16）：注册表（`ZenoCommandCatalog.baselineCommands`）与渲染方
+/// 基线命令 id（v0.16）：注册表（`KaidoCommandCatalog.baselineCommands`）与渲染方
 /// （菜单栏、工具栏、本文件的 `BaselineMenuContent`）共用这一份命名。
 ///
 /// 以前两侧各写一遍字符串插值，id 漂了不会报错——`item(_:marked:)` 在注册表里取不到

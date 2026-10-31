@@ -1,8 +1,8 @@
 import CoreGraphics
 import Testing
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // F-14-20「大纲列宽可调」布局单测（设计稿 §3.3 与 §4「布局」行）。
 //

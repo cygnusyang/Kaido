@@ -2,9 +2,9 @@ import AppKit
 import Foundation
 import SwiftUI
 import Testing
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// D-050 验收：横向滚动承接层必须与内容处在**同一位移单元**里。
 ///
@@ -422,13 +422,13 @@ struct TimelineCanvasViewportTests {
     // MARK: - 套件 B：真 ScrollView 端到端复现（修复前必红）
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "zeno.viewport.d050.\(UUID().uuidString)"
+        let suite = "kaido.viewport.d050.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(
             defaults: defaults,
             seedsDemoData: true,
-            projectLoader: { try ZenoFile.read(from: $0) }
+            projectLoader: { try KaidoFile.read(from: $0) }
         )
     }
 

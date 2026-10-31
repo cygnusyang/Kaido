@@ -9,7 +9,7 @@
 | 版本 | 主题 | 用户可见价值 | 状态 | 关键判据 |
 | --- | --- | --- | --- | --- |
 | v1.1.0 | 实际开始 / 实际结束 | 任务能看到真实开工与完工时刻，状态变化自动记录、可人工修正 | ⏸ 待开工 | 07 §9（14 条） |
-| v1.2.0 | 基线快照与偏差数值（`.zeno` 升格式 v2） | 「设置基线」后，大纲与检查器直接显示比承诺晚/早几天 | 🔄 已部分完成 | 08 §9（12 条）+ 体积实测 |
+| v1.2.0 | 基线快照与偏差数值（`.kaido` 升格式 v2） | 「设置基线」后，大纲与检查器直接显示比承诺晚/早几天 | 🔄 已部分完成 | 08 §9（12 条）+ 体积实测 |
 | v1.3.0 | 多基线叠加：甘特图同屏可见、按颜色区分 | 1–3 条基线同屏画在同一行、用 8 色调色板区分颜色，创建入口置顶 | 🔄 已部分完成 | A7 黄金布局不破、1,000 行 × 3 基线实测 |
 | v1.4.0 | 基线与偏差报表化 + 项目摘要 | 多基线可管理、孤儿可查、项目级偏差一屏可见、偏差导出 CSV | ⏳ 进行中 | CSV 口径一致、孤儿清单可复现 |
 
@@ -30,7 +30,7 @@ baseline（冻结）/ plan（引擎排期，预测）/ actual（实际发生）�
 **Core 层**：
 - `TaskItem.actualStart`（`completedAt` 复用为实际结束）
 - `TaskItem.actualFinish`（新增，显式记录完成时刻）
-- `ZenoErrorCode.actualDateOrderInvalid`（新增：actualStart > actualFinish）
+- `KaidoErrorCode.actualDateOrderInvalid`（新增：actualStart > actualFinish）
 
 **Commands 层**：
 - `applyStatus` 自动记录（首次进 `in_progress` 或 `progress > 0`，仅 `actualStart` 为 `nil` 时写，回退不清；`completedAt` 永不回退）
@@ -60,16 +60,16 @@ baseline（冻结）/ plan（引擎排期，预测）/ actual（实际发生）�
 ### 1.3 文件范围
 
 参考 `07-actual-dates.md §11`：
-- Core：`Sources/ZenoCore/Model/TaskItem.swift`、`Sources/ZenoCore/ErrorCodes.swift`
-- Commands：`Sources/ZenoCommands/ZenoSession.swift`
-- Presentation：`Sources/ZenoPresentation/PlanRow.swift`、`Sources/ZenoPresentation/TaskInspector.swift`、`Sources/ZenoPresentation/ViewState.swift`
+- Core：`Sources/KaidoCore/Model/TaskItem.swift`、`Sources/KaidoCore/ErrorCodes.swift`
+- Commands：`Sources/KaidoCommands/KaidoSession.swift`
+- Presentation：`Sources/KaidoPresentation/PlanRow.swift`、`Sources/KaidoPresentation/TaskInspector.swift`、`Sources/KaidoPresentation/ViewState.swift`
 - App：`Apps/macos/Sources/Workspace/InspectorView.swift`、`Apps/macos/Sources/CommandRegistry.swift`
-- CLI：`Sources/ZenoCLI/CLIRouter.swift`
+- CLI：`Sources/KaidoCLI/CLIRouter.swift`
 
 ### 1.4 并行分组
 
-**波次 1**：A（TaskItem + ZenoErrorCode + core 用例）
-**波次 2**：B（ZenoSession）∥ C（Presentation）∥ D（CLI）——文件两两不重叠
+**波次 1**：A（TaskItem + KaidoErrorCode + core 用例）
+**波次 2**：B（KaidoSession）∥ C（Presentation）∥ D（CLI）——文件两两不重叠
 **波次 3**：E（Apps：Store / WorkspaceView / OutlineTable / Display / InspectorView / xcstrings）
 
 ### 1.5 判据要点
@@ -122,7 +122,7 @@ baseline（冻结）/ plan（引擎排期，预测）/ actual（实际发生）�
 
 ---
 
-## 2. v1.2.0 · 基线快照与偏差数值（`.zeno` 升格式 v2）
+## 2. v1.2.0 · 基线快照与偏差数值（`.kaido` 升格式 v2）
 
 ### 2.1 目标
 
@@ -136,7 +136,7 @@ baseline（冻结）/ plan（引擎排期，预测）/ actual（实际发生）�
 - `CalendarDayMath`（日算术上移，`ScheduleDateMath` 转发）
 
 **Storage 层**：
-- `ZenoFile.currentFormatVersion = 2`（格式版本号）
+- `KaidoFile.currentFormatVersion = 2`（格式版本号）
 - `BaselineFormatV2Migration`（纯加法迁移步骤）
 - `baselines` 键（有基线才写，兼容 v0 格式）
 - v1 文件内存迁移：打开不落盘、首次保存才升版（`08 §7`）
@@ -203,7 +203,7 @@ baseline（冻结）/ plan（引擎排期，预测）/ actual（实际发生）�
 | 任务 | 状态 | 完成时间 | 备注 |
 | --- | --- | --- | --- |
 | Baseline 模型与引擎 | ✅ 完成 | 2026-10-25 | `Baseline` / `BaselineEntry` / `BaselineEngine` 已存在 |
-| 格式版本 v2 升级 | ✅ 完成 | 2026-10-25 | `ZenoFile.currentFormatVersion = 2` 已存在 |
+| 格式版本 v2 升级 | ✅ 完成 | 2026-10-25 | `KaidoFile.currentFormatVersion = 2` 已存在 |
 | 基线迁移逻辑 | ✅ 完成 | 2026-10-25 | `BaselineFormatV2Migration` 已存在 |
 | 基线管理命令 | ✅ 完成 | 2026-10-25 | `createBaseline` / `renameBaseline` / `deleteBaseline` 已存在 |
 | 偏差计算 | ✅ 完成 | 2026-10-25 | `BaselineEngine` 已实现 |
@@ -255,15 +255,15 @@ baseline（冻结）/ plan（引擎排期，预测）/ actual（实际发生）�
 
 | 组 | 文件范围（互斥） | 归属 | 前置 |
 | --- | --- | --- | --- |
-| G1 core-model | `Sources/ZenoCore/Model/Baseline.swift`、`Sources/ZenoCore/Model/BaselinePalette.swift`（新）、`Tests/ZenoCoreTests/BaselinePaletteTests.swift`（新） | core | — |
-| G2 core-geom | `Sources/ZenoCore/Query/GanttLayout.swift`、`Tests/ZenoCoreTests/GanttDateToXTests.swift`（新） | core | — |
-| G3 pres-lane | `Sources/ZenoPresentation/BaselineLanes.swift`（新）、`Sources/ZenoPresentation/GanttHitTesting.swift`、`Tests/ZenoPresentationTests/BaselineLaneGeometryTests.swift`（新）、`Tests/ZenoPresentationTests/GanttHitTestingTests.swift` | pres | G2 |
-| G4 cmds | `Sources/ZenoCommands/ZenoSession.swift`、`Tests/ZenoCoreTests/SessionBaselineTests.swift` | core | G1 |
-| G5 pres-snapshot | `Sources/ZenoPresentation/Snapshots.swift`、`Presenter.swift`、ViewState.swift`、WorkspaceAction.swift`、`Tests/ZenoPresentationTests/BaselineMultiGanttTests.swift`（新） | pres | G3 + G4 |
+| G1 core-model | `Sources/KaidoCore/Model/Baseline.swift`、`Sources/KaidoCore/Model/BaselinePalette.swift`（新）、`Tests/KaidoCoreTests/BaselinePaletteTests.swift`（新） | core | — |
+| G2 core-geom | `Sources/KaidoCore/Query/GanttLayout.swift`、`Tests/KaidoCoreTests/GanttDateToXTests.swift`（新） | core | — |
+| G3 pres-lane | `Sources/KaidoPresentation/BaselineLanes.swift`（新）、`Sources/KaidoPresentation/GanttHitTesting.swift`、`Tests/KaidoPresentationTests/BaselineLaneGeometryTests.swift`（新）、`Tests/KaidoPresentationTests/GanttHitTestingTests.swift` | pres | G2 |
+| G4 cmds | `Sources/KaidoCommands/KaidoSession.swift`、`Tests/KaidoCoreTests/SessionBaselineTests.swift` | core | G1 |
+| G5 pres-snapshot | `Sources/KaidoPresentation/Snapshots.swift`、`Presenter.swift`、ViewState.swift`、WorkspaceAction.swift`、`Tests/KaidoPresentationTests/BaselineMultiGanttTests.swift`（新） | pres | G3 + G4 |
 | G6 tokens | `Apps/macos/Sources/Theme/DesignTokens.swift`（只加 8 色 + 图例 token） | app | — |
 | G7 canvas | `Apps/macos/Sources/Workspace/Timeline/TimelineView.swift` | app | G5 + G6 |
 | G8 menus | `Apps/macos/Sources/CommandRegistry.swift`、`Apps/macos/Sources/Workspace/Baseline/`（新目录：`BaselineMenu.swift`、`BaselineDot.swift`）、`Workspace/WorkspaceView.swift`、`WorkspaceStore.swift`、`Resources/Localizable.xcstrings` | app | G5 + G6 |
-| G9 interfaces | `Sources/ZenoCLI/CLIRouter.swift`、`Sources/ZenoCLI/CLIStrings.swift`、`Sources/ZenoMCP/Tools.swift`、`Tests/InterfaceTests/BaselineInterfaceTests.swift` | cli | G4 |
+| G9 interfaces | `Sources/KaidoCLI/CLIRouter.swift`、`Sources/KaidoCLI/CLIStrings.swift`、`Sources/KaidoMCP/Tools.swift`、`Tests/InterfaceTests/BaselineInterfaceTests.swift` | cli | G4 |
 
 ### 3.4 并行分组
 
@@ -390,7 +390,7 @@ baseline（冻结）/ plan（引擎排期，预测）/ actual（实际发生）�
 ### 5.2 发版检查清单
 
 每版发布前必须完成：
-1. ✅ 版本号三处同源更新（`tools/build.sh` / `Sources/ZenoMCP/MCPServer.swift` / `Apps/macos/Sources/CommandRegistry.swift`）
+1. ✅ 版本号三处同源更新（`tools/build.sh` / `Sources/KaidoMCP/MCPServer.swift` / `Apps/macos/Sources/CommandRegistry.swift`）
 2. ✅ CHANGELOG 条目（含判据证据）
 3. ✅ 缺陷登记表回填（`docs/defects.md`）
 4. ✅ 测试全绿（单测 + E2E）
@@ -398,8 +398,8 @@ baseline（冻结）/ plan（引擎排期，预测）/ actual（实际发生）�
 
 ### 5.3 格式升级纪律
 
-- v1.2.0 起 `.zeno` 为格式 v2
-- 发版说明必须写明「旧版本 Zeno 无法打开由新版保存的文件」
+- v1.2.0 起 `.kaido` 为格式 v2
+- 发版说明必须写明「旧版本 Kaido 无法打开由新版保存的文件」
 - 这是唯一的不可逆动作（已裁定）
 
 ### 5.4 决策闸门（v1.1.0 前必须已裁定）

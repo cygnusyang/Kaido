@@ -7,15 +7,15 @@ Please do not open a public issue for a security problem.
 Use GitHub's private reporting: **Security → Advisories → Report a vulnerability** on this
 repository. That opens a private thread with the maintainer.
 
-Include the version, the platform, and a reproduction. If the issue involves a `.zeno`
+Include the version, the platform, and a reproduction. If the issue involves a `.kaido`
 file you cannot share, a description of its structure is enough.
 
 ## Scope
 
-Zeno reads and writes local `.zeno` files, runs an MCP server over stdio, and ships a
+Kaido reads and writes local `.kaido` files, runs an MCP server over stdio, and ships a
 CLI. Relevant classes of issue:
 
-- Path handling in `.zeno` loading, and in the installer / updater
+- Path handling in `.kaido` loading, and in the installer / updater
 - Parsing of untrusted JSON (migration and import paths)
 - Command injection through MCP/CLI arguments or hook scripts
 - Anything that lets a project file execute code
@@ -32,5 +32,5 @@ CLI. Relevant classes of issue:
 
 ## Supported versions
 
-Only the latest release receives fixes. This project is pre-1.0: the `.zeno` format is
+Only the latest release receives fixes. This project is pre-1.0: the `.kaido` format is
 versioned and migrations are provided, but the Swift API may change between minor versions.

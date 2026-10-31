@@ -1,7 +1,7 @@
 import Foundation
 import Testing
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // v0.16「大纲列顺序」（#12）应用层接线：动作 → 视图状态 → 偏好持久化 → 快照。
 //
@@ -12,7 +12,7 @@ import ZenoPresentation
 @Suite("大纲列顺序的存储与快照（v0.16 / #12）")
 struct OutlineColumnOrderStoreTests {
     private func makePreferencesDefaults() -> UserDefaults {
-        let suite = "zeno.apptests.columnorder.\(UUID().uuidString)"
+        let suite = "kaido.apptests.columnorder.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults
@@ -167,9 +167,9 @@ struct OutlineColumnOrderStoreTests {
         store.dispatch(.setOutlineColumnOrder(reordered))
 
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-v016-order-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-v016-order-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let url = directory.appendingPathComponent("other.zeno")
+        let url = directory.appendingPathComponent("other.kaido")
         store.save(to: url)
         #expect(store.open(url: url), "换项目本身应成功")
 

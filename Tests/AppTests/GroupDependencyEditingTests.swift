@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import ZenoCommands
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCommands
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 群组依赖可编辑（v0.16 / issue #16）。
 ///
@@ -15,7 +15,7 @@ import ZenoPresentation
 struct GroupDependencyEditingTests {
     /// 每个用例独立偏好域，避免污染开发者真实配置。
     private func makeStore() -> WorkspaceStore {
-        let suite = "zeno.apptests.groupdeps.\(UUID().uuidString)"
+        let suite = "kaido.apptests.groupdeps.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, seedsDemoData: false)

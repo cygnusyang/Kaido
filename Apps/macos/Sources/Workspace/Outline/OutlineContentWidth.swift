@@ -1,5 +1,5 @@
 import AppKit
-import ZenoPresentation
+import KaidoPresentation
 
 /// 内容自适应列宽（#48）：按当前项目实际出现的文本测量列宽，取代固定常量。
 ///

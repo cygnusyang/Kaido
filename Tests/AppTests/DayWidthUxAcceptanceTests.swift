@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 日宽自定义 UX 自动化验收（Sprint 6，D-015 等价验收）。
 ///
@@ -21,7 +21,7 @@ import ZenoPresentation
 struct DayWidthUxAcceptanceTests {
     /// 每个测试使用独立偏好域，避免写入开发者真实配置。
     private func makeStore(seedsDemoData: Bool = true) -> WorkspaceStore {
-        let suite = "zeno.apptests.daywidthux.\(UUID().uuidString)"
+        let suite = "kaido.apptests.daywidthux.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults, seedsDemoData: seedsDemoData)

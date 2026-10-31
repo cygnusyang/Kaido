@@ -2,7 +2,7 @@
 
 > 状态：设计稿（dev-architect）· 2026-10-25 · 前置：[07-actual-dates.md](07-actual-dates.md)
 > 上游：PRD [US-E2-06](../01-prd.md)、F-14-16 / F-12-17 / F-13-09 / F-22-05；调研：[docs/research/omniplan-baseline.md](../research/omniplan-baseline.md)（官方手册 4.2.2 / iOS 4.7）
-> 信息源标注：【官方】= OmniPlan 手册原文（经调研转述）；【推断】= 手册未明说；【Zeno 扩展】= 明确不与 OmniPlan 对等。
+> 信息源标注：【官方】= OmniPlan 手册原文（经调研转述）；【推断】= 手册未明说；【Kaido 扩展】= 明确不与 OmniPlan 对等。
 > **已裁定**：`formatVersion` 升 2（加法迁移，理由见 §7）。待用户确认项只剩两条，见 §11。
 
 ## 1. 目标
@@ -12,20 +12,20 @@
 
 ## 2. 三层时间轴（硬约束）
 
-| 层 | Zeno 字段 | 性质 | 消费方 |
+| 层 | Kaido 字段 | 性质 | 消费方 |
 | --- | --- | --- | --- |
 | baseline（冻结） | `Baseline.entries[].start/finish` | 承诺快照，不可变 | 偏差计算（只读） |
 | plan（预测） | 引擎 `scheduledStart / scheduledFinish` | 每编辑一次就重算 | 违例、关键路径、宽延、甘特条、偏差列 |
 | actual（事实） | `actualStart` + `completedAt`（07） | 只由状态/进度或人工写 | 实际偏差、项目摘要 |
 
 **照抄 OmniPlan 的两层会全线错位**：OmniPlan 的 Start/End 列本身就是 actual（自动排期与手填写同一字段，手册未区分），
-而 Zeno 的 `scheduledStart` 是**预测**、违例与关键路径都建在它上面。把 plan 改叫 actual，等于让违例引擎读事实层。
+而 Kaido 的 `scheduledStart` 是**预测**、违例与关键路径都建在它上面。把 plan 改叫 actual，等于让违例引擎读事实层。
 因此三层各自独立、单向只读：基线不回流排期，实际时间不进 CPM。
 
 ## 3. 数据模型
 
 ```swift
-// ZenoCore/Model/Baseline.swift（新文件）
+// KaidoCore/Model/Baseline.swift（新文件）
 public struct Baseline: Identifiable, Codable, Hashable, Sendable {
     public var id: UUID
     public var name: String          // 默认「基线 N · yyyy-MM-dd」（官方默认名为今日日期）
@@ -79,8 +79,8 @@ public struct BaselineEntry: Codable, Hashable, Sendable {
 
 ### 4.3 对比层与 actual 缺失回落
 
-- **大纲列默认对比 plan**（`<对比层> = P`），列头写「计划偏差」——Zeno 的 plan 是预测层，绝大多数任务没有实际时间；
-  这是与 OmniPlan「Variance = actual − baseline」的**有意差异**（【Zeno 扩展】），列头文案必须显式区分。
+- **大纲列默认对比 plan**（`<对比层> = P`），列头写「计划偏差」——Kaido 的 plan 是预测层，绝大多数任务没有实际时间；
+  这是与 OmniPlan「Variance = actual − baseline」的**有意差异**（【Kaido 扩展】），列头文案必须显式区分。
 - **检查器同时给两层**：计划偏差（P vs B）与实际偏差（A vs B）。`A` 为空时实际偏差为 `nil`，
   检查器显示「尚未开始 / 尚未结束」，**不回落成 0，也不拿 plan 冒充 actual**。
 - 项目级摘要：任务缺 actual 时用 plan 参与汇总，并在摘要行标注「含预测项 N 个」——回落必须**可见**，不能静默。
@@ -106,7 +106,7 @@ public struct BaselineEntry: Codable, Hashable, Sendable {
 | 孤儿 | 条目存在但任务已删（按 `taskID` 匹配缺失） | **不出现**（任务行已不存在） | 不适用 | 「已删除的基线任务：N 个」，可展开只读看 `start/finish`，**不消失** |
 
 理由：大纲行集合必须与任务树一致（ADR-013 行索引契约），孤儿不能凭空插行；但基线面板必须让用户看到「这条承诺对应的任务已不存在」，
-而不是让条目静默消失（调研：OmniPlan 4.x 对孤儿无任何说明，Zeno 要求显式呈现）。
+而不是让条目静默消失（调研：OmniPlan 4.x 对孤儿无任何说明，Kaido 要求显式呈现）。
 ## 6. 存储形态（已裁定：方案 A）
 
 > **裁定记录（2026-10-25，用户）**：采用**方案 A · 顶级 `baselines` 数组**。理由：单文件承诺不变、CLI/MCP 零改动可读、一条基线一块连续 JSON 对 git diff 最友好。
@@ -124,9 +124,9 @@ public struct BaselineEntry: Codable, Hashable, Sendable {
   JSON 消费者无差别（都在同一文件），但 Swift 侧 `Project.baselines` 与 `metadata` 分层干净。
 - 条目字段 5 个（§3），单条目 pretty 实测 **231 B**：1,000 任务 ≈ 231 KB/基线，5,000 任务 ≈ 1.1 MB/基线；5 基线 × 5,000 任务 ≈ **5.5 MB**（v0.13 已实测，见上方裁定记录；NFR 是 5,000 任务 ≤ 1 s 读写，实测 0.205 s / 0.234 s）。
 
-### 方案 B · 独立 sidecar 文件（`<name>.zeno.baselines.json`）
+### 方案 B · 独立 sidecar 文件（`<name>.kaido.baselines.json`）
 
-主文件零增长、单基线文件小巧。代价：破坏「一个 .zeno 就是全部内容」（ADR-003），MCP/CLI 只给主文件时基线静默消失；
+主文件零增长、单基线文件小巧。代价：破坏「一个 .kaido 就是全部内容」（ADR-003），MCP/CLI 只给主文件时基线静默消失；
 分享/云同步要带两个文件；两份文件的一致性与原子性要另写机制。删除/多基线操作反而更脆（要跨文件同步）。
 
 ### 方案 C · 单文件内规范化快照表
@@ -148,7 +148,7 @@ public struct BaselineEntry: Codable, Hashable, Sendable {
 
 ### 7.1 为什么必须升 2
 
-读路径对「高于当前版本」的文件直接抛 `ZenoFileError.unsupportedFormatVersion` 且**不读取内容**（`Sources/ZenoCore/Storage/ZenoFile.swift`）。
+读路径对「高于当前版本」的文件直接抛 `KaidoFileError.unsupportedFormatVersion` 且**不读取内容**（`Sources/KaidoCore/Storage/KaidoFile.swift`）。
 所以升 2 之后，旧客户端打开 v2 文件**明确报错拒绝**，而不是静默丢基线；真正会静默丢数据的是「不升版本只加未知字段」——v1 客户端读得进、保存时 `Envelope` 只写 `formatVersion/project/tasks/resources` 四个键，`baselines` 被整块抹掉。
 结论：**升 2 是数据安全的选择**，代价是「旧版本打不开新文件」，必须在发版说明与错误文案里讲清楚。
 
@@ -163,7 +163,7 @@ public struct BaselineFormatV2Migration: FormatMigration {
         document.formatVersion = 2
     }
 }
-public static let standard = FormatMigrationPlan([BaselineFormatV2Migration()])   // ZenoFile.currentFormatVersion = 2
+public static let standard = FormatMigrationPlan([BaselineFormatV2Migration()])   // KaidoFile.currentFormatVersion = 2
 ```
 
 - **不**把 `document.root` 解成强类型再写回（会丢未知键）；迁移只碰 `formatVersion`。
@@ -174,7 +174,7 @@ public static let standard = FormatMigrationPlan([BaselineFormatV2Migration()]) 
 | 动作 | 行为 |
 | --- | --- |
 | 打开 v1 文件 | 内存内迁移 1→2，`sourceFormatVersion = 1` → `needsFormatUpgrade = true`，UI/CLI 提示「保存后升级为 v2」；**打开不落盘**（沿用现状） |
-| 首次保存 | 写 v2；App 在保存成功后提示「本文件已升级为格式 v2，旧版本 Zeno 无法再打开」 |
+| 首次保存 | 写 v2；App 在保存成功后提示「本文件已升级为格式 v2，旧版本 Kaido 无法再打开」 |
 | 打开 v2 文件 | 直读，`needsFormatUpgrade = false` |
 | 写出策略（结论） | **无基线 → 省略 `baselines` 键**；有基线才写。理由：大多数项目没有基线，凭空写 `"baselines": []` 只是给 diff 加噪音；「缺省 = 空」已在解码层定义。`resources` 保持既有「无条件写」，不顺手改 |
 
@@ -186,13 +186,13 @@ public static let standard = FormatMigrationPlan([BaselineFormatV2Migration()]) 
 | v2 无基线 | 直读 | **拒绝打开**：`unsupportedFormatVersion(2)` |
 | v2 有基线 | 直读 | **拒绝打开**：同上 |
 
-错误文案要求（v0.13 实现）：保留稳定错误码 `storage_unsupported_format`，文案追加可操作指引——「此文件由更新版本的 Zeno 保存（格式 v2），请升级 Zeno 后再打开」；CLI 与 App 打开失败提示同源改文案。
+错误文案要求（v0.13 实现）：保留稳定错误码 `storage_unsupported_format`，文案追加可操作指引——「此文件由更新版本的 Kaido 保存（格式 v2），请升级 Kaido 后再打开」；CLI 与 App 打开失败提示同源改文案。
 
 ### 7.5 回滚与备份（结论：不做自动备份）
 
 - 回到旧版本：只要**未保存**，v1 文件始终是 v1（开放不改盘）；保存成 v2 后旧版本无法打开，这是升版本的既定代价。
-- **不写 `.zeno.v1.bak` 自动备份**：① 迁移纯加法、不丢字段，往返可逆；② 每次打开都生成备份会产生垃圾文件，且极易被误提交/误同步；③ 用户侧已有 git 与历史版本兜底。
-- 若用户坚持要强保护，退化方案是「首次升级保存前同目录写一次 `.zeno.v1.bak`，且仅写一次（存在即跳过）」——列入 §11 待确认。
+- **不写 `.kaido.v1.bak` 自动备份**：① 迁移纯加法、不丢字段，往返可逆；② 每次打开都生成备份会产生垃圾文件，且极易被误提交/误同步；③ 用户侧已有 git 与历史版本兜底。
+- 若用户坚持要强保护，退化方案是「首次升级保存前同目录写一次 `.kaido.v1.bak`，且仅写一次（存在即跳过）」——列入 §11 待确认。
 
 ### 7.6 测试清单（v0.13 门禁）
 
@@ -206,15 +206,15 @@ public static let standard = FormatMigrationPlan([BaselineFormatV2Migration()]) 
 > **口径说明**：保存路径是从模型重编码，未知根键在「打开 → 保存」后**不保留**（现状，ADR-011 只保证读不报错）。
 > 若要「保存也保留未知键」，需在 `Envelope` 做 raw 透传（约 +80 行 + 用例），本期列为非目标（§10）；故第 5 条断言落在**迁移层**而非保存层。
 
-> 同版必须一起更新：`docs/02-architecture.md` 的格式契约段、`zeno --version` / `project_save` 的 `formatVersion` 输出说明、CHANGELOG「格式版本 1 → 2，旧版本无法打开新文件」。
+> 同版必须一起更新：`docs/02-architecture.md` 的格式契约段、`kaido --version` / `project_save` 的 `formatVersion` 输出说明、CHANGELOG「格式版本 1 → 2，旧版本无法打开新文件」。
 ## 8. 接口契约
 
 ```swift
-// ZenoCore — 日算术上移（避免第二份实现，D-024 教训）
+// KaidoCore — 日算术上移（避免第二份实现，D-024 教训）
 public enum CalendarDayMath { public static func dayOffset(from: Date, to: Date, calendar: Calendar) -> Int }
-// ZenoPresentation/ScheduleDateMath.dayOffset 改为转发，既有调用点签名不变
+// KaidoPresentation/ScheduleDateMath.dayOffset 改为转发，既有调用点签名不变
 
-// ZenoCore — 偏差（纯函数：无 I/O、无全局时钟）
+// KaidoCore — 偏差（纯函数：无 I/O、无全局时钟）
 public struct TaskVariance: Hashable, Sendable {
     public var taskID: UUID
     public var baselineStart: Date?;      public var baselineFinish: Date?
@@ -238,14 +238,14 @@ public enum BaselineEngine {
                                 now: Date, calendar: Calendar) -> BaselineVarianceReport
 }
 
-// ZenoCommands — ZenoSession（唯一写入口；**没有** update 条目入口）
+// KaidoCommands — KaidoSession（唯一写入口；**没有** update 条目入口）
 @discardableResult public func createBaseline(name: String? = nil, now: Date = Date()) throws -> Baseline
 @discardableResult public func renameBaseline(id: UUID, name: String) throws -> Baseline
 @discardableResult public func deleteBaseline(id: UUID) throws
 public func baselines() throws -> [Baseline]
 public func baselineVariance(baselineID: UUID? = nil) throws -> BaselineVarianceReport   // nil = 最新
 
-// ZenoPresentation — 快照与动作
+// KaidoPresentation — 快照与动作
 public struct PlanRow { public var baselineStart: Date?; public var baselineFinish: Date?
                         public var planStartVariance: Int?; public var planFinishVariance: Int?
                         public var hasBaseline: Bool }
@@ -261,8 +261,8 @@ case createBaseline(String?)
 case deleteBaseline(UUID)
 ```
 
-- **「当前基线」是视图状态**：`WorkspaceViewState.selectedBaselineID: UUID?` → UserDefaults，不进撤销栈、不进基线快照、不写 `.zeno`。
-- CLI：`zeno baseline list | create [--name] | delete <id> | variance [--baseline <id>] [--task <id>] | color <id 或唯一前缀> <0…7>`；输出必须带 `baselineID` 与名称，**并带 `colorIndex`**（缺失时按 `BaselinePalette.resolve` 派生，不写 0 冒充）；`task get` 增「基线」段。
+- **「当前基线」是视图状态**：`WorkspaceViewState.selectedBaselineID: UUID?` → UserDefaults，不进撤销栈、不进基线快照、不写 `.kaido`。
+- CLI：`kaido baseline list | create [--name] | delete <id> | variance [--baseline <id>] [--task <id>] | color <id 或唯一前缀> <0…7>`；输出必须带 `baselineID` 与名称，**并带 `colorIndex`**（缺失时按 `BaselinePalette.resolve` 派生，不写 0 冒充）；`task get` 增「基线」段。
 - MCP：`baseline_create / baseline_list / baseline_delete / baseline_variance / baseline_set_color`（`baselineID` 可选，缺省最新）；五处返回均含 `baselineID`、名称与 **`colorIndex`**；越界索引返回稳定细码 `model_baseline_color_index_invalid`（工具总数 20 → 21，逐字等值清单断言已同步）。
 - **甘特显示（v0.14 重写，取代本节原「四档 `GanttBaselineMode` + 单基线灰条」方案）**：改为**多基线行内分轨叠加**——1–3 条基线各占 28pt 行内的一条下轨，按 `colorIndex` 上色，几何由 `BaselineLanes` 纯函数给出，`GanttBar` 几何零改动。详见 [10-multi-baseline-gantt.md](10-multi-baseline-gantt.md)。`GanttBaselineMode`（仅实际 / 仅基线 / 双日程 / 分割）**不再作为 v0.14 的实现载体**，其中「仅基线 / 分割」仍是 v0.15+ 候选。
 ## 9. 判据清单
@@ -298,7 +298,7 @@ case deleteBaseline(UUID)
 | 基线删除 | **允许删除，删除前二次确认** | 无软删除、无审批留痕（与 OmniPlan 一致） |
 | 大纲基线列 | 四列（基线开始/基线结束/开始偏差/结束偏差）**全部默认隐藏** | 走列菜单按需打开，不动现有布局 |
 | 孤儿 / 基线后新增 | **大纲不插行**，收进基线面板 + 计数 | 不破坏 ADR-013 行索引契约 |
-| `.zeno.v1.bak` 备份 | **不做**（§7.5） | 打开不落盘、保存为原子写，备份只会制造第二份真相 |
+| `.kaido.v1.bak` 备份 | **不做**（§7.5） | 打开不落盘、保存为原子写，备份只会制造第二份真相 |
 | 未知根键保存透传 | **非目标**（§7.6） | 断言只落在迁移层；不扩 `Envelope` raw 透传 |
 | 条目记 `progress` | 记（§3） | 支撑完成度偏差，+1 字段/条 |
 | 基线数量上限 | 不设硬上限 | 体积由 v0.13 实测把关 |
@@ -320,12 +320,12 @@ case deleteBaseline(UUID)
 
 | 组 | 文件范围（互斥） | 前置 |
 | --- | --- | --- |
-| A core | `Sources/ZenoCore/Model/Baseline.swift`（新）、`Sources/ZenoCore/Schedule/BaselineEngine.swift`（新）、`Sources/ZenoCore/CalendarDayMath.swift`（新）、`Tests/ZenoCoreTests/BaselineVarianceTests.swift`（新） | 07 已合入 |
-| B storage | `Sources/ZenoCore/Storage/ZenoFile.swift`、`Sources/ZenoCore/Storage/FormatMigration.swift`、`Tests/ZenoCoreTests/FormatMigrationTests.swift`、`Tests/Fixtures/`（v1/v2 fixture） | A |
-| C cmds | `Sources/ZenoCommands/ZenoSession.swift`、`Tests/ZenoCoreTests/SessionBaselineTests.swift`（新） | A + B |
-| D pres | `Sources/ZenoPresentation/Snapshots.swift`、`OutlineColumnPreferences.swift`、`InspectorSnapshots.swift`、`WorkspaceAction.swift`、`ViewState.swift`、`Presenter.swift`、`ScheduleDateMath.swift`（改转发）、`Tests/ZenoPresentationTests/BaselinePresentationTests.swift`（新） | A |
-| E cli | `Sources/ZenoCLI/CLIRouter.swift`、`Sources/ZenoCLI/CLIStrings.swift`、`Tests/InterfaceTests/CLITests.swift` | C |
-| F mcp | `Sources/ZenoMCP/Tools.swift`、`Tests/InterfaceTests/InterfaceTests.swift` | C |
+| A core | `Sources/KaidoCore/Model/Baseline.swift`（新）、`Sources/KaidoCore/Schedule/BaselineEngine.swift`（新）、`Sources/KaidoCore/CalendarDayMath.swift`（新）、`Tests/KaidoCoreTests/BaselineVarianceTests.swift`（新） | 07 已合入 |
+| B storage | `Sources/KaidoCore/Storage/KaidoFile.swift`、`Sources/KaidoCore/Storage/FormatMigration.swift`、`Tests/KaidoCoreTests/FormatMigrationTests.swift`、`Tests/Fixtures/`（v1/v2 fixture） | A |
+| C cmds | `Sources/KaidoCommands/KaidoSession.swift`、`Tests/KaidoCoreTests/SessionBaselineTests.swift`（新） | A + B |
+| D pres | `Sources/KaidoPresentation/Snapshots.swift`、`OutlineColumnPreferences.swift`、`InspectorSnapshots.swift`、`WorkspaceAction.swift`、`ViewState.swift`、`Presenter.swift`、`ScheduleDateMath.swift`（改转发）、`Tests/KaidoPresentationTests/BaselinePresentationTests.swift`（新） | A |
+| E cli | `Sources/KaidoCLI/CLIRouter.swift`、`Sources/KaidoCLI/CLIStrings.swift`、`Tests/InterfaceTests/CLITests.swift` | C |
+| F mcp | `Sources/KaidoMCP/Tools.swift`、`Tests/InterfaceTests/InterfaceTests.swift` | C |
 | G app | `Apps/macos/Sources/WorkspaceStore.swift`、`Workspace/WorkspaceView.swift`、`Workspace/Outline/OutlineTable.swift`、`Workspace/Inspector/InspectorView.swift`、`Workspace/Display.swift`、`Apps/macos/Resources/Localizable.xcstrings` | D |
 
 - 波次 1：A。波次 2：**B / D 并行**（core 与 presentation 文件不重叠）。波次 3：C（需 B 的版本号与迁移就绪）。波次 4：**E / F / G 并行**。

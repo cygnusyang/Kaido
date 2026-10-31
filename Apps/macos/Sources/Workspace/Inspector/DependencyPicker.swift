@@ -1,5 +1,5 @@
 import SwiftUI
-import ZenoCore
+import KaidoCore
 
 /// 添加前置任务弹层（320×400）：搜索、四型、延隔 −30…+30 天。
 struct DependencyPicker: View {

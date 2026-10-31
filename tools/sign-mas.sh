@@ -2,13 +2,13 @@
 # tools/sign-mas.sh —— Mac App Store 签名与打包（只签名，不含任何凭据）。
 #
 # 凭据来源（全部通过环境或钥匙串身份名，脚本内零密钥）：
-#   ZENO_SIGN_IDENTITY       例："Apple Distribution: ruohu yang (A6DS985SJJ)"
-#   ZENO_INSTALLER_IDENTITY  例："3rd Party Mac Developer Installer: ruohu yang (A6DS985SJJ)"
-#   ZENO_KEYCHAIN            可选，指定钥匙串路径（CI 用临时钥匙串）；默认登录钥匙串
+#   KAIDO_SIGN_IDENTITY       例："Apple Distribution: ruohu yang (A6DS985SJJ)"
+#   KAIDO_INSTALLER_IDENTITY  例："3rd Party Mac Developer Installer: ruohu yang (A6DS985SJJ)"
+#   KAIDO_KEYCHAIN            可选，指定钥匙串路径（CI 用临时钥匙串）；默认登录钥匙串
 #
 # 用法：
-#   tools/sign-mas.sh --app dist-mas/Zeno.app --entitlements Apps/macos/Resources/Zeno.entitlements \
-#                     --pkg-out dist-mas/Zeno.pkg [--provisionprofile path]
+#   tools/sign-mas.sh --app dist-mas/Kaido.app --entitlements Apps/macos/Resources/Kaido.entitlements \
+#                     --pkg-out dist-mas/Kaido.pkg [--provisionprofile path]
 #
 # 前置：钥匙串里已有对应身份（security find-identity -p basic 能看到）。
 set -euo pipefail
@@ -29,10 +29,10 @@ done
 
 [ -d "$APP" ] || { echo "ERROR: --app 不存在: $APP" >&2; exit 2; }
 [ -f "$ENTS" ] || { echo "ERROR: --entitlements 不存在: $ENTS" >&2; exit 2; }
-[ -n "${ZENO_SIGN_IDENTITY:-}" ] || { echo "ERROR: 未设置 ZENO_SIGN_IDENTITY" >&2; exit 2; }
+[ -n "${KAIDO_SIGN_IDENTITY:-}" ] || { echo "ERROR: 未设置 KAIDO_SIGN_IDENTITY" >&2; exit 2; }
 
 KEYCHAIN_ARGS=()
-if [ -n "${ZENO_KEYCHAIN:-}" ]; then KEYCHAIN_ARGS=(--keychain "$ZENO_KEYCHAIN"); fi
+if [ -n "${KAIDO_KEYCHAIN:-}" ]; then KEYCHAIN_ARGS=(--keychain "$KAIDO_KEYCHAIN"); fi
 
 # 1) 嵌入 provisioning profile（有则嵌，App Store 分发必需）
 if [ -n "$PROFILE" ]; then
@@ -42,18 +42,18 @@ if [ -n "$PROFILE" ]; then
 fi
 
 # 2) 签名 app（entitlements + 时间戳由 Apple 侧校验，MAS 不要求 hardened runtime）
-codesign --force --options runtime --timestamp --sign "$ZENO_SIGN_IDENTITY" "${KEYCHAIN_ARGS[@]+"${KEYCHAIN_ARGS[@]}"}" \
+codesign --force --options runtime --timestamp --sign "$KAIDO_SIGN_IDENTITY" "${KEYCHAIN_ARGS[@]+"${KEYCHAIN_ARGS[@]}"}" \
   --entitlements "$ENTS" --deep "$APP"
 codesign --verify --strict --verbose=2 "$APP"
 echo "==> 已签名并校验: $APP"
 
 # 3) 出 pkg（App Store 上传载体）
 if [ -n "$PKG" ]; then
-  [ -n "${ZENO_INSTALLER_IDENTITY:-}" ] || { echo "ERROR: 缺少 ZENO_INSTALLER_IDENTITY" >&2; exit 2; }
+  [ -n "${KAIDO_INSTALLER_IDENTITY:-}" ] || { echo "ERROR: 缺少 KAIDO_INSTALLER_IDENTITY" >&2; exit 2; }
   STAGE="$(mktemp -d)"
   mkdir -p "$STAGE/Applications"
   cp -R "$APP" "$STAGE/Applications/"
-  productbuild --component "$APP" /Applications --sign "$ZENO_INSTALLER_IDENTITY" "${KEYCHAIN_ARGS[@]+"${KEYCHAIN_ARGS[@]}"}" "$PKG"
+  productbuild --component "$APP" /Applications --sign "$KAIDO_INSTALLER_IDENTITY" "${KEYCHAIN_ARGS[@]+"${KEYCHAIN_ARGS[@]}"}" "$PKG"
   rm -rf "$STAGE"
   pkgutil --check-signature "$PKG" || true
   echo "==> 已产出 pkg: $PKG"

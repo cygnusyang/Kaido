@@ -35,7 +35,7 @@
 
 ## 3. MCP 管道
 
-测试客户端以 stdio 启动 `ZenoMCP`，逐行发送 JSON-RPC 请求。工具清单包含 Sprint 2 新增的
+测试客户端以 stdio 启动 `KaidoMCP`，逐行发送 JSON-RPC 请求。工具清单包含 Sprint 2 新增的
 `schedule_compute` / `schedule_critical_path` / `violations_list` / `status_update` /
 `status_batch_update` / `resource_add` / `resource_list`；
 `task_add` 与 `task_update` 的 `dependencies` 参数接受 `{"predecessorID","type","lagDays"}` 数组。
@@ -99,7 +99,7 @@ FS 链传播正确：`实现` 从 `规格评审` 结束时刻开始，`验收` �
   发布准备: status=pending progress=0.5
 
 群组聚合 groupProgress=1
-已保存：/tmp/zeno-s2-mcp.zeno
+已保存：/tmp/kaido-s2-mcp.kaido
 ```
 
 群组 `Sprint2交付群组` 的三个叶子（规格评审、实现、验收）全部完成，投入加权聚合为 100%；
@@ -123,11 +123,11 @@ FS 链传播正确：`实现` 从 `规格评审` 结束时刻开始，`验收` �
 
 ## 4. CLI 复现同一序列
 
-CLI 使用与 MCP 相同的命令层（`ZenoSession`，ADR-005），参数为短 ID 前缀。
+CLI 使用与 MCP 相同的命令层（`KaidoSession`，ADR-005），参数为短 ID 前缀。
 
 ```
 已创建项目：C81AEF56「演示项目」
-已保存：/tmp/zeno-s2.zeno
+已保存：/tmp/kaido-s2.kaido
 IDS: G=109CD63F S=5750712F I=66B2F892 A=9CB15E36 P=C824CD08 D=5ABDAFC1
 
 == schedule compute ==
@@ -238,7 +238,7 @@ ID：4EFCB171-C9B2-459E-B77B-327762F5D48D
 
 ## 5. 接口对等性
 
-CLI 直接打开 MCP 保存的 `/tmp/zeno-s2-mcp.zeno` 并列出任务：
+CLI 直接打开 MCP 保存的 `/tmp/kaido-s2-mcp.kaido` 并列出任务：
 
 ```
 04762EF9 Sprint2交付群组 [群组] 待办
@@ -249,7 +249,7 @@ CLI 直接打开 MCP 保存的 `/tmp/zeno-s2-mcp.zeno` 并列出任务：
 F1E70A60 发布截止 已完成 · 持续 1 天
 ```
 
-两个接口层读写同一 `.zeno` 文件，状态与持续性字段完整往返。
+两个接口层读写同一 `.kaido` 文件，状态与持续性字段完整往返。
 
 ## 6. 观察与说明
 
@@ -262,4 +262,4 @@ F1E70A60 发布截止 已完成 · 持续 1 天
   这是引擎对不可满足计划的如实报告，不是计算错误。
 - **群组聚合**：按后代叶子任务的投入加权；无投入的叶子按 1 计；群组容器自身不产生投入。
 - **零第三方依赖**：`swift build`、`swift test`（125 项）与 `tools/gate-core.sh` 通过，
-  ZenoCore 无 AppKit/SwiftUI/Cocoa import。
+  KaidoCore 无 AppKit/SwiftUI/Cocoa import。

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 编译 Zeno（Release）并打包 macOS 应用 Zeno.app。
+# 编译 Kaido（Release）并打包 macOS 应用 Kaido.app。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -7,9 +7,9 @@ cd "$ROOT"
 
 CONFIGURATION="${CONFIGURATION:-release}"
 DIST_DIR="${DIST_DIR:-$ROOT/dist}"
-APP_NAME="Zeno"
+APP_NAME="Kaido"
 APP_BUNDLE="$DIST_DIR/${APP_NAME}.app"
-BINARY_PRODUCT="ZenoMacApp"
+BINARY_PRODUCT="KaidoMacApp"
 
 usage() {
   cat <<USAGE
@@ -94,9 +94,9 @@ cp "$SRC_BIN" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 # 一并放出 CLI / MCP，方便脚本与插件引用
-cp "$BUILD_DIR/ZenoCLI" "$DIST_DIR/ZenoCLI"
-cp "$BUILD_DIR/ZenoMCP" "$DIST_DIR/ZenoMCP"
-chmod +x "$DIST_DIR/ZenoCLI" "$DIST_DIR/ZenoMCP"
+cp "$BUILD_DIR/KaidoCLI" "$DIST_DIR/KaidoCLI"
+cp "$BUILD_DIR/KaidoMCP" "$DIST_DIR/KaidoMCP"
+chmod +x "$DIST_DIR/KaidoCLI" "$DIST_DIR/KaidoMCP"
 
 cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -113,7 +113,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key>
   <string>${APP_NAME}</string>
   <key>CFBundleIdentifier</key>
-  <string>app.zeno.macos</string>
+  <string>app.kaido.macos</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
@@ -138,18 +138,18 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <array>
     <dict>
       <key>CFBundleTypeName</key>
-      <string>Zeno Project</string>
+      <string>Kaido Project</string>
       <key>CFBundleTypeRole</key>
       <string>Editor</string>
       <key>LSHandlerRank</key>
       <string>Owner</string>
       <key>LSItemContentTypes</key>
       <array>
-        <string>app.zeno.project</string>
+        <string>app.kaido.project</string>
       </array>
       <key>CFBundleTypeExtensions</key>
       <array>
-        <string>zeno</string>
+        <string>kaido</string>
       </array>
     </dict>
   </array>
@@ -157,9 +157,9 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <array>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>app.zeno.project</string>
+      <string>app.kaido.project</string>
       <key>UTTypeDescription</key>
-      <string>Zeno Project</string>
+      <string>Kaido Project</string>
       <key>UTTypeConformsTo</key>
       <array>
         <string>public.data</string>
@@ -169,7 +169,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
       <dict>
         <key>public.filename-extension</key>
         <array>
-          <string>zeno</string>
+          <string>kaido</string>
         </array>
       </dict>
     </dict>
@@ -178,10 +178,10 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <array>
     <dict>
       <key>CFBundleURLName</key>
-      <string>Zeno Deep Link</string>
+      <string>Kaido Deep Link</string>
       <key>CFBundleURLSchemes</key>
       <array>
-        <string>zeno</string>
+        <string>kaido</string>
       </array>
     </dict>
   </array>
@@ -202,9 +202,9 @@ fi
 MENUBAR_SRC="$ROOT/design/icons/menubar"
 if [[ -d "$MENUBAR_SRC" ]]; then
   mkdir -p "$APP_BUNDLE/Contents/Resources"
-  cp "$MENUBAR_SRC/zeno-menubarTemplate.png" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
+  cp "$MENUBAR_SRC/kaido-menubarTemplate.png" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
   # @2x 倍图一并入包（NSStatusItem 目前在代码里尚未启用，先备好资源不缺位）
-  cp "$MENUBAR_SRC/zeno-menubarTemplate@2x.png" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
+  cp "$MENUBAR_SRC/kaido-menubarTemplate@2x.png" "$APP_BUNDLE/Contents/Resources/" 2>/dev/null || true
 fi
 
 printf 'APPL????' > "$APP_BUNDLE/Contents/PkgInfo"
@@ -232,11 +232,11 @@ if command -v codesign >/dev/null 2>&1; then
 fi
 
 cat > "$DIST_DIR/README.txt" <<NOTE
-Zeno 构建产物
+Kaido 构建产物
 ==============
 - ${APP_NAME}.app     macOS 应用（可 open 或拖到 /Applications）
-- ZenoCLI            命令行
-- ZenoMCP            MCP 服务（stdio）
+- KaidoCLI            命令行
+- KaidoMCP            MCP 服务（stdio）
 
 安装应用:
   bash tools/install.sh
@@ -244,5 +244,5 @@ NOTE
 
 echo "==> 完成"
 echo "    App:  $APP_BUNDLE"
-echo "    CLI:  $DIST_DIR/ZenoCLI"
-echo "    MCP:  $DIST_DIR/ZenoMCP"
+echo "    CLI:  $DIST_DIR/KaidoCLI"
+echo "    MCP:  $DIST_DIR/KaidoMCP"

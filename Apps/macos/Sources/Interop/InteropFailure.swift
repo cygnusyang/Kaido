@@ -1,5 +1,5 @@
 import Foundation
-import ZenoInterop
+import KaidoInterop
 
 /// 互操作失败的展示口径：一个 `message` 就是用户该看的那句话。
 ///

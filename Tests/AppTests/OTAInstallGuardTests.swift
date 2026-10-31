@@ -1,9 +1,9 @@
 import Foundation
 import Testing
 import CryptoKit
-import ZenoCore
-import ZenoUpdater
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoUpdater
+@testable import KaidoMacApp
 
 /// issue #17：「退出并安装」永久卡在「正在安装更新」。
 ///
@@ -34,7 +34,7 @@ struct OTAInstallGuardTests {
 
     /// 假安装器：按生产顺序先落 pending 三键，再「启动脚本」。
     private final class StubInstaller: Installing, @unchecked Sendable {
-        private let appURL = URL(fileURLWithPath: "/tmp/ZenoOTAStub.app")
+        private let appURL = URL(fileURLWithPath: "/tmp/KaidoOTAStub.app")
         private let defaults: UserDefaults
         private let resultPath: String?
         private(set) var performed = 0
@@ -50,7 +50,7 @@ struct OTAInstallGuardTests {
             performed += 1
             guard let resultPath else { return }
             defaults.set(resultPath, forKey: ZipAppInstaller.pendingResultPathDefaultsKey)
-            defaults.set("/tmp/Zeno-0.app", forKey: ZipAppInstaller.pendingBackupPathDefaultsKey)
+            defaults.set("/tmp/Kaido-0.app", forKey: ZipAppInstaller.pendingBackupPathDefaultsKey)
             defaults.set("/tmp", forKey: ZipAppInstaller.pendingBackupDirDefaultsKey)
         }
     }
@@ -68,11 +68,11 @@ struct OTAInstallGuardTests {
     }
 
     private func makeEnv() throws -> Env {
-        let suite = "zeno.apptests.ota.\(UUID().uuidString)"
+        let suite = "kaido.apptests.ota.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-ota-apptest-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-ota-apptest-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return Env(defaults: defaults, suite: suite, directory: directory)
     }
@@ -89,17 +89,17 @@ struct OTAInstallGuardTests {
         watchTimeout: TimeInterval = 10,
         watchInterval: TimeInterval = 0.02
     ) async throws -> (UpdaterManager, StubInstaller) {
-        let archiveURL = env.directory.appendingPathComponent("Zeno-1.1.0.zip")
+        let archiveURL = env.directory.appendingPathComponent("Kaido-1.1.0.zip")
         try Data("stub".utf8).write(to: archiveURL)
 
         let key = Curve25519.Signing.PrivateKey()
         var dict: [String: Any] = [
             "schemaVersion": 1,
-            "appId": "app.zeno.test",
+            "appId": "app.kaido.test",
             "version": "1.1.0",
             "minimumVersion": "1.0.0",
             "buildTime": "2026-10-20T08:00:00Z",
-            "downloadUrl": "https://github.com/example/test/releases/download/v1.1.0/Zeno-1.1.0.zip",
+            "downloadUrl": "https://github.com/example/test/releases/download/v1.1.0/Kaido-1.1.0.zip",
             "cdHash": String(repeating: "a", count: 40),
             "securityCritical": false,
             "sha256": try UpdateChecksum.sha256Hex(of: archiveURL),
@@ -111,9 +111,9 @@ struct OTAInstallGuardTests {
         let installer = StubInstaller(defaults: env.defaults, resultPath: resultPath)
         let manager = UpdaterManager(
             manifestURL: URL(string: "https://github.com/example/test/releases/latest/download/update-manifest.json")!,
-            expectedAppId: "app.zeno.test",
+            expectedAppId: "app.kaido.test",
             currentVersion: "1.0.0",
-            currentAppURL: URL(fileURLWithPath: "/Applications/Zeno.app"),
+            currentAppURL: URL(fileURLWithPath: "/Applications/Kaido.app"),
             publicKeyBase64: Data(key.publicKey.rawRepresentation).base64EncodedString(),
             policy: UpdateEndpointPolicy(allowedHosts: ["github.com"]),
             fetcher: StubFetcher(data: try ManifestVerifier.canonicalJSONData(dict)),
@@ -129,7 +129,7 @@ struct OTAInstallGuardTests {
     }
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "zeno.apptests.ota.store.\(UUID().uuidString)"
+        let suite = "kaido.apptests.ota.store.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults)
@@ -164,7 +164,7 @@ struct OTAInstallGuardTests {
         defer { tearDown(env) }
         let (updater, installer) = try await makeManager(env, resultPath: nil)
 
-        let projectURL = env.directory.appendingPathComponent("dirty.zeno")
+        let projectURL = env.directory.appendingPathComponent("dirty.kaido")
         let store = makeStore()
         store.save(to: projectURL)
         store.dispatch(.setProjectTitle("装前保存"))
@@ -189,7 +189,7 @@ struct OTAInstallGuardTests {
         defer { tearDown(env) }
         let (updater, installer) = try await makeManager(env, resultPath: nil)
 
-        let projectURL = env.directory.appendingPathComponent("vanishing.zeno")
+        let projectURL = env.directory.appendingPathComponent("vanishing.kaido")
         let store = makeStore()
         store.save(to: projectURL)
         store.dispatch(.setProjectTitle("保存会失败"))
@@ -239,7 +239,7 @@ struct OTAInstallGuardTests {
     @Test func failureResultFileDrivesPanelOutOfInstalling() async throws {
         let env = try makeEnv()
         defer { tearDown(env) }
-        let resultPath = env.directory.appendingPathComponent("zeno-ota-result-test.json").path
+        let resultPath = env.directory.appendingPathComponent("kaido-ota-result-test.json").path
         let (updater, installer) = try await makeManager(env, resultPath: resultPath)
 
         await updater.install()

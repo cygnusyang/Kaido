@@ -1,16 +1,16 @@
 import Foundation
 import Testing
-import ZenoCore
-import ZenoCommands
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoCommands
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// Sprint 7 技术债核销测试（D-012 / D-014 / D-016）。
 @MainActor
 @Suite("Sprint 7 技术债")
 struct Sprint7DebtTests {
     private func makeDefaults(_ name: String) -> UserDefaults {
-        let suite = "zeno.sprint7.\(name).\(UUID().uuidString)"
+        let suite = "kaido.sprint7.\(name).\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults

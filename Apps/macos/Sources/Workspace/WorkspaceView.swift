@@ -1,14 +1,14 @@
 import AppKit
 import SwiftUI
-import ZenoCore
-import ZenoPresentation
+import KaidoCore
+import KaidoPresentation
 
 /// 主窗口：计划工作台 / 全宽大纲。
 ///
 /// 壳层只消费 `WorkspaceStore` 的快照与动作，不直接读写核心模型。
 struct WorkspaceView: View {
     @ObservedObject var store: WorkspaceStore
-    let commands: [ZenoCommand]
+    let commands: [KaidoCommand]
 
     @State private var editingTaskID: UUID?
     @State private var scrollTarget: UUID?

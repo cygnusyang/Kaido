@@ -1112,13 +1112,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Quit and reopen Zeno to apply it — the title bar, menus and system dialogs switch together."
+            "value": "Quit and reopen Kaido to apply it — the title bar, menus and system dialogs switch together."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "退出并重新打开 Zeno 后生效 —— 标题栏、菜单与系统对话框会一起切换。"
+            "value": "退出并重新打开 Kaido 后生效 —— 标题栏、菜单与系统对话框会一起切换。"
           }
         }
       }
@@ -2829,13 +2829,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Unrecognized Zeno link: %1$@"
+            "value": "Unrecognized Kaido link: %1$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "无法识别的 Zeno 链接：%1$@"
+            "value": "无法识别的 Kaido 链接：%1$@"
           }
         }
       }
@@ -4883,13 +4883,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@ (%2$@ h/day, %3$ld exceptions) drives %4$ld tasks; Zeno advances by calendar days rather than working days."
+            "value": "%1$@ (%2$@ h/day, %3$ld exceptions) drives %4$ld tasks; Kaido advances by calendar days rather than working days."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@（%2$@ 小时／日，%3$ld 条例外日）覆盖 %4$ld 个任务；Zeno 按日历天推进，不按工作日推进。"
+            "value": "%1$@（%2$@ 小时／日，%3$ld 条例外日）覆盖 %4$ld 个任务；Kaido 按日历天推进，不按工作日推进。"
           }
         }
       }
@@ -5019,13 +5019,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Not a plan file Zeno can read: expected MS Project XML or an OmniPlan .oplx package."
+            "value": "Not a plan file Kaido can read: expected MS Project XML or an OmniPlan .oplx package."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "不是 Zeno 能读取的计划文件：需要 MS Project XML 或 OmniPlan .oplx 包。"
+            "value": "不是 Kaido 能读取的计划文件：需要 MS Project XML 或 OmniPlan .oplx 包。"
           }
         }
       }
@@ -5036,13 +5036,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno's assignee is free text and does not point at the resource table, while MSPDI only has resource assignments. The assignee is dropped: use assignments, not the assignee, when the other side needs working hours."
+            "value": "Kaido's assignee is free text and does not point at the resource table, while MSPDI only has resource assignments. The assignee is dropped: use assignments, not the assignee, when the other side needs working hours."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno 的负责人是自由文本，不指向资源表；MSPDI 只有资源分配。负责人随导出丢弃：需要对方按资源算工时时请用「分配」而不是负责人。"
+            "value": "Kaido 的负责人是自由文本，不指向资源表；MSPDI 只有资源分配。负责人随导出丢弃：需要对方按资源算工时时请用「分配」而不是负责人。"
           }
         }
       }
@@ -5053,13 +5053,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno's due date only drives overdue display and never touches scheduling, while MSPDI's Deadline does. Writing it across would look successful while changing what it means, so it is dropped."
+            "value": "Kaido's due date only drives overdue display and never touches scheduling, while MSPDI's Deadline does. Writing it across would look successful while changing what it means, so it is dropped."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno 的截止日只做逾期展示、不参与排期；MSPDI 的 Deadline 会参与排期。硬塞过去会「看起来成功、含义已换」，故按丢弃处理。"
+            "value": "Kaido 的截止日只做逾期展示、不参与排期；MSPDI 的 Deadline 会参与排期。硬塞过去会「看起来成功、含义已换」，故按丢弃处理。"
           }
         }
       }
@@ -5070,13 +5070,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno pushes group dependencies down to every leaf in the subtree (effectiveDependencies). They are written as explicit links so the other tool schedules the same way, but those links no longer belong to a group: re-importing them turns them into the task's own dependencies."
+            "value": "Kaido pushes group dependencies down to every leaf in the subtree (effectiveDependencies). They are written as explicit links so the other tool schedules the same way, but those links no longer belong to a group: re-importing them turns them into the task's own dependencies."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno 的群组依赖会下推到子树每个叶子（effectiveDependencies）：导出时把它们写成显式相关性，对方打开后的排期与 Zeno 一致，但这几条边在对方文件里不再属于群组——回导会变成任务自身的依赖。"
+            "value": "Kaido 的群组依赖会下推到子树每个叶子（effectiveDependencies）：导出时把它们写成显式相关性，对方打开后的排期与 Kaido 一致，但这几条边在对方文件里不再属于群组——回导会变成任务自身的依赖。"
           }
         }
       }
@@ -5104,13 +5104,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno's four priority levels have no counterpart in the MSPDI writer: priority is dropped and the other tool shows its default."
+            "value": "Kaido's four priority levels have no counterpart in the MSPDI writer: priority is dropped and the other tool shows its default."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno 的四档优先级在 MSPDI 写出端没有对应字段：优先级随导出丢弃，对方看到的是默认优先级。"
+            "value": "Kaido 的四档优先级在 MSPDI 写出端没有对应字段：优先级随导出丢弃，对方看到的是默认优先级。"
           }
         }
       }
@@ -5121,13 +5121,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Task tags are a Zeno-local classification and MSPDI has no field for them: tags are dropped."
+            "value": "Task tags are a Kaido-local classification and MSPDI has no field for them: tags are dropped."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "任务标签是 Zeno 的内部分类，MSPDI 没有对应字段：标签随导出丢弃。"
+            "value": "任务标签是 Kaido 的内部分类，MSPDI 没有对应字段：标签随导出丢弃。"
           }
         }
       }
@@ -5461,13 +5461,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Time limits exported as hard constraints will move tasks in the other tool; in Zeno they only raise violations."
+            "value": "Time limits exported as hard constraints will move tasks in the other tool; in Kaido they only raise violations."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "时限导出后成为硬约束，在对方工具里会真的改期；在 Zeno 里只出违例。"
+            "value": "时限导出后成为硬约束，在对方工具里会真的改期；在 Kaido 里只出违例。"
           }
         }
       }
@@ -5540,19 +5540,19 @@
         }
       }
     },
-    "interop.notes.header.zeno_version": {
+    "interop.notes.header.kaido_version": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno version"
+            "value": "Kaido version"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno 版本"
+            "value": "Kaido 版本"
           }
         }
       }
@@ -5648,13 +5648,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno export notes"
+            "value": "Kaido export notes"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno 导出旁注"
+            "value": "Kaido 导出旁注"
           }
         }
       }
@@ -5920,13 +5920,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "About Zeno"
+            "value": "About Kaido"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "关于 Zeno"
+            "value": "关于 Kaido"
           }
         }
       }
@@ -6804,13 +6804,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Takes effect after restarting Zeno"
+            "value": "Takes effect after restarting Kaido"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "重启 Zeno 后生效"
+            "value": "重启 Kaido 后生效"
           }
         }
       }
@@ -10238,7 +10238,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The update could not be installed because Zeno was still running (exit code %1$@)."
+            "value": "The update could not be installed because Kaido was still running (exit code %1$@)."
           }
         },
         "zh-Hans": {
@@ -10748,7 +10748,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno will quit, replace the binary, and restart automatically."
+            "value": "Kaido will quit, replace the binary, and restart automatically."
           }
         },
         "zh-Hans": {
@@ -10850,13 +10850,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno is still running the current version. Retry, or download the latest version from the release page."
+            "value": "Kaido is still running the current version. Retry, or download the latest version from the release page."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno 仍是当前版本。可以重试，或从发布页手动下载最新版本。"
+            "value": "Kaido 仍是当前版本。可以重试，或从发布页手动下载最新版本。"
           }
         }
       }
@@ -10935,7 +10935,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeno is up to date"
+            "value": "Kaido is up to date"
           }
         },
         "zh-Hans": {

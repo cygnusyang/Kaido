@@ -1,7 +1,7 @@
 import Foundation
 import Testing
-import ZenoUpdater
-@testable import ZenoMacApp
+import KaidoUpdater
+@testable import KaidoMacApp
 
 /// 更新面板（sheet）挡住退出：install armed 之后没有任何 termination reply，进程存活。
 ///

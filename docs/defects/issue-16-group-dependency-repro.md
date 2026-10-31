@@ -1,18 +1,18 @@
 # issue #16 复现步骤：群组依赖不传播 + 群组跨度恒为 1 天
 
-> 对应 issue：[#16](https://github.com/cygnusyang/Zeno/issues/16) · 版本：v0.14.1 · 平台：macOS
+> 对应 issue：[#16](https://github.com/cygnusyang/Kaido/issues/16) · 版本：v0.14.1 · 平台：macOS
 > 记录时间：2026-10-25 · 复现者：lead（真实建 WBS 时发现，非构造用例）
 
 ## 环境
 
-    Zeno v0.14.1（/Applications/Zeno.app 或 dist/ZenoCLI）
-    任一含「群组 + 子任务」的 .zeno 项目
+    Kaido v0.14.1（/Applications/Kaido.app 或 dist/KaidoCLI）
+    任一含「群组 + 子任务」的 .kaido 项目
 
 ## 最小复现（3 条命令）
 
 ```bash
 # 1) 建项目与两个阶段组
-ZenoCLI project create "复现 #16" --file /tmp/repro16.zeno
+KaidoCLI project create "复现 #16" --file /tmp/repro16.kaido
 cat > /tmp/repro16-wbs.json <<'JSON'
 [
   { "title": "阶段 A", "kind": "group", "children": [
@@ -22,15 +22,15 @@ cat > /tmp/repro16-wbs.json <<'JSON'
       { "title": "B1", "durationDays": 2 } ] }
 ]
 JSON
-ZenoCLI wbs import /tmp/repro16-wbs.json --file /tmp/repro16.zeno
+KaidoCLI wbs import /tmp/repro16-wbs.json --file /tmp/repro16.kaido
 
 # 2) 给「阶段 B」加依赖：阶段 A 完成后再开始
-A=$(ZenoCLI task list --json --file /tmp/repro16.zeno | python3 -c 'import sys,json;print([t["id"] for t in json.load(sys.stdin) if t["title"]=="阶段 A"][0])')
-B=$(ZenoCLI task list --json --file /tmp/repro16.zeno | python3 -c 'import sys,json;print([t["id"] for t in json.load(sys.stdin) if t["title"]=="阶段 B"][0])')
-ZenoCLI task update "$B" --dep "$A" --file /tmp/repro16.zeno
+A=$(KaidoCLI task list --json --file /tmp/repro16.kaido | python3 -c 'import sys,json;print([t["id"] for t in json.load(sys.stdin) if t["title"]=="阶段 A"][0])')
+B=$(KaidoCLI task list --json --file /tmp/repro16.kaido | python3 -c 'import sys,json;print([t["id"] for t in json.load(sys.stdin) if t["title"]=="阶段 B"][0])')
+KaidoCLI task update "$B" --dep "$A" --file /tmp/repro16.kaido
 
 # 3) 看排期
-ZenoCLI schedule compute --file /tmp/repro16.zeno
+KaidoCLI schedule compute --file /tmp/repro16.kaido
 ```
 
 ## 预期

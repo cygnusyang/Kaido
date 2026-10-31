@@ -1,10 +1,10 @@
 import Foundation
 import Testing
-import ZenoCore
-import ZenoCommands
-@testable import ZenoCLI
+import KaidoCore
+import KaidoCommands
+@testable import KaidoCLI
 
-// CLI 对等性契约测试（US-E5-05 / ADR-005）：路由解析与 ZenoSession 往返。
+// CLI 对等性契约测试（US-E5-05 / ADR-005）：路由解析与 KaidoSession 往返。
 // MCP 侧对应测试见 InterfaceTests.swift；两接口层共享同一命令层契约。
 
 // MARK: - 参数与枚举解析（路由级）
@@ -105,15 +105,15 @@ struct OptionsParsingTests {
 // MARK: - 端到端路由（临时目录内 create → import → list）
 
 struct RouteTests {
-    /// 建临时工作目录，返回目录与其中的两个路径（.zeno 与 wbs.json）。
+    /// 建临时工作目录，返回目录与其中的两个路径（.kaido 与 wbs.json）。
     /// 调用方用 defer 在测试结束后清理目录。
-    private func makeScratch() throws -> (dir: URL, zeno: URL, wbs: URL) {
+    private func makeScratch() throws -> (dir: URL, kaido: URL, wbs: URL) {
         let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-cli-\(UUID().uuidString)")
+            .appendingPathComponent("kaido-cli-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return (
             dir: dir,
-            zeno: dir.appendingPathComponent("demo.zeno"),
+            kaido: dir.appendingPathComponent("demo.kaido"),
             wbs: dir.appendingPathComponent("wbs.json")
         )
     }
@@ -121,7 +121,7 @@ struct RouteTests {
     @Test func projectCreateThenWBSImportPersistsTree() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
 
         try CLIRouter.execute(arguments: ["project", "create", "演示项目", "--file", file.path])
 
@@ -139,7 +139,7 @@ struct RouteTests {
         try Data(wbs.utf8).write(to: scratch.wbs)
         try CLIRouter.execute(arguments: ["wbs", "import", scratch.wbs.path, "--file", file.path])
 
-        let project = try ZenoFile.load(from: file)
+        let project = try KaidoFile.load(from: file)
         #expect(project.metadata.title == "演示项目")
         #expect(project.tasks.count == 5)
         // 层级：设计(根) → 原型/评审；开发(根) → 后端。
@@ -156,12 +156,12 @@ struct RouteTests {
     @Test func taskAddWithDependencyThenGetRoundTrip() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
 
         try CLIRouter.execute(arguments: ["project", "create", "依赖演示", "--file", file.path])
         try CLIRouter.execute(arguments: ["task", "add", "前驱任务", "--file", file.path])
 
-        var project = try ZenoFile.load(from: file)
+        var project = try KaidoFile.load(from: file)
         let predecessor = try #require(project.tasks.first)
         try CLIRouter.execute(arguments: [
             "task", "add", "后继任务",
@@ -171,7 +171,7 @@ struct RouteTests {
             "--file", file.path,
         ])
 
-        project = try ZenoFile.load(from: file)
+        project = try KaidoFile.load(from: file)
         let successor = try #require(project.tasks.first { $0.title == "后继任务" })
         #expect(successor.dependencies.count == 1)
         #expect(successor.dependencies.first?.predecessorID == predecessor.id)
@@ -186,11 +186,11 @@ struct RouteTests {
     @Test func taskUpdateProgressAndStatus() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
 
         try CLIRouter.execute(arguments: ["project", "create", "更新演示", "--file", file.path])
         try CLIRouter.execute(arguments: ["task", "add", "进行中的任务", "--file", file.path])
-        let project0 = try ZenoFile.load(from: file)
+        let project0 = try KaidoFile.load(from: file)
         let id = try #require(project0.tasks.first).id
 
         try CLIRouter.execute(arguments: [
@@ -201,7 +201,7 @@ struct RouteTests {
             "--file", file.path,
         ])
 
-        let project = try ZenoFile.load(from: file)
+        let project = try KaidoFile.load(from: file)
         let task = try #require(project.tasks.first)
         #expect(task.status == .inProgress)
         #expect(task.progress == 0.6)
@@ -211,14 +211,14 @@ struct RouteTests {
     @Test func taskListSupportsParentFilter() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
 
         try CLIRouter.execute(arguments: ["project", "create", "列表演示", "--file", file.path])
         let wbs = #"[{"title": "群组A", "children": [{"title": "子一"}, {"title": "子二"}]}]"#
         try Data(wbs.utf8).write(to: scratch.wbs)
         try CLIRouter.execute(arguments: ["wbs", "import", scratch.wbs.path, "--file", file.path])
 
-        let project = try ZenoFile.load(from: file)
+        let project = try KaidoFile.load(from: file)
         let group = try #require(project.tasks.first { $0.title == "群组A" })
         try CLIRouter.execute(arguments: ["task", "list", "--parent", group.id.uuidString, "--file", file.path])
     }
@@ -226,21 +226,21 @@ struct RouteTests {
     @Test func taskAddAcceptsParentIDPrefix() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
 
         try CLIRouter.execute(arguments: ["project", "create", "前缀演示", "--file", file.path])
         let wbs = #"[{"title": "群组B", "children": []}]"#
         try Data(wbs.utf8).write(to: scratch.wbs)
         try CLIRouter.execute(arguments: ["wbs", "import", scratch.wbs.path, "--file", file.path])
 
-        let project0 = try ZenoFile.load(from: file)
+        let project0 = try KaidoFile.load(from: file)
         let group = try #require(project0.tasks.first { $0.title == "群组B" })
         let prefix = String(group.id.uuidString.prefix(8))
         try CLIRouter.execute(arguments: [
             "task", "add", "子任务", "--parent", prefix, "--file", file.path,
         ])
 
-        let project = try ZenoFile.load(from: file)
+        let project = try KaidoFile.load(from: file)
         let child = try #require(project.tasks.first { $0.title == "子任务" })
         #expect(child.parentID == group.id)
     }
@@ -248,11 +248,11 @@ struct RouteTests {
     @Test func taskUpdatePersistsDateOnlyConstraint() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
 
         try CLIRouter.execute(arguments: ["project", "create", "时限演示", "--file", file.path])
         try CLIRouter.execute(arguments: ["task", "add", "受时限任务", "--file", file.path])
-        let id = try #require(try ZenoFile.load(from: file).tasks.first).id
+        let id = try #require(try KaidoFile.load(from: file).tasks.first).id
 
         try CLIRouter.execute(arguments: [
             "task", "update", id.uuidString,
@@ -260,7 +260,7 @@ struct RouteTests {
             "--file", file.path,
         ])
 
-        let task = try #require(try ZenoFile.load(from: file).tasks.first)
+        let task = try #require(try KaidoFile.load(from: file).tasks.first)
         #expect(task.constraint != nil)
         if case .startNoLaterThan = task.constraint {
             // 通过
@@ -287,7 +287,7 @@ struct RouteErrorTests {
 
     @Test func taskOnMissingFileReturnsRuntimeExitCode() throws {
         let code = CLIRouter.run(arguments: [
-            "task", "list", "--file", "/nonexistent/zeno/demo.zeno",
+            "task", "list", "--file", "/nonexistent/kaido/demo.kaido",
         ])
         #expect(code == 1)
     }
@@ -309,7 +309,7 @@ struct RouteErrorTests {
         let code = CLIRouter.run(arguments: [
             "task", "update", UUID().uuidString,
             "--dep", "\(pred):fs:1",
-            "--file", "/nonexistent/zeno/demo.zeno",
+            "--file", "/nonexistent/kaido/demo.kaido",
         ])
         #expect(code == 1)
     }
@@ -319,7 +319,7 @@ struct RouteErrorTests {
 
 struct CLIJSONTests {
     @Test func flagDetection() {
-        let o = Options(["task", "list", "--json", "--file", "x.zeno"])
+        let o = Options(["task", "list", "--json", "--file", "x.kaido"])
         #expect(o.flag("--json"))
         #expect(!o.flag("--pretty"))
     }
@@ -354,7 +354,7 @@ struct CLIJSONTests {
     @Test func taskListRejectsUnknownOptions() {
         // 未知选项必须报用法错误（退出码 2），不能静默退回人类可读输出。
         let code = CLIRouter.run(arguments: [
-            "task", "list", "--jsn", "--file", "/nonexistent/zeno/demo.zeno",
+            "task", "list", "--jsn", "--file", "/nonexistent/kaido/demo.kaido",
         ])
         #expect(code == 2)
     }
@@ -370,17 +370,17 @@ struct CLIJSONTests {
 // MARK: - Sprint 2 命令（schedule / status / resource）
 
 struct Sprint2CommandTests {
-    private func makeScratch() throws -> (dir: URL, zeno: URL) {
+    private func makeScratch() throws -> (dir: URL, kaido: URL) {
         let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-cli2-\(UUID().uuidString)")
+            .appendingPathComponent("kaido-cli2-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return (dir: dir, zeno: dir.appendingPathComponent("demo.zeno"))
+        return (dir: dir, kaido: dir.appendingPathComponent("demo.kaido"))
     }
 
     @Test func scheduleComputeThenStatusUpdatePersistsCompletedAt() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
 
         try CLIRouter.execute(arguments: ["project", "create", "闭环演示", "--file", file.path])
         try CLIRouter.execute(arguments: ["task", "add", "任务 A", "--duration", "3", "--file", file.path])
@@ -403,7 +403,7 @@ struct Sprint2CommandTests {
         try CLIRouter.execute(arguments: [
             "status", "update", childID.uuidString, "--status", "done", "--file", file.path,
         ])
-        let project = try ZenoFile.load(from: file)
+        let project = try KaidoFile.load(from: file)
         let child = try #require(project.tasks.first { $0.id == childID })
         #expect(child.status == .done)
         #expect(child.progress == 1)
@@ -413,7 +413,7 @@ struct Sprint2CommandTests {
     @Test func statusBatchUpdatesMultipleTasksAndReportsSummary() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
         let batch = scratch.dir.appendingPathComponent("batch.json")
 
         try CLIRouter.execute(arguments: ["project", "create", "批量演示", "--file", file.path])
@@ -429,7 +429,7 @@ struct Sprint2CommandTests {
 
         try CLIRouter.execute(arguments: ["status", "batch", batch.path, "--file", file.path])
 
-        let project = try ZenoFile.load(from: file)
+        let project = try KaidoFile.load(from: file)
         let taskA = try #require(project.tasks.first { $0.id == a })
         let taskB = try #require(project.tasks.first { $0.id == b })
         #expect(taskA.status == .done)
@@ -441,7 +441,7 @@ struct Sprint2CommandTests {
     @Test func statusBatchWithUnknownTaskExitsWithRuntimeCode() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
         let batch = scratch.dir.appendingPathComponent("batch.json")
 
         try CLIRouter.execute(arguments: ["project", "create", "批量失败演示", "--file", file.path])
@@ -455,7 +455,7 @@ struct Sprint2CommandTests {
     @Test func resourceAddAndListPersist() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
 
         try CLIRouter.execute(arguments: ["project", "create", "资源演示", "--file", file.path])
         try CLIRouter.execute(arguments: [
@@ -463,7 +463,7 @@ struct Sprint2CommandTests {
         ])
         try CLIRouter.execute(arguments: ["resource", "list", "--file", file.path])
 
-        let project = try ZenoFile.load(from: file)
+        let project = try KaidoFile.load(from: file)
         #expect(project.resources.count == 1)
         #expect(project.resources.first?.name == "李工")
         #expect(project.resources.first?.kind == .person)
@@ -473,11 +473,11 @@ struct Sprint2CommandTests {
     @Test func taskAddAndUpdateWithAssignmentByPrefix() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
 
         try CLIRouter.execute(arguments: ["project", "create", "分配演示", "--file", file.path])
         try CLIRouter.execute(arguments: ["resource", "add", "李工", "--file", file.path])
-        let resourceID = try #require(try ZenoFile.load(from: file).resources.first).id
+        let resourceID = try #require(try KaidoFile.load(from: file).resources.first).id
         let prefix = String(resourceID.uuidString.prefix(8))
 
         try CLIRouter.execute(arguments: [
@@ -486,8 +486,8 @@ struct Sprint2CommandTests {
             "--assign", "\(prefix):2",
             "--file", file.path,
         ])
-        let taskID = try #require(try ZenoFile.load(from: file).tasks.first).id
-        var task = try #require(try ZenoFile.load(from: file).tasks.first)
+        let taskID = try #require(try KaidoFile.load(from: file).tasks.first).id
+        var task = try #require(try KaidoFile.load(from: file).tasks.first)
         #expect(task.assignments.count == 1)
         #expect(task.assignments.first?.resourceID == resourceID)
         #expect(task.assignments.first?.units == 2)
@@ -498,7 +498,7 @@ struct Sprint2CommandTests {
             "--assign", prefix,
             "--file", file.path,
         ])
-        task = try #require(try ZenoFile.load(from: file).tasks.first)
+        task = try #require(try KaidoFile.load(from: file).tasks.first)
         #expect(task.assignments.count == 1)
         #expect(task.assignments.first?.units == 1)
     }
@@ -506,7 +506,7 @@ struct Sprint2CommandTests {
     @Test func taskAddWithUnknownResourceFailsAndWritesNothing() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
+        let file = scratch.kaido
 
         try CLIRouter.execute(arguments: ["project", "create", "悬空分配演示", "--file", file.path])
         let code = CLIRouter.run(arguments: [
@@ -515,7 +515,7 @@ struct Sprint2CommandTests {
             "--file", file.path,
         ])
         #expect(code == 2)
-        #expect(try ZenoFile.load(from: file).tasks.isEmpty)
+        #expect(try KaidoFile.load(from: file).tasks.isEmpty)
     }
 
     private func addTaskID(
@@ -525,20 +525,20 @@ struct Sprint2CommandTests {
         if let parentID { args += ["--parent", parentID.uuidString] }
         if let effort { args += ["--effort", effort] }
         try CLIRouter.execute(arguments: args)
-        let project = try ZenoFile.load(from: file)
+        let project = try KaidoFile.load(from: file)
         return try #require(project.tasks.first { $0.title == title }).id
     }
 
-    // MARK: - FR-ZENO-FMT-6：保存输出格式版本
+    // MARK: - FR-KAIDO-FMT-6：保存输出格式版本
 
-    @Test func fr_zeno_fmt_6_cliProjectCommandsPrintFormatVersion() throws {
+    @Test func fr_kaido_fmt_6_cliProjectCommandsPrintFormatVersion() throws {
         let scratch = try makeScratch()
         defer { try? FileManager.default.removeItem(at: scratch.dir) }
-        let file = scratch.zeno
-        let line = "格式版本：v\(ZenoFile.currentFormatVersion)"
+        let file = scratch.kaido
+        let line = "格式版本：v\(KaidoFile.currentFormatVersion)"
 
         // 语言必须钉死：默认跟随系统/环境，CI 的英文 runner 上中文断言必红。
-        let pinned = ["ZENO_LANG": "zh-Hans"]
+        let pinned = ["KAIDO_LANG": "zh-Hans"]
         let createOutput = try cliOutput(arguments: ["project", "create", "版本输出", "--file", file.path], environment: pinned, preferredLanguages: [])
         #expect(createOutput.contains(line))
 
@@ -548,12 +548,12 @@ struct Sprint2CommandTests {
 
         let openOutput = try cliOutput(arguments: ["project", "open", file.path], environment: pinned, preferredLanguages: [])
         // project open：报告磁盘文件版本与当前目标版本，不报告升级来源。
-        #expect(openOutput.contains("源格式版本：v\(ZenoFile.currentFormatVersion)（当前 v\(ZenoFile.currentFormatVersion)）"))
+        #expect(openOutput.contains("源格式版本：v\(KaidoFile.currentFormatVersion)（当前 v\(KaidoFile.currentFormatVersion)）"))
         #expect(!openOutput.contains("保存后升级"))
     }
 
-    @Test func fr_zeno_fmt_6_cliSourceVersionLineRendersUpgradeHint() throws {
-        let current = ZenoFile.currentFormatVersion
+    @Test func fr_kaido_fmt_6_cliSourceVersionLineRendersUpgradeHint() throws {
+        let current = KaidoFile.currentFormatVersion
         // 显式传 language：默认 .current 跟随系统，CI 英文 runner 上中文断言必红。
         #expect(
             CLIRouter.sourceVersionLine(source: current, current: current, language: .zhHans)
@@ -570,8 +570,8 @@ struct Sprint2CommandTests {
         )
     }
 
-    @Test func fr_zeno_fmt_6_cliFormatVersionLineRendersUpgradeSource() throws {
-        let current = ZenoFile.currentFormatVersion
+    @Test func fr_kaido_fmt_6_cliFormatVersionLineRendersUpgradeSource() throws {
+        let current = KaidoFile.currentFormatVersion
         #expect(
             CLIRouter.formatVersionLine(written: current, upgradedFrom: nil, language: .zhHans)
                 == "格式版本：v\(current)"

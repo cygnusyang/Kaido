@@ -1,7 +1,7 @@
 import Foundation
-import ZenoCore
+import KaidoCore
 
-/// 应用层可观察门面：包装纯逻辑的 ZenoCore `FindController`（ADR-004）。
+/// 应用层可观察门面：包装纯逻辑的 KaidoCore `FindController`（ADR-004）。
 /// 核心控制器负责查找逻辑；本门面镜像 SwiftUI 需要绑定的几个属性，
 /// 并在每次核心操作后从控制器回读结果。
 @MainActor

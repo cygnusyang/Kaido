@@ -1,7 +1,7 @@
 import Foundation
 import Testing
-import ZenoCore
-@testable import ZenoMacApp
+import KaidoCore
+@testable import KaidoMacApp
 
 /// 应用层性能预算（计划 §5 第 10 条）：1000 任务、50 条依赖。
 /// 选择/展开/缩放 ≤ 100ms；排期重算 ≤ 1s。
@@ -15,7 +15,7 @@ struct AppPerformanceTests {
     }
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "zeno.apptests.perf.\(UUID().uuidString)"
+        let suite = "kaido.apptests.perf.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults)
@@ -23,9 +23,9 @@ struct AppPerformanceTests {
 
     private func makeFixture() throws -> Fixture {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-perf-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-perf-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let url = directory.appendingPathComponent("perf.zeno")
+        let url = directory.appendingPathComponent("perf.kaido")
 
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: Date())
@@ -62,7 +62,7 @@ struct AppPerformanceTests {
             }
         }
 
-        try ZenoFile.save(project, to: url)
+        try KaidoFile.save(project, to: url)
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let store = makeStore()

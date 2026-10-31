@@ -10,7 +10,7 @@
 // 的裸对话框形态。
 
 import SwiftUI
-import ZenoUpdater
+import KaidoUpdater
 
 /// 更新面板（由「检查更新…」菜单触发挂载）。
 struct UpdateSheet: View {
@@ -294,7 +294,7 @@ struct UpdateSheet: View {
     private var headline: String {
         switch updater.state {
         case .idle, .checking: return I18n.t("update.state.checking.title", "Checking for updates")
-        case .upToDate: return I18n.t("update.state.up_to_date.title", "Zeno is up to date")
+        case .upToDate: return I18n.t("update.state.up_to_date.title", "Kaido is up to date")
         case .updateAvailable(let info): return I18n.t("update.state.available.title", "Version %1$@ is available", info.version)
         case .downloading: return I18n.t("update.state.downloading.title", "Downloading the update")
         case .downloaded: return I18n.t("update.state.downloaded.title", "Update downloaded and verified")
@@ -317,12 +317,12 @@ struct UpdateSheet: View {
         case .downloading:
             return I18n.t("update.state.downloading.subtitle", "The app must quit to finish installing; keep it open until the download completes.")
         case .downloaded:
-            return I18n.t("update.state.downloaded.subtitle", "Zeno will quit, replace the binary, and restart automatically.")
+            return I18n.t("update.state.downloaded.subtitle", "Kaido will quit, replace the binary, and restart automatically.")
         case .installing:
             return I18n.t("update.state.installing.subtitle", "The app is about to quit and restart automatically; if it stays here, close this panel or download the update manually.")
         case .failed(let failure):
             return UpdaterFailureText.isInstallFailure(failure)
-                ? I18n.t("update.state.install_failed.subtitle", "Zeno is still running the current version. Retry, or download the latest version from the release page.")
+                ? I18n.t("update.state.install_failed.subtitle", "Kaido is still running the current version. Retry, or download the latest version from the release page.")
                 : I18n.t("update.state.failed.subtitle", "The update check could not be completed; try again later.")
         }
     }

@@ -1,21 +1,21 @@
 import Foundation
 import Testing
-import ZenoCommands
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCommands
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // v0.13 基线：应用层接线（docs/features/08-baselines.md §5、§8、§11）。
 //
 // 覆盖用户可见路径：① 四列默认隐藏且未选基线时整体隐藏；② 选中/切换基线驱动列与检查器；
 // ③ 删除必须二次确认；④ 切换基线只改视图状态（不进撤销栈、不置脏）。
-// 列策略与偏差口径本身在 ZenoPresentationTests 锁定，这里只验接线。
+// 列策略与偏差口径本身在 KaidoPresentationTests 锁定，这里只验接线。
 
 @MainActor
 @Suite("基线工作台（v0.13）")
 struct BaselineWorkspaceTests {
     private func makeDefaults() -> UserDefaults {
-        let suite = "zeno.v013.\(UUID().uuidString)"
+        let suite = "kaido.v013.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults
@@ -27,7 +27,7 @@ struct BaselineWorkspaceTests {
 
     private func makeTemporaryDirectory() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-baseline-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("kaido-baseline-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
     }
@@ -108,7 +108,7 @@ struct BaselineWorkspaceTests {
         store.dispatch(.createBaseline(nil))
         store.dispatch(.createBaseline("第二个"))
         // 先落盘清脏，才能证明切换基线不会重新置脏。
-        store.save(to: directory.appendingPathComponent("baseline.zeno"))
+        store.save(to: directory.appendingPathComponent("baseline.kaido"))
         #expect(store.saveState == .saved)
         #expect(!store.hasUnsavedChanges)
 
@@ -262,7 +262,7 @@ struct BaselineWorkspaceTests {
     /// 切换基线后：不置脏、文件 mtime 与字节均不变（选择只落在 UserDefaults）。
     @Test func switchingBaselineDoesNotTouchProjectFile() throws {
         let directory = try makeTemporaryDirectory()
-        let url = directory.appendingPathComponent("no-write.zeno")
+        let url = directory.appendingPathComponent("no-write.kaido")
         let store = makeStore()
         store.dispatch(.createBaseline(nil))
         store.dispatch(.createBaseline(nil))
@@ -394,7 +394,7 @@ struct BaselineWorkspaceTests {
         let store = makeStore()
         showBaselineColumns(store)
         let directory = try makeTemporaryDirectory()
-        let url = directory.appendingPathComponent("undo.zeno")
+        let url = directory.appendingPathComponent("undo.kaido")
 
         // 阶段 A（lead 给的顺序）：create → setBaseline → delete → undo。
         store.dispatch(.createBaseline(nil))
@@ -454,7 +454,7 @@ struct BaselineWorkspaceTests {
     @Test func selectedBaselinePersistsAcrossLaunch() throws {
         let defaults = makeDefaults()
         let directory = try makeTemporaryDirectory()
-        let url = directory.appendingPathComponent("persisted.zeno")
+        let url = directory.appendingPathComponent("persisted.kaido")
         let store = makeStore(defaults: defaults)
         store.dispatch(.createBaseline("冻结版"))
         let id = try #require(store.baselines.first?.id)

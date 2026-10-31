@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // v0.15 基线面板（docs/features/08-baselines.md §5、10-multi-baseline-gantt.md §5）。
 //
@@ -16,7 +16,7 @@ import ZenoPresentation
 @Suite("基线面板（v0.15）")
 struct BaselinePanelTests {
     private func makeDefaults() -> UserDefaults {
-        let suite = "zeno.v015.panel.\(UUID().uuidString)"
+        let suite = "kaido.v015.panel.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return defaults
@@ -239,7 +239,7 @@ struct BaselinePanelTests {
     /// 「管理基线…」在基线组末尾（菜单里排在图例之后），动作打开面板。
     @Test func manageCommandOpensPanel() throws {
         let store = makeStore()
-        let commands = ZenoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {})
+        let commands = KaidoCommandCatalog.make(store: store, requestOpen: {}, requestSave: {}, requestSaveAs: {})
         let manage = try #require(commands.first { $0.id == "baseline.manage" })
         #expect(manage.group == .baseline)
         // 可搜索：面板入口必须在 ⌘K 里找得到（D-035 的可发现性）。

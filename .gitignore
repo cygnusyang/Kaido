@@ -21,5 +21,5 @@ dist/
 *.dmg
 
 # 根目录临时打开的项目文件：App 会按上次路径把项目写回仓库根，权威副本在
-# docs/roadmap/Zeno.zeno，根目录这份不入库，避免两份任务板分叉。
-/Zeno.zeno
+# docs/roadmap/Kaido.kaido，根目录这份不入库，避免两份任务板分叉。
+/Kaido.kaido

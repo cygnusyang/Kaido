@@ -3,12 +3,12 @@ import Foundation
 /// 「另存为」文件名建议（FR-FILE-SAVEAS-2）：纯函数，便于独立验证。
 ///
 /// 已有保存路径时沿用当前文件名；否则由项目标题生成：
-/// 去掉首尾空格与点，`/`、`:` 与控制字符替换为 `-`，补 `.zeno` 后缀。
-/// 标题为空或清洗后无有效字符时回退 `project.zeno`。
+/// 去掉首尾空格与点，`/`、`:` 与控制字符替换为 `-`，补 `.kaido` 后缀。
+/// 标题为空或清洗后无有效字符时回退 `project.kaido`。
 enum SaveFilenameSuggestion {
-    static let fallback = "project.zeno"
+    static let fallback = "project.kaido"
 
-    private static let zenoExtension = ".zeno"
+    private static let kaidoExtension = ".kaido"
     /// 默认文件名的 UTF-8 字节上限；超出时按字符截断基名并保留后缀。
     private static let maxFilenameBytes = 200
     private static let trimCharacters = CharacterSet.whitespacesAndNewlines
@@ -19,7 +19,7 @@ enum SaveFilenameSuggestion {
             let filename = currentURL.lastPathComponent
             // 隐藏文件（以 `.` 开头）不适合作为默认名，交给标题生成。
             if !filename.isEmpty, !filename.hasPrefix(".") {
-                return withZenoExtension(filename)
+                return withKaidoExtension(filename)
             }
         }
         let cleaned = sanitize(title)
@@ -27,7 +27,7 @@ enum SaveFilenameSuggestion {
         guard cleaned.contains(where: { !$0.isWhitespace && $0 != "-" }) else {
             return fallback
         }
-        return withZenoExtension(cleaned)
+        return withKaidoExtension(cleaned)
     }
 
     private static func sanitize(_ title: String) -> String {
@@ -46,13 +46,13 @@ enum SaveFilenameSuggestion {
         return character.unicodeScalars.contains { CharacterSet.controlCharacters.contains($0) }
     }
 
-    /// 补 `.zeno` 后缀；超过文件名字节上限时按字符截断基名，保证 UTF-8 完整。
-    private static func withZenoExtension(_ filename: String) -> String {
-        let name = filename.lowercased().hasSuffix(zenoExtension)
-            ? filename : filename + zenoExtension
+    /// 补 `.kaido` 后缀；超过文件名字节上限时按字符截断基名，保证 UTF-8 完整。
+    private static func withKaidoExtension(_ filename: String) -> String {
+        let name = filename.lowercased().hasSuffix(kaidoExtension)
+            ? filename : filename + kaidoExtension
         guard name.utf8.count > maxFilenameBytes else { return name }
-        let suffix = String(name.suffix(zenoExtension.count))
-        var base = String(name.dropLast(zenoExtension.count))
+        let suffix = String(name.suffix(kaidoExtension.count))
+        var base = String(name.dropLast(kaidoExtension.count))
         while !base.isEmpty, base.utf8.count + suffix.utf8.count > maxFilenameBytes {
             base.removeLast()
         }

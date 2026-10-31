@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import ZenoCore
-import ZenoCommands
-@testable import ZenoMCP
-@testable import ZenoCLI
+import KaidoCore
+import KaidoCommands
+@testable import KaidoMCP
+@testable import KaidoCLI
 
 // v0.16 B2：CLI / MCP 的「已取消」词汇与取消原因（\`cancelled\` + \`cancelReason\`）。
 //
@@ -19,12 +19,12 @@ import ZenoCommands
 private let budgetReason = "预算砍掉，本期不做"
 private let scopeReason = "范围收缩，移到下一版"
 
-/// 建临时工作目录与 .zeno 路径；调用方用 defer 清理目录。
-private func makeScratch() throws -> (dir: URL, zeno: URL) {
+/// 建临时工作目录与 .kaido 路径；调用方用 defer 清理目录。
+private func makeScratch() throws -> (dir: URL, kaido: URL) {
     let dir = FileManager.default.temporaryDirectory
-        .appendingPathComponent("zeno-cancel-\(UUID().uuidString)")
+        .appendingPathComponent("kaido-cancel-\(UUID().uuidString)")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    return (dir: dir, zeno: dir.appendingPathComponent("cancel.zeno"))
+    return (dir: dir, kaido: dir.appendingPathComponent("cancel.kaido"))
 }
 
 /// 建项目 + 两个任务，返回（取消目标, 对照组）的 ID。
@@ -32,7 +32,7 @@ private func makeProjectWithTwoTasks(in file: URL, titles: (String, String) = ("
     try cliRun(["project", "create", "取消接口", "--file", file.path])
     try cliRun(["task", "add", titles.0, "--file", file.path])
     try cliRun(["task", "add", titles.1, "--file", file.path])
-    let project = try ZenoFile.load(from: file)
+    let project = try KaidoFile.load(from: file)
     let target = try #require(project.tasks.first { $0.title == titles.0 }).id
     let other = try #require(project.tasks.first { $0.title == titles.1 }).id
     return (target: target, other: other)
@@ -47,7 +47,7 @@ private func cliOutput(_ arguments: [String]) throws -> String {
     var lines: [String] = []
     try CLIRouter.execute(
         arguments: arguments,
-        environment: ["ZENO_LANG": "zh-Hans"],
+        environment: ["KAIDO_LANG": "zh-Hans"],
         preferredLanguages: [],
         emit: { lines.append($0) }
     )
@@ -58,7 +58,7 @@ private func cliOutput(_ arguments: [String]) throws -> String {
 private func cliRun(_ arguments: [String]) throws {
     try CLIRouter.execute(
         arguments: arguments,
-        environment: ["ZENO_LANG": "zh-Hans"],
+        environment: ["KAIDO_LANG": "zh-Hans"],
         preferredLanguages: [],
         emit: { _ in }
     )
@@ -88,20 +88,20 @@ private func mcpCall(_ server: MCPServer, id: Int, tool: String, arguments: Stri
 @Test func cliStatusUpdateCancelPersistsReasonAndEchoesIt() throws {
     let scratch = try makeScratch()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let ids = try makeProjectWithTwoTasks(in: scratch.zeno)
+    let ids = try makeProjectWithTwoTasks(in: scratch.kaido)
 
     // 首尾空白由会话层归一：落盘的是裁剪后的原因。
     let output = try cliOutput([
         "status", "update", ids.target.uuidString,
         "--status", "cancelled",
         "--reason", "  \(budgetReason)  ",
-        "--file", scratch.zeno.path,
+        "--file", scratch.kaido.path,
     ])
 
     #expect(output.contains("已取消"))
     #expect(output.contains("取消原因：\(budgetReason)"), "成功回执必须带原因，否则用户无从确认砍掉的理由")
 
-    let task = try #require(try ZenoFile.load(from: scratch.zeno).tasks.first { $0.id == ids.target })
+    let task = try #require(try KaidoFile.load(from: scratch.kaido).tasks.first { $0.id == ids.target })
     #expect(task.status == .cancelled)
     #expect(task.cancelReason == budgetReason)
     #expect(task.completedAt == nil, "没做完就没有完成时刻")
@@ -110,21 +110,21 @@ private func mcpCall(_ server: MCPServer, id: Int, tool: String, arguments: Stri
 @Test func cliCancelWithoutReasonIsUsageErrorAndLeavesTaskUntouched() throws {
     let scratch = try makeScratch()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let ids = try makeProjectWithTwoTasks(in: scratch.zeno)
+    let ids = try makeProjectWithTwoTasks(in: scratch.kaido)
 
     // 缺 --reason 与纯空白原因都属用法错误（2），不能等到会话层才拒。
     let missing = CLIRouter.run(arguments: [
-        "status", "update", ids.target.uuidString, "--status", "cancelled", "--file", scratch.zeno.path,
+        "status", "update", ids.target.uuidString, "--status", "cancelled", "--file", scratch.kaido.path,
     ])
     #expect(missing == 2, "缺 --reason 必须是用例错误，不该透传到会话层")
 
     let blank = CLIRouter.run(arguments: [
         "status", "update", ids.target.uuidString, "--status", "cancelled",
-        "--reason", "   ", "--file", scratch.zeno.path,
+        "--reason", "   ", "--file", scratch.kaido.path,
     ])
     #expect(blank == 2, "纯空白原因等于没写理由")
 
-    let task = try #require(try ZenoFile.load(from: scratch.zeno).tasks.first { $0.id == ids.target })
+    let task = try #require(try KaidoFile.load(from: scratch.kaido).tasks.first { $0.id == ids.target })
     #expect(task.status == .pending, "被拒的取消不得改动任务")
     #expect(task.cancelReason == nil)
 }
@@ -132,20 +132,20 @@ private func mcpCall(_ server: MCPServer, id: Int, tool: String, arguments: Stri
 @Test func cliTaskUpdateRejectsCancelAndPointsToStatusUpdate() throws {
     let scratch = try makeScratch()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let ids = try makeProjectWithTwoTasks(in: scratch.zeno)
+    let ids = try makeProjectWithTwoTasks(in: scratch.kaido)
 
     // task update 的写入口不落取消原因：置为 cancelled 一律用法错误，避免出现「无理由终态」。
     #expect(CLIRouter.run(arguments: [
-        "task", "update", ids.target.uuidString, "--status", "cancelled", "--file", scratch.zeno.path,
+        "task", "update", ids.target.uuidString, "--status", "cancelled", "--file", scratch.kaido.path,
     ]) == 2)
 
     // 带 --reason 也进不去：该命令没有这个选项，取消只有 status update 一条路。
     #expect(CLIRouter.run(arguments: [
         "task", "update", ids.target.uuidString, "--status", "cancelled",
-        "--reason", scopeReason, "--file", scratch.zeno.path,
+        "--reason", scopeReason, "--file", scratch.kaido.path,
     ]) == 2)
 
-    let task = try #require(try ZenoFile.load(from: scratch.zeno).tasks.first { $0.id == ids.target })
+    let task = try #require(try KaidoFile.load(from: scratch.kaido).tasks.first { $0.id == ids.target })
     #expect(task.status == .pending)
     #expect(task.cancelReason == nil)
 }
@@ -155,33 +155,33 @@ private func mcpCall(_ server: MCPServer, id: Int, tool: String, arguments: Stri
 @Test func cliTaskGetAndListPrintCancelReason() throws {
     let scratch = try makeScratch()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let ids = try makeProjectWithTwoTasks(in: scratch.zeno)
+    let ids = try makeProjectWithTwoTasks(in: scratch.kaido)
     try cliRun([
         "status", "update", ids.target.uuidString, "--status", "cancelled",
-        "--reason", budgetReason, "--file", scratch.zeno.path,
+        "--reason", budgetReason, "--file", scratch.kaido.path,
     ])
 
-    let detail = try cliOutput(["task", "get", ids.target.uuidString, "--file", scratch.zeno.path])
+    let detail = try cliOutput(["task", "get", ids.target.uuidString, "--file", scratch.kaido.path])
     #expect(detail.contains("取消原因：\(budgetReason)"))
 
     // 未取消的任务不出现「取消原因」行（缺值不占行，与其它可选行同口径）。
-    let otherDetail = try cliOutput(["task", "get", ids.other.uuidString, "--file", scratch.zeno.path])
+    let otherDetail = try cliOutput(["task", "get", ids.other.uuidString, "--file", scratch.kaido.path])
     #expect(!otherDetail.contains("取消原因"))
 
-    let list = try cliOutput(["task", "list", "--file", scratch.zeno.path])
+    let list = try cliOutput(["task", "list", "--file", scratch.kaido.path])
     #expect(list.contains(budgetReason), "列表文本也要能看出为什么砍掉")
 }
 
 @Test func cliTaskListJSONOmitsAbsentCancelReasonKey() throws {
     let scratch = try makeScratch()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let ids = try makeProjectWithTwoTasks(in: scratch.zeno)
+    let ids = try makeProjectWithTwoTasks(in: scratch.kaido)
     try cliRun([
         "status", "update", ids.target.uuidString, "--status", "cancelled",
-        "--reason", budgetReason, "--file", scratch.zeno.path,
+        "--reason", budgetReason, "--file", scratch.kaido.path,
     ])
 
-    let json = try cliOutput(["task", "list", "--json", "--file", scratch.zeno.path])
+    let json = try cliOutput(["task", "list", "--json", "--file", scratch.kaido.path])
     let rows = try #require(try JSONDecoder().decode(JSONValue.self, from: Data(json.utf8)).arrayValue)
     let cancelled = try #require(rows.first { $0.objectValue?["id"]?.stringValue == ids.target.uuidString })
     #expect(cancelled.objectValue?["status"]?.stringValue == "cancelled")
@@ -219,7 +219,7 @@ private func mcpCall(_ server: MCPServer, id: Int, tool: String, arguments: Stri
     let added = try mcpCall(server, id: 2, tool: "task_add", arguments: #"{"title":"缺原因任务"}"#)
     let taskID = try #require(added.payload.objectValue?["taskID"]?.stringValue)
 
-    let code = ZenoErrorCode.cancelReasonRequired.rawValue
+    let code = KaidoErrorCode.cancelReasonRequired.rawValue
     #expect(code == "model_cancel_reason_required", "细码是冻结契约，改动会破坏按码匹配的消费者")
 
     for (index, arguments) in [
@@ -250,7 +250,7 @@ private func mcpCall(_ server: MCPServer, id: Int, tool: String, arguments: Stri
         arguments: "{\"tasks\":[{\"taskID\":\"\(taskID)\",\"status\":\"cancelled\"}]}"
     )
     #expect(missing.isError)
-    #expect(missing.payload.objectValue?["reason"]?.stringValue == ZenoErrorCode.cancelReasonRequired.rawValue)
+    #expect(missing.payload.objectValue?["reason"]?.stringValue == KaidoErrorCode.cancelReasonRequired.rawValue)
 
     let ok = try mcpCall(
         server, id: 4, tool: "status_batch_update",
@@ -267,15 +267,15 @@ private func mcpCall(_ server: MCPServer, id: Int, tool: String, arguments: Stri
 @Test func cliAndMCPCancelAgreeOnReason() throws {
     let scratch = try makeScratch()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
-    let ids = try makeProjectWithTwoTasks(in: scratch.zeno)
+    let ids = try makeProjectWithTwoTasks(in: scratch.kaido)
 
     // CLI 写 → MCP 读。
     try cliRun([
         "status", "update", ids.target.uuidString, "--status", "cancelled",
-        "--reason", budgetReason, "--file", scratch.zeno.path,
+        "--reason", budgetReason, "--file", scratch.kaido.path,
     ])
     let server = MCPServer()
-    _ = try mcpCall(server, id: 1, tool: "project_open", arguments: "{\"path\":\"\(scratch.zeno.path)\"}")
+    _ = try mcpCall(server, id: 1, tool: "project_open", arguments: "{\"path\":\"\(scratch.kaido.path)\"}")
     let fromMCP = try mcpCall(server, id: 2, tool: "task_get", arguments: "{\"taskID\":\"\(ids.target.uuidString)\"}")
     #expect(fromMCP.payload.objectValue?["cancelReason"]?.stringValue == budgetReason)
 
@@ -287,9 +287,9 @@ private func mcpCall(_ server: MCPServer, id: Int, tool: String, arguments: Stri
     #expect(!updated.isError)
     _ = try mcpCall(server, id: 4, tool: "project_save", arguments: "{}")
 
-    let saved = try #require(try ZenoFile.load(from: scratch.zeno).tasks.first { $0.id == ids.target })
+    let saved = try #require(try KaidoFile.load(from: scratch.kaido).tasks.first { $0.id == ids.target })
     #expect(saved.cancelReason == scopeReason)
-    let detail = try cliOutput(["task", "get", ids.target.uuidString, "--file", scratch.zeno.path])
+    let detail = try cliOutput(["task", "get", ids.target.uuidString, "--file", scratch.kaido.path])
     #expect(detail.contains("取消原因：\(scopeReason)"))
 }
 
@@ -299,20 +299,20 @@ private func mcpCall(_ server: MCPServer, id: Int, tool: String, arguments: Stri
     let scratch = try makeScratch()
     defer { try? FileManager.default.removeItem(at: scratch.dir) }
     // 专用标题：并行用例都往同一 fd 打印，按标题断言才不会被别人的输出带跑。
-    let ids = try makeProjectWithTwoTasks(in: scratch.zeno, titles: ("砍掉的排期任务", "留下的排期任务"))
+    let ids = try makeProjectWithTwoTasks(in: scratch.kaido, titles: ("砍掉的排期任务", "留下的排期任务"))
     try cliRun([
         "status", "update", ids.target.uuidString, "--status", "cancelled",
-        "--reason", budgetReason, "--file", scratch.zeno.path,
+        "--reason", budgetReason, "--file", scratch.kaido.path,
     ])
 
-    let output = try cliOutput(["schedule", "compute", "--file", scratch.zeno.path])
+    let output = try cliOutput(["schedule", "compute", "--file", scratch.kaido.path])
     // 排期行的形状是「  <短ID> <标题>  <开始> → <结束>（…）」：按「含 → 的行」判定甘特条目。
     let scheduleRows = output.split(separator: "\n").filter { $0.contains("→") }
     #expect(scheduleRows.contains { $0.contains("留下的排期任务") }, "对照组必须出现在排期里")
     #expect(!scheduleRows.contains { $0.contains("砍掉的排期任务") }, "已取消任务不该有甘特行")
 
     let server = MCPServer()
-    _ = try mcpCall(server, id: 1, tool: "project_open", arguments: "{\"path\":\"\(scratch.zeno.path)\"}")
+    _ = try mcpCall(server, id: 1, tool: "project_open", arguments: "{\"path\":\"\(scratch.kaido.path)\"}")
     let computed = try mcpCall(server, id: 2, tool: "schedule_compute", arguments: "{}")
     let rows = try #require(computed.payload.objectValue?["tasks"]?.arrayValue)
     let scheduledIDs = rows.compactMap { $0.objectValue?["taskID"]?.stringValue }

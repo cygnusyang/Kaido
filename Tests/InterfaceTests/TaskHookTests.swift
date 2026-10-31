@@ -2,7 +2,7 @@ import Foundation
 import Testing
 
 /// 插件 TaskCompleted hook 契约测试（US-E5-03 验收 3）。
-/// 用假 CLI 替换真实 ZenoCLI，只验证匹配、跳过与退出码，不读写真实项目。
+/// 用假 CLI 替换真实 KaidoCLI，只验证匹配、跳过与退出码，不读写真实项目。
 #if canImport(Darwin)
 // hook 用 Process 拉起 shell 脚本；Linux 的 Foundation 无 Process，整组用例只在 Darwin 主机跑。
 struct TaskHookTests {
@@ -14,16 +14,16 @@ struct TaskHookTests {
     }
 
     private var hook: URL {
-        repoRoot.appendingPathComponent("Plugins/claude-code/bin/zeno-task-hook")
+        repoRoot.appendingPathComponent("Plugins/claude-code/bin/kaido-task-hook")
     }
 
     /// 临时目录 + 假 CLI；假 CLI 把每次调用追加到 calls.log，list 返回给定 JSON。
     private func makeFixture(tasksJSON: String) throws -> (dir: URL, cli: URL) {
         let dir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("zeno-hook-\(UUID().uuidString)")
+            .appendingPathComponent("kaido-hook-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let log = dir.appendingPathComponent("calls.log")
-        let cli = dir.appendingPathComponent("fake-zeno")
+        let cli = dir.appendingPathComponent("fake-kaido")
         let script = """
         #!/bin/sh
         echo "$@" >> "\(log.path)"
@@ -54,16 +54,16 @@ struct TaskHookTests {
         _ event: String,
         dir: URL,
         cli: URL,
-        project: String? = "/tmp/zeno-hook-project.zeno"
+        project: String? = "/tmp/kaido-hook-project.kaido"
     ) -> (code: Int32, stderr: String) {
         let process = Process()
         process.executableURL = hook
         var environment = ProcessInfo.processInfo.environment
-        environment["ZENO_CLI_BIN"] = cli.path
+        environment["KAIDO_CLI_BIN"] = cli.path
         if let project {
-            environment["ZENO_PROJECT"] = project
+            environment["KAIDO_PROJECT"] = project
         } else {
-            environment.removeValue(forKey: "ZENO_PROJECT")
+            environment.removeValue(forKey: "KAIDO_PROJECT")
         }
         process.environment = environment
 

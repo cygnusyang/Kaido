@@ -2,9 +2,9 @@ import AppKit
 import CoreGraphics
 import SwiftUI
 import Testing
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // D-033「大纲行点选不灵 + 列交界拖宽只在大纲表头可达」的回归用例（issue #13）。
 //
@@ -160,7 +160,7 @@ struct OutlineRowInteractionTests {
 
     /// 行区域交界带走的回调与表头同一条链路：提交后布局变宽，复位后回落默认宽。
     @Test func resizeRoundTripThroughStoreAndLayout() {
-        let suite = "zeno.apptests.\(UUID().uuidString)"
+        let suite = "kaido.apptests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         let store = WorkspaceStore(defaults: defaults, seedsDemoData: false)
@@ -194,7 +194,7 @@ struct OutlineRowInteractionTests {
 
     /// 加了交界覆盖层后行列表节距不变：总高仍严格等于 行数 × rowHeight（与画布对齐）。
     @Test func resizeOverlayKeepsRowPitch() throws {
-        let suite = "zeno.apptests.\(UUID().uuidString)"
+        let suite = "kaido.apptests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         let store = WorkspaceStore(defaults: defaults, seedsDemoData: false)

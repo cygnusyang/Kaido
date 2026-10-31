@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 100 100">
-  <!-- Zeno foreground L1 · plan bars + AI hub (glass), Coffer glass stops -->
+  <!-- Kaido foreground L1 · plan bars + AI hub (glass), Coffer glass stops -->
   <defs>
     <linearGradient id="glass" x1="0" y1="0" x2="0.35" y2="1">
       <stop offset="0" stop-color="#ffffff" stop-opacity="0.99"/>

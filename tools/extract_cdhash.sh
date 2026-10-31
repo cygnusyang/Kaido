@@ -23,7 +23,7 @@ set -u
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-APP_PATH="${1:-${ROOT_DIR}/dist/Zeno.app}"
+APP_PATH="${1:-${ROOT_DIR}/dist/Kaido.app}"
 
 if [ ! -d "$APP_PATH" ]; then
     echo "ERROR: 未找到目标 .app：$APP_PATH" >&2

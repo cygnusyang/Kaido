@@ -62,7 +62,7 @@ jobs:
       # （OTAInstallGuardTests 的 <1.5s、OTAHygieneTests 的 2s 超时）与性能预算会因排队而假红，
       # 与代码无关。--num-workers 2 把并行度压到 CPU 数以下，代价是本步慢几十秒。
       - name: 测试
-        run: bash tools/test.sh --scratch-path /tmp/zeno-ci-tests --parallel --num-workers 2
+        run: bash tools/test.sh --scratch-path /tmp/kaido-ci-tests --parallel --num-workers 2
 
       - name: 门禁 · 核心层不得依赖 UI 框架（ADR-004 / ADR-013）
         run: bash tools/gate-core.sh
@@ -82,8 +82,8 @@ jobs:
             echo "::error title=i18n::缺少 $CATALOG —— 键完整性无法校验。F-0705（视图接入 Catalog）未合入前本步骤保持红色，这是门禁的预期行为，不要加跳过开关。"
             exit 1
           fi
-          bash tools/i18n-compile.sh "$RUNNER_TEMP/zeno-lproj"
-          bash tools/i18n-lint.sh --require-catalog --lproj-dir "$RUNNER_TEMP/zeno-lproj"
+          bash tools/i18n-compile.sh "$RUNNER_TEMP/kaido-lproj"
+          bash tools/i18n-lint.sh --require-catalog --lproj-dir "$RUNNER_TEMP/kaido-lproj"
 
       - name: 自测 · 多语言门禁自身（用例只增不减）
         run: bash tools/i18n-lint-selftest.sh
@@ -127,7 +127,7 @@ jobs:
         run: swift build -Xswiftc -warnings-as-errors
 
       # 测试集差异是设计使然（Package.swift 的 #if os(macOS)）：Linux 只有
-      # ZenoCoreTests / ZenoPresentationTests / InterfaceTests；AppTests 与
-      # ZenoUpdaterTests（Security/CryptoKit）只在 macOS 跑。
+      # KaidoCoreTests / KaidoPresentationTests / InterfaceTests；AppTests 与
+      # KaidoUpdaterTests（Security/CryptoKit）只在 macOS 跑。
       - name: 测试（App / GUI target 在 Linux 不参与构建）
         run: swift test

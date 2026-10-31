@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import ZenoCommands
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCommands
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// 项目设置 / 工作日历的应用层行为（F-22-06）。
 ///
@@ -20,13 +20,13 @@ struct ProjectSettingsTests {
     }
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "zeno.apptests.calendar.\(UUID().uuidString)"
+        let suite = "kaido.apptests.calendar.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(
             defaults: defaults,
             seedsDemoData: true,
-            projectLoader: { try ZenoFile.read(from: $0) }
+            projectLoader: { try KaidoFile.read(from: $0) }
         )
     }
 

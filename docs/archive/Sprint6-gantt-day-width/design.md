@@ -11,7 +11,7 @@
 
 **核心结论：核心布局引擎零改动，需求在呈现层与应用层闭环。**
 
-1. `GanttLayoutEngine.make` 已经用**单一标量 `dayWidth`** 计算全部条体 / 刻度 / 非工作带 / 今天线的 x 坐标，等比性在核心层**天然成立**；`dayWidthOverride: Double?` 这个覆盖口已经存在。因此**不改 `Sources/ZenoCore/Query/GanttLayout.swift` 一行**（硬门禁 A7「逐位一致」结构性成立）。
+1. `GanttLayoutEngine.make` 已经用**单一标量 `dayWidth`** 计算全部条体 / 刻度 / 非工作带 / 今天线的 x 坐标，等比性在核心层**天然成立**；`dayWidthOverride: Double?` 这个覆盖口已经存在。因此**不改 `Sources/KaidoCore/Query/GanttLayout.swift` 一行**（硬门禁 A7「逐位一致」结构性成立）。
 2. 状态表达采用**绝对日宽覆盖**：`WorkspaceViewState.customDayWidth: Double?`（nil = 未启用）。不采用「档位 × 缩放系数」。
 3. 夹取区间 **[2.0, 120.0] 点/天**，NaN/±∞ 有确定回落；夹取**只作用于自定义路径**，不触碰 fit 路径（保住 A7）。
 4. 刻度粒度**由日宽推导**（≥18 → 逐日；≥6 → 逐周；否则逐月），这是解决「日宽变小 → 标签重叠 / 绘制量爆炸」的关键；推导只决定**刻度集合**，不改变日界等距性。
@@ -26,8 +26,8 @@
 | # | 约束 | 本设计的兑现方式 |
 |---|---|---|
 | C1 | 单一标量日宽驱动全轴，禁止按天/按周分叉宽度 | 核心层本来就是单标量（`GanttLayout.swift:171` `let dayWidth = max(dayWidthOverride ?? zoom.dayWidth, 0.5)`），全轴 x 都是 `offsetDays × dayWidth`；本设计不引入任何按天/按周的宽度分支 |
-| C2 | 未启用自定义时布局输出与现状**逐位一致**（414 用例全绿） | 自定义值落在**呈现层**（`ZenoPresentation`）解析；`customDayWidth == nil` 时传给核心的参数与今天**完全相同**；核心文件零 diff |
-| C3 | `ZenoPresentation` 平台中立（禁 SwiftUI/AppKit/Combine） | 新增的 `GanttScale` 放 `ZenoCore`（纯 Foundation）；`ZenoPresentation` 只加纯值字段与纯函数 |
+| C2 | 未启用自定义时布局输出与现状**逐位一致**（414 用例全绿） | 自定义值落在**呈现层**（`KaidoPresentation`）解析；`customDayWidth == nil` 时传给核心的参数与今天**完全相同**；核心文件零 diff |
+| C3 | `KaidoPresentation` 平台中立（禁 SwiftUI/AppKit/Combine） | 新增的 `GanttScale` 放 `KaidoCore`（纯 Foundation）；`KaidoPresentation` 只加纯值字段与纯函数 |
 | C4 | 不引入新第三方依赖 | 全部用 Foundation / SwiftUI / Swift Testing |
 | C5 | 不破坏 D-006 纵向对齐（行节距 28pt，画布高 = 行数 × 28） | 本设计不触碰 `rowHeight` 与行数→高度的换算；`TimelineBody.contentHeight` 保持 `rows.count × DesignTokens.rowHeight` |
 
@@ -39,7 +39,7 @@
 
 ### 2.1 核心层已经具备的能力（已核实，无需重复调研）
 
-`Sources/ZenoCore/Query/GanttLayout.swift`：
+`Sources/KaidoCore/Query/GanttLayout.swift`：
 
 - `make(..., dayWidthOverride: Double? = nil, ...)` **已存在**覆盖口（第 164 行）。
 - 第 171 行：`let dayWidth = max(dayWidthOverride ?? zoom.dayWidth, 0.5)` —— 全轴唯一日宽标量。
@@ -101,7 +101,7 @@ dayWidthOverride: 有效日宽（自定义时 = 用户值；fit 时 = fit 值；
 #### 确定的接口签名
 
 ```swift
-// Sources/ZenoPresentation/ViewState.swift
+// Sources/KaidoPresentation/ViewState.swift
 public struct WorkspaceViewState: Hashable, Sendable {
     // ...既有字段不动...
 
@@ -119,7 +119,7 @@ public struct WorkspaceViewState: Hashable, Sendable {
 ```
 
 ```swift
-// Sources/ZenoPresentation/WorkspaceAction.swift
+// Sources/KaidoPresentation/WorkspaceAction.swift
 /// 设定自定义日宽（内部夹取到 GanttScale.dayWidthRange）；进入自定义模式并退出「适合项目」。
 case setCustomDayWidth(Double)
 /// 相对步进自定义日宽（基准 = 当前生效日宽；fit 模式下以 fit 宽度为基准）。
@@ -259,7 +259,7 @@ clampDayWidth(v):
   - 可切换为线性（一条常量），但**默认对数**。
 - **提交节流**：拖动中本地 `@State` 实时跟手并显示读数；向 store 提交**节流 ≥ 100ms**（`onEditingChanged` 结束时必提交一次）。避免 60Hz 触发整条快照重建。
 - **数值精度**：提交值保留 0.1 点（UI 层四舍五入），核心不做四舍五入。
-- **快捷键**（同时进菜单栏「视图」菜单与 ⌘K 面板，走 `ZenoCommandCatalog` 单一来源）：
+- **快捷键**（同时进菜单栏「视图」菜单与 ⌘K 面板，走 `KaidoCommandCatalog` 单一来源）：
   - `⌘+` 加宽 1 点/天、`⌘−` 收窄 1 点/天（`nudgeCustomDayWidth(by: ±1)`）
   - `⇧⌘+` / `⇧⌘−` 粗调 ±5 点/天
   - `⌘0` 重置为档位默认（`clearCustomDayWidth()`）
@@ -332,7 +332,7 @@ clampDayWidth(v):
 - 现状 `refresh()` 每次都 `session.computeSchedule()` → 视图类动作（缩放/平移）也在重算排期，是滑杆跟手的主要成本。
 - 处置：
   - **P0（必须）**：滑杆拖动中**节流提交 ≥ 100ms**，松手必提交一次 → 单次刷新增量有限。
-  - **P1（推荐，可裁剪）**：视图类动作走「复用 `session.lastSchedule` 的刷新路径」（`ZenoSession` 已有 `lastSchedule` 缓存），避免每次缩放重算排期。**独立任务、独立风险评估**，不阻塞主线。
+  - **P1（推荐，可裁剪）**：视图类动作走「复用 `session.lastSchedule` 的刷新路径」（`KaidoSession` 已有 `lastSchedule` 缓存），避免每次缩放重算排期。**独立任务、独立风险评估**，不阻塞主线。
   - 若实测 P0 仍不跟手 → 降级为"松手才提交"（拖动中仅面板读数变化），功能不受影响。
 
 ---
@@ -351,13 +351,13 @@ clampDayWidth(v):
 **选择 A**：
 
 ```swift
-// Sources/ZenoPresentation/StatusBarSnapshot.swift
+// Sources/KaidoPresentation/StatusBarSnapshot.swift
 /// 实际日宽读数（点/天），如 "12 点/天" / "12.5 点/天"；与 `zoomLabel` 配合展示。
 public var zoomDetail: String?
 ```
 
 ```swift
-// Sources/ZenoPresentation/Presenter.swift
+// Sources/KaidoPresentation/Presenter.swift
 private static func zoomLabel(_ viewState: WorkspaceViewState) -> String {
     if viewState.customDayWidth != nil { return "自定义" }
     if viewState.usesFitZoom { return "适合项目" }
@@ -416,7 +416,7 @@ private struct StoredPreferences: Codable {
 ## 4. 接口契约汇总（跨层签名）
 
 ```swift
-// ===== Sources/ZenoCore/Query/GanttScale.swift（新增文件，核心零改动其余部分）=====
+// ===== Sources/KaidoCore/Query/GanttScale.swift（新增文件，核心零改动其余部分）=====
 
 /// 甘特时间轴的日宽策略：单一标量日宽驱动全轴，刻度粒度由日宽推导。
 ///
@@ -444,7 +444,7 @@ public enum GanttScale {
 ```
 
 ```swift
-// ===== Sources/ZenoPresentation/Presenter.swift（makeGantt 内的解析顺序）=====
+// ===== Sources/KaidoPresentation/Presenter.swift（makeGantt 内的解析顺序）=====
 
 let custom = viewState.customDayWidth.map(GanttScale.clampDayWidth)
 // 自定义优先：即便状态里 fit 与自定义同时为真，也以自定义为权威。
@@ -472,25 +472,25 @@ GanttSnapshot(..., dayWidth: layout.dayWidth, zoom: effectiveZoom, usesFitZoom: 
 
 | # | 文件 | 改动内容 | 估计行数 | 类型 |
 |---|---|---|---|---|
-| F1 | `Sources/ZenoCore/Query/GanttScale.swift` | **新增**：`GanttScale`（阈值 / 区间 / 夹取 / 刻度档位推导） | +80 | 新增 |
-| F2 | `Sources/ZenoPresentation/ViewState.swift` | `customDayWidth: Double?` 字段 + init 参数 + 文档注释 | +10 | 改 |
-| F3 | `Sources/ZenoPresentation/WorkspaceAction.swift` | 3 个新动作 case | +8 | 改 |
-| F4 | `Sources/ZenoPresentation/Presenter.swift` | 有效日宽/有效刻度档位解析；`zoomLabel` 扩展；`zoomDetail` 计算 | +45 | 改 |
-| F5 | `Sources/ZenoPresentation/StatusBarSnapshot.swift` | `zoomDetail: String?` 字段 + init 参数 | +12 | 改 |
+| F1 | `Sources/KaidoCore/Query/GanttScale.swift` | **新增**：`GanttScale`（阈值 / 区间 / 夹取 / 刻度档位推导） | +80 | 新增 |
+| F2 | `Sources/KaidoPresentation/ViewState.swift` | `customDayWidth: Double?` 字段 + init 参数 + 文档注释 | +10 | 改 |
+| F3 | `Sources/KaidoPresentation/WorkspaceAction.swift` | 3 个新动作 case | +8 | 改 |
+| F4 | `Sources/KaidoPresentation/Presenter.swift` | 有效日宽/有效刻度档位解析；`zoomLabel` 扩展；`zoomDetail` 计算 | +45 | 改 |
+| F5 | `Sources/KaidoPresentation/StatusBarSnapshot.swift` | `zoomDetail: String?` 字段 + init 参数 | +12 | 改 |
 | F6 | `Apps/macos/Sources/WorkspaceStore.swift` | `StoredPreferences` 扩展；载入归一化；落盘；3 个新动作路由；`setZoom`/`setFitZoom` 互斥 | +60 | 改 |
 | F7 | `Apps/macos/Sources/Workspace/WorkspaceView.swift` | 工具栏标尺按钮 + popover 锚点 + `@State`；缩放菜单扩展（宽度文案 / ✓ 前缀 / 自定义项 / 当前日宽表头） | +110 | 改 |
 | F8 | `Apps/macos/Sources/Workspace/Timeline/DayWidthControl.swift` | **新增**：popover 内容（对数 Slider / 读数 / ±步进 / 档位芯片 / 重置 / 无障碍标签） | +160 | 新增 |
 | F9 | `Apps/macos/Sources/Workspace/Timeline/TimelineView.swift` | 标签锚定与条标签显隐改用「生效刻度档位」；表头标签上限 200 + stride 抽稀 | +50 | 改 |
 | F10 | `Apps/macos/Sources/CommandRegistry.swift` | 3 条新命令（加宽 / 收窄 / 重置日宽）+ 快捷键 ⌘+ / ⌘− / ⌘0 / ⇧⌘± | +45 | 改 |
-| F11 | `Tests/ZenoCoreTests/GanttScaleTests.swift` | **新增**：阈值边界、夹取（含 NaN/±∞）、与档位默认值自洽 | +110 | 新增 |
-| F12 | `Tests/ZenoPresentationTests/DayWidthTests.swift` | **新增**：自定义解析 / fit 互斥 / 预设重置 / 标签 / 生效档位 | +120 | 新增 |
+| F11 | `Tests/KaidoCoreTests/GanttScaleTests.swift` | **新增**：阈值边界、夹取（含 NaN/±∞）、与档位默认值自洽 | +110 | 新增 |
+| F12 | `Tests/KaidoPresentationTests/DayWidthTests.swift` | **新增**：自定义解析 / fit 互斥 / 预设重置 / 标签 / 生效档位 | +120 | 新增 |
 | F13 | `Tests/AppTests/DayWidthControlTests.swift` | **新增**：动作路由、持久化、旧偏好回落、popover 冒烟 | +120 | 新增 |
 | F14 | `Tests/AppTests/GUIRenderTests.swift` | 可选：自定义日宽导致画面差异的渲染冒烟 | +30 | 改（可选） |
 | F15 | `docs/design/ui-redesign.md` | §3 尺寸表补日宽区间/阈值；§5.1 补自定义日宽与刻度推导规则 | +25 | 文档 |
 | F16 | `docs/features/01-views-editing.md` | 第 369 行缩放行为注记更新 | +8 | 文档 |
 | F17 | `CHANGELOG.md` | 一条变更记录 | +6 | 文档 |
 
-**未改动的关键文件**：`Sources/ZenoCore/Query/GanttLayout.swift`（核心布局引擎 **零 diff**）、`Sources/ZenoPresentation/Snapshots.swift`（`GanttSnapshot` 字段不变，仅语义重定义）、`Sources/ZenoCore/Query/OutlineTree.swift` 等。
+**未改动的关键文件**：`Sources/KaidoCore/Query/GanttLayout.swift`（核心布局引擎 **零 diff**）、`Sources/KaidoPresentation/Snapshots.swift`（`GanttSnapshot` 字段不变，仅语义重定义）、`Sources/KaidoCore/Query/OutlineTree.swift` 等。
 
 ### 5.2 并行分组
 
@@ -500,18 +500,18 @@ GanttSnapshot(..., dayWidth: layout.dayWidth, zoom: effectiveZoom, usesFitZoom: 
 
 | 组 | 代号 | 文件范围（互斥） | 依赖 |
 |---|---|---|---|
-| G1 | 核心策略 | `Sources/ZenoCore/Query/GanttScale.swift` | 无 |
-| G2 | 呈现层状态与动作 | `Sources/ZenoPresentation/ViewState.swift`、`Sources/ZenoPresentation/WorkspaceAction.swift` | 无（签名见 §4） |
-| G3 | 核心单测 | `Tests/ZenoCoreTests/GanttScaleTests.swift` | G1 的签名（已固定） |
+| G1 | 核心策略 | `Sources/KaidoCore/Query/GanttScale.swift` | 无 |
+| G2 | 呈现层状态与动作 | `Sources/KaidoPresentation/ViewState.swift`、`Sources/KaidoPresentation/WorkspaceAction.swift` | 无（签名见 §4） |
+| G3 | 核心单测 | `Tests/KaidoCoreTests/GanttScaleTests.swift` | G1 的签名（已固定） |
 | G4 | 文档对齐 | `docs/design/ui-redesign.md`、`docs/features/01-views-editing.md`、`CHANGELOG.md` | 无 |
 
 **W2（可并行，依赖 W1 的签名落地）**
 
 | 组 | 代号 | 文件范围（互斥） | 依赖 |
 |---|---|---|---|
-| G5 | 呈现层解析与快照 | `Sources/ZenoPresentation/Presenter.swift`、`Sources/ZenoPresentation/StatusBarSnapshot.swift` | G1、G2 |
+| G5 | 呈现层解析与快照 | `Sources/KaidoPresentation/Presenter.swift`、`Sources/KaidoPresentation/StatusBarSnapshot.swift` | G1、G2 |
 | G6 | 应用层状态与持久化 | `Apps/macos/Sources/WorkspaceStore.swift` | G2、G5（动作与状态签名） |
-| G7 | 呈现层单测 | `Tests/ZenoPresentationTests/DayWidthTests.swift` | G1、G2、G5 |
+| G7 | 呈现层单测 | `Tests/KaidoPresentationTests/DayWidthTests.swift` | G1、G2、G5 |
 | G8 | 应用层单测 | `Tests/AppTests/DayWidthControlTests.swift` | G6 |
 
 **W3（可并行，依赖 W2）**
@@ -533,11 +533,11 @@ GanttSnapshot(..., dayWidth: layout.dayWidth, zoom: effectiveZoom, usesFitZoom: 
 
 | 源文件 | 交叉的测试文件 | 交叉点 |
 |---|---|---|
-| `Sources/ZenoCore/Query/GanttScale.swift` | `Tests/ZenoCoreTests/GanttScaleTests.swift`（新）、`Tests/ZenoCoreTests/GanttLayoutTests.swift`（既有，**不改**） | `tickUnit(forDayWidth:)`、`clampDayWidth`、`dayWidthRange` 常量 |
-| `Sources/ZenoPresentation/ViewState.swift` | `Tests/ZenoPresentationTests/DayWidthTests.swift`（新）、`Tests/ZenoPresentationTests/PresenterTests.swift`（既有，**不改**） | `customDayWidth` 字段与 init 参数 |
-| `Sources/ZenoPresentation/WorkspaceAction.swift` | `Tests/AppTests/DayWidthControlTests.swift`（新）、`Tests/AppTests/WorkspaceStoreTests.swift`（既有，**不改**） | 3 个新 case 的关联值签名 |
-| `Sources/ZenoPresentation/Presenter.swift` | `Tests/ZenoPresentationTests/DayWidthTests.swift`（新） | `zoomLabel` / `zoomDetail` 文案、`GanttSnapshot.zoom` 生效档位 |
-| `Sources/ZenoPresentation/StatusBarSnapshot.swift` | `Tests/ZenoPresentationTests/DayWidthTests.swift`（新） | `zoomDetail` 字段名与可选性 |
+| `Sources/KaidoCore/Query/GanttScale.swift` | `Tests/KaidoCoreTests/GanttScaleTests.swift`（新）、`Tests/KaidoCoreTests/GanttLayoutTests.swift`（既有，**不改**） | `tickUnit(forDayWidth:)`、`clampDayWidth`、`dayWidthRange` 常量 |
+| `Sources/KaidoPresentation/ViewState.swift` | `Tests/KaidoPresentationTests/DayWidthTests.swift`（新）、`Tests/KaidoPresentationTests/PresenterTests.swift`（既有，**不改**） | `customDayWidth` 字段与 init 参数 |
+| `Sources/KaidoPresentation/WorkspaceAction.swift` | `Tests/AppTests/DayWidthControlTests.swift`（新）、`Tests/AppTests/WorkspaceStoreTests.swift`（既有，**不改**） | 3 个新 case 的关联值签名 |
+| `Sources/KaidoPresentation/Presenter.swift` | `Tests/KaidoPresentationTests/DayWidthTests.swift`（新） | `zoomLabel` / `zoomDetail` 文案、`GanttSnapshot.zoom` 生效档位 |
+| `Sources/KaidoPresentation/StatusBarSnapshot.swift` | `Tests/KaidoPresentationTests/DayWidthTests.swift`（新） | `zoomDetail` 字段名与可选性 |
 | `Apps/macos/Sources/WorkspaceStore.swift` | `Tests/AppTests/DayWidthControlTests.swift`（新）、`Tests/AppTests/WorkspaceStoreTests.swift`（既有，**不改**） | `StoredPreferences` 字段名（决定偏好 JSON 键名） |
 | `Apps/macos/Sources/Workspace/Timeline/DayWidthControl.swift` | `Tests/AppTests/DayWidthControlTests.swift`（新） | 视图类型名与初始化签名（`@testable import`） |
 
@@ -551,7 +551,7 @@ GanttSnapshot(..., dayWidth: layout.dayWidth, zoom: effectiveZoom, usesFitZoom: 
 |---|---|---|---|---|
 | **IR-1** | 偏好 JSON 新增 `customDayWidth` 键 | **半不可逆** | 格式扩展本身向后兼容（可选字段），但**键名一旦发布即成事实**；未来若移除/改名，`StoredPreferences` 整体解码失败 → **所有偏好丢失**（不只是日宽） | **lead + 用户** |
 | **IR-2** | 日宽区间 `[2.0, 120.0]` 与刻度阈值 `18 / 6` | **半不可逆** | 用户可见的行为契约；改动会使已持久化的偏好值被夹取（用户"自定义 150"会静默变 120）；阈值改动会改变刻度密度 | **lead** |
-| **IR-3** | `GanttSnapshot.zoom` 语义由「用户预设档位」重定义为「生效刻度档位」 | **半不可逆** | `ZenoPresentation` 是公开库产品（`Package.swift` 有 `.library` product），该字段语义变更对外部消费者不可逆；仓内使用点仅 3 处且语义吻合 | **lead** |
+| **IR-3** | `GanttSnapshot.zoom` 语义由「用户预设档位」重定义为「生效刻度档位」 | **半不可逆** | `KaidoPresentation` 是公开库产品（`Package.swift` 有 `.library` product），该字段语义变更对外部消费者不可逆；仓内使用点仅 3 处且语义吻合 | **lead** |
 | **IR-4** | 自定义模式下刻度粒度随日宽变化（而非固定为预设粒度） | **规格变更** | 与 `docs/design/ui-redesign.md` §5.1「缩放：日 / 周 / 月 / 适合项目」及 §3「缩放日宽 日 32 / 周 12 / 月 5」冲突。**裁决：改文档，不改实现**（F15） | **lead** |
 | **IR-5** | 自定义宽度不参与 `StoredPreferences` 之外的任何持久化（如项目文件） | 低 | 项目文件格式不动 | lead 知情即可 |
 | **IR-6** | 核心 `GanttLayoutEngine` 零改动 | 低（正向） | 避免了布局语义变更，回归风险最小 | lead 知情即可 |
@@ -592,7 +592,7 @@ GanttSnapshot(..., dayWidth: layout.dayWidth, zoom: effectiveZoom, usesFitZoom: 
 
 ### 7.3 建议新增测试清单（供 tester 直接取用）
 
-**`Tests/ZenoCoreTests/GanttScaleTests.swift`（新增，~8 例）**
+**`Tests/KaidoCoreTests/GanttScaleTests.swift`（新增，~8 例）**
 1. `clampDayWidth` 低于下界 → 2.0；高于上界 → 120.0；区间内原样返回。
 2. `clampDayWidth(.nan)` → 2.0；`.infinity` → 120.0；`-.infinity` → 2.0。
 3. `tickUnit(forDayWidth: 32)` == `.day`；`12` == `.week`；`5` == `.month`（**与档位默认值自洽**）。
@@ -600,7 +600,7 @@ GanttSnapshot(..., dayWidth: layout.dayWidth, zoom: effectiveZoom, usesFitZoom: 
    > **lead 更正（2026-10-20）**：本行原写 `5.99 → .week`，与 §3 D5 阈值表及 lead 契约「≥6 → .week，否则 .month」矛盾；按契约应为 `.month`。验收用例已按 `.month` 断言。
 5. `tickUnit` 单调性：宽度递增 → 粒度只会变粗不会变细。
 
-**`Tests/ZenoPresentationTests/DayWidthTests.swift`（新增，~10 例）**
+**`Tests/KaidoPresentationTests/DayWidthTests.swift`（新增，~10 例）**
 6. 自定义 20 → `snapshot.gantt.dayWidth == 20`、`zoom == .day`（20 ≥ 18）。
 7. 自定义 10 → `dayWidth == 10`、`zoom == .week`。
 8. 自定义 3 → `dayWidth == 3`、`zoom == .month`、非工作带为空。
@@ -621,7 +621,7 @@ GanttSnapshot(..., dayWidth: layout.dayWidth, zoom: effectiveZoom, usesFitZoom: 
 21. 持久化：设定 20 → 新建 store → `customDayWidth == 20`（A8）。
 22. 旧偏好兼容：手写一份**不含** `customDayWidth` 的 JSON → 载入成功、`customDayWidth == nil`、其余偏好保留（A8）。
 23. 越界持久化值：偏好里存 999 → 载入后被夹取到 120。
-24. 命令注册表：`ZenoCommandCatalog.make` 含新增的 3 条命令且快捷键为 ⌘+ / ⌘− / ⌘0。
+24. 命令注册表：`KaidoCommandCatalog.make` 含新增的 3 条命令且快捷键为 ⌘+ / ⌘− / ⌘0。
 
 ---
 
@@ -634,8 +634,8 @@ GanttSnapshot(..., dayWidth: layout.dayWidth, zoom: effectiveZoom, usesFitZoom: 
 | R-03 | 档位推导阈值 18/6 的具体数值被后续调宽 | 已有用户的自定义宽度观感突变 | 阈值集中在 `GanttScale` 两个常量；变更需同步 `docs/design/ui-redesign.md` |
 | R-04 | fit 路径在长项目 + 窄画布下窗口天数可达 2×画布宽（既有暴露，本期不修） | 单次布局 25–45ms | 记为跟进项 F-02（需改核心 → 破坏逐位一致 → 需单独设计与批准） |
 | R-05 | `StoredPreferences` 整体解码失败会清空**全部**偏好（既有结构风险） | 用户偏好丢失 | 跟进项 F-03（容错解码）；本期新增字段用可选值，不放大风险 |
-| R-06 | `GanttSnapshot.zoom` 语义变更被外部消费者误用 | 外部集成出错 | `ZenoPresentation` 是公开库产品 → 列入 §9 需确认项 IR-3，并在 CHANGELOG 标注 |
-| R-07 | `⌘+` 在部分键盘布局需配合 Shift，⌘K 面板的快捷键文案可能与实际不符 | 快捷键不可预期 | 用 `ZenoShortcut(key: "+", modifiers: .command)` 并在面板展示 "⌘+"；真机验证后再定稿 |
+| R-06 | `GanttSnapshot.zoom` 语义变更被外部消费者误用 | 外部集成出错 | `KaidoPresentation` 是公开库产品 → 列入 §9 需确认项 IR-3，并在 CHANGELOG 标注 |
+| R-07 | `⌘+` 在部分键盘布局需配合 Shift，⌘K 面板的快捷键文案可能与实际不符 | 快捷键不可预期 | 用 `KaidoShortcut(key: "+", modifiers: .command)` 并在面板展示 "⌘+"；真机验证后再定稿 |
 
 ---
 
@@ -657,7 +657,7 @@ GanttSnapshot(..., dayWidth: layout.dayWidth, zoom: effectiveZoom, usesFitZoom: 
 |---|---|---|---|
 | `docs/design/ui-redesign.md` | §3 尺寸表「缩放日宽」行 | 「日 32 / 周 12 / 月 5」 | 追加「自定义 2–120 点/天（单一标量，全轴等比）；刻度粒度按 ≥18 逐日 / ≥6 逐周 / 其余逐月推导」 |
 | `docs/design/ui-redesign.md` | §5.1 缩放条目 | 「缩放：日 / 周 / 月 / 适合项目」 | 追加「+ 自定义日宽（2–120 点/天，等比缩放；与前三档互斥）」 |
-| `docs/features/01-views-editing.md` | 第 369 行 Zeno 实现方案 | 「缩放档位为日 / 周 / 月 / 适合项目，日宽分别为 32 / 12 / 5」 | 追加自定义日宽与其余规格 |
+| `docs/features/01-views-editing.md` | 第 369 行 Kaido 实现方案 | 「缩放档位为日 / 周 / 月 / 适合项目，日宽分别为 32 / 12 / 5」 | 追加自定义日宽与其余规格 |
 | `docs/01-prd.md` | US-E4-04 状态行 | 「日/周/月缩放与『适合项目』」 | 可选：补「自定义日宽」 |
 | `CHANGELOG.md` | 新增条目 | — | 记录新增自定义日宽能力与偏好字段 |
 

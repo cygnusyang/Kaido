@@ -17,7 +17,7 @@
 ## 分支与合并
 
 - 基线：`fb8e75e`（tag v0.4.0）→ 功能分支 `feature/task-date-editing`
-- coder worktree：`Zeno-wt-engine`(s8/engine) · `Zeno-wt-core`(s8/core) · `Zeno-wt-ui`(s8/ui) · `Zeno-wt-test`(s8/test)
+- coder worktree：`Kaido-wt-engine`(s8/engine) · `Kaido-wt-core`(s8/core) · `Kaido-wt-ui`(s8/ui) · `Kaido-wt-test`(s8/test)
 - 合并顺序：engine → core → ui → test，均在 `feature/task-date-editing` 上 --no-ff 合并；**未合 main、未 push**（main 落后 41 个提交，含 v0.2–v0.4 未合入，需用户批准后另行处理）。
 
 ## 缺陷

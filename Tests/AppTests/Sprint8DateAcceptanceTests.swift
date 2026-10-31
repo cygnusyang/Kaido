@@ -1,9 +1,9 @@
 import Foundation
 import Testing
-import ZenoCore
-import ZenoCommands
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoCommands
+import KaidoPresentation
+@testable import KaidoMacApp
 
 /// Sprint 8 / F-14-10 起止日期验收用例。
 ///
@@ -51,7 +51,7 @@ struct Sprint8DateAcceptanceTests {
     // MARK: - Store 夹具
 
     private func makeStore() -> WorkspaceStore {
-        let suite = "zeno.s8.acceptance.\(UUID().uuidString)"
+        let suite = "kaido.s8.acceptance.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         return WorkspaceStore(defaults: defaults)

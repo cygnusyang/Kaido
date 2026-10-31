@@ -6,7 +6,7 @@
 
 ## 现象
 
-用户报告：Zeno「计划」tab（`WorkspaceMode.plan`）中，左边的任务列表（Outline）与右边的甘特图（Timeline）没有对应上。
+用户报告：Kaido「计划」tab（`WorkspaceMode.plan`）中，左边的任务列表（Outline）与右边的甘特图（Timeline）没有对应上。
 
 具体表现待调查确认，可能方向：
 1. 行序不一致：两侧排序/折叠展开状态不同步。
@@ -19,8 +19,8 @@
 - 视图切换：`Apps/macos/Sources/Workspace/WorkspaceView.swift`（"计划" tag 在 :136）
 - 左侧列表：`Apps/macos/Sources/Workspace/Outline/`
 - 右侧甘特：`Apps/macos/Sources/Workspace/Timeline/`
-- 布局计算：`Sources/ZenoCore/Query/GanttLayout.swift`
-- 状态：`Apps/macos/Sources/WorkspaceStore.swift`、`Sources/ZenoCore/Query/`（snapshot.outline.rows）
+- 布局计算：`Sources/KaidoCore/Query/GanttLayout.swift`
+- 状态：`Apps/macos/Sources/WorkspaceStore.swift`、`Sources/KaidoCore/Query/`（snapshot.outline.rows）
 
 ## 计划
 

@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 614" width="900" height="614"
-     role="img" aria-labelledby="zeno-fig-title zeno-fig-desc">
-  <title id="zeno-fig-title">Zeno 分层架构</title>
-  <desc id="zeno-fig-desc">等价接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）之下依次为 ZenoPresentation 与 ZenoCommands，底部为跨平台核心 ZenoCore（数据模型、调度引擎、存储、查询过滤）。箭头方向为依赖方向。</desc>
+     role="img" aria-labelledby="kaido-fig-title kaido-fig-desc">
+  <title id="kaido-fig-title">Kaido 分层架构</title>
+  <desc id="kaido-fig-desc">等价接口层（macOS 应用、MCP 服务、CLI、Claude Code 插件）之下依次为 KaidoPresentation 与 KaidoCommands，底部为跨平台核心 KaidoCore（数据模型、调度引擎、存储、查询过滤）。箭头方向为依赖方向。</desc>
   <style>
     .canvas { fill: #FFFFFF; }
     .panel { fill: #FFFFFF; stroke: #D8DAE0; stroke-width: 1; }
@@ -31,7 +31,7 @@
     }
   </style>
   <defs>
-    <marker id="zeno-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
+    <marker id="kaido-arrow" markerWidth="8" markerHeight="8" refX="7.2" refY="4"
             orient="auto" markerUnits="userSpaceOnUse">
       <path d="M0,0 L8,4 L0,8 Z" class="arrow-head"/>
     </marker>
@@ -47,25 +47,25 @@
   <text class="t-sub" x="330" y="122" text-anchor="middle">MCP SDK</text>
   <rect class="panel" x="436" y="58" width="180" height="100" rx="8"/>
   <text class="t-title" x="526" y="100" text-anchor="middle">CLI</text>
-  <text class="t-sub" x="526" y="122" text-anchor="middle">zeno cmd</text>
+  <text class="t-sub" x="526" y="122" text-anchor="middle">kaido cmd</text>
   <rect class="panel" x="632" y="58" width="224" height="100" rx="8"/>
   <text class="t-title" x="744" y="82" text-anchor="middle">Claude Code 插件</text>
   <text class="t-sub" x="744" y="104" text-anchor="middle">斜杠命令 + hooks</text>
   <text class="t-sub" x="744" y="124" text-anchor="middle">+ .mcp.json</text>
   <text class="t-sub" x="744" y="146" text-anchor="middle">（经 MCP 服务 / CLI 接入）</text>
   <rect class="accent" x="44" y="222" width="250" height="64" rx="8"/>
-  <text class="t-title" x="169" y="248" text-anchor="middle">ZenoPresentation</text>
+  <text class="t-title" x="169" y="248" text-anchor="middle">KaidoPresentation</text>
   <text class="t-sub" x="169" y="270" text-anchor="middle">视图状态 → 平台中立快照 + 动作</text>
   <rect class="accent" x="44" y="326" width="812" height="60" rx="8"/>
-  <text class="t-title" x="60" y="352">ZenoCommands</text>
-  <text class="t-sub" x="60" y="372">ZenoSession（唯一写入口）；MCP 服务与 CLI 共用同一命令语义</text>
-  <path class="line" d="M134,158 L134,222" marker-end="url(#zeno-arrow)"/>
-  <path class="line" d="M169,286 L169,326" marker-end="url(#zeno-arrow)"/>
-  <path class="line" d="M330,158 L330,326" marker-end="url(#zeno-arrow)"/>
-  <path class="line" d="M526,158 L526,326" marker-end="url(#zeno-arrow)"/>
-  <path class="line" d="M450,386 L450,420" marker-end="url(#zeno-arrow)"/>
+  <text class="t-title" x="60" y="352">KaidoCommands</text>
+  <text class="t-sub" x="60" y="372">KaidoSession（唯一写入口）；MCP 服务与 CLI 共用同一命令语义</text>
+  <path class="line" d="M134,158 L134,222" marker-end="url(#kaido-arrow)"/>
+  <path class="line" d="M169,286 L169,326" marker-end="url(#kaido-arrow)"/>
+  <path class="line" d="M330,158 L330,326" marker-end="url(#kaido-arrow)"/>
+  <path class="line" d="M526,158 L526,326" marker-end="url(#kaido-arrow)"/>
+  <path class="line" d="M450,386 L450,420" marker-end="url(#kaido-arrow)"/>
   <rect class="core" x="20" y="420" width="860" height="154" rx="12"/>
-  <text class="t-band" x="36" y="444">跨平台核心 ZenoCore（纯逻辑）</text>
+  <text class="t-band" x="36" y="444">跨平台核心 KaidoCore（纯逻辑）</text>
   <rect class="panel" x="44" y="456" width="191" height="96" rx="8"/>
   <text class="t-title" x="139" y="492" text-anchor="middle">数据模型</text>
   <text class="t-sub" x="139" y="514" text-anchor="middle">Model</text>
@@ -78,6 +78,6 @@
   <rect class="panel" x="665" y="456" width="191" height="96" rx="8"/>
   <text class="t-title" x="760" y="492" text-anchor="middle">查询过滤</text>
   <text class="t-sub" x="760" y="514" text-anchor="middle">Query</text>
-  <text class="t-note" x="20" y="588">箭头方向 = 依赖方向（上层依赖下层）。ZenoCore / ZenoCommands / ZenoPresentation 均为 Foundation-only，</text>
-  <text class="t-note" x="20" y="606">可在 iOS 与 Linux 编译。macOS 应用是本期唯一 UI 壳；MCP 服务与 CLI 经 ZenoCommands 共享同一命令语义，接口层互不依赖。</text>
+  <text class="t-note" x="20" y="588">箭头方向 = 依赖方向（上层依赖下层）。KaidoCore / KaidoCommands / KaidoPresentation 均为 Foundation-only，</text>
+  <text class="t-note" x="20" y="606">可在 iOS 与 Linux 编译。macOS 应用是本期唯一 UI 壳；MCP 服务与 CLI 经 KaidoCommands 共享同一命令语义，接口层互不依赖。</text>
 </svg>

@@ -4,7 +4,7 @@ import Foundation
 ///
 /// 全部集中在一处，避免解析器里散落 `Double(text) ?? 0` 这类「错了也看不出来」的写法。
 enum MSPDIValue {
-    /// 星期编号：`DayType` 1 = 周日 … 7 = 周六，与 `Calendar` / Zeno 同口径。
+    /// 星期编号：`DayType` 1 = 周日 … 7 = 周六，与 `Calendar` / Kaido 同口径。
     static func isValidWeekday(_ dayType: Int) -> Bool {
         (1...7).contains(dayType)
     }

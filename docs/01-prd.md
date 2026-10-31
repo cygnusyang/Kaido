@@ -1,16 +1,16 @@
-# Zeno 产品需求文档（PRD）
+# Kaido 产品需求文档（PRD）
 
 > 版本 0.1 · 2026-10-17 · 状态：已接受（Sprint 0 产出）
 > 上游依据：[00-vision.md](00-vision.md)（愿景与章程）、[FEATURE-BREAKDOWN.md](FEATURE-BREAKDOWN.md)（175 条功能规格）、[04-glossary.md](features/04-glossary.md)（术语基准）
-> 术语纪律：全文遵循 [04-glossary.md](features/04-glossary.md) 的 Zeno 定名——「相关性」即任务间依赖关系，「重要路径」即关键路径，「投入」与「持续时间」不得混用。
+> 术语纪律：全文遵循 [04-glossary.md](features/04-glossary.md) 的 Kaido 定名——「相关性」即任务间依赖关系，「重要路径」即关键路径，「投入」与「持续时间」不得混用。
 
 ## 1. 用户画像
 
-Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作频次与场景划分。
+Kaido 的第一公民是程序化接口，人是审阅者。三类用户按操作频次与场景划分。
 
 ### 1.1 AI 编码智能体（主要操作者）
 
-- **身份**：Claude Code、Codex 等编码智能体，通过 MCP 或 CLI 程序化操作 Zeno。
+- **身份**：Claude Code、Codex 等编码智能体，通过 MCP 或 CLI 程序化操作 Kaido。
 - **目标**：把复杂项目拆解为可执行的工作分解结构（WBS），按相关性与日历排期，逐任务开发并回写状态，全程无需人工点界面。
 - **痛点**：
   - 跨会话的任务树、排期、进度状态散落在对话上下文与临时 Markdown，无法被下一次会话可靠恢复；
@@ -23,14 +23,14 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
 - **身份**：独立开发者或技术负责人，用 macOS 应用查看与干预。
 - **目标**：随时查看全局进度、审阅 AI 生成的 WBS 与排期、修正错误、做人的决策。
 - **痛点**：AI 建的任务树可能结构不合理、排期违背现实约束（资源冲突、时限冲突），需要人工校验；需要快照与差异对比来回答「比计划超前还是落后」。
-- **使用方式**：macOS SwiftUI 应用（任务列表 / 甘特视图 / 检查器 / 过滤器 / 命令面板），键盘优先；通过 `zeno://` 深链从外部直达任务。
+- **使用方式**：macOS SwiftUI 应用（任务列表 / 甘特视图 / 检查器 / 过滤器 / 命令面板），键盘优先；通过 `kaido://` 深链从外部直达任务。
 
 ### 1.3 未来的移动端查看者
 
 - **身份**：需要在路上查看项目状态的用户。
 - **目标**：只读查看任务、进度、排期与状态摘要。
-- **使用方式**：移动端（iOS/Android）读取 `.zeno` 文件或通过接口层查询，不承载编辑主力场景（vision §5.4）。
-- **范围边界**：本期不做移动端（vision §6「不做」），但接口层与 `.zeno` 格式为它预留读取能力。
+- **使用方式**：移动端（iOS/Android）读取 `.kaido` 文件或通过接口层查询，不承载编辑主力场景（vision §5.4）。
+- **范围边界**：本期不做移动端（vision §6「不做」），但接口层与 `.kaido` 格式为它预留读取能力。
 
 ## 2. 核心用户故事（Epic → Story）
 
@@ -53,8 +53,8 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
   - Given 存在任务 A，When 删除任务 A，Then 任务 A 从列表消失，且指向或源自 A 的相关性一并移除。
 - **对应规格**：[F-12-08](features/01-views-editing.md)、[F-13-01](features/01-views-editing.md)、[F-13-06](features/01-views-editing.md)。**现有 MVP 已具备，本 Story 视为完成**（`Project.add/update/remove`、`TaskItem`）。
 - **验收判据（2026-10-19 补充：负责人字段）**：负责人字段（`TaskItem.assignee: String?`）除 macOS 应用外，也可由 CLI 与 MCP 设置/清空，供 AI 子智能体在工作时把负责人写成自己的名字（如 `dev-coder-core`）。
-  - US-E1-02-A1：`zeno task add "标题" --assignee <名字>` 创建的任务 assignee 等于 <名字>；`task get`/`task list --json` 输出该值。
-  - US-E1-02-A2：`zeno task update <ID> --assignee <名字>` 更新后 assignee 生效；`--assignee ""` 清空（assignee 变 nil）。
+  - US-E1-02-A1：`kaido task add "标题" --assignee <名字>` 创建的任务 assignee 等于 <名字>；`task get`/`task list --json` 输出该值。
+  - US-E1-02-A2：`kaido task update <ID> --assignee <名字>` 更新后 assignee 生效；`--assignee ""` 清空（assignee 变 nil）。
   - US-E1-02-A3：MCP `task_add` 传 `assignee` 创建后生效；`task_update` 传 `assignee` 生效，传 `""` 清空。
   - US-E1-02-A4：已具备 rejectUnknown 白名单的子命令（task update、task list）现有拒绝行为不回归；task add 未知标志维持现状（静默忽略），登记为顺延项。
 
@@ -135,7 +135,7 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
 ### E3 状态回写（AI 更新进度）
 
 #### US-E3-01 单任务状态与进度回写
-- **用户故事**：作为 AI 智能体，我在完成一个任务后回写其状态与进度，以便 Zeno 持续反映真实进度。
+- **用户故事**：作为 AI 智能体，我在完成一个任务后回写其状态与进度，以便 Kaido 持续反映真实进度。
 - **验收标准**：
   - Given 存在任务 A，When 把其状态置为「已完成」且进度置为 1，Then A 记录完成时间，且不再计入剩余投入。
   - Given 存在任务 A（进度 0.4），When 把进度更新为 0.6，Then A 的已完成投入、剩余投入随之更新。
@@ -166,7 +166,7 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
 #### US-E3-05 同步冲突的 AI 差异说明
 - **用户故事**：作为审阅者，我使用云盘同步后遇到冲突副本，以便了解两份文件的差异并决定取舍。
 - **验收标准**：
-  - Given 存在两份内容不同的 `.zeno` 副本，When 进行差异分析，Then 返回字段级差异清单（同一任务哪些字段不同、新旧值）。
+  - Given 存在两份内容不同的 `.kaido` 副本，When 进行差异分析，Then 返回字段级差异清单（同一任务哪些字段不同、新旧值）。
   - Given 两份副本对同一任务的不同字段有修改，When 生成合并建议，Then 建议保留不冲突的双方修改。
 - **对应规格**：[F-34-03](features/03-platform-collab.md)。
 
@@ -175,7 +175,7 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
 #### US-E4-01 任务列表与详情编辑
 - **用户故事**：作为审阅者，我可以浏览任务列表并编辑单个任务的详情，以便审阅与修正。
 - **验收标准**：
-  - Given 打开 `.zeno` 项目，When 浏览任务列表，Then 显示标题、状态、优先级、标签、负责人、截止日期与进度。
+  - Given 打开 `.kaido` 项目，When 浏览任务列表，Then 显示标题、状态、优先级、标签、负责人、截止日期与进度。
   - Given 选中某任务，When 编辑标题/状态/优先级/进度/备注，Then 修改立即写回数据模型并自动保存。
   - Given 存在逾期任务，When 查看列表，Then 该任务以红色标识「已逾期」。
 - **对应规格**：[F-13-01…04](features/01-views-editing.md)。**现有 MVP 已具备，本 Story 视为完成**（`ContentView` + `DetailPane`）。
@@ -256,23 +256,23 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
 #### US-E5-02 CLI
 - **用户故事**：作为 AI 智能体或脚本，我可以用命令行完成与 MCP 对等的操作。
 - **验收标准**：
-  - Given 安装 `zeno` 命令，When 执行任务创建/列表/更新/删除、相关性、排期、状态、统计命令，Then 行为与 MCP 对应工具一致。
+  - Given 安装 `kaido` 命令，When 执行任务创建/列表/更新/删除、相关性、排期、状态、统计命令，Then 行为与 MCP 对应工具一致。
   - Given 命令输出，When 指定 JSON 格式，Then 输出可被脚本直接解析。
   - Given 命令失败，When 执行，Then 以非零退出码结束并在 stderr 给出原因。
 - **对应规格**：AI 场景新增。
 
 #### US-E5-03 Claude Code 插件
-- **用户故事**：作为使用 Claude Code 的开发者，我可以用 `/zeno` 斜杠命令与 hooks 把任务管理接入开发会话。
+- **用户故事**：作为使用 Claude Code 的开发者，我可以用 `/kaido` 斜杠命令与 hooks 把任务管理接入开发会话。
 - **验收标准**：
-  - Given 项目目录配置 `.mcp.json` 指向 Zeno，When 会话启动，Then MCP 工具对 Claude Code 可用。
-  - Given 斜杠命令 `/zeno plan`，When 执行，Then 提示词引导 AI 读需求、建 WBS 并排期。
+  - Given 项目目录配置 `.mcp.json` 指向 Kaido，When 会话启动，Then MCP 工具对 Claude Code 可用。
+  - Given 斜杠命令 `/kaido plan`，When 执行，Then 提示词引导 AI 读需求、建 WBS 并排期。
   - Given hook 配置了任务完成触发，When 检测到任务完成信号，Then 自动调用状态回写。
 - **对应规格**：AI 场景新增（vision §4 接口层）。
 
-#### US-E5-04 深链协议（zeno://）
-- **用户故事**：作为审阅者，我可以通过 `zeno://` 链接从外部直达项目中的任务。
+#### US-E5-04 深链协议（kaido://）
+- **用户故事**：作为审阅者，我可以通过 `kaido://` 链接从外部直达项目中的任务。
 - **验收标准**：
-  - Given `zeno://task/<id>`，When 打开，Then 应用定位并选中该任务。
+  - Given `kaido://task/<id>`，When 打开，Then 应用定位并选中该任务。
   - Given 链接中只有项目路径与任务标题，When 打开，Then 按标题匹配定位（存在多选时取第一个并提示）。
 - **对应规格**：[F-41-03](features/03-platform-collab.md)。
 
@@ -286,25 +286,25 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
 #### US-E5-06 JSON Schema 导出
 - **用户故事**：作为外部工具或 AI 集成的维护者，我可以获取核心数据模型的 JSON Schema，以便自行集成。
 - **验收标准**：
-  - Given 导出命令，When 生成 `.zeno` 对应的 JSON Schema，Then 覆盖任务、相关性、资源、日历与项目设置全部实体。
+  - Given 导出命令，When 生成 `.kaido` 对应的 JSON Schema，Then 覆盖任务、相关性、资源、日历与项目设置全部实体。
   - Given Schema 变化，When 版本升级，Then 附带版本号，旧版本可被识别。
-- **对应规格**：[F-41-06](features/03-platform-collab.md)（自动化接口的 Zeno 形态）。
+- **对应规格**：[F-41-06](features/03-platform-collab.md)（自动化接口的 Kaido 形态）。
 
 ### E6 持久化与项目文件
 
-#### US-E6-01 .zeno 单文件读写（本地优先）
+#### US-E6-01 .kaido 单文件读写（本地优先）
 - **用户故事**：作为用户，我可以用一个本地文件保存整个项目，以便通过云盘或 git 自由分发与备份。
 - **验收标准**：
-  - Given 项目含任务、相关性、资源与日历，When 保存为 `.zeno`，Then 生成单一 JSON 文件，全部数据可被重新打开还原。
+  - Given 项目含任务、相关性、资源与日历，When 保存为 `.kaido`，Then 生成单一 JSON 文件，全部数据可被重新打开还原。
   - Given 保存路径位于云盘文件夹，When 写入，Then 不发起任何网络请求（本地优先）。
-  - Given 打开损坏或版本不兼容的 `.zeno`，When 读取，Then 返回明确错误并保留原文件不覆盖。
+  - Given 打开损坏或版本不兼容的 `.kaido`，When 读取，Then 返回明确错误并保留原文件不覆盖。
 - **对应规格**：[F-34-01](features/03-platform-collab.md)。
 
 #### US-E6-05 另存为与格式升级
 - **用户故事**：作为用户，我可以把当前项目另存为新文件并继续在新文件上工作，以便在不改变原文件的前提下分叉项目；打开旧版本文件时，应用将其升级到当前最新格式。
 - **验收标准**（2026-10-20 冻结）：
 - FR-FILE-SAVEAS-1：文件菜单与 ⌘K 命令面板同源出现「另存为…」，快捷键 ⇧⌘S。
-- FR-FILE-SAVEAS-2：触发后弹出保存面板并预填文件名：已有路径时沿用当前文件名；无路径时按项目标题生成（trim，非法字符替换为 `-`，补 `.zeno` 且不重复后缀）；标题为空或全非法时回退 `project.zeno`；仅允许 `.zeno`。
+- FR-FILE-SAVEAS-2：触发后弹出保存面板并预填文件名：已有路径时沿用当前文件名；无路径时按项目标题生成（trim，非法字符替换为 `-`，补 `.kaido` 且不重复后缀）；标题为空或全非法时回退 `project.kaido`；仅允许 `.kaido`。
 - FR-FILE-SAVEAS-3：另存为新路径（新路径 ≠ 原路径）确认后，新文件内容等于确认时刻的项目内容，原文件字节与 mtime 不变。
 - FR-FILE-SAVEAS-4：完成后当前项目路径指向新路径、脏标记清除；此后「保存」只写入新文件；原文件被外部修改时不弹「磁盘已更新」横幅、不重载。
 - FR-FILE-SAVEAS-5：面板打开期间发生编辑并确认时，写入新文件的是编辑后的最新内容。
@@ -312,17 +312,17 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
 
 格式版本兼容（同一用户故事，2026-10-20 冻结）：
 
-- FR-ZENO-FMT-1：`formatVersion == current` 的文件打开时不执行迁移，会话记录的源版本等于 current。
-- FR-ZENO-FMT-2：`1 ≤ v < current` 且迁移链连续时，按版本升序逐步迁移，每步产出等于其目标版本，最终可解码且源版本为 v。
-- FR-ZENO-FMT-3：`v > current` 时打开失败，错误同时给出文件版本与当前版本，磁盘文件不变。
-- FR-ZENO-FMT-4：缺少迁移步骤或任一步失败时打开失败，错误指明起止版本，且不向任何路径写入。
-- FR-ZENO-FMT-5：旧版本项目另存为新路径后，新文件版本为 current 且可重新打开，原文件字节与 mtime 不变。
-- FR-ZENO-FMT-6：旧版本项目「保存」写回原路径后升级为 current 并提示一次「已升级到 vN」；CLI/MCP 的保存结果报告写入版本与来源版本。
+- FR-KAIDO-FMT-1：`formatVersion == current` 的文件打开时不执行迁移，会话记录的源版本等于 current。
+- FR-KAIDO-FMT-2：`1 ≤ v < current` 且迁移链连续时，按版本升序逐步迁移，每步产出等于其目标版本，最终可解码且源版本为 v。
+- FR-KAIDO-FMT-3：`v > current` 时打开失败，错误同时给出文件版本与当前版本，磁盘文件不变。
+- FR-KAIDO-FMT-4：缺少迁移步骤或任一步失败时打开失败，错误指明起止版本，且不向任何路径写入。
+- FR-KAIDO-FMT-5：旧版本项目另存为新路径后，新文件版本为 current 且可重新打开，原文件字节与 mtime 不变。
+- FR-KAIDO-FMT-6：旧版本项目「保存」写回原路径后升级为 current 并提示一次「已升级到 vN」；CLI/MCP 的保存结果报告写入版本与来源版本。
 
 #### US-E6-02 自动保存与文件监控
 - **用户故事**：作为用户，我的编辑应当自动持久化，且外部文件变化能反映到当前项目。
 - **验收标准**：
-  - Given 修改任一任务字段，When 停顿 2 秒，Then 自动保存到 `.zeno`。
+  - Given 修改任一任务字段，When 停顿 2 秒，Then 自动保存到 `.kaido`。
   - Given 文件在外部被修改，When 应用检测到变化，Then 提示重新加载或合并。
 - **对应规格**：[F-34-04](features/03-platform-collab.md)。
 
@@ -357,7 +357,7 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
 
 ## 3. 功能需求映射表
 
-本表把 6 个 Epic 与 [features/](features/) 的 F-xx-xx 规格建立对应：**继承**＝直接采用 OmniPlan 规格；**AI 场景新增**＝Zeno 相对 OmniPlan 的增量（本表为需求输入，口径与 [FEATURE-BREAKDOWN.md](FEATURE-BREAKDOWN.md) Phase 4 一致）；**降级 P3**＝重量级/专业版能力，本期不做或由 AI 语义化替代。
+本表把 6 个 Epic 与 [features/](features/) 的 F-xx-xx 规格建立对应：**继承**＝直接采用 OmniPlan 规格；**AI 场景新增**＝Kaido 相对 OmniPlan 的增量（本表为需求输入，口径与 [FEATURE-BREAKDOWN.md](FEATURE-BREAKDOWN.md) Phase 4 一致）；**降级 P3**＝重量级/专业版能力，本期不做或由 AI 语义化替代。
 
 | Epic | 继承（F 编号） | AI 场景新增 | 降级 / 裁剪（P3 或不做） |
 |---|---|---|---|
@@ -365,7 +365,7 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
 | E2 排期 | F-11-02、F-13-07、F-13-10、F-14-15/16、F-16-08/09、F-20-02/05、F-21-01/03、F-22-04/06/07、F-30-01/03…14 | 排期意图的自然语言表达（如「把发布提前一周」→ 引擎重排建议，属远期） | F-12-05（分级→由 AI 建议替代）、F-30-09（吊床）、F-30-15/16（分级与投入上限警告，P1 保留但本期可不做）、F-21-04（考虑资源可用性） |
 | E3 状态回写 | F-12-06/07、F-14-10/11、F-20-03、F-22-03、F-35-04 | 群组完成度投入加权聚合的批量回写；同步冲突的 AI 差异说明 | F-33-08/09（EVM 与 Monte Carlo→AI 概率/判断表述，不做引擎） |
 | E4 人工审阅 | F-12-02/04/12、F-13-02/15、F-14-01/02/13/14、F-20-03、F-30-01、F-40-01、F-41-01 | 自然语言筛选升级为可保存的结构化过滤器；违例的 AI 解释 | F-24-01…05（样式系统，本期不做）、F-12-13/14（文稿概览/TouchBar）、F-13-11…14（估算与 EVM 栏位） |
-| E5 接口层 | F-41-03（深链）、F-41-06（JSON Schema） | MCP 工具集、CLI、Claude Code 插件（斜杠命令+hooks+.mcp.json）全部为 AI 场景新增 | F-41-06 的「脚本引擎」形态不做（Zeno 以 AI 自然语言操作替代，见 04-glossary「自动化」） |
+| E5 接口层 | F-41-03（深链）、F-41-06（JSON Schema） | MCP 工具集、CLI、Claude Code 插件（斜杠命令+hooks+.mcp.json）全部为 AI 场景新增 | F-41-06 的「脚本引擎」形态不做（Kaido 以 AI 自然语言操作替代，见 04-glossary「自动化」） |
 | E6 持久化 | F-11-04、F-20-01、F-32-01/04/09、F-34-01/04/05、F-40-03 | 冲突差异的 AI 说明（US-E3-05）；保真报告的 AI 摘要 | F-32-03/08（MS Project 互转，vision §6 明确不做）、F-34-02（文件格式选择）、F-35-02（服务器帐户） |
 
 **优先级口径**（沿用 features 各文档）：P0 = 核心闭环必备；P1 = 近期补齐；P2 = 进阶能力；P3 = 重量级/专业版/远期。
@@ -376,17 +376,17 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
 
 - **NFR-1 列表交互**：在 1,000 条任务的项目中，列表滚动、过滤、查找的交互响应时间应当不超过 100 ms（本地典型交互感知阈值）。
 - **NFR-2 排期计算**：1,000 条任务、10,000 条相关性的排期计算（正推 + 逆推）应当不超过 1 s；违例重算应当增量进行，不得每次全量扫描。
-- **NFR-3 文件读写**：不超过 5,000 条任务的 `.zeno` 文件，保存与打开应当各不超过 1 s。
+- **NFR-3 文件读写**：不超过 5,000 条任务的 `.kaido` 文件，保存与打开应当各不超过 1 s。
 
 ### 4.2 数据安全
 
-- **NFR-4 本地优先**：Zeno 默认不得发起任何网络请求；不采集遥测、不建立账号、不提供中心服务器（vision §6）。
-- **NFR-5 文件透明**：`.zeno` 必须为可读的单一 JSON 文件，用户可以自行用 git 或云盘版本管理；任何写入不得破坏用户已保存的原文件。
-- **NFR-6 同步委托**：跨设备同步必须委托用户现有的文件同步渠道（云盘文件夹），Zeno 自身不得实现私有同步协议。
+- **NFR-4 本地优先**：Kaido 默认不得发起任何网络请求；不采集遥测、不建立账号、不提供中心服务器（vision §6）。
+- **NFR-5 文件透明**：`.kaido` 必须为可读的单一 JSON 文件，用户可以自行用 git 或云盘版本管理；任何写入不得破坏用户已保存的原文件。
+- **NFR-6 同步委托**：跨设备同步必须委托用户现有的文件同步渠道（云盘文件夹），Kaido 自身不得实现私有同步协议。
 
 ### 4.3 可测试性
 
-- **NFR-7 核心无 UI 依赖**：核心层（ZenoCore）不得 import AppKit/SwiftUI，必须可在无 GUI 环境（含 Linux）编译并通过全量单测。
+- **NFR-7 核心无 UI 依赖**：核心层（KaidoCore）不得 import AppKit/SwiftUI，必须可在无 GUI 环境（含 Linux）编译并通过全量单测。
 - **NFR-8 调度纯函数**：调度引擎必须为纯函数（输入 `Project` → 输出安排与违例），不读写全局状态，全部行为可单测。
 - **NFR-9 测试覆盖**：核心层单元测试覆盖率不得低于 80%；现有 17 项测试在重构后必须继续通过。
 - **NFR-10 接口对等**：MCP 与 CLI 必须通过同一份契约测试，防止接口漂移（对应 G3 判据 2）。
@@ -396,11 +396,11 @@ Zeno 的第一公民是程序化接口，人是审阅者。三类用户按操作
 **MVP 交付（本周期目标）**：
 
 1. 核心模型重构：`TaskDependency`（类型 + 前导时间）、`kind`（任务/群组/里程碑）、投入/持续时间字段、`Resource` 与分配（基础）；
-2. `.zeno` 单文件持久化（本地优先）；
+2. `.kaido` 单文件持久化（本地优先）；
 3. 调度引擎：相关性传播（FS/FF/SS/SF + 前导时间）、项目方向、重要路径与宽延、基础违例检测；
 4. 状态回写：单任务与批量回写、群组完成度聚合；
 5. 接口层：MCP 服务（任务 CRUD/相关性/排期/状态/统计）、CLI 对等、Claude Code 插件（斜杠命令 + `.mcp.json`）；
-6. macOS 应用：任务列表/详情/过滤器/查找、层次树大纲、甘特视图基础、命令面板、违例面板、`zeno://` 深链。
+6. macOS 应用：任务列表/详情/过滤器/查找、层次树大纲、甘特视图基础、命令面板、违例面板、`kaido://` 深链。
 
 **MVP 明确不做（本周期）**：
 
@@ -444,17 +444,17 @@ MVP 以 [03-roadmap.md](03-roadmap.md) 的 Sprint 1–2 为时间边界，G3 判
 | US-E4-07 | 检查器与违例面板 | E4 | P1 | 进行中 | Sprint 3：违例面板与行内图标已实现；待验收 Demo 确认 |
 | US-E5-01 | MCP 服务 | E5 | P0 | 完成 | Sprint 2 扩至 16 工具（含排期/违例/批量回写/资源；dependencies 参数）；stdio JSON-RPC 零依赖，ADR-010 |
 | US-E5-02 | CLI | E5 | P0 | 完成 | Sprint 2 补齐 schedule/violations/status（含 batch）/resource 对等命令；与 MCP 契约同源；Sprint 3 增加 `task list --json` 机器可读输出 |
-| US-E5-03 | Claude Code 插件 | E5 | P0 | 进行中 | Sprint 3：插件清单、`.mcp.json`、`/zeno plan/done/status`、`TaskCompleted` hook 已落地；hook 按标题回写，真实会话验证通过 |
-| US-E5-04 | 深链协议（zeno://） | E5 | P1 | 进行中 | Sprint 3：解析与定位逻辑 + 应用 onOpenURL 已落地；`.app` 打包并注册 URL scheme 待发布工程 |
+| US-E5-03 | Claude Code 插件 | E5 | P0 | 进行中 | Sprint 3：插件清单、`.mcp.json`、`/kaido plan/done/status`、`TaskCompleted` hook 已落地；hook 按标题回写，真实会话验证通过 |
+| US-E5-04 | 深链协议（kaido://） | E5 | P1 | 进行中 | Sprint 3：解析与定位逻辑 + 应用 onOpenURL 已落地；`.app` 打包并注册 URL scheme 待发布工程 |
 | US-E5-05 | 接口一致性保障 | E5 | P0 | 完成 | Sprint 2（InterfaceTests 对等性契约测试 35 项；CLI 打开 MCP 文件验证） |
 | US-E5-06 | JSON Schema 导出 | E5 | P1 | 提议 | — |
-| US-E6-01 | .zeno 单文件读写 | E6 | P0 | 完成 | Sprint 1（formatVersion + 前向兼容；MCP/CLI/应用三方互通） |
+| US-E6-01 | .kaido 单文件读写 | E6 | P0 | 完成 | Sprint 1（formatVersion + 前向兼容；MCP/CLI/应用三方互通） |
 | US-E6-02 | 自动保存与文件监控 | E6 | P1 | 已接受 | — |
 | US-E6-03 | CSV 导入导出与保真报告 | E6 | P1 | 已接受 | — |
 | US-E6-04 | 模板（另存为/默认模板） | E6 | P2 | 提议 | — |
 | US-E6-05 | 项目标题与元数据 | E6 | P2 | 提议 | — |
 | US-E6-06 | 跨设备（云盘文件夹委托） | E6 | P2 | 提议 | — |
-| US-E7-01 | 应用内 OTA 更新（通用模块 ZenoUpdater） | E7 | P1 | 完成 | v0.3.0/v0.3.1（2026-10-20）：Ed25519 签名清单（canonical JSON）+ 下载 zip SHA256 + 产物 CDHash 校验 + GitHub host 白名单；菜单手动检查与启动/定时静默检查（4h）；确认后退出替换自动重启；支持跳过版本。安全设计移植自 COFFER OTA，见 docs/features/05-ota-updates.md 与 docs/archive/Sprint7-ota-updates/design.md |
+| US-E7-01 | 应用内 OTA 更新（通用模块 KaidoUpdater） | E7 | P1 | 完成 | v0.3.0/v0.3.1（2026-10-20）：Ed25519 签名清单（canonical JSON）+ 下载 zip SHA256 + 产物 CDHash 校验 + GitHub host 白名单；菜单手动检查与启动/定时静默检查（4h）；确认后退出替换自动重启；支持跳过版本。安全设计移植自 COFFER OTA，见 docs/features/05-ota-updates.md 与 docs/archive/Sprint7-ota-updates/design.md |
 
 ## 7. 待确认问题（2026-10-17 lead 裁定）
 

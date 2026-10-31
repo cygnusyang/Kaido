@@ -23,7 +23,7 @@
 ## 非目标
 
 - 不做工作日历（US-E2-04）与非工作时长换算；不做时间粒度（时/分）编辑，仅日粒度。
-- 不改 `.zeno` 格式版本（复用既有 `startDate` / `durationDays` / `dueDate` 字段，无新增字段）。
+- 不改 `.kaido` 格式版本（复用既有 `startDate` / `durationDays` / `dueDate` 字段，无新增字段）。
 - 不做「结束」直接改 `dueDate` 的语义混用（截止日期仍是独立字段）。
 - 不改画布拖拽行为与命中测试。
 - 不做多选批量改期、不做大纲内联日期编辑。
@@ -36,4 +36,4 @@
 - 引擎：`kind != .group` 的显式 `startDate`（startOfDay 归一）作为开始下界，与项目锚点/时限/相关性下界取 max；后向传播不变。
 - 观感变化：v0.4.0 曾写入但未生效的 `startDate` 在 v0.5.0 起生效，相关任务可能位移——发版说明与 CHANGELOG 必须如实登记（不写迁移工具）。
 - E2 维持 finish 排他端点；E3 维持「开始可清除、结束不可清除」。
-- 新增任务 S8-ENGINE（dev-coder-engine），文件范围 `Sources/ZenoCore/**` + `Tests/ZenoCoreTests/**` + `docs/02-architecture.md` §7。
+- 新增任务 S8-ENGINE（dev-coder-engine），文件范围 `Sources/KaidoCore/**` + `Tests/KaidoCoreTests/**` + `docs/02-architecture.md` §7。

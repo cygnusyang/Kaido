@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // F-14-18 / D-049 拖拽平移状态机单测：方向、亚日精度、同值抑制、生命周期。
 

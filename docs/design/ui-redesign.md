@@ -1,17 +1,17 @@
-# Zeno 主窗口 UI/UX 重设计规格
+# Kaido 主窗口 UI/UX 重设计规格
 
 - 版本：1.0
 - 日期：2026-10-18
 - 状态：已冻结（DM-2 / DM-3 / DM-4 / DM-5，待实施）
 - 输入：用户重设计需求；竞品调研（OmniPlan 交互参考）；交互方案 1/2、2/2；视觉规格 v3；lead 裁定
 - 上位依据：[DESIGN.md](../DESIGN.md)、[02-architecture.md](../02-architecture.md) ADR-013、[01-prd.md](../01-prd.md)
-- 适用范围：macOS 主窗口；`ZenoPresentation` 快照字段与跨平台复用边界
+- 适用范围：macOS 主窗口；`KaidoPresentation` 快照字段与跨平台复用边界
 
 ## 1. 目标与约束
 
 当前主窗口把任务排成一列：大纲只有标题、状态与日期；甘特与大纲分离切换；依赖、完成度、违例与项目健康度彼此割裂。用户判定它「更像任务的罗列」。
 
-重设计目标：让用户在同一屏同时看见**时间、任务关系与完成情况**。参考 OmniPlan 的信息密度与直接操控，按 Zeno「科技·AI·计划·自动」定位形成自己的交互。
+重设计目标：让用户在同一屏同时看见**时间、任务关系与完成情况**。参考 OmniPlan 的信息密度与直接操控，按 Kaido「科技·AI·计划·自动」定位形成自己的交互。
 
 工程约束：
 
@@ -234,9 +234,9 @@
 
 - AI 过滤徽标：`AIFilterTranslator.translate` 解析出子句时显示；纯文本不显示。
 - 命令面板：`⌘K`，与菜单栏同源。
-- 复制任务深链：`zeno://task/<id>`。
+- 复制任务深链：`kaido://task/<id>`。
 - 最近完成：按 `completedAt` 取 5 条；5 分钟内的完成用 1 秒脉冲提示，不标注 AI。
-- 外部更新条：应用前台每 2 秒比较 `.zeno` 的 mtime。
+- 外部更新条：应用前台每 2 秒比较 `.kaido` 的 mtime。
   - 本地无未保存修改：自动重载并提示「已载入外部更新 HH:mm」。
   - 有未保存修改：显示非模态条「项目已在磁盘上更新｜[重新载入] [保留本地]」。
   - 本期不提供「比较」入口。
@@ -287,7 +287,7 @@
 5. 群组收合后画布显示汇总条与子项数，两栏行数一致；群组进度为加权聚合。
 6. 进度、逾期、违例在行、条、状态栏三处同源；健康点规则与计数一致。
 7. 无选择、筛选无结果、无违例、项目开始日期缺失、保存失败、窄窗、深色模式均有明确界面，不出现空白或 1970 年数据。
-8. 视图文件不出现 `Project`、`TaskItem`、`ZenoSession` 引用（`WorkspaceStore` 适配层除外）；所有变更经动作进入呈现层。
+8. 视图文件不出现 `Project`、`TaskItem`、`KaidoSession` 引用（`WorkspaceStore` 适配层除外）；所有变更经动作进入呈现层。
 9. 删除群组有确认；单任务删除可撤销；依赖删除可撤销。
 10. 1000 任务、50 条依赖时，选择/展开/缩放 ≤ 100ms；排期重算 ≤ 1s。
 
@@ -310,7 +310,7 @@ ui-reviewer 于 2026-10-18 复核，H1–H13、M1–M14、L1–L3 全部关闭�
 
 - 设计系统：[DESIGN.md](../DESIGN.md)。实现 token 位于 `Apps/macos/Sources/Theme/DesignTokens.swift`。
 - 架构与写路径：ADR-013。视图只消费 `WorkspaceSnapshot`，只发出 `WorkspaceAction`。
-- 呈现层：`Sources/ZenoPresentation/`。快照不携带颜色与字号。
+- 呈现层：`Sources/KaidoPresentation/`。快照不携带颜色与字号。
 - 核心新增：`ProjectSummary`、`OutlineTree`、`DependencyEditing`、`ProjectState`、`ScheduleAnchor`、`GanttLayout` v2。
 - 应用壳层：`WorkspaceStore`、`WorkspaceView`、`Outline/*`、`Timeline/*`、`Inspector/*`、`Chrome/*`。
 - 命令注册表：`⌥⌘1` 计划、`⌥⌘2` 大纲、`⌥⌘L` 聚焦、`⌥⌘V` 违例、`⌥⌘T` 回到今天；保留 `⌘↩`、`⌘]`、`⌘[`。

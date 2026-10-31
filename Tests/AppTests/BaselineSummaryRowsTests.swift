@@ -1,8 +1,8 @@
 import Foundation
 import Testing
-import ZenoCore
-import ZenoPresentation
-@testable import ZenoMacApp
+import KaidoCore
+import KaidoPresentation
+@testable import KaidoMacApp
 
 // v0.15 项目页「与基线对比」区块（docs/features/09-baseline-version-plan.md §4）。
 //
@@ -129,7 +129,7 @@ struct BaselineSummaryRowsTests {
 
     /// 新建基线即选中 → 区块出现；切回未选 → 区块整段消失。
     @Test func sectionFollowsBaselineSelection() throws {
-        let suite = "zeno.v015.summary.\(UUID().uuidString)"
+        let suite = "kaido.v015.summary.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite) ?? .standard
         defaults.removePersistentDomain(forName: suite)
         let store = WorkspaceStore(defaults: defaults, seedsDemoData: true)

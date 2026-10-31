@@ -86,7 +86,7 @@ if [[ -n "$LATEST_TAG" ]]; then
 fi
 
 # changelog 章节：Release 说明的唯一来源，缺了就别发
-NOTES_FILE="${TMPDIR:-/tmp}/zeno-release-notes-${TAG}.md"
+NOTES_FILE="${TMPDIR:-/tmp}/kaido-release-notes-${TAG}.md"
 if ! bash tools/release_notes.sh "$TAG" > "$NOTES_FILE" 2>/dev/null; then
   fail "CHANGELOG.md 缺少「## ${TAG}」章节——先写好再发版"
 fi
@@ -99,7 +99,7 @@ if ! xcrun --find xcstringstool >/dev/null 2>&1; then
   fail "找不到 xcstringstool，多语言门禁与打包无法在本机执行（xcode-select -p → $(xcode-select -p 2>/dev/null || echo '未知')）。二选一：
   1) 装 Xcode 后执行：sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
   2) 跳过本机发版，直接推 tag 让 CI 跑同一条门禁：
-       git tag -a $TAG -m \"Zeno $TAG\" && git push origin refs/tags/$TAG"
+       git tag -a $TAG -m \"Kaido $TAG\" && git push origin refs/tags/$TAG"
 fi
 
 # 多语言发布闸门（06-localization §11 判据 1 / §13）：视图层零中文 + 两侧键完整。
@@ -117,10 +117,10 @@ echo "    视图层无未登记中文，两侧键与占位符一致"
 # ---------- 2. 同步三处版本号 ----------
 echo "==> 版本号 → $VERSION"
 sed -i '' -E "s|<string>[0-9]+\.[0-9]+\.[0-9]+</string>|<string>$VERSION</string>|" tools/build.sh
-sed -i '' -E "s|\"version\": \"[0-9]+\.[0-9]+\.[0-9]+\"|\"version\": \"$VERSION\"|" Sources/ZenoMCP/MCPServer.swift
+sed -i '' -E "s|\"version\": \"[0-9]+\.[0-9]+\.[0-9]+\"|\"version\": \"$VERSION\"|" Sources/KaidoMCP/MCPServer.swift
 sed -i '' -E "s|static let appVersion = \"[0-9]+\.[0-9]+\.[0-9]+\"|static let appVersion = \"$VERSION\"|" Apps/macos/Sources/CommandRegistry.swift
 
-for f in tools/build.sh Sources/ZenoMCP/MCPServer.swift Apps/macos/Sources/CommandRegistry.swift; do
+for f in tools/build.sh Sources/KaidoMCP/MCPServer.swift Apps/macos/Sources/CommandRegistry.swift; do
   grep -q "$VERSION" "$f" || fail "版本号未写入 $f"
 done
 echo "    tools/build.sh / MCPServer.swift / CommandRegistry.swift 均已更新"
@@ -134,25 +134,25 @@ fi
 echo "==> 构建并打包（DMG + OTA zip）"
 PACKAGE_OUT="$(bash tools/package.sh "$TAG")"
 printf '%s\n' "$PACKAGE_OUT" | tail -4
-DMG="dist/Zeno-${TAG}.dmg"
-ZIP="dist/Zeno-${TAG}.zip"
+DMG="dist/Kaido-${TAG}.dmg"
+ZIP="dist/Kaido-${TAG}.zip"
 [[ -f "$DMG" && -f "$ZIP" ]] || fail "打包产物缺失"
 
 # 签名状态如实记录：本地产物只经 build.sh 的 ad-hoc 签名，没有公证。
 # 不给产物贴「已签名」标签，也不假装本地能验证公证——凭据不在这台机器上。
-SIG_LINE="$(codesign -dv --verbose=4 "dist/Zeno.app" 2>&1 | grep -m1 '^Signature=' || true)"
+SIG_LINE="$(codesign -dv --verbose=4 "dist/Kaido.app" 2>&1 | grep -m1 '^Signature=' || true)"
 if printf '%s' "$SIG_LINE" | grep -q 'Signature=adhoc'; then
   SIGN_STATE="未签名（ad-hoc），未公证"
 else
   SIGN_STATE="非 ad-hoc 签名但未经本脚本公证：${SIG_LINE:-无签名信息}"
 fi
 {
-  printf 'Zeno %s 本地产物签名状态\n' "$TAG"
+  printf 'Kaido %s 本地产物签名状态\n' "$TAG"
   printf '================================\n'
   printf '状态: %s\n' "$SIGN_STATE"
   printf '说明: tools/release.sh 只做本机构建；Developer ID 签名与 notarytool 公证在 CI 完成。\n'
   printf '分发: 对外只发 GitHub Release 上的 CI 产物，其状态见该 Release 附带的 SIGNING.txt。\n'
-  printf '验证: codesign -dv --verbose=4 dist/Zeno.app（ad-hoc 时 Signature=adhoc）\n'
+  printf '验证: codesign -dv --verbose=4 dist/Kaido.app（ad-hoc 时 Signature=adhoc）\n'
   printf '\n'
 } > dist/SIGNING.txt
 
@@ -168,7 +168,7 @@ fi
 
 # ---------- 4. 提交 + 打 tag ----------
 echo "==> 提交发版"
-git add tools/build.sh Sources/ZenoMCP/MCPServer.swift Apps/macos/Sources/CommandRegistry.swift CHANGELOG.md
+git add tools/build.sh Sources/KaidoMCP/MCPServer.swift Apps/macos/Sources/CommandRegistry.swift CHANGELOG.md
 # 幂等：版本号与 CHANGELOG 可能已在发版前的提交里同步好（本次发 v1.3.3 就是如此），
 # 那时没有东西可提交，跳过即可，不能让 git commit 以「nothing to commit」中断整个发版。
 if git diff --cached --quiet; then
@@ -178,12 +178,12 @@ else
 chore(release): ${TAG}
 
 - 版本号同步至 ${VERSION}（tools/build.sh、MCPServer、CommandRegistry）
-- 产物：Zeno-${TAG}.dmg（人装）+ Zeno-${TAG}.zip（OTA 载体），本地打包校验通过
+- 产物：Kaido-${TAG}.dmg（人装）+ Kaido-${TAG}.zip（OTA 载体），本地打包校验通过
 - Release 说明取自 CHANGELOG.md「## ${TAG}」章节
 MSG
 fi
 
-git tag -a "$TAG" -m "Zeno $TAG"
+git tag -a "$TAG" -m "Kaido $TAG"
 
 # ---------- 5. 推送 ----------
 if [[ "$PUSH" -eq 1 ]]; then

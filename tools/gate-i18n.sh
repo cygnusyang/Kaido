@@ -29,7 +29,7 @@ if ! xcrun --find xcstringstool >/dev/null 2>&1; then
 fi
 
 # 临时目录由本脚本独占：i18n-compile.sh 会重建输出目录，不受上一次构建残留影响。
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/zeno-i18n-gate.XXXXXX")"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/kaido-i18n-gate.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
 bash tools/i18n-compile.sh "$WORK/lproj"
