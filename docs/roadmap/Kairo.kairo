@@ -1999,6 +1999,118 @@
       "status": "pending",
       "tags": [],
       "title": "窗口不在排期区间时，始终可见「回到排期」入口（含入口消失修复）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "id": "42C69E88-34BC-4362-8B96-E3A4177D47E7",
+      "kind": "group",
+      "notes": "用户 2026-10-31 决定上架 Mac App Store。已核对差距：无 entitlements/沙盒、无 MAS 证书与 profile、无 Xcode 工程（纯 SwiftPM + tools/build.sh 手打包）、自更新违反商店规则。待用户拍板：① 免费还是收费；② 是否接受商店版禁用自动更新（Apple 强制）。",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "v1.6.0 App Store 上架"
+    },
+    {
+      "assignments": [],
+      "dependencies": [],
+      "durationDays": 1,
+      "id": "A74797DB-1CF8-4590-B06F-A0C267A7EAE1",
+      "kind": "task",
+      "notes": "用户侧：1) App Store Connect 新建 App（bundle id app.kairo.macos、名称、SKU、类别 Productivity）；2) 创建 Apple Distribution（Mac App）与 Mac Installer Distribution 两张证书（CSR 由我生成）；3) App 记录建好后生成 provisioning profile 并下载入库；4) 准备隐私政策 URL 与支持链接。产物：两张证书 + 一个 .mobileprovision + 门店元数据初稿。",
+      "parentID": "42C69E88-34BC-4362-8B96-E3A4177D47E7",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "App Store Connect 建档 + 证书与 profile（需账号操作）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "A74797DB-1CF8-4590-B06F-A0C267A7EAE1",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 3,
+      "id": "1816C8C4-C6DD-4D10-BF8F-494886876E80",
+      "kind": "task",
+      "notes": "新增 Apps/macos/Resources/Kairo.entitlements：com.apple.security.app-sandbox、files.user-selected.read-write。改造：最近项目/自动恢复改用 security-scoped bookmark；核对 6 处 NSOpenPanel/NSSavePanel 与 1 处 NSWorkspace.open(notesURL) 在沙盒下的行为。判据：沙盒构建下能新建/打开/保存 .kairo、导出 CSV/XML/OmniPlan、打开笔记文件；站外 Developer ID 版行为不变（回归）。",
+      "parentID": "42C69E88-34BC-4362-8B96-E3A4177D47E7",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "P1 沙盒化（entitlements + security-scoped bookmark）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "1816C8C4-C6DD-4D10-BF8F-494886876E80",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 3,
+      "id": "6F97C93D-6E0C-402A-A3ED-09C595B2F5EB",
+      "kind": "task",
+      "notes": "独立产物目录，MAS 变体：编译期开关禁用 KairoUpdater 自更新与 CLI/MCP 安装入口（商店禁止自行下载安装可执行代码）；用 MAS 证书 + profile 签名并嵌入 entitlements；产出可签名的 .app 与 .pkg。判据：本机可安装运行；「检查更新」入口不存在；包内无 KairoUpdater 相关可执行路径。",
+      "parentID": "42C69E88-34BC-4362-8B96-E3A4177D47E7",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "P2 MAS 构建链（tools/build-mas.sh，禁用自更新）"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "6F97C93D-6E0C-402A-A3ED-09C595B2F5EB",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 1,
+      "id": "4E076B15-3C12-4658-83DD-335F51FB65B0",
+      "kind": "task",
+      "notes": "用 Apple Distribution 证书 + provisioning profile 签 .app，productbuild 出 .pkg，xcrun altool（或 Transporter）上传到 App Store Connect；处理 ITMS 校验错误（entitlements/图标/隐私清单）。判据：App Store Connect 里出现可用构建（Processing 通过）。",
+      "parentID": "42C69E88-34BC-4362-8B96-E3A4177D47E7",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "P3 签名与上传构建"
+    },
+    {
+      "assignments": [],
+      "dependencies": [
+        {
+          "lagDays": 0,
+          "predecessorID": "4E076B15-3C12-4658-83DD-335F51FB65B0",
+          "type": "fs"
+        }
+      ],
+      "durationDays": 2,
+      "id": "55C43E9C-2382-4DCD-8A34-0DD04A5A3AF3",
+      "kind": "task",
+      "notes": "填写描述/关键词/类别/年龄分级；上传 Mac 截图（1280×800 等）；确认隐私清单（无数据收集）；提交审核并准备沙盒权限说明文案（常见打回点：文件访问用途说明）。判据：提交进入 Waiting for Review 并给出审核结论。",
+      "parentID": "42C69E88-34BC-4362-8B96-E3A4177D47E7",
+      "priority": "normal",
+      "progress": 0,
+      "schedulingPolicy": "asap",
+      "status": "pending",
+      "tags": [],
+      "title": "P4 提审：元数据、截图、审核应对"
     }
   ]
 }
