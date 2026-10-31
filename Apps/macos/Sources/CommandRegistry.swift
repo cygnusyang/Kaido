@@ -248,6 +248,17 @@ enum KaidoCommandCatalog {
                 ],
                 action: { store.presentProjectSettings() }
             ),
+            // MCP 服务（商店版托管 MCP）：AI 客户端配置与授权目录的唯一入口。
+            KaidoCommand(
+                id: "project.mcpService",
+                title: I18n.t("menu.project.mcp_service", "MCP Service…"),
+                group: .project,
+                aliases: [
+                    I18n.t("menu.project.mcp_service.alias_ai", "AI access"),
+                    I18n.t("menu.project.mcp_service.alias_token", "Access token"),
+                ],
+                action: { store.presentMCPService() }
+            ),
             // 互操作（v1.2 / 14 §P4）：导入必须先过预检再落地；导出是单向快照 + 旁注。
             // 三个入口都在「项目」分组下：它们作用于整份计划，不在某一行任务上。
             KaidoCommand(

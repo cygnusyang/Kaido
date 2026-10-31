@@ -89,6 +89,8 @@ public enum KaidoErrorCode: String, Codable, Hashable, Sendable, CaseIterable {
     case mcpMalformedDependency = "mcp_malformed_dependency"
     case mcpMalformedAssignment = "mcp_malformed_assignment"
     case mcpMalformedBatchItem = "mcp_malformed_batch_item"
+    /// 路径不在用户授权目录内（App Store 沙盒版的 MCP 白名单）。
+    case mcpPathNotAuthorized = "mcp_path_not_authorized"
 
     // MARK: - internal（兜底）
 

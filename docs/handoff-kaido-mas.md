@@ -26,6 +26,27 @@
 
 `tools/gate-secrets.sh` 会拦截把这类文件提交进仓库；CI 用 GitHub Secrets 注入。
 
+## 二·五、2026-10-31 决策变更：MCP/CLI 必须进商店版
+
+**停止按「MAS 版去掉 CLI/MCP」发布。** 用户判定 MCP 与 CLI 是 Kaido 的核心差异点，
+去掉就没有特色，要求改架构把它们放进去。
+
+原方案（直接剔除）为什么不行：`KaidoMCP`/`KaidoCLI` 是独立可执行文件，靠外部客户端
+spawn；沙盒下子进程仍受容器限制，`project_open(path:)` 读不到 `~/Documents`，
+塞进 bundle 也只是「装得上、用不了」。
+
+新架构（P1.5，规模大于原 P1..P4）：
+
+| 层 | 内容 | 状态 |
+|---|---|---|
+| 1 | `KaidoMCPCore` 库（协议 + 工具表），app 可 import | ✅ `be9624b` |
+| 2 | `MCPTransport`：stdio（官网版）/ loopback HTTP（商店版，app 内监听 127.0.0.1） | 待做 |
+| 3 | 授权：应用内「MCP 授权目录」（app-scope bookmark），工具按白名单校验路径 | 待做 |
+| 4 | CLI：商店版`kaido` 为瘦客户端（转发给运行中的 app）；官网版保留完整 CLI | 待做 |
+| 5 | entitlements 增 `com.apple.security.network.server`；MCP 服务设置面板 | 待做 |
+
+待用户拍板：① 目录级授权还是仅当前项目；② 固定端口还是自动分配；③ 接受 CLI 瘦客户端形态。
+
 ## 三、待办（按依赖顺序）
 
 1. **合并** `refactor/rename-kaido` → main（先跑全量测试）

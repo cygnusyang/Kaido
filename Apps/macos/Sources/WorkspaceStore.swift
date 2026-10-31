@@ -326,6 +326,7 @@ final class WorkspaceStore: ObservableObject {
         self.calendar = calendar
         self.defaults = defaults
         self.recentStore = RecentProjects(defaults: defaults)
+        self.mcpService = MCPService(defaults: defaults)
         self.projectLoader = projectLoader
 
         let session = KaidoSession()
@@ -1259,6 +1260,19 @@ final class WorkspaceStore: ObservableObject {
 
     /// 项目设置面板是否展开（纯视图状态：不进撤销栈、不置脏、不写文件）。
     @Published private(set) var isProjectSettingsPresented = false
+
+    /// MCP 服务面板是否展开（菜单栏/⌘K 入口共用同一个状态）。
+    @Published private(set) var isMCPServicePresented = false
+    /// 应用内 MCP 服务（商店版靠它托管 MCP；官网版同样可用）。
+    let mcpService: MCPService
+
+    func presentMCPService() {
+        isMCPServicePresented = true
+    }
+
+    func dismissMCPService() {
+        isMCPServicePresented = false
+    }
 
     /// 打开面板（菜单「项目 › 项目设置…」与 ⌘K 同一入口）。重复触发不叠出第二个面板。
     func presentProjectSettings() {

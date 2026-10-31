@@ -18,12 +18,14 @@ usage() {
 选项:
   -c, --configuration <debug|release>  构建配置（默认: release）
   -o, --output <dir>                   输出目录（默认: dist/）
+  --mas                                Mac App Store 变体（禁用自更新、不产出 CLI/MCP）
   --skip-gate                          跳过核心与呈现层平台绑定门禁
   -h, --help                           显示帮助
 USAGE
 }
 
 SKIP_GATE=0
+MAS=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -c|--configuration)
@@ -34,6 +36,10 @@ while [[ $# -gt 0 ]]; do
       DIST_DIR="${2:?}"
       APP_BUNDLE="$DIST_DIR/${APP_NAME}.app"
       shift 2
+      ;;
+    --mas)
+      MAS=1
+      shift
       ;;
     --skip-gate)
       SKIP_GATE=1
@@ -63,19 +69,26 @@ if [[ "$SKIP_GATE" -eq 0 ]]; then
   bash "$ROOT/tools/gate-core.sh"
 fi
 
+# 商店变体：编译期常量让自更新整体消失（KaidoDistribution.isAppStoreBuild）。
+SWIFT_FLAGS=(-Xswiftc -warnings-as-errors)
+if [[ "$MAS" -eq 1 ]]; then
+  SWIFT_FLAGS+=(-Xswiftc -DKAIDO_MAS)
+  echo "==> App Store 变体：自更新编译期禁用，不产出 CLI/MCP"
+fi
+
 echo "==> swift build -c $CONFIGURATION (universal: arm64 + x86_64, warnings as errors)"
 # 告警一律视为失败，避免带 warning 的产物进入 dist/
 # v1.0.1：默认出 universal。此前只构建宿主架构（arm64），而下载页没有任何「仅 Apple Silicon」说明，
 # Intel Mac 用户拿到 DMG 会直接遇到「应用无法打开」，属于交付缺陷而非可接受限制。
 # 交叉编译不可用时回退宿主架构并显式告警，不让发版卡死。
 ARCH_ARGS=(--arch arm64 --arch x86_64)
-if ! swift build -c "$CONFIGURATION" ${ARCH_ARGS[@]+"${ARCH_ARGS[@]}"} -Xswiftc -warnings-as-errors; then
+if ! swift build -c "$CONFIGURATION" ${ARCH_ARGS[@]+"${ARCH_ARGS[@]}"} "${SWIFT_FLAGS[@]}"; then
   echo "!! universal 构建失败，回退宿主架构（仅 $(uname -m)）—— 该产物不能在另一种 CPU 上运行" >&2
   ARCH_ARGS=()
-  swift build -c "$CONFIGURATION" -Xswiftc -warnings-as-errors
+  swift build -c "$CONFIGURATION" "${SWIFT_FLAGS[@]}"
 fi
 
-BUILD_DIR="$(swift build -c "$CONFIGURATION" ${ARCH_ARGS[@]+"${ARCH_ARGS[@]}"} --show-bin-path)"
+BUILD_DIR="$(swift build -c "$CONFIGURATION" ${ARCH_ARGS[@]+"${ARCH_ARGS[@]}"} "${SWIFT_FLAGS[@]}" --show-bin-path)"
 SRC_BIN="$BUILD_DIR/$BINARY_PRODUCT"
 if [[ ! -x "$SRC_BIN" ]]; then
   echo "未找到可执行文件: $SRC_BIN" >&2
@@ -93,10 +106,13 @@ BUILD_STAMP="$(date +%Y%m%d.%H%M)"
 cp "$SRC_BIN" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
-# 一并放出 CLI / MCP，方便脚本与插件引用
-cp "$BUILD_DIR/KaidoCLI" "$DIST_DIR/KaidoCLI"
-cp "$BUILD_DIR/KaidoMCP" "$DIST_DIR/KaidoMCP"
-chmod +x "$DIST_DIR/KaidoCLI" "$DIST_DIR/KaidoMCP"
+# 站点外分发才放 CLI / MCP：商店包只允许一个 .app payload，且沙盒下
+# 外部进程 spawn 子进程读不到用户文件，带了也用不了（CLI 由 app 的 --cli 模式承担）。
+if [[ "$MAS" -eq 0 ]]; then
+  cp "$BUILD_DIR/KaidoCLI" "$DIST_DIR/KaidoCLI"
+  cp "$BUILD_DIR/KaidoMCP" "$DIST_DIR/KaidoMCP"
+  chmod +x "$DIST_DIR/KaidoCLI" "$DIST_DIR/KaidoMCP"
+fi
 
 cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -113,7 +129,7 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key>
   <string>${APP_NAME}</string>
   <key>CFBundleIdentifier</key>
-  <string>app.kaido.macos</string>
+  <string>top.cygnusyang.kaido</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
@@ -130,6 +146,8 @@ cat > "$APP_BUNDLE/Contents/Info.plist" <<PLIST
   <string>${BUILD_STAMP}</string>
   <key>LSMinimumSystemVersion</key>
   <string>14.0</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.productivity</string>
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSPrincipalClass</key>
@@ -226,12 +244,27 @@ for LANG_ID in en zh-Hans; do
   cp -R "$LPROJ_DIR/$LANG_ID.lproj" "$APP_BUNDLE/Contents/Resources/"
 done
 
-# 本地 ad-hoc 签名，避免 Gatekeeper 拦住未签名包
-if command -v codesign >/dev/null 2>&1; then
+# 本地 ad-hoc 签名，避免 Gatekeeper 拦住未签名包。
+# 商店变体不签：随后的 tools/sign-mas.sh 用 Apple Distribution 重签，
+# 先 ad-hoc 再重签只会多跑一遍 --deep。
+if [[ "$MAS" -eq 0 ]] && command -v codesign >/dev/null 2>&1; then
   codesign --force --deep --sign - "$APP_BUNDLE" >/dev/null
 fi
 
-cat > "$DIST_DIR/README.txt" <<NOTE
+if [[ "$MAS" -eq 1 ]]; then
+  cat > "$DIST_DIR/README.txt" <<NOTE
+Kaido 构建产物（Mac App Store 变体）
+====================================
+- ${APP_NAME}.app     macOS 应用；自更新已在编译期禁用
+
+下一步（签名与出包，凭据见 ~/kairo-signing）:
+  tools/sign-mas.sh --app "$APP_BUNDLE" \
+    --entitlements Apps/macos/Resources/Kaido.entitlements \
+    --provisionprofile ~/kairo-signing/KaidoPlanMAS.provisionprofile \
+    --pkg-out "$DIST_DIR/Kaido.pkg"
+NOTE
+else
+  cat > "$DIST_DIR/README.txt" <<NOTE
 Kaido 构建产物
 ==============
 - ${APP_NAME}.app     macOS 应用（可 open 或拖到 /Applications）
@@ -241,8 +274,13 @@ Kaido 构建产物
 安装应用:
   bash tools/install.sh
 NOTE
+fi
 
 echo "==> 完成"
 echo "    App:  $APP_BUNDLE"
-echo "    CLI:  $DIST_DIR/KaidoCLI"
-echo "    MCP:  $DIST_DIR/KaidoMCP"
+if [[ "$MAS" -eq 0 ]]; then
+  echo "    CLI:  $DIST_DIR/KaidoCLI"
+  echo "    MCP:  $DIST_DIR/KaidoMCP"
+else
+  echo "    商店版：未产出 CLI/MCP，自更新已禁用；签名请用 tools/sign-mas.sh"
+fi

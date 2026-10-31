@@ -11,18 +11,26 @@ public final class MCPServer {
 
     private let registry: ToolRegistry
     private let session: KaidoSession
+    private let pathPolicy: MCPPathPolicy
     private var negotiatedProtocolVersion: String?
 
-    /// 默认装配：内置工具表 + 独立会话。stdio 壳与 app 内托管都用它。
-    public init() {
+    /// 默认装配：内置工具表 + 独立会话 + 不限制路径（官网版）。
+    public convenience init() {
+        self.init(pathPolicy: AllowAllPaths())
+    }
+
+    /// App Store 版装配：路径按用户授权目录白名单校验。
+    public init(pathPolicy: MCPPathPolicy) {
         self.registry = ToolRegistry()
         self.session = KaidoSession()
+        self.pathPolicy = pathPolicy
     }
 
     /// 测试注入缝：复用调用方准备好的会话（如已 adopt 旧格式的会话）。
-    init(session: KaidoSession) {
+    init(session: KaidoSession, pathPolicy: MCPPathPolicy = AllowAllPaths()) {
         self.registry = ToolRegistry()
         self.session = session
+        self.pathPolicy = pathPolicy
     }
 
     /// 处理一行请求 JSON，返回一行响应 JSON；通知返回 nil。
@@ -115,8 +123,18 @@ public final class MCPServer {
                 id: request.id
             )
         }
+        let arguments = params["arguments"]
         do {
-            let result = try tool.handler(params["arguments"], session)
+            // 路径准入：只有 project_open / project_save 收路径参数，统一在这里拦。
+            // 拦在调用前，避免半途写出半个文件、也避免把「未授权」误报成「文件不存在」。
+            if let raw = arguments?.objectValue?["path"]?.stringValue,
+               !pathPolicy.allows(URL(fileURLWithPath: raw)) {
+                throw ToolError.invalidArgument(
+                    reason: .mcpPathNotAuthorized,
+                    message: "路径不在已授权目录内：\(raw)"
+                )
+            }
+            let result = try tool.handler(arguments, session)
             let text = try encodeText(result)
             return .ok(
                 .object([

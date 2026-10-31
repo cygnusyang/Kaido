@@ -7,9 +7,17 @@
 
 ### 新增
 
+- **MCP 内置托管（App Store 版）**：MCP 协议面拆成 `KaidoMCPCore` 库，app 进程内起 loopback HTTP 端点（`POST /mcp`，仅绑 127.0.0.1 + Bearer token），客户端以 `"url"` 接入。沙盒下外部客户端 spawn 子进程读不到用户文件，这是商店版保留 MCP 的唯一可行形态；官网直装版维持 stdio，行为不变。
+- **MCP 授权目录**：新增「项目 ▸ MCP 服务…」面板——开关、端点、token（可复制/重置）、客户端配置片段一键复制、授权目录列表。MCP 工具只能读写授权目录内的文件，越界返回 `mcp_path_not_authorized`（而不是误报「文件不存在」）。
+- **CLI 瘦客户端**：商店版 CLI 走同一二进制的 `--cli` 模式，把 `--cli tools` / `--cli call <tool> <json>` 转发给运行中的 app；官网版保留完整 CLI。
+- **`tools/build-mas.sh`**：商店变体构建入口（`dist-mas/`）——编译期关闭自更新（`-DKAIDO_MAS`）、不产出 CLI/MCP 可执行文件、不做 ad-hoc 签名；构建后自检包内无 CLI/MCP、bundle id 与 App Store 记录一致。
 - **互操作骨架 + MSPDI 读（v1.2 P0）**：新增两个互不依赖的 target——`KaidoInterop`（供应商无关 IR：任务树 / 时间 / 四型依赖 + 秒级 lag / 约束 / 资源与分配 / 日历 / 基线 / 自定义域；`FidelityLedger` 有损登记；`FormatAdapter` 协议 + `AdapterRegistry`；`KaidoBridge` IR ↔ Kaido 模型）与 `InteropMSPDI`（MS Project XML 读）。适配器不 import `KaidoCore`，工作日历换算只在 `KaidoBridge` 一处。
 - **契约测试 `AdapterConformanceSuite`**：空计划 / 单任务 / 四类依赖 / lag / 里程碑 / 群组 / 多日历 / 基线 / 中文 emoji / 畸形 XML 共 12 个 MSPDI 样本，每次新增格式只加样本、不改断言。
 - **版本闸门**：`SaveVersion` 只接受 12–14，未知版本抛 `unsupportedFormatVersion`；命名空间必须是 `http://schemas.microsoft.com/project`。
+
+### 修复
+
+- **bundle id 与实际注册的 App ID 对齐**：v2.0.0 只改了文档与 changelog，`build.sh` 与 `UpdaterConfiguration` 仍写 `app.kaido.macos`，与 portal 上注册的 `top.cygnusyang.kaido` 不一致，签出的包会被 App Store 校验拒绝。现已统一（含 OTA 清单 appId 与验证脚本）。
 
 ### 判据与证据
 

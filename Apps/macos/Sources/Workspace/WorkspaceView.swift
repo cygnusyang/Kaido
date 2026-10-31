@@ -194,6 +194,17 @@ struct WorkspaceView: View {
             )) {
                 ProjectSettingsPanel(store: store)
             }
+            // MCP 服务面板（App Store 版托管 MCP）：开关、token、客户端配置、授权目录。
+            .sheet(isPresented: Binding(
+                get: { store.isMCPServicePresented },
+                set: { if !$0 { store.dismissMCPService() } }
+            )) {
+                MCPServicePanel(
+                    service: store.mcpService,
+                    authorization: store.mcpService.authorization,
+                    onClose: { store.dismissMCPService() }
+                )
+            }
             // 导入预检（v1.2 / 13 §5）：报告不可跳过——sheet 关闭即取消，不落地任何改动。
             .sheet(isPresented: Binding(
                 get: { store.importPreflight != nil },

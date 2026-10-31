@@ -12,6 +12,14 @@ struct KaidoApp: App {
     @State private var showUpdateSheet = false
     @State private var errorMessage: String?
 
+    init() {
+        // 商店版 CLI：同一二进制的 --cli 模式，把调用转给运行中的 app 后退出，
+        // 不启动界面（沙盒里没有独立可执行文件可装，见 KaidoThinClient）。
+        if let code = KaidoThinClient.runIfRequested() {
+            exit(code)
+        }
+    }
+
     var body: some Scene {
         WindowGroup("Kaido") {
             WorkspaceView(store: store, commands: commandCatalog)
@@ -24,7 +32,10 @@ struct KaidoApp: App {
                     appDelegate.updater = updater
                     // 首启消费上次 OTA 安装结果（幂等；无 pending 则 no-op）。
                     updater.consumePendingInstallResult()
-                    scheduleAutoUpdateChecks()
+                    // 商店版禁止自更新：起子进程替换 .app 会被审核拒绝。
+                    if !KaidoDistribution.isAppStoreBuild {
+                        scheduleAutoUpdateChecks()
+                    }
                     scheduleLaunchOpen()
                     #if DEBUG
                     // 闭环验证的驱动端（tools/ota-loop-verify.sh）：未设
@@ -90,10 +101,12 @@ struct KaidoApp: App {
             KaidoMenuCommands(
                 commands: commandCatalog,
                 store: store,
-                checkForUpdates: {
-                    showUpdateSheet = true
-                    Task { await updater.check() }
-                }
+                checkForUpdates: KaidoDistribution.isAppStoreBuild
+                    ? nil
+                    : {
+                        showUpdateSheet = true
+                        Task { await updater.check() }
+                    }
             )
         }
     }

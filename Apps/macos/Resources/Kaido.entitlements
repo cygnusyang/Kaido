@@ -11,5 +11,12 @@
   <!-- 最近项目 / 启动时重开上次项目要用 security-scoped bookmark 才能跨重启访问。 -->
   <key>com.apple.security.files.bookmarks.app-scope</key>
   <true/>
+  <!-- MCP 服务在 app 进程内监听 127.0.0.1（外部客户端连回来）。
+       商店禁止让外部进程 spawn 子进程读用户文件，MCP 只能这样托管。 -->
+  <key>com.apple.security.network.server</key>
+  <true/>
+  <!-- CLI 瘦客户端（同一二进制 --cli 模式）与 OTA 走出的连接都要它。 -->
+  <key>com.apple.security.network.client</key>
+  <true/>
 </dict>
 </plist>

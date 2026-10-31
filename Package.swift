@@ -15,7 +15,7 @@ let macOSAppTargets: [Target] = [
         name: "KaidoMacApp",
         dependencies: [
             "KaidoCore", "KaidoCommands", "KaidoPresentation", "KaidoUpdater",
-            "KaidoInterop", "InteropMSPDI", "InteropOmniPlan",
+            "KaidoMCPCore", "KaidoInterop", "InteropMSPDI", "InteropOmniPlan",
         ],
         path: "Apps/macos/Sources"
     ),
