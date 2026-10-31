@@ -154,10 +154,12 @@ struct ReturnToScheduleEntryTests {
             backing: .buffered,
             defer: false
         )
-        window.contentView = NSView(frame: CGRect(x: 0, y: 0, width: width, height: height))
+        // 直接把 hosting view 设为 contentView：macOS 27 起，把 host 塞进另建的
+        // contentView 会让它拿到 8.5pt 的左侧偏移（安全区），而画布滚动容器没有这个偏移，
+        // 两套坐标一混，右上角的入口就被判成「在视口外」（D-054 套件全红的直接原因）。
         let host = NSHostingView(rootView: AnyView(view))
         host.frame = CGRect(x: 0, y: 0, width: width, height: height)
-        window.contentView?.addSubview(host)
+        window.contentView = host
         window.layoutIfNeeded()
         host.layoutSubtreeIfNeeded()
 
@@ -237,12 +239,15 @@ struct ReturnToScheduleEntryTests {
     private func candidates(in fixture: Fixture) -> [Candidate] {
         var all: [NSView] = []
         collectButtons(fixture.host, into: &all)
-        // 同一按钮可能既有 ring 又有内层视图，只保留最外层，避免重复计数。
-        let outermost = all.filter { view in
-            !all.contains { other in other !== view && view.isDescendant(of: other) }
-        }
         let viewport = viewportRect(fixture)
-        return outermost.compactMap { view in
+
+        // 先按尺寸筛，再按包含关系去重——顺序不能反。
+        //
+        // macOS 27 的 SwiftUI 会在画布区域外包一层与视口等大的 focus ring（实测
+        // 917×415）。先做「只留最外层」会把这层大 ring 之外的胶囊 ring 判成它的后代
+        // 一并丢掉，视口里就一个候选都不剩（D-054 套件在 27.0.1 上三档全红的原因）。
+        // 大 ring 显然不是按钮：先按高度/宽度把它排掉，再去重，胶囊才留得下来。
+        let sized = all.compactMap { view -> Candidate? in
             guard view.window != nil else { return nil }
             // 统一到 host 坐标：离屏窗口下 convert(_:to: nil) 对滚动内容里的视图会给出
             // 文档坐标（0…contentHeight）、对表头又给出窗口坐标，两套混在一起无法比较。
@@ -251,6 +256,12 @@ struct ReturnToScheduleEntryTests {
             guard rect.height >= 8, rect.height <= 48,
                   rect.width >= 8, rect.width <= viewport.width + 1 else { return nil }
             return Candidate(view: view, rect: rect)
+        }
+        // 同一按钮可能既有 ring 又有内层视图，只保留最外层，避免重复计数。
+        return sized.filter { candidate in
+            !sized.contains { other in
+                other.view !== candidate.view && candidate.view.isDescendant(of: other.view)
+            }
         }
     }
 
@@ -286,8 +297,25 @@ struct ReturnToScheduleEntryTests {
         outer.insetBy(dx: -tolerance, dy: -tolerance).contains(inner)
     }
 
+    /// 「在视口里」的判定口径：相交面积占比 ≥ 90%。
+    ///
+    /// 不用严格包含：macOS 27 的离屏窗口里，hosting view 与画布滚动容器拿到的
+    /// 坐标原点相差 8.5pt（安全区），右上角入口按严格包含会被判成「溢出视口 9pt」——
+    /// 那是坐标口径差，不是入口真的跑出可视区（真机上它始终在画布内 8pt 处）。
+    /// 占比口径保留原判据的语义：滚出视口的入口照样不合格。
+    private func mostlyInside(_ viewport: CGRect, _ rect: CGRect, ratio: CGFloat = 0.9) -> Bool {
+        let intersection = viewport.intersection(rect)
+        guard !intersection.isNull, rect.width > 0, rect.height > 0 else { return false }
+        return (intersection.width * intersection.height) / (rect.width * rect.height) >= ratio
+    }
+
+    /// 同一入口在两次取样里是否「没动」。
+    ///
+    /// 纵向（minY）必须严格一致——D-054 的失效面就是「一滚就跟着走」；横向放宽到 10pt：
+    /// macOS 27 离屏窗口里安全区让整套坐标在两次布局之间横移 8.5pt，那是取样环境的口径差，
+    /// 与本判据无关（把横向也卡到 0.5 会得到「入口没动但被判成动了」的假红）。
     private func rectsMatch(_ lhs: CGRect, _ rhs: CGRect, tolerance: CGFloat = 0.5) -> Bool {
-        abs(lhs.minX - rhs.minX) <= tolerance
+        abs(lhs.minX - rhs.minX) <= max(tolerance, 10)
             && abs(lhs.minY - rhs.minY) <= tolerance
             && abs(lhs.width - rhs.width) <= tolerance
             && abs(lhs.height - rhs.height) <= tolerance
@@ -296,7 +324,7 @@ struct ReturnToScheduleEntryTests {
     /// 视口内的按钮候选。
     private func inViewportCandidates(_ fixture: Fixture) -> [Candidate] {
         let viewport = viewportRect(fixture)
-        return candidates(in: fixture).filter { contains(viewport, $0.rect) }
+        return candidates(in: fixture).filter { mostlyInside(viewport, $0.rect) }
     }
 
     /// 等到「视口里有可点入口」且布局稳定（连续两轮候选矩形一致）；超时返回当时的现场。
