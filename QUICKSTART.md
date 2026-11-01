@@ -11,9 +11,10 @@ brew install --cask cygnusyang/kaidoplan/kaido
 
 No Homebrew? Download `Kaido-vX.Y.Z.dmg` from the [latest release](https://github.com/cygnusyang/Kaido/releases/latest) and drag it to Applications.
 
-> The app is currently **ad-hoc signed, not notarized**. On first launch macOS blocks it:
-> allow it in **System Settings → Privacy & Security → Open Anyway**. See
-> [SECURITY.md](SECURITY.md) for what that means for provenance.
+> The current **v2.2.0** release is signed with Developer ID and notarized; both the app
+> and DMG have stapled notarization tickets. If Gatekeeper still shows a warning, confirm
+> you downloaded the current release from the official link above. See [SECURITY.md](SECURITY.md)
+> for how to verify the download and its provenance.
 
 ## 2. Get the CLI and the MCP server
 
