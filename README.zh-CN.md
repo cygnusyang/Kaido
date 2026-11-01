@@ -16,14 +16,14 @@ AI 编码智能体的项目管理软件。Claude Code、Codex 负责执行，Kai
 
 ![Kaido 计划工作台：左侧大纲与右侧时间画布逐行对齐取证](docs/images/app-plan-workbench.png)
 
-**[下载 macOS 应用](https://github.com/cygnusyang/Kaido/releases/latest)** · **[五分钟上手（英文）](QUICKSTART.md)** · **[架构说明（英文）](ARCHITECTURE.md)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.zh-CN.md)**
+**[产品官网](https://cygnusyang.github.io/Kaido/) · [下载 macOS 应用](https://github.com/cygnusyang/Kaido/releases/latest)** · **[五分钟上手（英文）](QUICKSTART.md)** · **[架构说明（英文）](ARCHITECTURE.md)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.zh-CN.md)**
 
 ```bash
 brew install --cask cygnusyang/kaido/kaido
 ```
 
 
-**状态：开发中。** 已完成 Sprint 0–3 与 ADR-013 计划工作台重设计（核心模型、`.kaido` 持久化、调度引擎与违例检查、状态回写、大纲与时间画布工作台、Claude Code 插件与深链）；669 项测试通过。更新：2026-10-18。
+**已发布：v2.2.0。** 可从 [GitHub Releases](https://github.com/cygnusyang/Kaido/releases/latest) 下载 macOS 版本，或访问 [Kaido Plan 产品官网](https://cygnusyang.github.io/Kaido/)。
 
 ## 它解决什么问题
 
@@ -309,11 +309,11 @@ docs/                       需求、架构、设计系统、路线图与 Sprint
 
 ## 许可证
 
-[PolyForm Noncommercial 1.0.0](LICENSE)（PolyForm 非商业许可 1.0.0）——自 v1.3.3 起生效。
+自 v1.3.3 起采用双许可路线：[PolyForm Noncommercial 1.0.0](LICENSE) 适用于符合条件的非商业使用；商业使用须另行取得书面商业授权。许可概览见 [Kaido Plan 产品官网](https://cygnusyang.github.io/Kaido/#license)。
 
 - **非商业使用免费**：个人学习、爱好与私人项目、科研、实验与测试，且不预期任何商业应用。
 - **非商业组织免费**：慈善机构、教育机构、公共研究机构、公共安全或卫生机构、环保组织、政府机构，不论资金来源。
-- **商业使用需购买商业授权**：任何预期商业应用的场景（包括在营利公司内部用 Kaido 管自己的项目）都不在本许可范围内，请联系 <ruohuyang@gmail.com> 获取条款与报价。
+- **商业使用需购买商业授权**：任何预期商业应用的场景（包括在营利公司内部用 Kaido 管自己的项目）都不在本许可范围内，请通过 [ruohuyang@gmail.com](mailto:ruohuyang@gmail.com?subject=Kaido%20Commercial%20License) 联系申请单独的书面授权。授权范围与报价由双方书面确认；联系邮箱本身不构成授权。
 - 再分发 Kaido 或其修改版本时，必须一并传递本许可条款（或链接）以及所有 `Required Notice:` 行。
 - **没有**自动转开源条款；**v1.3.2 及以前**的版本按 MIT 发布，该授权继续有效。
 - PolyForm Noncommercial 属于「源码可得」（source-available），不是 OSI 认证的开源许可。

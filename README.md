@@ -14,14 +14,14 @@ Project management for AI coding agents. Claude Code and Codex do the work; Kaid
 
 ![Schematic of the Kaido plan workbench: outline on the left, timeline bars aligned row by row, task inspector on the right](docs/images/workbench-overview.svg)
 
-**[Download the macOS app](https://github.com/cygnusyang/Kaido/releases/latest)** · **[5-minute quickstart](QUICKSTART.md)** · **[Architecture](ARCHITECTURE.md)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)**
+**[Website](https://cygnusyang.github.io/Kaido/) · [Download the macOS app](https://github.com/cygnusyang/Kaido/releases/latest)** · **[5-minute quickstart](QUICKSTART.md)** · **[Architecture](ARCHITECTURE.md)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)**
 
 ```bash
 brew install --cask cygnusyang/kaido/kaido
 ```
 
 
-**Status: in development.** Sprint 0–3 and the ADR-013 plan-workbench redesign are complete (core model, `.kaido` persistence, scheduling engine with violation checks, status write-back, outline + timeline workbench, Claude Code plugin and deep links); 669 tests passing. Updated 2026-10-18.
+**Released: v2.2.0.** Download the latest macOS release from [GitHub Releases](https://github.com/cygnusyang/Kaido/releases/latest), or visit the [Kaido Plan website](https://cygnusyang.github.io/Kaido/).
 
 ## The problem
 
@@ -303,11 +303,11 @@ docs/                       Requirements, architecture, design system, roadmap a
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE) — effective from v1.3.3 onward.
+Kaido uses a dual licensing model from v1.3.3 onward: [PolyForm Noncommercial 1.0.0](LICENSE) for qualifying noncommercial use, and a separate written commercial license for commercial use. See the [Kaido Plan website](https://cygnusyang.github.io/Kaido/#license) for the licensing overview.
 
 - **Free for noncommercial use**: personal study, hobby and private projects, research, experiment, and testing without any anticipated commercial application.
 - **Free for noncommercial organizations**: charities, educational institutions, public research bodies, public safety/health organizations, environmental organizations, and government institutions — regardless of funding source.
-- **Commercial use requires a commercial license**: any use with an anticipated commercial application — including using Kaido inside a for-profit company to plan your own projects — is not granted by these terms. Contact <ruohuyang@gmail.com> for terms and pricing.
+- **Commercial use requires a commercial license**: any use with an anticipated commercial application — including using Kaido inside a for-profit company to plan your own projects — is not granted by these terms. Contact [ruohuyang@gmail.com](mailto:ruohuyang@gmail.com?subject=Kaido%20Commercial%20License) to discuss a separate written license. Scope and pricing are agreed in writing; the contact link is not itself a grant of rights.
 - If you redistribute Kaido or a modified version, you must pass along these terms (or their URL) and any `Required Notice:` lines.
 - There is no automatic conversion to an open source license. Releases up to **v1.3.2** were published under MIT and remain MIT.
 - PolyForm Noncommercial is a source-available license, not an OSI-approved open source license.
