@@ -11,7 +11,7 @@ brew install --cask cygnusyang/kaidoplan/kaido
 
 No Homebrew? Download `Kaido-vX.Y.Z.dmg` from the [latest release](https://github.com/cygnusyang/Kaido/releases/latest) and drag it to Applications.
 
-> The current **v2.2.0** release is signed with Developer ID and notarized; both the app
+> The latest release is signed with Developer ID and notarized; both the app
 > and DMG have stapled notarization tickets. If Gatekeeper still shows a warning, confirm
 > you downloaded the current release from the official link above. See [SECURITY.md](SECURITY.md)
 > for how to verify the download and its provenance.
