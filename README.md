@@ -10,9 +10,11 @@
 [![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey)](https://github.com/cygnusyang/Kaido/releases/latest)
 [![Swift](https://img.shields.io/badge/swift-5.9%2B-orange)](Package.swift)
 
-Project management for AI coding agents. Claude Code and Codex do the work; Kaido keeps the ledger — WBS breakdown, dependencies, scheduling and progress tracking. So "what has the AI finished, what is left, when will it land" has an answer you can check.
+> **Give every AI project a ledger you can trust.** Claude Code and Codex do the work. Kaido keeps the WBS, dependencies, schedule and progress in one plan you can inspect.
 
-![Schematic of the Kaido plan workbench: outline on the left, timeline bars aligned row by row, task inspector on the right](docs/images/workbench-overview.svg)
+![Kaido Plan for macOS, showing a task table, timeline and project inspector](site/assets/workbench.png)
+
+**One plan file** · Shared by people and AI &nbsp;·&nbsp; **Visual schedule** · Dependencies and progress &nbsp;·&nbsp; **Local first** · Project data stays on your device
 
 **[Website](https://cygnusyang.github.io/Kaido/) · [Download the macOS app](https://github.com/cygnusyang/Kaido/releases/latest)** · **[5-minute quickstart](QUICKSTART.md)** · **[Architecture](ARCHITECTURE.md)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)**
 
@@ -22,6 +24,25 @@ brew install --cask cygnusyang/kaido/kaido
 
 
 **Released: v2.2.0.** Download the latest macOS release from [GitHub Releases](https://github.com/cygnusyang/Kaido/releases/latest), or visit the [Kaido Plan website](https://cygnusyang.github.io/Kaido/).
+
+## What Kaido does
+
+| # | Job | What it means |
+|---|---|---|
+| **01 · DECOMPOSE** | Turn requirements into a WBS | Organize work as tasks, groups and milestones. AI agents import, read and update plans through MCP or the CLI. |
+| **02 · SCHEDULE** | Put dependencies on a timeline | Inspect dates, predecessors and the critical path in the macOS Gantt workbench, and surface plan violations. |
+| **03 · TRACK** | Keep execution in sync | Status updates return to the same plan, so people and AI keep working from a shared WBS. |
+
+## How it works
+
+People set the bounds. AI executes. Kaido keeps the ledger.
+
+1. **Define** — set the goal, dates and acceptance criteria.
+2. **Plan** — have AI break down the WBS, connect dependencies and calculate a schedule.
+3. **Review** — inspect progress, conflicts and the critical path in the Gantt chart.
+4. **Execute** — AI implements tasks and writes back status as the plan evolves.
+
+The full write path, leaf criteria and a copy-paste walkthrough are in [Running a project with an AI](#running-a-project-with-an-ai-how-the-wbs-flows).
 
 ## The problem
 
@@ -42,6 +63,8 @@ Same capability, four equal doors. All of them read and write the same `.kaido` 
 | MCP server | AI agents | stdio JSON-RPC, 16 tools |
 | CLI | AI agents / scripts / terminal | Command line with parity to the MCP surface |
 | Claude Code plugin | Claude Code | Slash commands `/kaido plan` / `done` / `status`, plus a `TaskCompleted` write-back hook |
+
+![Schematic of the plan workbench: outline on the left, timeline bars aligned row by row, task inspector on the right](docs/images/workbench-overview.svg)
 
 > Codex and CodeBuddy do not need a plugin: use MCP plus a short convention written into `AGENTS.md` / `CODEBUDDY.md`. How to wire up all three hosts, how to break down a WBS, and every command ready to copy — see **[Plugins/README.md](Plugins/README.md)**.
 
