@@ -19,19 +19,6 @@ struct TimelineHeaderView: View {
     /// 表头下层标签上限：超出后按 stride 抽稀（网格线不抽稀，保持时间网格完整）。
     private static let maxHeaderLabels = 200
 
-    private var upperTicks: [GanttTick] { gantt.ticks.filter(\.isMajor) }
-    private var lowerTicks: [GanttTick] { gantt.ticks.filter { !$0.isMajor } }
-
-    /// 需要绘制标签的下层刻度：数量超上限时按 stride 抽稀，避免标签重叠与绘制量爆炸。
-    private var labeledLowerTicks: [GanttTick] {
-        let ticks = lowerTicks
-        guard ticks.count > Self.maxHeaderLabels else { return ticks }
-        let stride = Int((Double(ticks.count) / Double(Self.maxHeaderLabels)).rounded(.up))
-        return ticks.enumerated().compactMap { index, tick in
-            index % stride == 0 ? tick : nil
-        }
-    }
-
     var body: some View {
         Canvas { context, size in
             context.fill(
@@ -39,6 +26,8 @@ struct TimelineHeaderView: View {
                 with: .color(DesignTokens.surfaceChrome)
             )
 
+            let lowerTicks = gantt.ticks.filter { !$0.isMajor }
+            let upperTicks = gantt.ticks.filter(\.isMajor)
             for tick in lowerTicks {
                 var line = Path()
                 line.move(to: CGPoint(x: tick.x, y: 0))
@@ -46,7 +35,8 @@ struct TimelineHeaderView: View {
                 context.stroke(line, with: .color(DesignTokens.grid), lineWidth: 1)
             }
 
-            for tick in labeledLowerTicks {
+            let labelStride = max(1, Int((Double(lowerTicks.count) / Double(Self.maxHeaderLabels)).rounded(.up)))
+            for (index, tick) in lowerTicks.enumerated() where index.isMultiple(of: labelStride) {
                 let text = Text(tick.label)
                     .font(.system(size: DesignTokens.captionFontSize))
                     .foregroundStyle(DesignTokens.textSecondary)
@@ -349,7 +339,7 @@ struct TimelineBody: View {
             context.stroke(today, with: .color(DesignTokens.today), lineWidth: 1.5)
         }
 
-        drawDependencies(context: &context, size: size, offset: offset)
+        drawDependencies(context: &context, size: size, offset: offset, firstRow: firstRow, lastRow: lastRow)
         drawBars(context: &context, size: size, offset: offset, firstRow: firstRow, lastRow: lastRow)
         drawBaselineBars(context: &context, size: size, offset: offset, firstRow: firstRow, lastRow: lastRow)
         drawDragPreview(context: &context, size: size, offset: offset)
@@ -519,9 +509,20 @@ struct TimelineBody: View {
     private func drawDependencies(
         context: inout GraphicsContext,
         size: CGSize,
-        offset: CGFloat
+        offset: CGFloat,
+        firstRow: Int,
+        lastRow: Int
     ) {
+        guard firstRow <= lastRow else { return }
+        let minY = Double(firstRow) * Double(DesignTokens.rowHeight)
+        let maxY = Double(lastRow + 1) * Double(DesignTokens.rowHeight)
         for (index, dependency) in gantt.dependencies.enumerated() {
+            // 依赖线是按行路由的。快速纵向滚动时只构造与当前视口相交的线段，
+            // 避免每帧扫描/路径化整个项目的全部依赖关系。
+            let visibleSegments = dependency.segments.filter { segment in
+                max(segment.startY, segment.endY) >= minY && min(segment.startY, segment.endY) <= maxY
+            }
+            guard !visibleSegments.isEmpty else { continue }
             let related = activeTaskID.map {
                 dependency.predecessorID == $0 || dependency.successorID == $0
             } ?? false
@@ -539,7 +540,7 @@ struct TimelineBody: View {
             let lineWidth: CGFloat = isSelected ? 2.5 : (related ? max(baseWidth, 1.5) : baseWidth)
 
             var path = Path()
-            for segment in dependency.segments {
+            for segment in visibleSegments {
                 path.move(to: CGPoint(x: segment.startX, y: segment.startY - offset))
                 path.addLine(to: CGPoint(x: segment.endX, y: segment.endY - offset))
             }
@@ -548,7 +549,7 @@ struct TimelineBody: View {
                 with: .color(color.opacity(opacity)),
                 style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
             )
-            if let last = dependency.segments.last {
+            if let last = visibleSegments.last {
                 drawArrow(
                     context: &context,
                     from: CGPoint(x: last.startX, y: last.startY - offset),
