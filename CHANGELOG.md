@@ -3,6 +3,23 @@
 所有显著改动记录于此。格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循语义化版本。发布版本另见 [GitHub Releases](https://github.com/cygnusyang/Kaido/releases)。
 
+## v2.2.0 — 2026-11-01
+
+### 新增
+
+- **大纲右键菜单「展开所有任务 / 折叠所有任务」**：一键收起或展开完整任务树。展开集合取自项目模型而非当前可见行，多层折叠时也会同时打开隐藏在下级的全部群组。附 en / zh-Hans 双语。
+
+### 优化
+
+- **甘特图依赖线视口裁剪**：快速纵向滚动时只路径化与当前可见行相交的依赖线段，避免每帧扫描全项目依赖。
+- **表头下层标签抽稀内联**：抽稀逻辑由 computed property 内联进绘制体，行为不变。
+
+### 判据与证据
+
+- 新增测试 `collapseAndExpandAllTasksIncludesNestedGroups`：覆盖嵌套群组一键展开/折叠，含多层折叠时隐藏下级群组一并打开。
+- 全量 **1714 tests / 183 suites** 通过（隔离 scratch path），失败 0。
+- `tools/gate-i18n.sh` 通过（696 键，白名单 0 条中文）。
+
 ## v2.1.0 — 2026-11-01
 
 ### 新增
