@@ -266,10 +266,10 @@ Releasing is one command; the matching CHANGELOG section becomes the release not
 ```bash
 # 1) write the "## vX.Y.Z - date" section in CHANGELOG.md first
 # 2) one command: validate -> bump version -> full tests -> package -> commit -> tag -> push
-tools/release.sh 0.8.3
+tools/release.sh X.Y.Z
 
 # validate only, no commit (artifacts land in dist/, the version bump stays in the worktree)
-tools/release.sh 0.8.3 --dry-run
+tools/release.sh X.Y.Z --dry-run
 ```
 
 Artifacts are produced by `tools/package.sh` (same script locally and in CI):

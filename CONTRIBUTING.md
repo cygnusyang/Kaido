@@ -125,6 +125,6 @@ then signs, notarizes and staples the DMG, and finally signs the CLI/MCP binarie
 universal tarball. Unsigned builds keep working meanwhile — that is why this is a switch
 rather than a hard requirement for 0.x.
 
-As of v0.16.0 no Developer ID secrets are configured, so every published artifact to date is
-ad-hoc signed and not notarized. Do not describe a release as signed or notarized unless its
-`SIGNING.txt` says so.
+Whether a release ends up signed and notarized depends on whether the Developer ID secrets are
+available to CI, so it changes over time. Do not describe a release as signed or notarized unless
+its `SIGNING.txt` says so.

@@ -246,17 +246,17 @@ args = []
 ```bash
 # 1) 先在 CHANGELOG.md 写好「## vX.Y.Z — 日期」章节
 # 2) 一条命令走完：校验 → 改版本号 → 全量测试 → 打包 → 提交 → tag → 推送
-tools/release.sh 0.8.3
+tools/release.sh X.Y.Z
 
 # 只验证不提交（产物在 dist/，版本号会留在工作区）
-tools/release.sh 0.8.3 --dry-run
+tools/release.sh X.Y.Z --dry-run
 ```
 
 产物由 `tools/package.sh` 生成（本地与 CI 同源）：
 
 ```bash
-tools/package.sh v0.8.3            # 构建 + 打包，产出 dist/Kaido-v0.8.3.{dmg,zip}
-tools/package.sh v0.8.3 --skip-build --out /tmp/out
+tools/package.sh vX.Y.Z            # 构建 + 打包，产出 dist/Kaido-vX.Y.Z.{dmg,zip}
+tools/package.sh vX.Y.Z --skip-build --out /tmp/out
 ```
 
 - `Kaido-vX.Y.Z.dmg`：人装，挂载后拖入 Applications；
