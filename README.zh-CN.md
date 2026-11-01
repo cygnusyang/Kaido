@@ -313,7 +313,7 @@ docs/                       需求、架构、设计系统、路线图与 Sprint
 
 - **非商业使用免费**：个人学习、爱好与私人项目、科研、实验与测试，且不预期任何商业应用。
 - **非商业组织免费**：慈善机构、教育机构、公共研究机构、公共安全或卫生机构、环保组织、政府机构，不论资金来源。
-- **商业使用需购买商业授权**：任何预期商业应用的场景（包括在营利公司内部用 Kaido 管自己的项目）都不在本许可范围内，请通过 [ruohuyang@gmail.com](mailto:ruohuyang@gmail.com?subject=Kaido%20Commercial%20License) 联系申请单独的书面授权。授权范围与报价由双方书面确认；联系邮箱本身不构成授权。
+- **商业使用需购买商业授权**：任何预期商业应用的场景（包括在营利公司内部用 Kaido 管自己的项目）都不在本许可范围内，请通过 [ruohuyang@163.com](mailto:ruohuyang@163.com?subject=Kaido%20Commercial%20License) 联系申请单独的书面授权。授权范围与报价由双方书面确认；联系邮箱本身不构成授权。
 - 再分发 Kaido 或其修改版本时，必须一并传递本许可条款（或链接）以及所有 `Required Notice:` 行。
 - **没有**自动转开源条款；**v1.3.2 及以前**的版本按 MIT 发布，该授权继续有效。
 - PolyForm Noncommercial 属于「源码可得」（source-available），不是 OSI 认证的开源许可。

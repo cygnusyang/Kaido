@@ -330,7 +330,7 @@ Kaido uses a dual licensing model from v1.3.3 onward: [PolyForm Noncommercial 1.
 
 - **Free for noncommercial use**: personal study, hobby and private projects, research, experiment, and testing without any anticipated commercial application.
 - **Free for noncommercial organizations**: charities, educational institutions, public research bodies, public safety/health organizations, environmental organizations, and government institutions — regardless of funding source.
-- **Commercial use requires a commercial license**: any use with an anticipated commercial application — including using Kaido inside a for-profit company to plan your own projects — is not granted by these terms. Contact [ruohuyang@gmail.com](mailto:ruohuyang@gmail.com?subject=Kaido%20Commercial%20License) to discuss a separate written license. Scope and pricing are agreed in writing; the contact link is not itself a grant of rights.
+- **Commercial use requires a commercial license**: any use with an anticipated commercial application — including using Kaido inside a for-profit company to plan your own projects — is not granted by these terms. Contact [ruohuyang@163.com](mailto:ruohuyang@163.com?subject=Kaido%20Commercial%20License) to discuss a separate written license. Scope and pricing are agreed in writing; the contact link is not itself a grant of rights.
 - If you redistribute Kaido or a modified version, you must pass along these terms (or their URL) and any `Required Notice:` lines.
 - There is no automatic conversion to an open source license. Releases up to **v1.3.2** were published under MIT and remain MIT.
 - PolyForm Noncommercial is a source-available license, not an OSI-approved open source license.
