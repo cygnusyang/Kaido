@@ -19,7 +19,7 @@
 **[Website](https://cygnusyang.github.io/Kaido/) · [Download the macOS app](https://github.com/cygnusyang/Kaido/releases/latest)** · **[5-minute quickstart](QUICKSTART.md)** · **[Architecture](ARCHITECTURE.md)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)**
 
 ```bash
-brew install --cask cygnusyang/kaido/kaido
+brew install --cask cygnusyang/kaidoplan/kaido
 ```
 
 
