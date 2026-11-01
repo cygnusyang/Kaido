@@ -19,7 +19,7 @@ AI 编码智能体的项目管理软件。Claude Code、Codex 负责执行，Kai
 **[产品官网](https://cygnusyang.github.io/Kaido/) · [下载 macOS 应用](https://github.com/cygnusyang/Kaido/releases/latest)** · **[五分钟上手（英文）](QUICKSTART.md)** · **[架构说明（英文）](ARCHITECTURE.md)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.zh-CN.md)**
 
 ```bash
-brew install --cask cygnusyang/kairo/kaido
+brew install --cask cygnusyang/kaido/kaido
 ```
 
 

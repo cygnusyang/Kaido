@@ -6,7 +6,7 @@ Every command below is meant to be copied as-is.
 ## 1. Install the app
 
 ```bash
-brew install --cask cygnusyang/kairo/kaido
+brew install --cask cygnusyang/kaido/kaido
 ```
 
 No Homebrew? Download `Kaido-vX.Y.Z.dmg` from the [latest release](https://github.com/cygnusyang/Kaido/releases/latest) and drag it to Applications.
