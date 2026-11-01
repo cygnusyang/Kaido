@@ -108,8 +108,8 @@ a 样本   170 任务(34/3/133)            深度3  依赖79  全 FS  资源1  �
 
 ```bash
 # 样本与解包
-file "/Users/cygnus/work/btrobot/Cygnus 个人任务.oplx"      # Zip archive, deflate
-unzip -l "/Users/cygnus/work/btrobot/Cygnus 个人任务.oplx"    # 3 entries
+file "/path/to/sample.oplx"      # Zip archive, deflate
+unzip -l "/path/to/sample.oplx"    # 3 entries
 defaults read /Applications/OmniPlan.app/Contents/Info.plist CFBundleShortVersionString  # 4.10.3
 
 # PoC

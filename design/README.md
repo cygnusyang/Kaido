@@ -14,4 +14,4 @@
 | `icons/menubar/kaido-menubarTemplate*.png` | 状态栏模板（黑+透明） |
 | `brand/colors.json` | 品牌色（对齐 Coffer） |
 
-参考：`/Users/cygnus/work/github/coffer/docs/assets/logo/`
+参考：Coffer 仓库的 `docs/assets/logo/`

@@ -39,7 +39,7 @@ Kaido 的三个入口同源（共用同一套写路径 `KaidoSession`）：**MCP
 
 ```bash
 # 1) 改这一行：指向你的 Kaido 仓库
-export KAIDO="$HOME/work/opc/04-开发项目/Kaido"
+export KAIDO="$HOME/path/to/Kaido"
 
 # 2) 构建（MCP 与 CLI 两个产物一次出来）
 cd "$KAIDO" && swift build -c release

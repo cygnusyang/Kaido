@@ -7,7 +7,7 @@
 ## 1. 验证环境
 
 - macOS arm64（arm64e-apple-macos14.0），Swift Testing Library Version 1743
-- 仓库：/Users/cygnus/work/opc/04-开发项目/Kaido
+- 仓库：本仓库根目录（Kaido）
 - 所有 swift 命令按本机系统策略要求带 `--disable-sandbox`
 - 全程只运行未修改任何代码；唯一临时操作为 git worktree（已清理，见 §2.4）
 

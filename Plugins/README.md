@@ -39,7 +39,7 @@ Of the three wirings, the first two steps (§2, §3) are shared; do those, then 
 
 ```bash
 # 1) change this line: point at your Kaido checkout
-export KAIDO="$HOME/work/opc/04-开发项目/Kaido"
+export KAIDO="$HOME/path/to/Kaido"
 
 # 2) build (MCP and CLI both come out of this one command)
 cd "$KAIDO" && swift build -c release
