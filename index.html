@@ -1,23 +1,16 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hans">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kaido Plan</title>
-<style>
-  body { margin: 64px auto; max-width: 640px; padding: 0 24px;
-         font: 16px/1.7 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
-  a { color: #4a56d6; }
-  .muted { color: #888; font-size: 14px; }
-</style>
-</head>
-<body>
-<h1>Kaido Plan</h1>
-<p>Project planning that keeps the ledger your AI agent works against.</p>
-<ul>
-  <li><a href="privacy.html">隐私政策 / Privacy Policy</a></li>
-  <li><a href="https://github.com/cygnusyang/Kaido">源码与问题反馈</a></li>
-</ul>
-<p class="muted">需要 macOS 14 或更高版本。</p>
-</body>
-</html>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Kaido Plan：为 Claude Code、Codex 等 AI 编码智能体提供可检查的 WBS、依赖、排期与进度工作台。">
+<meta name="theme-color" content="#ffffff"><title>Kaido Plan — AI 编码项目的计划工作台</title>
+<link rel="canonical" href="https://cygnusyang.github.io/Kaido/"><link rel="alternate" hreflang="en" href="https://cygnusyang.github.io/Kaido/en.html"><link rel="stylesheet" href="site.css">
+</head><body><a class="skip" href="#main">跳到正文</a>
+<header class="wrap nav"><a class="brand" href="#top" aria-label="Kaido Plan 首页">kaido<span>.</span></a><nav class="navlinks" aria-label="主导航"><a class="optional" href="#how">工作方式</a><a href="#license">许可</a><a class="optional" href="privacy.html">隐私</a><a class="lang" href="en.html" lang="en">EN</a><a class="pill" href="https://github.com/cygnusyang/Kaido/releases/latest">下载 macOS 应用 ↗</a></nav></header>
+<main id="main"><div class="wrap hero" id="top"><div><div class="eyebrow">AI coding · project planning</div><h1>让 AI 项目，<br>进度有账可查。</h1><p>Claude Code、Codex 负责执行；Kaido 把 WBS、依赖、排期和进度放进一张可检查的计划里。</p><div class="actions"><a class="button" href="https://github.com/cygnusyang/Kaido/releases/latest">下载 Kaido for macOS</a><a class="button secondary" href="https://github.com/cygnusyang/Kaido">查看源码</a></div><p class="micro">macOS 14+ · 本地 .kaido 文件 · AI 可通过 MCP / CLI 读写</p></div><figure class="hero-art"><img src="assets/workbench.png" alt="Kaido Plan 的 macOS 甘特图工作台，展示任务表、时间轴和项目检查器" width="2880" height="1614"><figcaption class="caption">macOS 计划工作台</figcaption></figure></div>
+<div class="strip"><div class="wrap strip-inner"><span><strong>一个计划文件</strong> · 人与 AI 共用</span><span><strong>可视化排期</strong> · 依赖与进度</span><span><strong>本地优先</strong> · 不上传项目数据</span></div></div>
+<section class="content wrap"><div class="section-head"><div class="eyebrow">The missing ledger</div><h2>AI 能写代码，<br>但项目还需要一张账本。</h2><p>任务散在聊天记录里，很难确认依赖是否完整、排期是否冲突、哪些工作已经完成。Kaido 把计划变成可读、可写、可审阅的项目数据。</p></div><div class="columns"><article class="feature"><span class="num">01 / DECOMPOSE</span><h3>把需求拆成 WBS</h3><p>按任务、群组和里程碑组织工作。AI 可通过 MCP 或 CLI 导入、读取和更新计划。</p></article><article class="feature"><span class="num">02 / SCHEDULE</span><h3>把依赖放到时间轴上</h3><p>在 macOS 甘特工作台检查任务日期、前置关系与关键路径，发现计划中的违例。</p></article><article class="feature"><span class="num">03 / TRACK</span><h3>完成情况持续回写</h3><p>执行中的状态更新回到同一份计划，让人和 AI 能围绕同一份 WBS 继续协作。</p></article></div></section>
+<section class="content wrap" id="how"><div class="section-head"><div class="eyebrow">A clear division of work</div><h2>人定边界，AI 执行，Kaido 记账。</h2></div><div class="workflow"><article class="step"><b>01 · 定义</b><p>人设定项目目标、日期和验收标准。</p></article><article class="step"><b>02 · 计划</b><p>AI 拆解 WBS、建立依赖并计算排期。</p></article><article class="step"><b>03 · 审阅</b><p>人在甘特图检查进度、冲突和关键路径。</p></article><article class="step"><b>04 · 执行</b><p>AI 逐项实现并回写状态，计划持续更新。</p></article></div></section>
+<section class="content wrap" id="license"><div class="section-head"><div class="eyebrow">Choose the right license</div><h2>非商业使用免费；商业使用请申请授权。</h2><p>Kaido 采用双许可路线：符合条件的非商业使用遵循 PolyForm Noncommercial；商业用途通过单独的书面商业许可授权。</p></div><div class="license"><article><h3>非商业许可</h3><p>个人学习、爱好、私人项目，以及许可文本定义的非商业组织，可按 PolyForm Noncommercial 1.0.0 使用。使用前请阅读完整条款。</p><a class="inline" href="https://github.com/cygnusyang/Kaido/blob/main/LICENSE">阅读 PolyForm Noncommercial 1.0.0 →</a></article><article class="commercial"><h3>商业许可</h3><p>预期用于商业应用的场景，包括营利公司内部使用，需另行取得商业许可。授权范围、合同与报价由双方书面确认；本页面不构成商业授权或报价。</p><a class="inline" href="mailto:ruohuyang@gmail.com?subject=Kaido%20Commercial%20License">联系申请商业授权 →</a></article></div></section>
+<section class="content wrap"><div class="install"><div><strong>从最新版本开始使用</strong><p>下载 macOS 应用，或从源码接入 CLI 与 MCP。</p></div><code>brew install --cask cygnusyang/kaido/kaido</code></div></section></main>
+<footer class="footer"><div class="wrap footer-inner"><span>© Kaido Plan · 为人和 AI 的项目协作而做</span><span><a href="https://github.com/cygnusyang/Kaido">GitHub</a> · <a href="privacy.html">隐私政策</a> · <a href="en.html" lang="en">English</a></span></div></footer></body></html>
