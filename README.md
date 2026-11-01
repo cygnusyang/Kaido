@@ -16,14 +16,14 @@
 
 **One plan file** · Shared by people and AI &nbsp;·&nbsp; **Visual schedule** · Dependencies and progress &nbsp;·&nbsp; **Local first** · Project data stays on your device
 
-**[Website](https://cygnusyang.github.io/Kaido/en.html) · [Download the macOS app](https://github.com/cygnusyang/Kaido/releases/latest)** · **[5-minute quickstart](QUICKSTART.md)** · **[Architecture](ARCHITECTURE.md)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)**
+**[Website](https://cygnusyang.github.io/Kaido/) · [Download the macOS app](https://github.com/cygnusyang/Kaido/releases/latest)** · **[5-minute quickstart](QUICKSTART.md)** · **[Architecture](ARCHITECTURE.md)** · **[Connect an AI agent: MCP / CLI / Claude Code plugin](Plugins/README.md)**
 
 ```bash
 brew install --cask cygnusyang/kaidoplan/kaido
 ```
 
 
-**Released: v2.2.0.** Download the latest macOS release from [GitHub Releases](https://github.com/cygnusyang/Kaido/releases/latest), or visit the [Kaido Plan website](https://cygnusyang.github.io/Kaido/en.html).
+**Released: v2.2.0.** Download the latest macOS release from [GitHub Releases](https://github.com/cygnusyang/Kaido/releases/latest), or visit the [Kaido Plan website](https://cygnusyang.github.io/Kaido/).
 
 ## What Kaido does
 
@@ -326,7 +326,7 @@ docs/                       Requirements, architecture, design system, roadmap a
 
 ## License
 
-Kaido uses a dual licensing model from v1.3.3 onward: [PolyForm Noncommercial 1.0.0](LICENSE) for qualifying noncommercial use, and a separate written commercial license for commercial use. See the [Kaido Plan website](https://cygnusyang.github.io/Kaido/en.html#license) for the licensing overview.
+Kaido uses a dual licensing model from v1.3.3 onward: [PolyForm Noncommercial 1.0.0](LICENSE) for qualifying noncommercial use, and a separate written commercial license for commercial use. See the [Kaido Plan website](https://cygnusyang.github.io/Kaido/#license) for the licensing overview.
 
 - **Free for noncommercial use**: personal study, hobby and private projects, research, experiment, and testing without any anticipated commercial application.
 - **Free for noncommercial organizations**: charities, educational institutions, public research bodies, public safety/health organizations, environmental organizations, and government institutions — regardless of funding source.

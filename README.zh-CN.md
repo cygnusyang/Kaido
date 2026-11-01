@@ -16,14 +16,14 @@ AI 编码智能体的项目管理软件。Claude Code、Codex 负责执行，Kai
 
 ![Kaido 计划工作台：左侧大纲与右侧时间画布逐行对齐取证](docs/images/app-plan-workbench.png)
 
-**[产品官网](https://cygnusyang.github.io/Kaido/) · [下载 macOS 应用](https://github.com/cygnusyang/Kaido/releases/latest)** · **[五分钟上手（英文）](QUICKSTART.md)** · **[架构说明（英文）](ARCHITECTURE.md)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.zh-CN.md)**
+**[产品官网](https://cygnusyang.github.io/Kaido/zh.html) · [下载 macOS 应用](https://github.com/cygnusyang/Kaido/releases/latest)** · **[五分钟上手（英文）](QUICKSTART.md)** · **[架构说明（英文）](ARCHITECTURE.md)** · **[接入 AI 智能体：MCP / CLI / Claude Code 插件](Plugins/README.zh-CN.md)**
 
 ```bash
 brew install --cask cygnusyang/kaidoplan/kaido
 ```
 
 
-**已发布：v2.2.0。** 可从 [GitHub Releases](https://github.com/cygnusyang/Kaido/releases/latest) 下载 macOS 版本，或访问 [Kaido Plan 产品官网](https://cygnusyang.github.io/Kaido/)。
+**已发布：v2.2.0。** 可从 [GitHub Releases](https://github.com/cygnusyang/Kaido/releases/latest) 下载 macOS 版本，或访问 [Kaido Plan 产品官网](https://cygnusyang.github.io/Kaido/zh.html)。
 
 ## 它解决什么问题
 
@@ -309,7 +309,7 @@ docs/                       需求、架构、设计系统、路线图与 Sprint
 
 ## 许可证
 
-自 v1.3.3 起采用双许可路线：[PolyForm Noncommercial 1.0.0](LICENSE) 适用于符合条件的非商业使用；商业使用须另行取得书面商业授权。许可概览见 [Kaido Plan 产品官网](https://cygnusyang.github.io/Kaido/#license)。
+自 v1.3.3 起采用双许可路线：[PolyForm Noncommercial 1.0.0](LICENSE) 适用于符合条件的非商业使用；商业使用须另行取得书面商业授权。许可概览见 [Kaido Plan 产品官网](https://cygnusyang.github.io/Kaido/zh.html#license)。
 
 - **非商业使用免费**：个人学习、爱好与私人项目、科研、实验与测试，且不预期任何商业应用。
 - **非商业组织免费**：慈善机构、教育机构、公共研究机构、公共安全或卫生机构、环保组织、政府机构，不论资金来源。
