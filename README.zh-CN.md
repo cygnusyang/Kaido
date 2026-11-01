@@ -21,6 +21,7 @@ AI 编码智能体的项目管理软件。Claude Code、Codex 负责执行，Kai
 ```bash
 brew install --cask cygnusyang/kaidoplan/kaido
 ```
+
 **最新版本：** 从 [GitHub Releases](https://github.com/cygnusyang/Kaido/releases/latest) 下载 macOS 版本，或访问 [Kaido Plan 产品官网](https://cygnusyang.github.io/Kaido/zh.html)。顶部徽章始终显示最新 tag。
 
 ## 它解决什么问题

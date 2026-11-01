@@ -21,6 +21,7 @@
 ```bash
 brew install --cask cygnusyang/kaidoplan/kaido
 ```
+
 **Latest release:** download the macOS app from [GitHub Releases](https://github.com/cygnusyang/Kaido/releases/latest), or visit the [Kaido Plan website](https://cygnusyang.github.io/Kaido/). The badge at the top always shows the newest tag.
 
 ## What Kaido does
