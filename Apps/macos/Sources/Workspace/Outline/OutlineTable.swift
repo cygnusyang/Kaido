@@ -919,6 +919,13 @@ private struct OutlineRowView: View {
 
     @ViewBuilder
     private var contextMenu: some View {
+        Button(I18n.t("action.expand_all_tasks", "Expand All Tasks")) {
+            store.setAllTasksExpanded(true)
+        }
+        Button(I18n.t("action.collapse_all_tasks", "Collapse All Tasks")) {
+            store.setAllTasksExpanded(false)
+        }
+        Divider()
         Button(I18n.t("action.new_sibling", "New Sibling Task")) {
             store.dispatch(.createSibling(after: row.id))
         }

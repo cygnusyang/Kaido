@@ -205,6 +205,23 @@
         }
       }
     },
+    "action.collapse_all_tasks": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collapse All Tasks"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "折叠所有任务"
+          }
+        }
+      }
+    },
     "action.discard_and_load": {
       "extractionState": "manual",
       "localizations": {
@@ -303,6 +320,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "缩进"
+          }
+        }
+      }
+    },
+    "action.expand_all_tasks": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expand All Tasks"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "展开所有任务"
           }
         }
       }

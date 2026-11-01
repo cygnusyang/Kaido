@@ -303,6 +303,27 @@ struct WorkspaceStoreTests {
         #expect(try row(store, id: groupID).isExpanded)
     }
 
+    @Test func collapseAndExpandAllTasksIncludesNestedGroups() throws {
+        let store = makeStore(seedsDemoData: false)
+        store.dispatch(.createTask(parentID: nil, kind: .group))
+        let outerID = try #require(store.selection)
+        store.dispatch(.createTask(parentID: outerID, kind: .group))
+        let innerID = try #require(store.selection)
+        store.dispatch(.createTask(parentID: innerID, kind: .task))
+
+        store.setAllTasksExpanded(false)
+        #expect(store.viewState.expandedTaskIDs.isEmpty)
+        #expect(try row(store, id: outerID).hasChildren)
+        #expect(!(try row(store, id: outerID).isExpanded))
+        #expect(!rows(store).contains { $0.id == innerID })
+
+        store.setAllTasksExpanded(true)
+        #expect(store.viewState.expandedTaskIDs == [outerID, innerID])
+        #expect(try row(store, id: outerID).isExpanded)
+        #expect(try row(store, id: innerID).isExpanded)
+        #expect(rows(store).count == 3)
+    }
+
     @Test func dropExitCancelsPendingExpand() async throws {
         let store = makeStore()
         store.dispatch(.createTask(parentID: nil, kind: .group))

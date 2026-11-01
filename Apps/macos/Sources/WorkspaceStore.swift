@@ -437,6 +437,13 @@ final class WorkspaceStore: ObservableObject {
     var hasUnsavedChanges: Bool { session.hasUnsavedChanges }
     var selection: UUID? { viewState.selectedTaskID }
 
+    /// 一键收起 / 展开完整任务树。展开集合取自项目模型，而不是当前可见行，
+    /// 因此多层折叠时也会同时打开隐藏在下级的所有群组。
+    func setAllTasksExpanded(_ expanded: Bool) {
+        let ids = expanded ? Self.allParentIDs(in: session.project?.tasks ?? []) : []
+        dispatch(.setExpanded(ids))
+    }
+
     /// 项目基线（有序 = 创建顺序）：基线菜单与检查器共用同一份。
     var baselines: [Baseline] { session.project?.baselines ?? [] }
 
