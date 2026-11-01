@@ -160,9 +160,13 @@ App Store 对 Mac 截图接受 16:10 的这几档：1280×800、1440×900、2560
 
 **隐私政策 URL（已可用）**：<https://cygnusyang.github.io/Kaido/privacy.html>
 
-- 源文件：`site/privacy.html`（正文与 `docs/privacy.md` 同源），发布在 `gh-pages` 分支
-- 站点根：<https://cygnusyang.github.io/Kaido/>
-- 实测 200（2026-11-01）；改政策时同步改这两处，Pages 会随推送自动重建
+- 源文件：`site/privacy.html`（正文与 `docs/privacy.md` 同源）
+- 站点根：<https://cygnusyang.github.io/Kaido/>（默认英文页；中文版在 `/Kaido/zh.html`，`en.html` 已废弃）
+- **发布方式**：源文件在 `main` 的 `site/`，但对外的 `gh-pages` 是**独立分支，没有自动同步的
+  workflow**——只推 `main` 线上不会有任何变化。改完 `site/` 必须手动同步：用
+  `git worktree add /tmp/site-sync --detach origin/gh-pages` 检出，把 `site/*.html`、`site/site.css`、
+  `site/assets/` 拷过去、删掉废弃文件，commit 后 `git push origin HEAD:gh-pages`，Pages 才会重建。
+- 实测 200（2026-11-01）
 
 ## 六、App 审核备注（App Review Information → Notes）
 
