@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-> **Pronunciation** · /ˈkaɪ.roʊ/ (US) · /ˈkaɪ.rəʊ/ (UK) — “KY-roh”, the same as the city *Cairo*. Not “keh-ROH” and not “KAY-ee-roh”.
+> **Pronunciation** · /ˈkaɪ.doʊ/ (US) · /ˈkaɪ.dəʊ/ (UK) — “KAI-doh”, two syllables: *kai* (rhymes with “sky”) + *doh* (rhymes with “go”). Not “KY-roh”.
 
 [![Release](https://img.shields.io/github/v/release/cygnusyang/Kaido?color=blue)](https://github.com/cygnusyang/Kaido/releases/latest)
 [![License](https://img.shields.io/badge/license-PolyForm--Noncommercial--1.0.0-blue.svg)](LICENSE)

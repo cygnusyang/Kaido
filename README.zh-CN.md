@@ -2,7 +2,7 @@
 
 [English](README.md) · **简体中文**
 
-> **发音** · /ˈkaɪ.roʊ/（美）· /ˈkaɪ.rəʊ/（英）—— 读作「凯罗」，与城市「开罗」同音；不是「卡伊罗」，也不读「KAY-ee-roh」。
+> **发音** · /ˈkaɪ.doʊ/（美）· /ˈkaɪ.dəʊ/（英）—— 读作「凯多」；不是「凯罗」。
 
 [![Release](https://img.shields.io/github/v/release/cygnusyang/Kaido?color=blue)](https://github.com/cygnusyang/Kaido/releases/latest)
 [![License](https://img.shields.io/badge/license-PolyForm--Noncommercial--1.0.0-blue.svg)](LICENSE)
