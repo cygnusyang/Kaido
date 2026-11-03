@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaido Plan — 隐私政策 / Privacy Policy</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0 auto; max-width: 720px; padding: 48px 24px 96px;
+         font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif; }
+  h1 { font-size: 28px; margin-bottom: 4px; }
+  h2 { font-size: 20px; margin-top: 40px; }
+  .meta { color: #888; font-size: 14px; }
+  code { font-size: 14px; background: rgba(127,127,127,.15); padding: 1px 4px; border-radius: 3px; }
+  hr { border: 0; border-top: 1px solid rgba(127,127,127,.3); margin: 48px 0; }
+  a { color: #4a56d6; }
+</style>
+</head>
+<body>
+<h1>Kaido Plan 隐私政策</h1>
+<p class="meta">最后更新：2026-11-01</p>
+
+<p>Kaido Plan（下称「本应用」）不收集、不存储、不传输任何个人信息。</p>
+
+<ul>
+  <li><strong>不收集数据</strong>：本应用不含账号系统、行为分析、崩溃上报、广告或第三方 SDK。</li>
+  <li><strong>项目数据留在本地</strong>：你打开和保存的 <code>.kaido</code> 文件只存在你选择的位置。
+      本应用不上传、不备份、不同步任何项目内容。</li>
+  <li><strong>最近项目</strong>：为了在启动时重新打开上次的项目，本应用在你明确选择文件或文件夹后，
+      会为该文件生成一个仅限本应用使用的 security-scoped bookmark，保存在本机偏好设置里。
+      删除「最近项目」或移除授权目录即可清除。</li>
+  <li><strong>MCP 服务（默认关闭）</strong>：你在「项目 ▸ MCP 服务…」中手动开启后，本应用会在
+      <code>127.0.0.1</code> 上监听本地端口，供本机运行的 AI 客户端读写同一份计划。
+      <ul>
+        <li>只监听回环地址，不接受来自局域网或互联网的连接；</li>
+        <li>每个请求必须携带本应用在本机生成、并显示在该面板中的访问令牌；</li>
+        <li>只有你在该面板中授权的文件夹可被访问，越界请求会被拒绝；</li>
+        <li>随时关闭开关或重置令牌即可立即中断访问。</li>
+      </ul></li>
+  <li><strong>无第三方共享</strong>：本应用不与任何第三方共享数据，因为不存在可共享的数据。</li>
+</ul>
+
+<p>如对本政策有疑问，请通过项目主页
+   <a href="https://github.com/cygnusyang/Kaido">github.com/cygnusyang/Kaido</a> 的 Issues 联系。</p>
+
+<hr>
+
+<h1>Kaido Plan Privacy Policy</h1>
+<p class="meta">Last updated: 1 November 2026</p>
+
+<p>Kaido Plan ("the app") does not collect, store or transmit any personal information.</p>
+
+<ul>
+  <li><strong>No data collection</strong>: no accounts, no analytics, no crash reporting,
+      no advertising, no third-party SDKs.</li>
+  <li><strong>Project data stays local</strong>: the <code>.kaido</code> files you open and save
+      live only where you put them. The app never uploads, backs up or syncs project content.</li>
+  <li><strong>Recent projects</strong>: to reopen your last project on launch, the app creates a
+      security-scoped bookmark for files or folders you explicitly chose, and keeps it in local
+      preferences. Clearing "Recent projects" or removing an authorized folder deletes it.</li>
+  <li><strong>MCP service (off by default)</strong>: when you enable it under Project ▸ MCP Service…,
+      the app listens on <code>127.0.0.1</code> so a locally running AI client can read and write
+      the same plan.
+      <ul>
+        <li>loopback only — never the LAN, never the internet;</li>
+        <li>every request must carry a bearer token generated locally and shown in that panel;</li>
+        <li>only folders you authorized in that panel are reachable; anything else is refused;</li>
+        <li>turning the switch off or resetting the token cuts access immediately.</li>
+      </ul></li>
+  <li><strong>No third-party sharing</strong>: there is no data to share.</li>
+</ul>
+
+<p>Questions: open an issue at
+   <a href="https://github.com/cygnusyang/Kaido">github.com/cygnusyang/Kaido</a>.</p>
+</body>
+</html>
