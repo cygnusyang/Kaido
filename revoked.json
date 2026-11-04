@@ -1,9 +1,13 @@
 {
-  "generatedAt" : 1793803517,
+  "generatedAt" : 1793803625,
   "keyId" : "2026-11",
   "revoked" : [
-
+    {
+      "at" : 1793803625,
+      "licenseId" : "be62d033-2b6e-4fd8-b978-baaf6382903b",
+      "reason" : "refund"
+    }
   ],
-  "signature" : "T5xe407LQtT01RVMBPoz0NfGw4ozxcxaNGagVRyndrhHEpKmyO7b1eLHU3qxvSntCKS2thQPHUDnhtra4XYHDA==",
+  "signature" : "35ri1GMZASO5TFrbmVOwda6LqbfMKWqvohbneJvIKEu8HVAwXq6pvSxhwe1wljC3Jwleap+n512doNN7qw3VCw==",
   "version" : 1
 }
